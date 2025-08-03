@@ -42,6 +42,30 @@ const createUploadsDirectories = () => {
 // Initialize uploads directories
 createUploadsDirectories();
 
+// Check and log database SQL mode
+const checkDatabaseMode = async () => {
+  try {
+    const pool = require('./config/database');
+    const [rows] = await pool.query('SELECT @@sql_mode as sql_mode');
+    console.log('🔧 Database SQL Mode:', rows[0].sql_mode);
+    
+    // Check if ONLY_FULL_GROUP_BY is enabled
+    const hasOnlyFullGroupBy = rows[0].sql_mode.includes('ONLY_FULL_GROUP_BY');
+    console.log('🔧 ONLY_FULL_GROUP_BY enabled:', hasOnlyFullGroupBy);
+    
+    if (hasOnlyFullGroupBy) {
+      console.log('⚠️  ONLY_FULL_GROUP_BY is enabled - queries must be compliant');
+    } else {
+      console.log('✅ ONLY_FULL_GROUP_BY is disabled - queries are more permissive');
+    }
+  } catch (error) {
+    console.error('❌ Error checking database SQL mode:', error);
+  }
+};
+
+// Check database mode on startup
+checkDatabaseMode();
+
 // CORS configuration for Flutter web
 const corsOptions = {
   origin: true, // Allow all origins for development

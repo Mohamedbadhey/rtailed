@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 const { auth, checkRole } = require('../middleware/auth');
+const { executeQueryWithRelaxedGroupBy } = require('../utils/databaseUtils');
 
 // Get all sales
 router.get('/', auth, async (req, res) => {
@@ -221,10 +222,26 @@ router.get('/report', auth, async (req, res) => {
       params
     );
     // Sales by period
-    const [salesByPeriod] = await pool.query(
-      `SELECT DATE_FORMAT(s.created_at, ?) as period, COUNT(*) as total_sales, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_sale FROM sales s ${whereClause} GROUP BY DATE_FORMAT(s.created_at, ?) ORDER BY period DESC`,
-      [group_by === 'day' ? '%Y-%m-%d' : group_by === 'week' ? '%Y-%u' : '%Y-%m', group_by === 'day' ? '%Y-%m-%d' : group_by === 'week' ? '%Y-%u' : '%Y-%m', ...params]
-    );
+    const dateFormat = group_by === 'day' ? '%Y-%m-%d' : group_by === 'week' ? '%Y-%u' : '%Y-%m';
+    const salesByPeriodQuery = `SELECT DATE_FORMAT(s.created_at, ?) as period, COUNT(*) as total_sales, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_sale FROM sales s ${whereClause} GROUP BY DATE_FORMAT(s.created_at, ?) ORDER BY period DESC`;
+    const salesByPeriodParams = [dateFormat, dateFormat, ...params];
+    
+    console.log('SALES REPORT: Sales by period query:', salesByPeriodQuery);
+    console.log('SALES REPORT: Sales by period params:', salesByPeriodParams);
+    
+    let salesByPeriod;
+    try {
+      // Try the normal query first
+      [salesByPeriod] = await pool.query(salesByPeriodQuery, salesByPeriodParams);
+    } catch (error) {
+      if (error.code === 'ER_WRONG_FIELD_WITH_GROUP') {
+        console.log('⚠️  GROUP BY error detected, using relaxed mode...');
+        // Fallback to relaxed GROUP BY mode
+        salesByPeriod = await executeQueryWithRelaxedGroupBy(salesByPeriodQuery, salesByPeriodParams);
+      } else {
+        throw error;
+      }
+    }
     // Payment methods
     const [paymentMethods] = await pool.query(
       `SELECT s.payment_method, COUNT(*) as count, SUM(s.total_amount) as total_amount FROM sales s ${whereClause} GROUP BY s.payment_method ORDER BY total_amount DESC`,

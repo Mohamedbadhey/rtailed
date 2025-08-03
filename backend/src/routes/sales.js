@@ -87,10 +87,10 @@ router.post('/', auth, async (req, res) => {
     const businessId = req.user.business_id;
     const [saleResult] = await connection.query(
       `INSERT INTO sales (
-        customer_id, user_id, total_amount, 
+        customer_id, user_id, total_amount, tax_amount,
         payment_method, status, sale_mode, business_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [customer_id, req.user.id, totalAmount, payment_method, saleStatus, sale_mode || 'retail', businessId]
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [customer_id, req.user.id, totalAmount, 0.00, payment_method, saleStatus, sale_mode || 'retail', businessId]
     );
 
     const sale_id = saleResult.insertId;
@@ -541,9 +541,9 @@ router.put('/:id/pay', auth, async (req, res) => {
     }
     // Insert payment as a new sale row with parent_sale_id set
     await pool.query(
-      `INSERT INTO sales (parent_sale_id, customer_id, user_id, total_amount, payment_method, status)
-       VALUES (?, ?, ?, ?, ?, 'completed')`,
-      [saleId, sale.customer_id, req.user.id, amount, payment_method]
+      `INSERT INTO sales (parent_sale_id, customer_id, user_id, total_amount, tax_amount, payment_method, status, business_id)
+       VALUES (?, ?, ?, ?, ?, ?, 'completed', ?)`,
+      [saleId, sale.customer_id, req.user.id, amount, 0.00, payment_method, sale.business_id]
     );
     // If fully paid, update sale status
     const newTotalPaid = totalPaid + Number(amount);

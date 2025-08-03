@@ -9,8 +9,8 @@ npm install
 
 echo.
 echo Starting server...
-echo Backend will be available at: http://localhost:3000
-echo API Health Check: http://localhost:3000/api/health
+echo Backend will be available at: https://rtailed-production.up.railway.app
+echo API Health Check: https://rtailed-production.up.railway.app/api/health
 echo.
 
 npm start

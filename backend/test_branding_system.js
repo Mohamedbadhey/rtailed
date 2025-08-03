@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // Test configuration
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'https://rtailed-production.up.railway.app';
 const TEST_EMAIL = 's@gmail.com';
 const TEST_PASSWORD = '123456';
 

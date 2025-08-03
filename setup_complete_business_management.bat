@@ -89,7 +89,7 @@ echo Step 4: Final verification...
 echo.
 
 echo Testing businesses endpoint...
-curl -X GET "http://localhost:3000/api/businesses" -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN_HERE" || echo "Note: Backend needs to be running to test endpoint"
+curl -X GET "https://rtailed-production.up.railway.app/api/businesses" -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN_HERE" || echo "Note: Backend needs to be running to test endpoint"
 
 echo.
 echo ========================================

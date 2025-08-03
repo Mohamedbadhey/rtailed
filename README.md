@@ -168,12 +168,12 @@ JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 PORT=3000
 
 # CORS Configuration
-CORS_ORIGIN=http://localhost:8080
+CORS_ORIGIN=https://rtailed-production.up.railway.app:8080
 ```
 
 ### Frontend Configuration
 
-The frontend is configured to connect to `http://localhost:3000/api` by default. You can modify this in:
+The frontend is configured to connect to `https://rtailed-production.up.railway.app/api` by default. You can modify this in:
 - `lib/services/api_service.dart`
 - `lib/utils/api.dart`
 - `lib/utils/connection_test.dart`
@@ -183,7 +183,7 @@ The frontend is configured to connect to `http://localhost:3000/api` by default.
 You can test the backend connection using the health check endpoint:
 
 ```bash
-curl http://localhost:3000/api/health
+curl https://rtailed-production.up.railway.app/api/health
 ```
 
 Or use the Flutter connection test utility:
@@ -231,7 +231,7 @@ rtail/
    - Verify database exists
 
 2. **CORS Errors**
-   - Backend CORS is configured for `http://localhost:8080`
+   - Backend CORS is configured for `https://rtailed-production.up.railway.app:8080`
    - Ensure frontend is running on the correct port
 
 3. **Authentication Errors**

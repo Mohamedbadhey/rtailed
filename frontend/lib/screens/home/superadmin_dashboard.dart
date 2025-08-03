@@ -327,25 +327,26 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       appBar: BrandedAppBar(
         title: isTiny ? 'Admin' : (isVerySmall ? 'Superadmin' : t(context, 'Superadmin Dashboard')),
         bottom: isMobile ? PreferredSize(
-          preferredSize: Size.fromHeight(isTiny ? 40 : 48),
+          preferredSize: Size.fromHeight(isTiny ? 44 : 52), // Increased height for better touch targets
           child: Container(
-            height: isTiny ? 40 : 48,
+            height: isTiny ? 44 : 52,
             child: TabBar(
               controller: _tabController,
               isScrollable: true,
               labelColor: Theme.of(context).primaryColor,
               unselectedLabelColor: Colors.grey[600],
               indicatorColor: Theme.of(context).primaryColor,
-              labelPadding: EdgeInsets.symmetric(horizontal: isTiny ? 4 : (isExtraSmall ? 6 : 8)),
-              labelStyle: TextStyle(fontSize: isTiny ? 8 : (isExtraSmall ? 10 : 12), fontWeight: FontWeight.w500),
-              unselectedLabelStyle: TextStyle(fontSize: isTiny ? 8 : (isExtraSmall ? 10 : 12)),
+              labelPadding: EdgeInsets.symmetric(horizontal: isTiny ? 6 : (isExtraSmall ? 8 : 10)),
+              labelStyle: TextStyle(fontSize: isTiny ? 9 : (isExtraSmall ? 11 : 13), fontWeight: FontWeight.w500),
+              unselectedLabelStyle: TextStyle(fontSize: isTiny ? 9 : (isExtraSmall ? 11 : 13)),
+              indicatorSize: TabBarIndicatorSize.label,
               tabs: [
-                Tab(icon: Icon(Icons.dashboard, size: isTiny ? 14 : (isExtraSmall ? 16 : 18)), text: isTiny ? 'Overview' : (isExtraSmall ? 'Overview' : 'Overview')),
-                Tab(icon: Icon(Icons.business, size: isTiny ? 14 : (isExtraSmall ? 16 : 18)), text: isTiny ? 'Biz' : (isExtraSmall ? 'Businesses' : 'Businesses')),
-                Tab(icon: Icon(Icons.people, size: isTiny ? 14 : (isExtraSmall ? 16 : 18)), text: isTiny ? 'Users' : (isExtraSmall ? 'Users' : 'Users')),
-                Tab(icon: Icon(Icons.analytics, size: isTiny ? 14 : (isExtraSmall ? 16 : 18)), text: isTiny ? 'Analytics' : (isExtraSmall ? 'Analytics' : 'Analytics')),
-                Tab(icon: Icon(Icons.settings, size: isTiny ? 14 : (isExtraSmall ? 16 : 18)), text: isTiny ? 'Settings' : (isExtraSmall ? 'Settings' : 'Settings')),
-                Tab(icon: Icon(Icons.storage, size: isTiny ? 14 : (isExtraSmall ? 16 : 18)), text: isTiny ? 'Data' : (isExtraSmall ? 'Data' : 'Data')),
+                Tab(icon: Icon(Icons.dashboard, size: isTiny ? 16 : (isExtraSmall ? 18 : 20)), text: isTiny ? 'Overview' : (isExtraSmall ? 'Overview' : 'Overview')),
+                Tab(icon: Icon(Icons.business, size: isTiny ? 16 : (isExtraSmall ? 18 : 20)), text: isTiny ? 'Biz' : (isExtraSmall ? 'Businesses' : 'Businesses')),
+                Tab(icon: Icon(Icons.people, size: isTiny ? 16 : (isExtraSmall ? 18 : 20)), text: isTiny ? 'Users' : (isExtraSmall ? 'Users' : 'Users')),
+                Tab(icon: Icon(Icons.analytics, size: isTiny ? 16 : (isExtraSmall ? 18 : 20)), text: isTiny ? 'Analytics' : (isExtraSmall ? 'Analytics' : 'Analytics')),
+                Tab(icon: Icon(Icons.settings, size: isTiny ? 16 : (isExtraSmall ? 18 : 20)), text: isTiny ? 'Settings' : (isExtraSmall ? 'Settings' : 'Settings')),
+                Tab(icon: Icon(Icons.storage, size: isTiny ? 16 : (isExtraSmall ? 18 : 20)), text: isTiny ? 'Data' : (isExtraSmall ? 'Data' : 'Data')),
               ],
             ),
           ),
@@ -372,20 +373,20 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
             icon: Icon(Icons.refresh, size: isTiny ? 18 : 24),
             onPressed: _loadDashboardData,
             tooltip: t(context, 'Refresh'),
-            padding: EdgeInsets.all(isTiny ? 4 : 8),
+            padding: EdgeInsets.all(isTiny ? 6 : 8),
             constraints: BoxConstraints(
-              minWidth: isTiny ? 32 : 40,
-              minHeight: isTiny ? 32 : 40,
+              minWidth: isTiny ? 36 : 44,
+              minHeight: isTiny ? 36 : 44,
             ),
           ),
           // Account menu - ALWAYS visible on ALL screen sizes
           PopupMenuButton<String>(
-            icon: Icon(Icons.account_circle, color: Colors.white, size: isTiny ? 20 : 24),
+            icon: Icon(Icons.account_circle, color: Colors.white, size: isTiny ? 22 : 24),
             tooltip: t(context, 'Account'),
-            padding: EdgeInsets.all(isTiny ? 4 : 8),
+            padding: EdgeInsets.all(isTiny ? 6 : 8),
             constraints: BoxConstraints(
-              minWidth: isTiny ? 32 : 40,
-              minHeight: isTiny ? 32 : 40,
+              minWidth: isTiny ? 36 : 44,
+              minHeight: isTiny ? 36 : 44,
             ),
             onSelected: (value) {
               if (value == 'logout') {
@@ -755,15 +756,37 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   Widget _buildNotificationsCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTiny ? 6 : 8)),
       child: Padding(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Notifications', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('No notifications', style: TextStyle(color: Colors.grey[600])),
+            Row(
+              children: [
+                Icon(
+                  Icons.notifications,
+                  size: isTiny ? 16 : (isExtraSmall ? 18 : 20),
+                  color: Theme.of(context).primaryColor,
+                ),
+                SizedBox(width: isTiny ? 6 : 8),
+                Text(
+                  isTiny ? 'Alerts' : 'Notifications', 
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isTiny ? 12 : (isExtraSmall ? 14 : 16),
+                  )
+                ),
+              ],
+            ),
+            SizedBox(height: isTiny ? 6 : 8),
+            Text(
+              'No notifications', 
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: isTiny ? 10 : (isExtraSmall ? 12 : 14),
+              )
+            ),
           ],
         ),
       ),
@@ -773,15 +796,37 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   Widget _buildBillingCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTiny ? 6 : 8)),
       child: Padding(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Billing', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('Billing information will appear here', style: TextStyle(color: Colors.grey[600])),
+            Row(
+              children: [
+                Icon(
+                  Icons.payment,
+                  size: isTiny ? 16 : (isExtraSmall ? 18 : 20),
+                  color: Theme.of(context).primaryColor,
+                ),
+                SizedBox(width: isTiny ? 6 : 8),
+                Text(
+                  isTiny ? 'Billing' : 'Billing Overview', 
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isTiny ? 12 : (isExtraSmall ? 14 : 16),
+                  )
+                ),
+              ],
+            ),
+            SizedBox(height: isTiny ? 6 : 8),
+            Text(
+              'Billing information will appear here', 
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: isTiny ? 10 : (isExtraSmall ? 12 : 14),
+              )
+            ),
           ],
         ),
       ),
@@ -791,17 +836,45 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   Widget _buildUserManagementCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTiny ? 6 : 8)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('User Management', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: () {},
-              child: Text('Manage Users'),
+            Row(
+              children: [
+                Icon(
+                  Icons.people,
+                  size: isTiny ? 16 : (isExtraSmall ? 18 : 20),
+                  color: Theme.of(context).primaryColor,
+                ),
+                SizedBox(width: isTiny ? 6 : 8),
+                Text(
+                  isTiny ? 'Users' : 'User Management', 
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isTiny ? 12 : (isExtraSmall ? 14 : 16),
+                  )
+                ),
+              ],
+            ),
+            SizedBox(height: isTiny ? 6 : 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {},
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    vertical: isTiny ? 6 : (isExtraSmall ? 8 : 10),
+                    horizontal: isTiny ? 8 : (isExtraSmall ? 12 : 16),
+                  ),
+                ),
+                child: Text(
+                  isTiny ? 'Manage' : 'Manage Users',
+                  style: TextStyle(fontSize: isTiny ? 10 : (isExtraSmall ? 12 : 14)),
+                ),
+              ),
             ),
           ],
         ),
@@ -812,15 +885,37 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   Widget _buildAuditCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTiny ? 6 : 8)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Audit Logs', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('View security audit logs', style: TextStyle(color: Colors.grey[600])),
+            Row(
+              children: [
+                Icon(
+                  Icons.security,
+                  size: isTiny ? 16 : (isExtraSmall ? 18 : 20),
+                  color: Theme.of(context).primaryColor,
+                ),
+                SizedBox(width: isTiny ? 6 : 8),
+                Text(
+                  isTiny ? 'Audit' : 'Audit Logs', 
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isTiny ? 12 : (isExtraSmall ? 14 : 16),
+                  )
+                ),
+              ],
+            ),
+            SizedBox(height: isTiny ? 6 : 8),
+            Text(
+              'View security audit logs', 
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: isTiny ? 10 : (isExtraSmall ? 12 : 14),
+              )
+            ),
           ],
         ),
       ),
@@ -830,15 +925,37 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   Widget _buildAccessControlCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTiny ? 6 : 8)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Access Control', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('Manage role permissions', style: TextStyle(color: Colors.grey[600])),
+            Row(
+              children: [
+                Icon(
+                  Icons.lock,
+                  size: isTiny ? 16 : (isExtraSmall ? 18 : 20),
+                  color: Theme.of(context).primaryColor,
+                ),
+                SizedBox(width: isTiny ? 6 : 8),
+                Text(
+                  isTiny ? 'Access' : 'Access Control', 
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isTiny ? 12 : (isExtraSmall ? 14 : 16),
+                  )
+                ),
+              ],
+            ),
+            SizedBox(height: isTiny ? 6 : 8),
+            Text(
+              'Manage role permissions', 
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: isTiny ? 10 : (isExtraSmall ? 12 : 14),
+              )
+            ),
           ],
         ),
       ),
@@ -848,15 +965,37 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   Widget _buildSystemSettingsCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTiny ? 6 : 8)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('System Settings', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('Configure system parameters', style: TextStyle(color: Colors.grey[600])),
+            Row(
+              children: [
+                Icon(
+                  Icons.settings,
+                  size: isTiny ? 16 : (isExtraSmall ? 18 : 20),
+                  color: Theme.of(context).primaryColor,
+                ),
+                SizedBox(width: isTiny ? 6 : 8),
+                Text(
+                  isTiny ? 'Settings' : 'System Settings', 
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isTiny ? 12 : (isExtraSmall ? 14 : 16),
+                  )
+                ),
+              ],
+            ),
+            SizedBox(height: isTiny ? 6 : 8),
+            Text(
+              'Configure system parameters', 
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: isTiny ? 10 : (isExtraSmall ? 12 : 14),
+              )
+            ),
           ],
         ),
       ),
@@ -866,17 +1005,45 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   Widget _buildAdminCodesCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTiny ? 6 : 8)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Admin Codes', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: () {},
-              child: Text('Update Admin Code'),
+            Row(
+              children: [
+                Icon(
+                  Icons.admin_panel_settings,
+                  size: isTiny ? 16 : (isExtraSmall ? 18 : 20),
+                  color: Theme.of(context).primaryColor,
+                ),
+                SizedBox(width: isTiny ? 6 : 8),
+                Text(
+                  isTiny ? 'Codes' : 'Admin Codes', 
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isTiny ? 12 : (isExtraSmall ? 14 : 16),
+                  )
+                ),
+              ],
+            ),
+            SizedBox(height: isTiny ? 6 : 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {},
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    vertical: isTiny ? 6 : (isExtraSmall ? 8 : 10),
+                    horizontal: isTiny ? 8 : (isExtraSmall ? 12 : 16),
+                  ),
+                ),
+                child: Text(
+                  isTiny ? 'Update' : 'Update Admin Code',
+                  style: TextStyle(fontSize: isTiny ? 10 : (isExtraSmall ? 12 : 14)),
+                ),
+              ),
             ),
           ],
         ),
@@ -884,34 +1051,94 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     );
   }
 
-  Widget _buildBrandingCard() {
+  Widget _buildBrandingCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTiny ? 6 : 8)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Branding', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    child: Text('System Branding'),
-                  ),
+                Icon(
+                  Icons.branding_watermark,
+                  size: isTiny ? 16 : (isExtraSmall ? 18 : 20),
+                  color: Theme.of(context).primaryColor,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    child: Text('Business Branding'),
-                  ),
+                SizedBox(width: isTiny ? 6 : 8),
+                Text(
+                  isTiny ? 'Brand' : 'Branding', 
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isTiny ? 12 : (isExtraSmall ? 14 : 16),
+                  )
                 ),
               ],
             ),
+            SizedBox(height: isTiny ? 6 : 8),
+            if (isTiny || isExtraSmall) ...[
+              // Stack buttons vertically on small screens
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {},
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(
+                      vertical: isTiny ? 6 : 8,
+                      horizontal: isTiny ? 8 : 12,
+                    ),
+                  ),
+                  child: Text(
+                    isTiny ? 'System' : 'System Branding',
+                    style: TextStyle(fontSize: isTiny ? 10 : 12),
+                  ),
+                ),
+              ),
+              SizedBox(height: isTiny ? 4 : 6),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {},
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(
+                      vertical: isTiny ? 6 : 8,
+                      horizontal: isTiny ? 8 : 12,
+                    ),
+                  ),
+                  child: Text(
+                    isTiny ? 'Business' : 'Business Branding',
+                    style: TextStyle(fontSize: isTiny ? 10 : 12),
+                  ),
+                ),
+              ),
+            ] else ...[
+              // Side by side on larger screens
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                      ),
+                      child: Text('System Branding'),
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                      ),
+                      child: Text('Business Branding'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -921,17 +1148,45 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   Widget _buildBackupsCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTiny ? 6 : 8)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Backups', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: () {},
-              child: Text('Create Backup'),
+            Row(
+              children: [
+                Icon(
+                  Icons.backup,
+                  size: isTiny ? 16 : (isExtraSmall ? 18 : 20),
+                  color: Theme.of(context).primaryColor,
+                ),
+                SizedBox(width: isTiny ? 6 : 8),
+                Text(
+                  isTiny ? 'Backup' : 'Backups', 
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isTiny ? 12 : (isExtraSmall ? 14 : 16),
+                  )
+                ),
+              ],
+            ),
+            SizedBox(height: isTiny ? 6 : 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {},
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    vertical: isTiny ? 6 : (isExtraSmall ? 8 : 10),
+                    horizontal: isTiny ? 8 : (isExtraSmall ? 12 : 16),
+                  ),
+                ),
+                child: Text(
+                  isTiny ? 'Create' : 'Create Backup',
+                  style: TextStyle(fontSize: isTiny ? 10 : (isExtraSmall ? 12 : 14)),
+                ),
+              ),
             ),
           ],
         ),
@@ -942,15 +1197,37 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   Widget _buildDataOverviewCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTiny ? 6 : 8)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Data Overview', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('View system data statistics', style: TextStyle(color: Colors.grey[600])),
+            Row(
+              children: [
+                Icon(
+                  Icons.analytics,
+                  size: isTiny ? 16 : (isExtraSmall ? 18 : 20),
+                  color: Theme.of(context).primaryColor,
+                ),
+                SizedBox(width: isTiny ? 6 : 8),
+                Text(
+                  isTiny ? 'Data' : 'Data Overview', 
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isTiny ? 12 : (isExtraSmall ? 14 : 16),
+                  )
+                ),
+              ],
+            ),
+            SizedBox(height: isTiny ? 6 : 8),
+            Text(
+              'View system data statistics', 
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: isTiny ? 10 : (isExtraSmall ? 12 : 14),
+              )
+            ),
           ],
         ),
       ),
@@ -960,15 +1237,37 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   Widget _buildDeletedDataCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTiny ? 6 : 8)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Deleted Data', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('Manage deleted data recovery', style: TextStyle(color: Colors.grey[600])),
+            Row(
+              children: [
+                Icon(
+                  Icons.delete_forever,
+                  size: isTiny ? 16 : (isExtraSmall ? 18 : 20),
+                  color: Theme.of(context).primaryColor,
+                ),
+                SizedBox(width: isTiny ? 6 : 8),
+                Text(
+                  isTiny ? 'Deleted' : 'Deleted Data', 
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isTiny ? 12 : (isExtraSmall ? 14 : 16),
+                  )
+                ),
+              ],
+            ),
+            SizedBox(height: isTiny ? 6 : 8),
+            Text(
+              'Manage deleted data recovery', 
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: isTiny ? 10 : (isExtraSmall ? 12 : 14),
+              )
+            ),
           ],
         ),
       ),
@@ -978,9 +1277,9 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   Widget _buildDataExportCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTiny ? 6 : 8)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -5857,40 +6156,113 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   Widget _buildBrandingCardDesktop(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTiny ? 6 : 8)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Branding Management', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const BrandingSettingsScreen(),
-                      ),
-                    ),
-                    icon: const Icon(Icons.branding_watermark),
-                    label: const Text('System Branding'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.purple, foregroundColor: Colors.white),
-                  ),
+                Icon(
+                  Icons.branding_watermark,
+                  size: isTiny ? 16 : (isExtraSmall ? 18 : 20),
+                  color: Theme.of(context).primaryColor,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _showBusinessBrandingDialog,
-                    icon: const Icon(Icons.business),
-                    label: const Text('Business Branding'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
-                  ),
+                SizedBox(width: isTiny ? 6 : 8),
+                Text(
+                  isTiny ? 'Brand' : 'Branding Management', 
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isTiny ? 12 : (isExtraSmall ? 14 : 16),
+                  )
                 ),
               ],
             ),
+            SizedBox(height: isTiny ? 6 : 8),
+            if (isTiny || isExtraSmall) ...[
+              // Stack buttons vertically on small screens
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BrandingSettingsScreen(),
+                    ),
+                  ),
+                  icon: Icon(Icons.branding_watermark, size: isTiny ? 14 : 16),
+                  label: Text(
+                    isTiny ? 'System' : 'System Branding',
+                    style: TextStyle(fontSize: isTiny ? 10 : 12),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple, 
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(
+                      vertical: isTiny ? 6 : 8,
+                      horizontal: isTiny ? 8 : 12,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: isTiny ? 4 : 6),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _showBusinessBrandingDialog,
+                  icon: Icon(Icons.business, size: isTiny ? 14 : 16),
+                  label: Text(
+                    isTiny ? 'Business' : 'Business Branding',
+                    style: TextStyle(fontSize: isTiny ? 10 : 12),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange, 
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(
+                      vertical: isTiny ? 6 : 8,
+                      horizontal: isTiny ? 8 : 12,
+                    ),
+                  ),
+                ),
+              ),
+            ] else ...[
+              // Side by side on larger screens
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const BrandingSettingsScreen(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.branding_watermark),
+                      label: const Text('System Branding'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple, 
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _showBusinessBrandingDialog,
+                      icon: const Icon(Icons.business),
+                      label: const Text('Business Branding'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange, 
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

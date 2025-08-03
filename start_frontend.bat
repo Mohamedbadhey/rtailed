@@ -9,7 +9,7 @@ flutter pub get
 
 echo.
 echo Starting Flutter web server...
-echo Frontend will be available at: http://localhost:8080
+echo Frontend will be available at: https://rtailed-production.up.railway.app:8080
 echo.
 
 flutter run -d web-server --web-port 8080

@@ -84,13 +84,13 @@ Found 5 activity logs for this business
 
 ### **Test Individual Business:**
 ```bash
-curl -X GET "http://localhost:3000/api/admin/businesses/1/details" \
+curl -X GET "https://rtailed-production.up.railway.app/api/admin/businesses/1/details" \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 ### **Test Business Isolation:**
 ```bash
-curl -X GET "http://localhost:3000/api/admin/test-business-isolation" \
+curl -X GET "https://rtailed-production.up.railway.app/api/admin/test-business-isolation" \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 

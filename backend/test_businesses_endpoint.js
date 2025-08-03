@@ -80,7 +80,7 @@ async function testBusinessesEndpoint() {
 
     console.log('\n🎉 Database setup looks good!');
     console.log('💡 Start the backend server: npm start');
-    console.log('💡 Then test the endpoint: GET http://localhost:3000/api/businesses');
+    console.log('💡 Then test the endpoint: GET https://rtailed-production.up.railway.app/api/businesses');
 
   } catch (error) {
     console.error('❌ Error:', error.message);

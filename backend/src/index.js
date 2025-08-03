@@ -4,8 +4,43 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
+
+// Create uploads directories if they don't exist
+const createUploadsDirectories = () => {
+  const uploadsDir = path.join(__dirname, '../uploads');
+  const productsDir = path.join(uploadsDir, 'products');
+  const brandingDir = path.join(uploadsDir, 'branding');
+
+  try {
+    // Create main uploads directory
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+      console.log('✅ Created uploads directory');
+    }
+
+    // Create products subdirectory
+    if (!fs.existsSync(productsDir)) {
+      fs.mkdirSync(productsDir, { recursive: true });
+      console.log('✅ Created uploads/products directory');
+    }
+
+    // Create branding subdirectory
+    if (!fs.existsSync(brandingDir)) {
+      fs.mkdirSync(brandingDir, { recursive: true });
+      console.log('✅ Created uploads/branding directory');
+    }
+
+    console.log('📁 Uploads directories ready');
+  } catch (error) {
+    console.error('❌ Error creating uploads directories:', error);
+  }
+};
+
+// Initialize uploads directories
+createUploadsDirectories();
 
 // CORS configuration for Flutter web
 const corsOptions = {
@@ -73,4 +108,5 @@ app.listen(PORT, HOST, () => {
   console.log(`🚀 Server is running on http://${HOST}:${PORT}`);
   console.log(`📊 Health check: http://${HOST}:${PORT}/api/health`);
   console.log(`🔗 API Base URL: http://${HOST}:${PORT}/api`);
+  console.log(`📁 Uploads served from: http://${HOST}:${PORT}/uploads`);
 }); 

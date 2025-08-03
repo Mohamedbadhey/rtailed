@@ -4,14 +4,26 @@ const pool = require('../config/database');
 const { auth, checkRole } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+const uploadErrorHandler = require('../middleware/uploadErrorHandler');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/products');
+    const uploadDir = path.join(__dirname, '../../uploads/products');
+    
+    // Ensure directory exists
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+      console.log('✅ Created uploads/products directory for file upload');
+    }
+    
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
+    // Sanitize filename to prevent issues
+    const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    cb(null, `${Date.now()}-${sanitizedName}`);
   }
 });
 
@@ -82,7 +94,7 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 // Create product
-router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')], async (req, res) => {
+router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')], async (req, res, next) => {
   const connection = await pool.getConnection();
   try {
     console.log('=== PRODUCT CREATION DEBUG ===');
@@ -204,7 +216,7 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
 });
 
 // Update product
-router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image')], async (req, res) => {
+router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image')], async (req, res, next) => {
   try {
     console.log('=== PRODUCT UPDATE DEBUG ===');
     console.log('User info:', { id: req.user.id, role: req.user.role, business_id: req.user.business_id });

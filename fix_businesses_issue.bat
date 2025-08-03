@@ -36,7 +36,7 @@ echo Waiting for server to start...
 timeout /t 5 /nobreak > nul
 
 echo Testing businesses endpoint...
-curl -X GET http://localhost:3000/api/businesses -H "Content-Type: application/json"
+curl -X GET https://rtailed-production.up.railway.app/api/businesses -H "Content-Type: application/json"
 
 echo.
 echo ========================================

@@ -1,0 +1,22 @@
+# Frontend files (not needed for backend deployment)
+frontend/
+*.bat
+*.md
+.git/
+node_modules/
+uploads/*
+!uploads/.gitkeep
+
+# Documentation files
+*.md
+!README.md
+
+# Backup files
+backups/
+*.sql
+!setup_railway_database.sql
+!retail_management (3).sql
+
+# Temporary files
+*.tmp
+*.temp 

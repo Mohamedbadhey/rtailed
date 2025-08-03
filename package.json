@@ -1,0 +1,28 @@
+{
+  "name": "retail-management-system",
+  "version": "1.0.0",
+  "description": "Retail Management System with Flutter frontend and Node.js backend",
+  "main": "backend/src/index.js",
+  "scripts": {
+    "start": "cd backend && npm start",
+    "dev": "cd backend && npm run dev",
+    "install-deps": "cd backend && npm install"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mohamedbadhey/rtail"
+  },
+  "keywords": [
+    "retail",
+    "management",
+    "inventory",
+    "pos",
+    "flutter",
+    "nodejs"
+  ],
+  "author": "Mohamedbadhey",
+  "license": "MIT"
+} 

@@ -33,7 +33,7 @@ class _BusinessPaymentStatusWidgetState extends State<BusinessPaymentStatusWidge
 
       // Load payment summary
       final summaryResponse = await http.get(
-        Uri.parse('http://localhost:3000/api/business-payments/summary'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/business-payments/summary'),
         headers: {
           'Authorization': 'Bearer ${widget.token}',
           'Content-Type': 'application/json',
@@ -49,7 +49,7 @@ class _BusinessPaymentStatusWidgetState extends State<BusinessPaymentStatusWidge
 
       // Load businesses with payment status
       final businessesResponse = await http.get(
-        Uri.parse('http://localhost:3000/api/business-payments/all-status?limit=10'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/business-payments/all-status?limit=10'),
         headers: {
           'Authorization': 'Bearer ${widget.token}',
           'Content-Type': 'application/json',
@@ -81,7 +81,7 @@ class _BusinessPaymentStatusWidgetState extends State<BusinessPaymentStatusWidge
 
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:3000/api/business-payments/suspend/$businessId'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/business-payments/suspend/$businessId'),
         headers: {
           'Authorization': 'Bearer ${widget.token}',
           'Content-Type': 'application/json',
@@ -114,7 +114,7 @@ class _BusinessPaymentStatusWidgetState extends State<BusinessPaymentStatusWidge
 
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:3000/api/business-payments/reactivate/$businessId'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/business-payments/reactivate/$businessId'),
         headers: {
           'Authorization': 'Bearer ${widget.token}',
           'Content-Type': 'application/json',

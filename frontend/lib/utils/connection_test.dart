@@ -2,7 +2,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class ConnectionTest {
-  static const String baseUrl = 'http://localhost:3000/api';
+  static const String baseUrl = 'https://rtailed-production.up.railway.app/api';
 
   /// Test the connection to the backend server
   static Future<Map<String, dynamic>> testConnection() async {

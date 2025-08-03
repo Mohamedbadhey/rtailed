@@ -93,7 +93,6 @@ class MyApp extends StatelessWidget {
                     },
                   ),
                   '/login': (context) => const LoginScreen(),
-                  '/register': (context) => const RegisterScreen(),
                   '/home': (context) => const HomeScreen(),
                   '/superadmin': (context) => const SuperadminDashboard(),
                 },

@@ -1,5 +1,5 @@
 class Api {
-  static const String baseUrl = 'http://localhost:3000';
+  static const String baseUrl = 'https://rtailed-production.up.railway.app';
   static const String apiBase = '$baseUrl/api';
 
   // Auth endpoints

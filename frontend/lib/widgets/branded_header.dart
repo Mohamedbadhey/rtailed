@@ -84,7 +84,7 @@ class BrandedHeader extends StatelessWidget {
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
                                 child: Image.network(
-                                  'http://localhost:3000$logoUrl',
+                                  'https://rtailed-production.up.railway.app$logoUrl',
                                   fit: BoxFit.contain,
                                   errorBuilder: (context, error, stackTrace) => Container(
                                     padding: const EdgeInsets.all(12),
@@ -201,7 +201,7 @@ class BrandedHeader extends StatelessWidget {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: Image.network(
-                              'http://localhost:3000$logoUrl',
+                              'https://rtailed-production.up.railway.app$logoUrl',
                               fit: BoxFit.contain,
                               errorBuilder: (context, error, stackTrace) => Container(
                                 padding: const EdgeInsets.all(12),
@@ -336,7 +336,7 @@ class BrandedLogo extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             child: logoUrl != null
                 ? Image.network(
-                    'http://localhost:3000$logoUrl',
+                    'https://rtailed-production.up.railway.app$logoUrl',
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) => Container(
                       padding: EdgeInsets.all(size * 0.2),

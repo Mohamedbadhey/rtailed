@@ -475,9 +475,9 @@ router.put('/:businessId/status', auth, checkRole(['superadmin']), async (req, r
     const business = businesses[0];
     
     if (is_active) {
-      // Activate business
+      // Activate business - update both is_active and payment_status
       await pool.query(
-        'UPDATE businesses SET is_active = TRUE, suspension_reason = NULL, suspension_date = NULL, reactivation_date = NOW() WHERE id = ?',
+        'UPDATE businesses SET is_active = TRUE, payment_status = "active", suspension_reason = NULL, suspension_date = NULL, reactivation_date = NOW() WHERE id = ?',
         [businessId]
       );
       
@@ -489,9 +489,9 @@ router.put('/:businessId/status', auth, checkRole(['superadmin']), async (req, r
       
       res.json({ message: 'Business activated successfully' });
     } else {
-      // Deactivate business
+      // Deactivate business - update both is_active and payment_status
       await pool.query(
-        'UPDATE businesses SET is_active = FALSE, suspension_reason = ?, suspension_date = NOW() WHERE id = ?',
+        'UPDATE businesses SET is_active = FALSE, payment_status = "suspended", suspension_reason = ?, suspension_date = NOW() WHERE id = ?',
         [suspension_reason || 'Suspended by superadmin', businessId]
       );
       

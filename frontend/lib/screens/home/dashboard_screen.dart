@@ -224,7 +224,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/sales/credit-customers'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/sales/credit-customers'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${context.read<AuthProvider>().token}',

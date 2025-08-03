@@ -58,7 +58,7 @@ class BrandedAppBar extends StatelessWidget implements PreferredSizeWidget {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Image.network(
-                      'http://localhost:3000$logoUrl',
+                      'https://rtailed-production.up.railway.app$logoUrl',
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) => Container(
                         padding: const EdgeInsets.all(8),
@@ -159,7 +159,7 @@ class BrandedLogoAppBar extends StatelessWidget implements PreferredSizeWidget {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Image.network(
-                      'http://localhost:3000$logoUrl',
+                      'https://rtailed-production.up.railway.app$logoUrl',
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) => Container(
                         padding: const EdgeInsets.all(8),
@@ -241,7 +241,7 @@ class BrandedTitleAppBar extends StatelessWidget implements PreferredSizeWidget 
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: Image.network(
-                      'http://localhost:3000$logoUrl',
+                      'https://rtailed-production.up.railway.app$logoUrl',
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) => Container(
                         padding: const EdgeInsets.all(6),

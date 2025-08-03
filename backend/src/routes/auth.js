@@ -87,13 +87,13 @@ router.post('/login', async (req, res) => {
     
     if (!userIdentifier) {
       // Backward compatibility: check for username or email fields
-      if (username && email) {
+    if (username && email) {
         return res.status(400).json({ message: 'Please provide either username OR email, not both' });
-      } else if (username) {
+    } else if (username) {
         userIdentifier = username;
-      } else if (email) {
+    } else if (email) {
         userIdentifier = email;
-      } else {
+    } else {
         return res.status(400).json({ message: 'Username, email, or identifier is required' });
       }
     }

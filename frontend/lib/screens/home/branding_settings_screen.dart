@@ -482,7 +482,7 @@ class _BrandingSettingsScreenState extends State<BrandingSettingsScreen> {
                             )
                       : currentImageUrl != null && currentImageUrl.isNotEmpty
                           ? Image.network(
-                              'http://localhost:3000$currentImageUrl',
+                              'https://rtailed-production.up.railway.app$currentImageUrl',
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 print('Error loading network image: $error');

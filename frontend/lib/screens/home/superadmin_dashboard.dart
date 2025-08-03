@@ -95,7 +95,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
       // Load businesses first
       final businessesResponse = await http.get(
-        Uri.parse('http://localhost:3000/api/businesses'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -111,7 +111,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       for (final business in businesses) {
         try {
           final messagesResponse = await http.get(
-            Uri.parse('http://localhost:3000/api/businesses/${business['id']}/messages'),
+            Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/messages'),
             headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
           );
           
@@ -134,7 +134,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       for (final business in businesses) {
         try {
           final paymentsResponse = await http.get(
-            Uri.parse('http://localhost:3000/api/businesses/${business['id']}/payments'),
+            Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/payments'),
             headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
           );
           
@@ -224,7 +224,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
       // Load dashboard overview
       final dashboardResponse = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/dashboard'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/dashboard'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -237,7 +237,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
       // Load recent logs
       final logsResponse = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/logs?limit=10'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/logs?limit=10'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -251,7 +251,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
       // Load users
       final usersResponse = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/users?limit=10'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/users?limit=10'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -265,7 +265,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
       // Load system settings
       final settingsResponse = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/settings'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/settings'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -278,7 +278,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
       // Load notifications
       final notificationsResponse = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/notifications'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/notifications'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -292,7 +292,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
       // Load audit logs
       final auditLogsResponse = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/audit-logs?limit=20'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/audit-logs?limit=20'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -321,30 +321,31 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final isDesktop = screenWidth >= 1024;
     final isVerySmall = screenWidth < 480;
     final isExtraSmall = screenWidth < 360;
+    final isTiny = screenWidth < 320;
     
     return Scaffold(
       appBar: BrandedAppBar(
-        title: isVerySmall ? 'Admin' : t(context, 'Superadmin Dashboard'),
+        title: isTiny ? 'Admin' : (isVerySmall ? 'Superadmin' : t(context, 'Superadmin Dashboard')),
         bottom: isMobile ? PreferredSize(
-          preferredSize: const Size.fromHeight(48),
+          preferredSize: Size.fromHeight(isTiny ? 40 : 48),
           child: Container(
-            height: 48,
+            height: isTiny ? 40 : 48,
             child: TabBar(
               controller: _tabController,
               isScrollable: true,
               labelColor: Theme.of(context).primaryColor,
               unselectedLabelColor: Colors.grey[600],
               indicatorColor: Theme.of(context).primaryColor,
-              labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-              labelStyle: TextStyle(fontSize: isExtraSmall ? 10 : 12, fontWeight: FontWeight.w500),
-              unselectedLabelStyle: TextStyle(fontSize: isExtraSmall ? 10 : 12),
+              labelPadding: EdgeInsets.symmetric(horizontal: isTiny ? 4 : (isExtraSmall ? 6 : 8)),
+              labelStyle: TextStyle(fontSize: isTiny ? 8 : (isExtraSmall ? 10 : 12), fontWeight: FontWeight.w500),
+              unselectedLabelStyle: TextStyle(fontSize: isTiny ? 8 : (isExtraSmall ? 10 : 12)),
               tabs: [
-                Tab(icon: Icon(Icons.dashboard, size: isExtraSmall ? 16 : 18), text: isExtraSmall ? 'Overview' : 'Overview'),
-                Tab(icon: Icon(Icons.business, size: isExtraSmall ? 16 : 18), text: isExtraSmall ? 'Businesses' : 'Businesses'),
-                Tab(icon: Icon(Icons.people, size: isExtraSmall ? 16 : 18), text: isExtraSmall ? 'Users' : 'Users'),
-                Tab(icon: Icon(Icons.analytics, size: isExtraSmall ? 16 : 18), text: isExtraSmall ? 'Analytics' : 'Analytics'),
-                Tab(icon: Icon(Icons.settings, size: isExtraSmall ? 16 : 18), text: isExtraSmall ? 'Settings' : 'Settings'),
-                Tab(icon: Icon(Icons.storage, size: isExtraSmall ? 16 : 18), text: isExtraSmall ? 'Data' : 'Data'),
+                Tab(icon: Icon(Icons.dashboard, size: isTiny ? 14 : (isExtraSmall ? 16 : 18)), text: isTiny ? 'Overview' : (isExtraSmall ? 'Overview' : 'Overview')),
+                Tab(icon: Icon(Icons.business, size: isTiny ? 14 : (isExtraSmall ? 16 : 18)), text: isTiny ? 'Biz' : (isExtraSmall ? 'Businesses' : 'Businesses')),
+                Tab(icon: Icon(Icons.people, size: isTiny ? 14 : (isExtraSmall ? 16 : 18)), text: isTiny ? 'Users' : (isExtraSmall ? 'Users' : 'Users')),
+                Tab(icon: Icon(Icons.analytics, size: isTiny ? 14 : (isExtraSmall ? 16 : 18)), text: isTiny ? 'Analytics' : (isExtraSmall ? 'Analytics' : 'Analytics')),
+                Tab(icon: Icon(Icons.settings, size: isTiny ? 14 : (isExtraSmall ? 16 : 18)), text: isTiny ? 'Settings' : (isExtraSmall ? 'Settings' : 'Settings')),
+                Tab(icon: Icon(Icons.storage, size: isTiny ? 14 : (isExtraSmall ? 16 : 18)), text: isTiny ? 'Data' : (isExtraSmall ? 'Data' : 'Data')),
               ],
             ),
           ),
@@ -366,16 +367,26 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
           ],
         ),
         actions: [
-          // Refresh button - show on all screens except extra small
-          if (!isExtraSmall) IconButton(
-            icon: const Icon(Icons.refresh),
+          // Refresh button - show on all screens except tiny
+          if (!isTiny) IconButton(
+            icon: Icon(Icons.refresh, size: isTiny ? 18 : 24),
             onPressed: _loadDashboardData,
             tooltip: t(context, 'Refresh'),
+            padding: EdgeInsets.all(isTiny ? 4 : 8),
+            constraints: BoxConstraints(
+              minWidth: isTiny ? 32 : 40,
+              minHeight: isTiny ? 32 : 40,
+            ),
           ),
-          // Logout button - ALWAYS visible on ALL screen sizes - FORCE VISIBLE
+          // Account menu - ALWAYS visible on ALL screen sizes
           PopupMenuButton<String>(
-            icon: const Icon(Icons.account_circle, color: Colors.white),
+            icon: Icon(Icons.account_circle, color: Colors.white, size: isTiny ? 20 : 24),
             tooltip: t(context, 'Account'),
+            padding: EdgeInsets.all(isTiny ? 4 : 8),
+            constraints: BoxConstraints(
+              minWidth: isTiny ? 32 : 40,
+              minHeight: isTiny ? 32 : 40,
+            ),
             onSelected: (value) {
               if (value == 'logout') {
                 _showLogoutDialog();
@@ -388,13 +399,13 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 value: 'profile',
                 child: Row(
                   children: [
-                    const Icon(Icons.person),
-                    const SizedBox(width: 8),
-                    Text(t(context, 'Profile')),
+                    Icon(Icons.person, size: isTiny ? 16 : 20),
+                    SizedBox(width: isTiny ? 6 : 8),
+                    Text(t(context, 'Profile'), style: TextStyle(fontSize: isTiny ? 12 : 14)),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'logout',
                 child: Row(
                   children: [
@@ -417,12 +428,12 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                     child: TabBarView(
                       controller: _tabController,
                       children: [
-                        _buildOverviewContent(),
-                        _buildBusinessesContent(),
-                        _buildUsersAndSecurityContent(),
-                        _buildAnalyticsContent(),
-                        _buildSettingsContent(),
-                        _buildDataManagementContent(),
+                        _buildOverviewContent(isTiny, isExtraSmall, isVerySmall, isMobile),
+                        _buildBusinessesContent(isTiny, isExtraSmall, isVerySmall, isMobile),
+                        _buildUsersAndSecurityContent(isTiny, isExtraSmall, isVerySmall, isMobile),
+                        _buildAnalyticsContent(isTiny, isExtraSmall, isVerySmall, isMobile),
+                        _buildSettingsContent(isTiny, isExtraSmall, isVerySmall, isMobile),
+                        _buildDataManagementContent(isTiny, isExtraSmall, isVerySmall, isMobile),
                       ],
                     ),
                   ),
@@ -510,32 +521,30 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   }
 
   // Simple responsive content methods
-  Widget _buildOverviewContent() {
+  Widget _buildOverviewContent(bool isTiny, bool isExtraSmall, bool isVerySmall, bool isMobile) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 768;
     final isTablet = screenWidth >= 768 && screenWidth < 1024;
-    final isExtraSmall = screenWidth < 360;
     
     if (isMobile) {
       return SingleChildScrollView(
-        padding: EdgeInsets.all(isExtraSmall ? 8 : 12),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'System Overview', 
+              isTiny ? 'Overview' : 'System Overview', 
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold, 
                 color: Theme.of(context).primaryColor,
-                fontSize: isExtraSmall ? 18 : 20,
+                fontSize: isTiny ? 16 : (isExtraSmall ? 18 : 20),
               )
             ),
-            SizedBox(height: isExtraSmall ? 8 : 12),
-            _buildSystemHealthCard(),
-            SizedBox(height: isExtraSmall ? 8 : 12),
-            _buildNotificationsCard(),
-            SizedBox(height: isExtraSmall ? 8 : 12),
-            _buildBillingCard(),
+            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
+            _buildSystemHealthCard(isTiny, isExtraSmall),
+            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
+            _buildNotificationsCard(isTiny, isExtraSmall),
+            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
+            _buildBillingCard(isTiny, isExtraSmall),
           ],
         ),
       );
@@ -544,26 +553,24 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     }
   }
 
-  Widget _buildBusinessesContent() {
+  Widget _buildBusinessesContent(bool isTiny, bool isExtraSmall, bool isVerySmall, bool isMobile) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 768;
-    final isExtraSmall = screenWidth < 360;
     
     if (isMobile) {
       return SingleChildScrollView(
-        padding: EdgeInsets.all(isExtraSmall ? 8 : 12),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Businesses', 
+              isTiny ? 'Biz' : 'Businesses', 
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold, 
                 color: Theme.of(context).primaryColor,
-                fontSize: isExtraSmall ? 18 : 20,
+                fontSize: isTiny ? 16 : (isExtraSmall ? 18 : 20),
               )
             ),
-            SizedBox(height: isExtraSmall ? 8 : 12),
+            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
             _buildBusinessesTab(),
           ],
         ),
@@ -573,31 +580,29 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     }
   }
 
-  Widget _buildUsersAndSecurityContent() {
+  Widget _buildUsersAndSecurityContent(bool isTiny, bool isExtraSmall, bool isVerySmall, bool isMobile) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 768;
-    final isExtraSmall = screenWidth < 360;
     
     if (isMobile) {
       return SingleChildScrollView(
-        padding: EdgeInsets.all(isExtraSmall ? 8 : 12),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Users & Security', 
+              isTiny ? 'Users' : 'Users & Security', 
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold, 
                 color: Theme.of(context).primaryColor,
-                fontSize: isExtraSmall ? 18 : 20,
+                fontSize: isTiny ? 16 : (isExtraSmall ? 18 : 20),
               )
             ),
-            SizedBox(height: isExtraSmall ? 8 : 12),
-            _buildUserManagementCard(),
-            SizedBox(height: isExtraSmall ? 8 : 12),
-            _buildAuditCard(),
-            SizedBox(height: isExtraSmall ? 8 : 12),
-            _buildAccessControlCard(),
+            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
+            _buildUserManagementCard(isTiny, isExtraSmall),
+            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
+            _buildAuditCard(isTiny, isExtraSmall),
+            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
+            _buildAccessControlCard(isTiny, isExtraSmall),
           ],
         ),
       );
@@ -606,9 +611,8 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     }
   }
 
-  Widget _buildAnalyticsContent() {
+  Widget _buildAnalyticsContent(bool isTiny, bool isExtraSmall, bool isVerySmall, bool isMobile) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 768;
     final isExtraSmall = screenWidth < 360;
     
     if (isMobile) {
@@ -635,14 +639,12 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     }
   }
 
-  Widget _buildSettingsContent() {
+  Widget _buildSettingsContent(bool isTiny, bool isExtraSmall, bool isVerySmall, bool isMobile) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 768;
-    final isExtraSmall = screenWidth < 360;
     
     if (isMobile) {
       return SingleChildScrollView(
-        padding: EdgeInsets.all(isExtraSmall ? 8 : 12),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -651,17 +653,17 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold, 
                 color: Theme.of(context).primaryColor,
-                fontSize: isExtraSmall ? 18 : 20,
+                fontSize: isTiny ? 16 : (isExtraSmall ? 18 : 20),
               )
             ),
-            SizedBox(height: isExtraSmall ? 8 : 12),
-            _buildSystemSettingsCard(),
-            SizedBox(height: isExtraSmall ? 8 : 12),
-            _buildAdminCodesCard(),
-            SizedBox(height: isExtraSmall ? 8 : 12),
-            _buildBrandingCardDesktop(),
-            SizedBox(height: isExtraSmall ? 8 : 12),
-            _buildBackupsCard(),
+            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
+            _buildSystemSettingsCard(isTiny, isExtraSmall),
+            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
+            _buildAdminCodesCard(isTiny, isExtraSmall),
+            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
+            _buildBrandingCardDesktop(isTiny, isExtraSmall),
+            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
+            _buildBackupsCard(isTiny, isExtraSmall),
           ],
         ),
       );
@@ -670,31 +672,29 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     }
   }
 
-  Widget _buildDataManagementContent() {
+  Widget _buildDataManagementContent(bool isTiny, bool isExtraSmall, bool isVerySmall, bool isMobile) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 768;
-    final isExtraSmall = screenWidth < 360;
     
     if (isMobile) {
       return SingleChildScrollView(
-        padding: EdgeInsets.all(isExtraSmall ? 8 : 12),
+        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Data Management', 
+              isTiny ? 'Data' : 'Data Management', 
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold, 
                 color: Theme.of(context).primaryColor,
-                fontSize: isExtraSmall ? 18 : 20,
+                fontSize: isTiny ? 16 : (isExtraSmall ? 18 : 20),
               )
             ),
-            SizedBox(height: isExtraSmall ? 8 : 12),
-            _buildDataOverviewCard(),
-            SizedBox(height: isExtraSmall ? 8 : 12),
-            _buildDeletedDataCard(),
-            const SizedBox(height: 12),
-            _buildDataExportCard(),
+            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
+            _buildDataOverviewCard(isTiny, isExtraSmall),
+            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
+            _buildDeletedDataCard(isTiny, isExtraSmall),
+            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
+            _buildDataExportCard(isTiny, isExtraSmall),
           ],
         ),
       );
@@ -704,7 +704,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   }
 
   // Simple card components for mobile
-  Widget _buildSystemHealthCard() {
+  Widget _buildSystemHealthCard(bool isTiny, bool isExtraSmall) {
     return FutureBuilder<Map<String, dynamic>>(
       future: _fetchSystemHealth(),
       builder: (context, snapshot) {
@@ -717,9 +717,9 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         final health = snapshot.data ?? {};
         return Card(
           elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTiny ? 6 : 8)),
           child: Padding(
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -728,9 +728,16 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                     Icon(
                       health['status'] == 'healthy' ? Icons.check_circle : Icons.error,
                       color: health['status'] == 'healthy' ? Colors.green : Colors.red,
+                      size: isTiny ? 16 : (isExtraSmall ? 18 : 20),
                     ),
-                    const SizedBox(width: 8),
-                    Text('System Health', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    SizedBox(width: isTiny ? 6 : 8),
+                    Text(
+                      isTiny ? 'Health' : 'System Health', 
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: isTiny ? 12 : (isExtraSmall ? 14 : 16),
+                      )
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -745,7 +752,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     );
   }
 
-  Widget _buildNotificationsCard() {
+  Widget _buildNotificationsCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -763,7 +770,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     );
   }
 
-  Widget _buildBillingCard() {
+  Widget _buildBillingCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -781,7 +788,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     );
   }
 
-  Widget _buildUserManagementCard() {
+  Widget _buildUserManagementCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -802,7 +809,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     );
   }
 
-  Widget _buildAuditCard() {
+  Widget _buildAuditCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -820,7 +827,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     );
   }
 
-  Widget _buildAccessControlCard() {
+  Widget _buildAccessControlCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -838,7 +845,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     );
   }
 
-  Widget _buildSystemSettingsCard() {
+  Widget _buildSystemSettingsCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -856,7 +863,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     );
   }
 
-  Widget _buildAdminCodesCard() {
+  Widget _buildAdminCodesCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -911,7 +918,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     );
   }
 
-  Widget _buildBackupsCard() {
+  Widget _buildBackupsCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -932,7 +939,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     );
   }
 
-  Widget _buildDataOverviewCard() {
+  Widget _buildDataOverviewCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -950,7 +957,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     );
   }
 
-  Widget _buildDeletedDataCard() {
+  Widget _buildDeletedDataCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -968,7 +975,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     );
   }
 
-  Widget _buildDataExportCard() {
+  Widget _buildDataExportCard(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -1479,7 +1486,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('http://localhost:3000/api/admin/health'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/health'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -1569,7 +1576,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('http://localhost:3000/api/admin/sessions'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/sessions'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -1615,7 +1622,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('http://localhost:3000/api/admin/errors'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/errors'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -1667,7 +1674,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('http://localhost:3000/api/admin/performance'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/performance'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -2040,7 +2047,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('http://localhost:3000/api/businesses?limit=9'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/businesses?limit=9'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -2102,7 +2109,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     try {
       // Get all businesses first
       final businessesResponse = await http.get(
-        Uri.parse('http://localhost:3000/api/businesses'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -2114,7 +2121,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       List<Map<String, dynamic>> allMessages = [];
       for (final business in businesses) {
         final messagesResponse = await http.get(
-          Uri.parse('http://localhost:3000/api/businesses/${business['id']}/messages'),
+          Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/messages'),
           headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
         );
         
@@ -2144,7 +2151,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     try {
       // Get all businesses first
       final businessesResponse = await http.get(
-        Uri.parse('http://localhost:3000/api/businesses'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -2156,7 +2163,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       List<Map<String, dynamic>> allPayments = [];
       for (final business in businesses) {
         final paymentsResponse = await http.get(
-          Uri.parse('http://localhost:3000/api/businesses/${business['id']}/payments'),
+          Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/payments'),
           headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
         );
         
@@ -2186,7 +2193,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     try {
       // Get all businesses
       final businessesResponse = await http.get(
-        Uri.parse('http://localhost:3000/api/businesses'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -2331,7 +2338,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.post(
-                  Uri.parse('http://localhost:3000/api/businesses'),
+                  Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
                   headers: {
                     'Authorization': 'Bearer $token',
                     'Content-Type': 'application/json',
@@ -2384,7 +2391,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       final token = authProvider.token;
       
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/businesses/${business['id']}/users'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/users'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -2596,7 +2603,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                   final token = authProvider.token;
 
                   final response = await http.post(
-                    Uri.parse('http://localhost:3000/api/businesses/${business['id']}/messages'),
+                    Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/messages'),
                     headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                     body: json.encode({
                       'subject': subjectController.text,
@@ -2827,7 +2834,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                   final token = authProvider.token;
 
                   final response = await http.post(
-                    Uri.parse('http://localhost:3000/api/businesses/${business['id']}/payments'),
+                    Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/payments'),
                     headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                     body: json.encode({
                       'amount': double.parse(amountController.text),
@@ -2998,7 +3005,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.put(
-                  Uri.parse('http://localhost:3000/api/businesses/${business['id']}/settings'),
+                  Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/settings'),
                   headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                   body: json.encode({
                     'subscription_plan': selectedPlan,
@@ -3068,7 +3075,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.put(
-                  Uri.parse('http://localhost:3000/api/businesses/${business['id']}/status'),
+                  Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/status'),
                   headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                   body: json.encode({
                     'is_active': !isCurrentlyActive,
@@ -3236,7 +3243,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     try {
       // Fetch comprehensive business data from the new backend endpoint
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/businesses/$businessId/details'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/businesses/$businessId/details'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -3331,7 +3338,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/businesses'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -3411,7 +3418,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     try {
       // Get all businesses first
       final businessesResponse = await http.get(
-        Uri.parse('http://localhost:3000/api/businesses'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -3427,7 +3434,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       for (final business in businesses) {
         try {
           final billsResponse = await http.get(
-            Uri.parse('http://localhost:3000/api/businesses/${business['id']}/monthly-bills'),
+            Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/monthly-bills'),
             headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
           );
           
@@ -3480,7 +3487,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final token = authProvider.token;
     
     final response = await http.get(
-      Uri.parse('http://localhost:3000/api/businesses/pending-payments/all'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/businesses/pending-payments/all'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     
@@ -3496,7 +3503,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final token = authProvider.token;
     
     final response = await http.get(
-      Uri.parse('http://localhost:3000/api/businesses/overdue-bills/all'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/businesses/overdue-bills/all'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     
@@ -3512,7 +3519,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final token = authProvider.token;
     
     final response = await http.get(
-      Uri.parse('http://localhost:3000/api/businesses/backups/all'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/businesses/backups/all'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     
@@ -3611,7 +3618,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                   final token = authProvider.token;
 
                   final response = await http.post(
-                    Uri.parse('http://localhost:3000/api/businesses/${selectedBusiness!['id']}/monthly-bill'),
+                    Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${selectedBusiness!['id']}/monthly-bill'),
                     headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                     body: json.encode({
                       'billingMonth': DateTime.now().toString().split(' ')[0].substring(0, 7) + '-01',
@@ -3676,7 +3683,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.post(
-                  Uri.parse('http://localhost:3000/api/businesses/generate-all-bills'),
+                  Uri.parse('https://rtailed-production.up.railway.app/api/businesses/generate-all-bills'),
                   headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                   body: json.encode({
                     'billingMonth': DateTime.now().toString().split(' ')[0].substring(0, 7) + '-01',
@@ -3750,7 +3757,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.put(
-                  Uri.parse('http://localhost:3000/api/businesses/${payment['business_id']}/review-payment/${payment['id']}'),
+                  Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${payment['business_id']}/review-payment/${payment['id']}'),
                   headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                   body: json.encode({
                     'status': status,
@@ -3866,7 +3873,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                   final token = authProvider.token;
 
                   final response = await http.post(
-                    Uri.parse('http://localhost:3000/api/businesses/${selectedBusiness!['id']}/backup'),
+                    Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${selectedBusiness!['id']}/backup'),
                     headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                     body: json.encode({
                       'backupType': selectedType,
@@ -3938,7 +3945,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.post(
-                  Uri.parse('http://localhost:3000/api/businesses/${backup['business_id']}/restore/${backup['id']}'),
+                  Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${backup['business_id']}/restore/${backup['id']}'),
                   headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                   body: json.encode({
                     'recoveryType': selectedType,
@@ -4698,12 +4705,12 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final token = authProvider.token;
     // Fetch backups
     final backupsResp = await http.get(
-      Uri.parse('http://localhost:3000/api/admin/backups'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/backups'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     // Fetch exportable tables
     final tablesResp = await http.get(
-      Uri.parse('http://localhost:3000/api/admin/export'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/export'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     final backups = backupsResp.statusCode == 200 ? json.decode(backupsResp.body)['backups'] : [];
@@ -4715,7 +4722,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.post(
-      Uri.parse('http://localhost:3000/api/admin/backup'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/backup'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -4731,7 +4738,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   }
 
   void _exportData() {
-    final url = 'http://localhost:3000/api/admin/export';
+    final url = 'https://rtailed-production.up.railway.app/api/admin/export';
     // For web: open in new tab, for mobile/desktop: launch URL
     // (You may want to use url_launcher for mobile/desktop)
     // For now, just open in browser
@@ -4774,7 +4781,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('http://localhost:3000/api/admin/backups'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/backups'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -4928,7 +4935,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       final token = authProvider.token;
 
       final response = await http.patch(
-        Uri.parse('http://localhost:3000/api/admin/users/$userId/status'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/users/$userId/status'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -5149,7 +5156,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.post(
-                  Uri.parse('http://localhost:3000/api/admin/users'),
+                  Uri.parse('https://rtailed-production.up.railway.app/api/admin/users'),
                   headers: {
                     'Authorization': 'Bearer $token',
                     'Content-Type': 'application/json',
@@ -5270,7 +5277,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.put(
-                  Uri.parse('http://localhost:3000/api/admin/users/${user['id']}'),
+                  Uri.parse('https://rtailed-production.up.railway.app/api/admin/users/${user['id']}'),
                   headers: {
                     'Authorization': 'Bearer $token',
                     'Content-Type': 'application/json',
@@ -5340,7 +5347,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.post(
-                  Uri.parse('http://localhost:3000/api/admin/users/${user['id']}/reset-password'),
+                  Uri.parse('https://rtailed-production.up.railway.app/api/admin/users/${user['id']}/reset-password'),
                   headers: {
                     'Authorization': 'Bearer $token',
                     'Content-Type': 'application/json',
@@ -5383,7 +5390,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       final token = authProvider.token;
 
       final response = await http.post(
-        Uri.parse('http://localhost:3000/api/admin/users/${user['id']}/force-logout'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/users/${user['id']}/force-logout'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -5416,7 +5423,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       final token = authProvider.token;
 
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/users/${user['id']}/logs'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/users/${user['id']}/logs'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -5486,7 +5493,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.delete(
-                  Uri.parse('http://localhost:3000/api/admin/users/${user['id']}'),
+                  Uri.parse('https://rtailed-production.up.railway.app/api/admin/users/${user['id']}'),
                   headers: {
                     'Authorization': 'Bearer $token',
                     'Content-Type': 'application/json',
@@ -5618,14 +5625,25 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
   // Branding Sub-tab
   Widget _buildBrandingSubTab() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTiny = screenWidth < 320;
+    final isExtraSmall = screenWidth < 360;
+    
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isTiny ? 8 : (isExtraSmall ? 12 : 16)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Branding Management', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor)),
-          const SizedBox(height: 16),
-          _buildBrandingCardDesktop(),
+          Text(
+            isTiny ? 'Branding' : 'Branding Management', 
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold, 
+              color: Theme.of(context).primaryColor,
+              fontSize: isTiny ? 16 : (isExtraSmall ? 18 : 20),
+            )
+          ),
+          SizedBox(height: isTiny ? 8 : (isExtraSmall ? 12 : 16)),
+          _buildBrandingCardDesktop(isTiny, isExtraSmall),
         ],
       ),
     );
@@ -5640,7 +5658,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('http://localhost:3000/api/admin/settings/config'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/settings/config'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -5836,7 +5854,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     );
   }
 
-  Widget _buildBrandingCardDesktop() {
+  Widget _buildBrandingCardDesktop(bool isTiny, bool isExtraSmall) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -6107,7 +6125,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.post(
-      Uri.parse('http://localhost:3000/api/admin/settings/maintenance/toggle'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/settings/maintenance/toggle'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -6156,7 +6174,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
               final authProvider = context.read<AuthProvider>();
               final token = authProvider.token;
               final response = await http.post(
-                Uri.parse('http://localhost:3000/api/admin/settings/admin-code/update'),
+                Uri.parse('https://rtailed-production.up.railway.app/api/admin/settings/admin-code/update'),
                 headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                 body: json.encode({
                   'currentCode': currentCodeController.text,
@@ -6215,7 +6233,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
               final authProvider = context.read<AuthProvider>();
               final token = authProvider.token;
               final response = await http.put(
-                Uri.parse('http://localhost:3000/api/admin/settings/${setting['setting_key']}'),
+                Uri.parse('https://rtailed-production.up.railway.app/api/admin/settings/${setting['setting_key']}'),
                 headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                 body: json.encode({
                   'value': valueController.text,
@@ -6298,12 +6316,12 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     // Fetch notifications and stats
     final notificationsResponse = await http.get(
-      Uri.parse('http://localhost:3000/api/admin/notifications'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/notifications'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     
     final statsResponse = await http.get(
-      Uri.parse('http://localhost:3000/api/admin/notifications/stats'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/notifications/stats'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     
@@ -6595,7 +6613,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final authProvider = context.read<AuthProvider>();
                 final token = authProvider.token;
                 final response = await http.post(
-                  Uri.parse('http://localhost:3000/api/admin/notifications'),
+                  Uri.parse('https://rtailed-production.up.railway.app/api/admin/notifications'),
                   headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                   body: json.encode({
                     'title': titleController.text,
@@ -6630,7 +6648,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('http://localhost:3000/api/admin/users'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/users'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -6665,7 +6683,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       final authProvider = context.read<AuthProvider>();
       final token = authProvider.token;
       final response = await http.delete(
-        Uri.parse('http://localhost:3000/api/admin/notifications/$id'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/notifications/$id'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       if (response.statusCode == 200) {
@@ -6751,17 +6769,17 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     // Fetch audit logs, stats, and system activity
     final logsResponse = await http.get(
-      Uri.parse('http://localhost:3000/api/admin/audit-logs?limit=20'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/audit-logs?limit=20'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     
     final statsResponse = await http.get(
-      Uri.parse('http://localhost:3000/api/admin/audit-logs/stats'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/audit-logs/stats'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     
     final systemActivityResponse = await http.get(
-      Uri.parse('http://localhost:3000/api/admin/audit-logs/system-activity'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/audit-logs/system-activity'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     
@@ -7042,7 +7060,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/audit-logs/export'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/audit-logs/export'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -7461,7 +7479,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('http://localhost:3000/api/businesses'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -7515,7 +7533,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       
       // Fetch businesses data (fallback approach)
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/businesses'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -7633,7 +7651,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('http://localhost:3000/api/admin/analytics/performance'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/analytics/performance'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -7649,7 +7667,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('http://localhost:3000/api/businesses'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -9192,7 +9210,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/businesses/$businessId/recovery-stats'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/businesses/$businessId/recovery-stats'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -9397,7 +9415,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/businesses/$businessId/deleted-data'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/businesses/$businessId/deleted-data'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -9426,7 +9444,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:3000/api/admin/recover/$type/$id'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/recover/$type/$id'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
         body: json.encode({'businessId': businessId}),
       );
@@ -9486,7 +9504,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     try {
       final response = await http.delete(
-        Uri.parse('http://localhost:3000/api/admin/permanently-delete/$type/$id'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/permanently-delete/$type/$id'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
         body: json.encode({'businessId': businessId}),
       );
@@ -9600,7 +9618,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:3000/api/admin/recover-multiple'),
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/recover-multiple'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
         body: json.encode({'businessId': businessId, 'items': items}),
       );
@@ -9636,7 +9654,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('http://localhost:3000/api/admin/deleted-data'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/deleted-data'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -9692,7 +9710,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.post(
-      Uri.parse('http://localhost:3000/api/admin/restore-data'),
+      Uri.parse('https://rtailed-production.up.railway.app/api/admin/restore-data'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       body: json.encode({'id': id, 'type': type}),
     );

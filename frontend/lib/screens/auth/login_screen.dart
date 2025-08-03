@@ -322,52 +322,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             ),
                           ),
                           
-                          const SizedBox(height: 24),
-                          
-                          // Divider
-                          Row(
-                            children: [
-                              Expanded(child: Divider(color: Colors.grey[300])),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                child: Text(
-                                  'OR',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: textSecondary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                              Expanded(child: Divider(color: Colors.grey[300])),
-                            ],
-                          ),
-                          
-                          const SizedBox(height: 24),
-                          
-                          // Register Link
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                "Don't have an account? ",
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: textSecondary,
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.pushNamed(context, '/register');
-                                },
-                                child: Text(
-                                  'Sign Up',
-                                  style: TextStyle(
-                                    color: primaryGradientStart,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+
                         ],
                       ),
                     ),

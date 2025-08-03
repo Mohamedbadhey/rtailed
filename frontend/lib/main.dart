@@ -6,7 +6,7 @@ import 'package:retail_management/providers/auth_provider.dart';
 import 'package:retail_management/providers/cart_provider.dart';
 import 'package:retail_management/providers/notification_provider.dart';
 import 'package:retail_management/screens/auth/login_screen.dart';
-import 'package:retail_management/screens/auth/register_screen.dart';
+
 import 'package:retail_management/screens/home/home_screen.dart';
 import 'package:retail_management/screens/home/superadmin_dashboard.dart';
 import 'package:retail_management/utils/theme.dart';
@@ -72,7 +72,7 @@ class MyApp extends StatelessWidget {
           return BrandingInitializer(
             child: BrandingListener(
               child: MaterialApp(
-                title: 'Retail Management',
+                title: 'No Name',
                 theme: appTheme,
                 darkTheme: darkTheme,
                 themeMode: settings.themeMode,

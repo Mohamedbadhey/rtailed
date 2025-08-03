@@ -32,7 +32,7 @@ async function checkAndFixBusinessStatus() {
     
     businesses.forEach(business => {
       const isActive = business.is_active === 1 || business.is_active === true;
-      const paymentActive = business.payment_status === 'active';
+      const paymentActive = business.payment_status === 'current';
       const status = isActive && paymentActive ? '✅ Active' : '❌ Inactive/Suspended';
       
       console.log(`   ${business.id}. ${business.name}`);
@@ -59,20 +59,20 @@ async function checkAndFixBusinessStatus() {
       // Fix inconsistencies
       for (const business of businesses) {
         const isActive = business.is_active === 1 || business.is_active === true;
-        const paymentActive = business.payment_status === 'active';
+        const paymentActive = business.payment_status === 'current';
         
         if (isActive !== paymentActive) {
           console.log(`\n🔄 Fixing business ${business.id} (${business.name})...`);
           
           if (isActive) {
-            // Business is marked as active but payment_status is not 'active'
-            console.log(`   Setting payment_status to 'active'`);
+            // Business is marked as active but payment_status is not 'current'
+            console.log(`   Setting payment_status to 'current'`);
             await connection.execute(
-              'UPDATE businesses SET payment_status = "active", suspension_reason = NULL, suspension_date = NULL WHERE id = ?',
+              'UPDATE businesses SET payment_status = "current", suspension_reason = NULL, suspension_date = NULL WHERE id = ?',
               [business.id]
             );
           } else {
-            // Business is marked as inactive but payment_status is 'active'
+            // Business is marked as inactive but payment_status is 'current'
             console.log(`   Setting payment_status to 'suspended'`);
             await connection.execute(
               'UPDATE businesses SET payment_status = "suspended", is_active = FALSE WHERE id = ?',
@@ -94,7 +94,7 @@ async function checkAndFixBusinessStatus() {
       
       updatedBusinesses.forEach(business => {
         const isActive = business.is_active === 1 || business.is_active === true;
-        const paymentActive = business.payment_status === 'active';
+        const paymentActive = business.payment_status === 'current';
         const status = isActive && paymentActive ? '✅ Active' : '❌ Inactive/Suspended';
         
         console.log(`   ${business.id}. ${business.name} - ${status}`);
@@ -127,7 +127,7 @@ async function activateBusiness(businessId) {
     
     // Update both is_active and payment_status
     await connection.execute(
-      'UPDATE businesses SET is_active = TRUE, payment_status = "active", suspension_reason = NULL, suspension_date = NULL, reactivation_date = NOW() WHERE id = ?',
+      'UPDATE businesses SET is_active = TRUE, payment_status = "current", suspension_reason = NULL, suspension_date = NULL, reactivation_date = NOW() WHERE id = ?',
       [businessId]
     );
     

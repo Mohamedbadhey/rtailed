@@ -477,7 +477,7 @@ router.put('/:businessId/status', auth, checkRole(['superadmin']), async (req, r
     if (is_active) {
       // Activate business - update both is_active and payment_status
       await pool.query(
-        'UPDATE businesses SET is_active = TRUE, payment_status = "active", suspension_reason = NULL, suspension_date = NULL, reactivation_date = NOW() WHERE id = ?',
+        'UPDATE businesses SET is_active = TRUE, payment_status = "current", suspension_reason = NULL, suspension_date = NULL, reactivation_date = NOW() WHERE id = ?',
         [businessId]
       );
       

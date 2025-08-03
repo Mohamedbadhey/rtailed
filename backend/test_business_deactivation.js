@@ -151,7 +151,7 @@ async function testBusinessDeactivation() {
     // Reset business status to active
     await connection.execute(`
       UPDATE businesses 
-      SET payment_status = 'active', 
+      SET payment_status = 'current', 
           is_active = 1, 
           suspension_date = NULL, 
           suspension_reason = NULL

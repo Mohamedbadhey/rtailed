@@ -134,7 +134,7 @@ router.post('/login', async (req, res) => {
         });
       }
       
-      if (business.payment_status !== 'active') {
+      if (business.payment_status !== 'current') {
         let errorMessage = 'Business account is suspended due to payment issues.';
         if (business.payment_status === 'overdue') {
           errorMessage = 'Business account is overdue on payments. Please contact support to resolve payment issues.';

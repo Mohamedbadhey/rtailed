@@ -190,14 +190,14 @@ router.post('/reactivate/:businessId', [auth, checkRole(['superadmin'])], async 
     
     const business = businesses[0];
     
-    if (business.payment_status === 'active') {
+    if (business.payment_status === 'current') {
       return res.status(400).json({ message: 'Business is already active' });
     }
     
     // Update business status
     await pool.query(
       `UPDATE businesses 
-       SET payment_status = 'active', 
+       SET payment_status = 'current', 
            suspension_date = NULL, 
            suspension_reason = NULL,
            is_active = 1,
@@ -356,7 +356,7 @@ router.get('/summary', [auth, checkRole(['superadmin'])], async (req, res) => {
         COALESCE(SUM(monthly_fee), 0) as total_monthly_revenue,
         COUNT(*) as active_businesses
        FROM businesses 
-       WHERE payment_status = 'active'`
+       WHERE payment_status = 'current'`
     );
     
     res.json({

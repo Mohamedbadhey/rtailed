@@ -11,7 +11,7 @@ import 'package:retail_management/utils/type_converter.dart';
 import 'package:flutter/foundation.dart'; // for kIsWeb
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:3000';
+  static const String baseUrl = 'https://rtailed-production.up.railway.app';
   String? _token;
   
   // Singleton pattern

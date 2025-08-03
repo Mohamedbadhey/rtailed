@@ -7,7 +7,11 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME || 'retail_management',
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  // Configure SQL mode to be compatible with our queries
+  multipleStatements: true,
+  // Set SQL mode to be more permissive for GROUP BY queries
+  sql_mode: 'STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO'
 });
 
 module.exports = pool; 

@@ -222,8 +222,8 @@ router.get('/report', auth, async (req, res) => {
     );
     // Sales by period
     const [salesByPeriod] = await pool.query(
-      `SELECT DATE_FORMAT(s.created_at, ?) as period, COUNT(*) as total_sales, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_sale FROM sales s ${whereClause} GROUP BY ${group_by === 'day' ? 'DATE(s.created_at)' : group_by === 'week' ? 'YEARWEEK(s.created_at)' : 'DATE_FORMAT(s.created_at, "%Y-%m")'} ORDER BY period DESC`,
-      [group_by === 'day' ? '%Y-%m-%d' : group_by === 'week' ? '%Y-%u' : '%Y-%m', ...params]
+      `SELECT DATE_FORMAT(s.created_at, ?) as period, COUNT(*) as total_sales, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_sale FROM sales s ${whereClause} GROUP BY DATE_FORMAT(s.created_at, ?) ORDER BY period DESC`,
+      [group_by === 'day' ? '%Y-%m-%d' : group_by === 'week' ? '%Y-%u' : '%Y-%m', group_by === 'day' ? '%Y-%m-%d' : group_by === 'week' ? '%Y-%u' : '%Y-%m', ...params]
     );
     // Payment methods
     const [paymentMethods] = await pool.query(
@@ -482,7 +482,7 @@ router.get('/credit-report', [auth, checkRole(['admin', 'manager', 'cashier'])],
       `SELECT DATE_FORMAT(s.created_at, '%Y-%m-%d') as period, COUNT(*) as credit_sales, SUM(s.total_amount) as total_credit, s.user_id as cashier_id
        FROM sales s
        ${whereClause}
-       GROUP BY period, s.user_id
+       GROUP BY DATE_FORMAT(s.created_at, '%Y-%m-%d'), s.user_id
        ORDER BY period DESC`, params);
        
     // Overall credit summary

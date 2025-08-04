@@ -524,7 +524,7 @@ router.get('/credit-report', [auth, checkRole(['admin', 'manager', 'cashier'])],
 // Get credit customers
 router.get('/credit-customers', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
-    let whereClause = 'WHERE s.payment_method = "credit"';
+    let whereClause = 'WHERE orig.payment_method = "credit"';
     const params = [];
     
     // Add business_id filter unless superadmin
@@ -532,7 +532,7 @@ router.get('/credit-customers', [auth, checkRole(['admin', 'manager', 'cashier']
       if (!req.user.business_id) {
         return res.status(400).json({ message: 'Business ID is required for this report.' });
       }
-      whereClause += ' AND s.business_id = ?';
+      whereClause += ' AND orig.business_id = ?';
       params.push(req.user.business_id);
     }
     

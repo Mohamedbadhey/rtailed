@@ -370,7 +370,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           DataColumn(label: Text('Customer')),
                                           DataColumn(label: Text('Phone')),
                                           DataColumn(label: Text('Credit Sales')),
-                                          DataColumn(label: Text('Total Credit')),
+                                          DataColumn(label: Text('Outstanding')),
                                           DataColumn(label: Text('Email')),
                                           DataColumn(label: Text('Actions')),
                                         ],
@@ -380,7 +380,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               DataCell(Text(customer['name'] ?? '')),
                                               DataCell(Text(customer['phone'] ?? '')),
                                               DataCell(Text('${customer['credit_sales_count'] ?? 0}')),
-                                              DataCell(Text('\$${(double.tryParse((customer['total_credit_amount'] ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}')),
+                                              DataCell(Text('\$${(double.tryParse((customer['outstanding_amount'] ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}')),
                                               DataCell(Text(customer['email'] ?? '')),
                                               DataCell(
                                                 IconButton(
@@ -927,7 +927,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           apiService: _apiService,
         );
       },
-    );
+    ).then((_) {
+      // Reload credit customers when dialog is closed
+      if (_showCreditSection) {
+        _loadCreditCustomers();
+      }
+    });
   }
 } 
 
@@ -950,7 +955,6 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
   Map<String, dynamic> _transactionsData = {};
   String? _error;
   final TextEditingController _paymentAmountController = TextEditingController();
-  final TextEditingController _paymentMethodController = TextEditingController();
   int? _selectedSaleId;
 
   @override
@@ -962,7 +966,6 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
   @override
   void dispose() {
     _paymentAmountController.dispose();
-    _paymentMethodController.dispose();
     super.dispose();
   }
 
@@ -987,20 +990,12 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
     }
   }
 
-  Future<void> _makePayment(int saleId, double originalAmount, double outstandingAmount) async {
+  Future<void> _makePayment(int saleId, double originalAmount, double outstandingAmount, String paymentMethod) async {
     final amount = double.tryParse(_paymentAmountController.text);
-    final paymentMethod = _paymentMethodController.text.trim();
 
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid payment amount')),
-      );
-      return;
-    }
-
-    if (paymentMethod.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a payment method')),
       );
       return;
     }
@@ -1017,7 +1012,6 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
       
       // Clear form
       _paymentAmountController.clear();
-      _paymentMethodController.clear();
       _selectedSaleId = null;
       
       // Reload transactions
@@ -1036,50 +1030,80 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
   void _showPaymentDialog(int saleId, double originalAmount, double outstandingAmount) {
     _selectedSaleId = saleId;
     _paymentAmountController.text = outstandingAmount.toString();
-    _paymentMethodController.text = 'cash';
+    
+    // Use the same payment methods as POS, excluding credit
+    final List<String> _paymentMethods = [
+      'evc',
+      'edahab', 
+      'merchant',
+    ];
+    String _selectedPaymentMethod = 'evc';
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Record Payment'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Original Credit: \$${originalAmount.toStringAsFixed(2)}'),
-              Text('Outstanding: \$${outstandingAmount.toStringAsFixed(2)}'),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _paymentAmountController,
-                decoration: const InputDecoration(
-                  labelText: 'Payment Amount',
-                  prefixText: '\$',
-                ),
-                keyboardType: TextInputType.number,
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Record Payment'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Original Credit: \$${originalAmount.toStringAsFixed(2)}'),
+                  Text('Outstanding: \$${outstandingAmount.toStringAsFixed(2)}'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _paymentAmountController,
+                    decoration: const InputDecoration(
+                      labelText: 'Payment Amount',
+                      prefixText: '\$',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButton<String>(
+                      value: _selectedPaymentMethod,
+                      underline: const SizedBox(),
+                      isExpanded: true,
+                      items: _paymentMethods.map((method) {
+                        return DropdownMenuItem<String>(
+                          value: method,
+                          child: Text(
+                            method[0].toUpperCase() + method.substring(1),
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedPaymentMethod = value!;
+                        });
+                      },
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _paymentMethodController,
-                decoration: const InputDecoration(
-                  labelText: 'Payment Method',
-                  hintText: 'cash, card, evc, etc.',
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
                 ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _makePayment(saleId, originalAmount, outstandingAmount);
-              },
-              child: const Text('Record Payment'),
-            ),
-          ],
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _makePayment(saleId, originalAmount, outstandingAmount, _selectedPaymentMethod);
+                  },
+                  child: const Text('Record Payment'),
+                ),
+              ],
+            );
+          },
         );
       },
     );

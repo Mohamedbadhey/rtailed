@@ -536,21 +536,30 @@ router.get('/credit-customers', [auth, checkRole(['admin', 'manager', 'cashier']
       params.push(req.user.business_id);
     }
     
-    // Get customers with credit sales
+    // Get customers with outstanding credit sales only
     const [customers] = await pool.query(
       `SELECT 
         c.id,
         c.name,
         c.email,
         c.phone,
-        COUNT(s.id) as credit_sales_count,
-        SUM(s.total_amount) as total_credit_amount,
-        MAX(s.created_at) as last_credit_sale
-      FROM sales s
-      LEFT JOIN customers c ON s.customer_id = c.id
-      ${whereClause}
+        COUNT(orig.id) as credit_sales_count,
+        SUM(orig.total_amount) as total_credit_amount,
+        MAX(orig.created_at) as last_credit_sale,
+        SUM(COALESCE(payments.total_paid, 0)) as total_paid_amount,
+        (SUM(orig.total_amount) - SUM(COALESCE(payments.total_paid, 0))) as outstanding_amount
+      FROM sales orig
+      LEFT JOIN customers c ON orig.customer_id = c.id
+      LEFT JOIN (
+        SELECT parent_sale_id, SUM(total_amount) as total_paid 
+        FROM sales 
+        WHERE parent_sale_id IS NOT NULL 
+        GROUP BY parent_sale_id
+      ) payments ON payments.parent_sale_id = orig.id
+      ${whereClause} AND orig.parent_sale_id IS NULL
       GROUP BY c.id, c.name, c.email, c.phone
-      ORDER BY total_credit_amount DESC`,
+      HAVING outstanding_amount > 0
+      ORDER BY outstanding_amount DESC`,
       params
     );
     

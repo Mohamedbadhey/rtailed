@@ -751,6 +751,24 @@ class ApiService {
     }
   }
 
+  // Get customer credit transactions (credit sales and payment history)
+  Future<Map<String, dynamic>> getCustomerCreditTransactions(int customerId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/sales/customer/$customerId/credit-transactions'),
+        headers: _headers,
+      );
+      if (response.statusCode == 200) {
+        return TypeConverter.safeToMap(json.decode(response.body));
+      } else {
+        throw Exception('Failed to get customer credit transactions: ${response.body}');
+      }
+    } catch (e) {
+      print('Error fetching customer credit transactions: $e');
+      rethrow;
+    }
+  }
+
   // Pay a credit sale (partial payments supported)
   Future<Map<String, dynamic>> payCreditSale(int saleId, double amount, {required String paymentMethod}) async {
     final response = await http.put(

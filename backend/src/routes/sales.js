@@ -563,6 +563,106 @@ router.get('/credit-customers', [auth, checkRole(['admin', 'manager', 'cashier']
   }
 });
 
+// Get customer credit transactions (credit sales and payment history)
+router.get('/customer/:customerId/credit-transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
+  try {
+    const customerId = req.params.customerId;
+    let whereClause = 'WHERE s.customer_id = ?';
+    const params = [customerId];
+    
+    // Add business_id filter unless superadmin
+    if (req.user.role !== 'superadmin') {
+      if (!req.user.business_id) {
+        return res.status(400).json({ message: 'Business ID is required for this report.' });
+      }
+      whereClause += ' AND s.business_id = ?';
+      params.push(req.user.business_id);
+    }
+    
+    // Get all credit sales for this customer (original credit sales only)
+    const [creditSales] = await pool.query(
+      `SELECT 
+        s.id,
+        s.total_amount,
+        s.created_at,
+        s.status,
+        s.payment_method,
+        u.username as cashier_name,
+        'credit_sale' as transaction_type,
+        NULL as parent_sale_id
+      FROM sales s
+      LEFT JOIN users u ON s.user_id = u.id
+      ${whereClause} AND s.payment_method = 'credit' AND s.parent_sale_id IS NULL
+      ORDER BY s.created_at DESC`,
+      params
+    );
+    
+    // Get all payment history for this customer's credit sales
+    const [payments] = await pool.query(
+      `SELECT 
+        s.id,
+        s.total_amount,
+        s.created_at,
+        s.status,
+        s.payment_method,
+        u.username as cashier_name,
+        'payment' as transaction_type,
+        s.parent_sale_id,
+        orig.total_amount as original_credit_amount
+      FROM sales s
+      LEFT JOIN users u ON s.user_id = u.id
+      LEFT JOIN sales orig ON s.parent_sale_id = orig.id
+      ${whereClause} AND s.parent_sale_id IS NOT NULL
+      ORDER BY s.created_at DESC`,
+      params
+    );
+    
+    // Calculate outstanding amounts for each credit sale
+    const creditSalesWithOutstanding = await Promise.all(creditSales.map(async (sale) => {
+      const [paymentSum] = await pool.query(
+        'SELECT IFNULL(SUM(total_amount), 0) as total_paid FROM sales WHERE parent_sale_id = ?',
+        [sale.id]
+      );
+      const totalPaid = Number(paymentSum[0].total_paid) || 0;
+      const outstanding = Math.max(0, Number(sale.total_amount) - totalPaid);
+      
+      return {
+        ...sale,
+        total_paid: totalPaid,
+        outstanding_amount: outstanding,
+        is_fully_paid: outstanding <= 0
+      };
+    }));
+    
+    // Group payments by parent sale for better organization
+    const paymentsByParent = {};
+    payments.forEach(payment => {
+      const parentId = payment.parent_sale_id;
+      if (!paymentsByParent[parentId]) {
+        paymentsByParent[parentId] = [];
+      }
+      paymentsByParent[parentId].push(payment);
+    });
+    
+    res.json({
+      customer_id: customerId,
+      credit_sales: creditSalesWithOutstanding,
+      payments: payments,
+      payments_by_parent: paymentsByParent,
+      summary: {
+        total_credit_amount: creditSalesWithOutstanding.reduce((sum, sale) => sum + Number(sale.total_amount), 0),
+        total_paid_amount: payments.reduce((sum, payment) => sum + Number(payment.total_amount), 0),
+        total_outstanding: creditSalesWithOutstanding.reduce((sum, sale) => sum + sale.outstanding_amount, 0),
+        credit_sales_count: creditSalesWithOutstanding.length,
+        payments_count: payments.length
+      }
+    });
+  } catch (error) {
+    console.error('Error getting customer credit transactions:', error);
+    res.status(500).json({ message: 'Failed to get customer credit transactions' });
+  }
+});
+
 // Mark a credit sale as paid (partial payments supported, single sales table)
 router.put('/:id/pay', auth, async (req, res) => {
   try {

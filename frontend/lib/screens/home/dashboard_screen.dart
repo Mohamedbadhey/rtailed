@@ -918,147 +918,545 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _showCustomerTransactions(Map<String, dynamic> customer) {
-    setState(() {
-      _selectedCustomerName = customer['name'] ?? 'Unknown Customer';
-    });
-    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.person, color: Theme.of(context).primaryColor),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Credit Transactions - ${customer['name'] ?? 'Unknown Customer'}',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: 600,
-          child: Column(
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return CustomerCreditTransactionsDialog(
+          customer: customer,
+          apiService: _apiService,
+        );
+      },
+    );
+  }
+} 
+
+class CustomerCreditTransactionsDialog extends StatefulWidget {
+  final Map<String, dynamic> customer;
+  final ApiService apiService;
+
+  const CustomerCreditTransactionsDialog({
+    super.key,
+    required this.customer,
+    required this.apiService,
+  });
+
+  @override
+  State<CustomerCreditTransactionsDialog> createState() => _CustomerCreditTransactionsDialogState();
+}
+
+class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransactionsDialog> {
+  bool _isLoading = true;
+  Map<String, dynamic> _transactionsData = {};
+  String? _error;
+  final TextEditingController _paymentAmountController = TextEditingController();
+  final TextEditingController _paymentMethodController = TextEditingController();
+  int? _selectedSaleId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTransactions();
+  }
+
+  @override
+  void dispose() {
+    _paymentAmountController.dispose();
+    _paymentMethodController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadTransactions() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final customerId = widget.customer['id'];
+      final data = await widget.apiService.getCustomerCreditTransactions(customerId);
+      setState(() {
+        _transactionsData = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Error loading transactions: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _makePayment(int saleId, double originalAmount, double outstandingAmount) async {
+    final amount = double.tryParse(_paymentAmountController.text);
+    final paymentMethod = _paymentMethodController.text.trim();
+
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid payment amount')),
+      );
+      return;
+    }
+
+    if (paymentMethod.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a payment method')),
+      );
+      return;
+    }
+
+    if (amount > outstandingAmount) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Payment amount cannot exceed outstanding amount (\$${outstandingAmount.toStringAsFixed(2)})')),
+      );
+      return;
+    }
+
+    try {
+      await widget.apiService.payCreditSale(saleId, amount, paymentMethod: paymentMethod);
+      
+      // Clear form
+      _paymentAmountController.clear();
+      _paymentMethodController.clear();
+      _selectedSaleId = null;
+      
+      // Reload transactions
+      await _loadTransactions();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Payment recorded successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error recording payment: $e')),
+      );
+    }
+  }
+
+  void _showPaymentDialog(int saleId, double originalAmount, double outstandingAmount) {
+    _selectedSaleId = saleId;
+    _paymentAmountController.text = outstandingAmount.toString();
+    _paymentMethodController.text = 'cash';
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Record Payment'),
+          content: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Customer Info
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[300]!),
+              Text('Original Credit: \$${originalAmount.toStringAsFixed(2)}'),
+              Text('Outstanding: \$${outstandingAmount.toStringAsFixed(2)}'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _paymentAmountController,
+                decoration: const InputDecoration(
+                  labelText: 'Payment Amount',
+                  prefixText: '\$',
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Customer Information',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Name: ${customer['name'] ?? 'N/A'}'),
-                              Text('Phone: ${customer['phone'] ?? 'N/A'}'),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Email: ${customer['email'] ?? 'N/A'}'),
-                              Text('Credit Sales: ${customer['credit_sales_count'] ?? 0}'),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.orange[100],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.orange[300]!),
-                      ),
-                      child: Text(
-                        'Total Credit: \$${(double.tryParse((customer['total_credit_amount'] ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}',
-                        style: TextStyle(
-                          color: Colors.orange[800],
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 16),
-              Text(
-                'Transaction History',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[700],
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Note: This would need to be implemented to fetch actual transaction data
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue[200]!),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.blue[600]),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Transaction details will be loaded here. This feature can be expanded to show individual credit sales and payment history.',
-                        style: TextStyle(color: Colors.blue[800]),
-                      ),
-                    ),
-                  ],
+              TextField(
+                controller: _paymentMethodController,
+                decoration: const InputDecoration(
+                  labelText: 'Payment Method',
+                  hintText: 'cash, card, evc, etc.',
                 ),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // TODO: Implement view detailed transactions
-              Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Detailed transaction view coming soon!'),
-                  backgroundColor: Colors.blue[600],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _makePayment(saleId, originalAmount, outstandingAmount);
+              },
+              child: const Text('Record Payment'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width <= 768;
+    
+    return Dialog(
+      child: Container(
+        width: isMobile ? double.infinity : 800,
+        height: isMobile ? double.infinity : 600,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.person, color: Colors.blue),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Credit Transactions - ${widget.customer['name']}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              );
-            },
-            child: const Text('View Details'),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (_error != null)
+              Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.error, color: Colors.red, size: 48),
+                    const SizedBox(height: 8),
+                    Text(_error!, style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadTransactions,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Summary Cards
+                      _buildSummaryCards(),
+                      const SizedBox(height: 16),
+                      
+                      // Credit Sales
+                      _buildCreditSalesSection(),
+                      const SizedBox(height: 16),
+                      
+                      // Payment History
+                      _buildPaymentHistorySection(),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryCards() {
+    final summary = _transactionsData['summary'] ?? {};
+    final totalCredit = summary['total_credit_amount'] ?? 0.0;
+    final totalPaid = summary['total_paid_amount'] ?? 0.0;
+    final totalOutstanding = summary['total_outstanding'] ?? 0.0;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildSummaryCard(
+            'Total Credit',
+            '\$${totalCredit.toStringAsFixed(2)}',
+            Icons.credit_card,
+            Colors.orange,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildSummaryCard(
+            'Total Paid',
+            '\$${totalPaid.toStringAsFixed(2)}',
+            Icons.payment,
+            Colors.green,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildSummaryCard(
+            'Outstanding',
+            '\$${totalOutstanding.toStringAsFixed(2)}',
+            Icons.warning,
+            Colors.red,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildCreditSalesSection() {
+    final creditSales = _transactionsData['credit_sales'] ?? [];
+    
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.shopping_cart, color: Colors.blue),
+                const SizedBox(width: 8),
+                Text(
+                  'Credit Sales (${creditSales.length})',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (creditSales.isEmpty)
+              const Center(
+                child: Text('No credit sales found'),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: creditSales.length,
+                itemBuilder: (context, index) {
+                  final sale = creditSales[index];
+                  final originalAmount = double.tryParse(sale['total_amount'].toString()) ?? 0.0;
+                  final totalPaid = double.tryParse(sale['total_paid'].toString()) ?? 0.0;
+                  final outstanding = double.tryParse(sale['outstanding_amount'].toString()) ?? 0.0;
+                  final isFullyPaid = sale['is_fully_paid'] ?? false;
+                  
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Sale #${sale['id']}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Date: ${_formatDate(DateTime.tryParse(sale['created_at'] ?? ''))}',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    Text(
+                                      'Cashier: ${sale['cashier_name'] ?? 'Unknown'}',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '\$${originalAmount.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  if (totalPaid > 0)
+                                    Text(
+                                      'Paid: \$${totalPaid.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        color: Colors.green,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  if (outstanding > 0)
+                                    Text(
+                                      'Outstanding: \$${outstanding.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        color: Colors.red,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          if (!isFullyPaid) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                ElevatedButton(
+                                  onPressed: () => _showPaymentDialog(
+                                    sale['id'],
+                                    originalAmount,
+                                    outstanding,
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  child: const Text('Record Payment'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentHistorySection() {
+    final payments = _transactionsData['payments'] ?? [];
+    
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.payment, color: Colors.green),
+                const SizedBox(width: 8),
+                Text(
+                  'Payment History (${payments.length})',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (payments.isEmpty)
+              const Center(
+                child: Text('No payment history found'),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: payments.length,
+                itemBuilder: (context, index) {
+                  final payment = payments[index];
+                  final amount = double.tryParse(payment['total_amount'].toString()) ?? 0.0;
+                  final originalAmount = double.tryParse(payment['original_credit_amount'].toString()) ?? 0.0;
+                  
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.green,
+                        child: Icon(Icons.payment, color: Colors.white),
+                      ),
+                      title: Text('Payment for Sale #${payment['parent_sale_id']}'),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Amount: \$${amount.toStringAsFixed(2)}'),
+                          Text('Method: ${payment['payment_method']}'),
+                          Text('Date: ${_formatDate(DateTime.tryParse(payment['created_at'] ?? ''))}'),
+                          Text('Cashier: ${payment['cashier_name'] ?? 'Unknown'}'),
+                        ],
+                      ),
+                      trailing: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '\$${amount.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                          Text(
+                            'Original: \$${originalAmount.toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'Unknown';
+    
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    if (difference.inDays == 0) {
+      return 'Today at ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday at ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    } else {
+      return '${date.day}/${date.month}/${date.year} at ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    }
   }
 } 

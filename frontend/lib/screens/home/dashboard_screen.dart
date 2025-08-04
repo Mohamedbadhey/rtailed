@@ -224,11 +224,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     try {
       final customers = await ApiService().getCreditCustomers();
+      print('Credit customers data: $customers'); // Debug log
       setState(() {
         _creditCustomers = customers;
         _creditLoading = false;
       });
     } catch (e) {
+      print('Error loading credit customers: $e'); // Debug log
       setState(() {
         _creditError = 'Error: $e';
         _creditLoading = false;
@@ -369,19 +371,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           DataColumn(label: Text('Phone')),
                                           DataColumn(label: Text('Credit Sales')),
                                           DataColumn(label: Text('Total Credit')),
-                                          DataColumn(label: Text('Cashier')),
+                                          DataColumn(label: Text('Email')),
                                           DataColumn(label: Text('Actions')),
                                         ],
                                         rows: _creditCustomers.map((customer) {
                                           return DataRow(
                                             cells: [
-                                              DataCell(Text(customer['customer_name'] ?? '')),
-                                          DataCell(Text(customer['phone'] ?? '')),
+                                              DataCell(Text(customer['name'] ?? '')),
+                                              DataCell(Text(customer['phone'] ?? '')),
                                               DataCell(Text('${customer['credit_sales_count'] ?? 0}')),
-                                              DataCell(Text('\$${(customer['total_credit_amount'] ?? 0).toStringAsFixed(2)}')),
-                                          DataCell(Text(customer['cashier_name'] ?? '')),
-                                          DataCell(
-                                            IconButton(
+                                              DataCell(Text('\$${(double.tryParse((customer['total_credit_amount'] ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}')),
+                                              DataCell(Text(customer['email'] ?? '')),
+                                              DataCell(
+                                                IconButton(
                                                   icon: Icon(Icons.visibility),
                                                   onPressed: () => _showCustomerTransactions(customer),
                                                 ),
@@ -916,7 +918,147 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _showCustomerTransactions(Map<String, dynamic> customer) {
-    // Implementation for showing customer transactions
-    // This would open a dialog or navigate to a detailed view
+    setState(() {
+      _selectedCustomerName = customer['name'] ?? 'Unknown Customer';
+    });
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.person, color: Theme.of(context).primaryColor),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Credit Transactions - ${customer['name'] ?? 'Unknown Customer'}',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 600,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Customer Info
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Customer Information',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Name: ${customer['name'] ?? 'N/A'}'),
+                              Text('Phone: ${customer['phone'] ?? 'N/A'}'),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Email: ${customer['email'] ?? 'N/A'}'),
+                              Text('Credit Sales: ${customer['credit_sales_count'] ?? 0}'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[100],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange[300]!),
+                      ),
+                      child: Text(
+                        'Total Credit: \$${(double.tryParse((customer['total_credit_amount'] ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}',
+                        style: TextStyle(
+                          color: Colors.orange[800],
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Transaction History',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[700],
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Note: This would need to be implemented to fetch actual transaction data
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue[600]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Transaction details will be loaded here. This feature can be expanded to show individual credit sales and payment history.',
+                        style: TextStyle(color: Colors.blue[800]),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // TODO: Implement view detailed transactions
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Detailed transaction view coming soon!'),
+                  backgroundColor: Colors.blue[600],
+                ),
+              );
+            },
+            child: const Text('View Details'),
+          ),
+        ],
+      ),
+    );
   }
 } 

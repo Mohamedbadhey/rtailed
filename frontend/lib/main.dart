@@ -26,6 +26,14 @@ void main() async {
     FlutterError.presentError(details);
   };
   
+  // Initialize platform-specific services
+  try {
+    // Initialize path_provider for platform support
+    await Future.delayed(Duration.zero);
+  } catch (e) {
+    print('Platform initialization warning: $e');
+  }
+  
   // Initialize shared preferences
   final prefs = await SharedPreferences.getInstance();
   

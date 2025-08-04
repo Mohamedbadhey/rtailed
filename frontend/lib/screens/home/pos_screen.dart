@@ -928,7 +928,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       // If blank, treat as walk-in
       final customerId = customer?.id;
       final saleData = {
-        if (customerId != null && customerId.isNotEmpty) 'customer_id': int.parse(customerId),
+        if (customerId != null && customerId.toString().isNotEmpty) 'customer_id': customerId is int ? customerId : int.tryParse(customerId.toString()) ?? 0,
         'payment_method': _selectedPaymentMethod,
         'total_amount': widget.cart.items.fold(0.0, (sum, item) {
           final controller = _customPriceControllers[item.product.id];

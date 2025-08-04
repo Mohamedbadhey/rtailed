@@ -19,7 +19,12 @@ class OfflineDataService {
 
   // Initialize the service
   Future<void> initialize() async {
-    await _syncService.initialize();
+    try {
+      await _syncService.initialize();
+    } catch (e) {
+      print('OfflineDataService initialization warning: $e');
+      // Continue without offline functionality if initialization fails
+    }
   }
 
   // Check if online
@@ -249,8 +254,9 @@ class OfflineDataService {
       
       if (isConnected && customer.id != null) {
         try {
+          final customerId = customer.id is int ? customer.id : int.tryParse(customer.id ?? '') ?? 0;
           final response = await http.put(
-            Uri.parse('${ApiService.baseUrl}/api/customers/${customer.id}'),
+            Uri.parse('${ApiService.baseUrl}/api/customers/$customerId'),
             headers: _apiService.headers,
             body: json.encode(customer.toJson()),
           );
@@ -267,8 +273,9 @@ class OfflineDataService {
       final customerData = customer.toJson();
       customerData['sync_status'] = 'pending';
       
-      await _offlineDb.update('customers', customerData, int.parse(customer.id!));
-      await _offlineDb.addToSyncQueue('customers', 'update', int.parse(customer.id!), customerData, customer.businessId);
+      final customerId = customer.id is int ? customer.id : int.tryParse(customer.id ?? '') ?? 0;
+      await _offlineDb.update('customers', customerData, customerId as int);
+      await _offlineDb.addToSyncQueue('customers', 'update', customerId as int, customerData, customer.businessId);
       
       return true;
     } catch (e) {
@@ -400,9 +407,10 @@ class OfflineDataService {
     customerData['sync_status'] = 'synced';
     customerData['last_sync'] = DateTime.now().toIso8601String();
     
+    final customerId = customer.id is int ? customer.id : int.tryParse(customer.id ?? '') ?? 0;
     final existing = await _offlineDb.query('customers', 
       where: 'server_id = ?', 
-      whereArgs: [customer.id]
+      whereArgs: [customerId as int]
     );
 
     if (existing.isNotEmpty) {

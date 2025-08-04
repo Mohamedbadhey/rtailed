@@ -223,26 +223,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
 
     try {
-      final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/sales/credit-customers'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${context.read<AuthProvider>().token}',
-        },
-      );
-      
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _creditCustomers = List<Map<String, dynamic>>.from(data['customers'] ?? []);
-          _creditLoading = false;
-        });
-      } else {
+      final customers = await ApiService().getCreditCustomers();
       setState(() {
-          _creditError = 'Failed to load credit customers';
+        _creditCustomers = customers;
         _creditLoading = false;
       });
-      }
     } catch (e) {
       setState(() {
         _creditError = 'Error: $e';

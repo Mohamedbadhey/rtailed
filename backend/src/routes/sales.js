@@ -455,9 +455,8 @@ router.get('/top-products', [auth, checkRole(['admin', 'manager'])], async (req,
 // Credit report endpoint
 router.get('/credit-report', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
-    console.log('Credit report requested with params:', req.query);
     const { start_date, end_date } = req.query;
-    let whereClause = "WHERE s.payment_method = 'credit' AND (s.status = 'completed' OR s.status = 'paid' OR s.status = 'unpaid')";
+    let whereClause = 'WHERE s.payment_method = "credit"';
     const params = [];
     
     // Add business_id filter unless superadmin
@@ -468,61 +467,99 @@ router.get('/credit-report', [auth, checkRole(['admin', 'manager', 'cashier'])],
       whereClause += ' AND s.business_id = ?';
       params.push(req.user.business_id);
     }
+    
+    // Add date filters
     if (start_date) {
-      whereClause += ' AND s.created_at >= ?';
+      whereClause += ' AND DATE(s.created_at) >= ?';
       params.push(start_date);
     }
     if (end_date) {
-      whereClause += ' AND s.created_at <= ?';
+      whereClause += ' AND DATE(s.created_at) <= ?';
       params.push(end_date);
     }
     
-    console.log('Credit report query whereClause:', whereClause);
-    console.log('Credit report query params:', params);
-    
     // Credit sales by customer, now include cashier info
     const [byCustomer] = await pool.query(
-      `SELECT c.id, c.name, c.phone, COUNT(s.id) as credit_sales, SUM(s.total_amount) as total_credit, u.id as cashier_id, u.username as cashier_name
-       FROM sales s
-       JOIN customers c ON s.customer_id = c.id
-       JOIN users u ON s.user_id = u.id
-       ${whereClause}
-       GROUP BY c.id, c.name, c.phone, u.id, u.username
-       ORDER BY total_credit DESC`,
+      `SELECT 
+        c.id as customer_id,
+        c.name as customer_name,
+        c.email as customer_email,
+        c.phone as customer_phone,
+        COUNT(s.id) as credit_sales_count,
+        SUM(s.total_amount) as total_credit_amount,
+        MAX(s.created_at) as last_credit_sale,
+        u.name as cashier_name
+      FROM sales s
+      LEFT JOIN customers c ON s.customer_id = c.id
+      LEFT JOIN users u ON s.user_id = u.id
+      ${whereClause}
+      GROUP BY c.id, c.name, c.email, c.phone, u.name
+      ORDER BY total_credit_amount DESC`,
       params
     );
     
     console.log('Credit report byCustomer result:', byCustomer);
     
-    // Credit sales by period, include cashier info
-    const [byPeriod] = await pool.query(
-      `SELECT DATE_FORMAT(s.created_at, '%Y-%m-%d') as period, COUNT(*) as credit_sales, SUM(s.total_amount) as total_credit, s.user_id as cashier_id
-       FROM sales s
-       ${whereClause}
-       GROUP BY DATE_FORMAT(s.created_at, '%Y-%m-%d'), s.user_id
-       ORDER BY period DESC`, params);
-       
-    // Overall credit summary
+    // Summary statistics
     const [summary] = await pool.query(
-      `SELECT COUNT(*) as total_credit_sales, SUM(s.total_amount) as total_credit_amount FROM sales s ${whereClause}`,
+      `SELECT 
+        COUNT(*) as total_credit_sales,
+        SUM(s.total_amount) as total_credit_amount,
+        COUNT(DISTINCT s.customer_id) as unique_credit_customers,
+        AVG(s.total_amount) as average_credit_sale
+      FROM sales s ${whereClause}`,
       params
     );
     
-    const response = {
-      summary: summary[0] || { total_credit_sales: 0, total_credit_amount: 0 },
-      byCustomer: byCustomer || [],
-      byPeriod: byPeriod || []
-    };
-    
-    console.log('Credit report response:', response);
-    res.json(response);
-  } catch (error) {
-    console.error('Credit report error:', error);
-    res.json({ 
-      summary: { total_credit_sales: 0, total_credit_amount: 0 }, 
-      byCustomer: [], 
-      byPeriod: [] 
+    res.json({
+      summary: summary[0],
+      byCustomer: byCustomer
     });
+  } catch (error) {
+    console.error('Error getting credit report:', error);
+    res.status(500).json({ message: 'Failed to get credit report' });
+  }
+});
+
+// Get credit customers
+router.get('/credit-customers', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
+  try {
+    let whereClause = 'WHERE s.payment_method = "credit"';
+    const params = [];
+    
+    // Add business_id filter unless superadmin
+    if (req.user.role !== 'superadmin') {
+      if (!req.user.business_id) {
+        return res.status(400).json({ message: 'Business ID is required for this report.' });
+      }
+      whereClause += ' AND s.business_id = ?';
+      params.push(req.user.business_id);
+    }
+    
+    // Get customers with credit sales
+    const [customers] = await pool.query(
+      `SELECT 
+        c.id,
+        c.name,
+        c.email,
+        c.phone,
+        COUNT(s.id) as credit_sales_count,
+        SUM(s.total_amount) as total_credit_amount,
+        MAX(s.created_at) as last_credit_sale
+      FROM sales s
+      LEFT JOIN customers c ON s.customer_id = c.id
+      ${whereClause}
+      GROUP BY c.id, c.name, c.email, c.phone
+      ORDER BY total_credit_amount DESC`,
+      params
+    );
+    
+    res.json({
+      customers: customers
+    });
+  } catch (error) {
+    console.error('Error getting credit customers:', error);
+    res.status(500).json({ message: 'Failed to get credit customers' });
   }
 });
 

@@ -353,195 +353,195 @@ class _InventoryScreenState extends State<InventoryScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth > 768;
-    final isMobile = screenWidth <= 480;
+    final isMobile = screenWidth <= 600; // Increased mobile breakpoint for better coverage
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
         child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Branded Header Section
-                  Consumer<BrandingProvider>(
-                    builder: (context, brandingProvider, child) {
-                      return BrandedHeader(
-                        subtitle: t(context, 'Manage your product inventory efficiently'),
-                        logoSize: isMobile ? 50 : 60,
-                        actions: [
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: IconButton(
-                              icon: const Icon(Icons.refresh, color: Colors.white),
-                              onPressed: _loadProducts,
-                              tooltip: t(context, 'Refresh Data'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Branded Header Section
+              Consumer<BrandingProvider>(
+                builder: (context, brandingProvider, child) {
+                  return BrandedHeader(
+                    subtitle: t(context, 'Manage your product inventory efficiently'),
+                    logoSize: isMobile ? 50 : 60,
+                    actions: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.refresh, color: Colors.white),
+                          onPressed: _loadProducts,
+                          tooltip: t(context, 'Refresh Data'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          _showAddProductDialog();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Theme.of(context).primaryColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        icon: const Icon(Icons.add),
+                        label: Text(
+                          isMobile ? t(context, 'Add') : t(context, 'Add Product'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              // Filters Section
+              Container(
+                padding: EdgeInsets.all(isMobile ? 12 : 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t(context, 'Filters'),
+                      style: TextStyle(
+                        fontSize: isMobile ? 14 : 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (isMobile) ...[
+                      CustomTextField(
+                        controller: _searchController,
+                        labelText: t(context, 'Search Products'),
+                        prefixIcon: const Icon(Icons.search),
+                        onChanged: (value) {
+                          _applyFilters();
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey[300]!),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: DropdownButton<String>(
+                                value: _categories.contains(_selectedCategory) ? _selectedCategory : (_categories.isNotEmpty ? _categories.first : null),
+                                underline: const SizedBox(),
+                                isExpanded: true,
+                                items: _categories.map((category) {
+                                  return DropdownMenuItem(
+                                    value: category,
+                                    child: Text(
+                                      category,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedCategory = value!;
+                                  });
+                                  _applyFilters();
+                                },
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              _showAddProductDialog();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Theme.of(context).primaryColor,
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            icon: const Icon(Icons.add),
-                            label: Text(
-                              isMobile ? t(context, 'Add') : t(context, 'Add Product'),
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  // Filters Section
-                  Container(
-                    padding: EdgeInsets.all(isMobile ? 12 : 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          t(context, 'Filters'),
-                          style: TextStyle(
-                            fontSize: isMobile ? 14 : 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        if (isMobile) ...[
-                          CustomTextField(
-                            controller: _searchController,
-                            labelText: t(context, 'Search Products'),
-                            prefixIcon: const Icon(Icons.search),
-                            onChanged: (value) {
+                          FilterChip(
+                            label: const Text('Low Stock'),
+                            selected: _showLowStock,
+                            selectedColor: Colors.red[100],
+                            checkmarkColor: Colors.red,
+                            onSelected: (value) {
+                              setState(() {
+                                _showLowStock = value;
+                              });
                               _applyFilters();
                             },
                           ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.grey[300]!),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: DropdownButton<String>(
-                                    value: _categories.contains(_selectedCategory) ? _selectedCategory : (_categories.isNotEmpty ? _categories.first : null),
-                                    underline: const SizedBox(),
-                                    isExpanded: true,
-                                    items: _categories.map((category) {
-                                      return DropdownMenuItem(
-                                        value: category,
-                                        child: Text(
-                                          category,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      );
-                                    }).toList(),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _selectedCategory = value!;
-                                      });
-                                      _applyFilters();
-                                    },
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              FilterChip(
-                                label: const Text('Low Stock'),
-                                selected: _showLowStock,
-                                selectedColor: Colors.red[100],
-                                checkmarkColor: Colors.red,
-                                onSelected: (value) {
-                                  setState(() {
-                                    _showLowStock = value;
-                                  });
-                                  _applyFilters();
-                                },
-                              ),
-                            ],
+                        ],
+                      ),
+                    ] else ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: CustomTextField(
+                              controller: _searchController,
+                              labelText: t(context, 'Search Products'),
+                              prefixIcon: const Icon(Icons.search),
+                              onChanged: (value) {
+                                _applyFilters();
+                              },
+                            ),
                           ),
-                        ] else ...[
-                          Row(
-                            children: [
-                              Expanded(
-                                child: CustomTextField(
-                                  controller: _searchController,
-                                  labelText: t(context, 'Search Products'),
-                                  prefixIcon: const Icon(Icons.search),
-                                  onChanged: (value) {
-                                    _applyFilters();
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey[300]!),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: DropdownButton<String>(
-                                  value: _categories.contains(_selectedCategory) ? _selectedCategory : (_categories.isNotEmpty ? _categories.first : null),
-                                  underline: const SizedBox(),
-                                  items: _categories.map((category) {
-                                    return DropdownMenuItem(
-                                      value: category,
-                                      child: Text(
-                                        category,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    );
-                                  }).toList(),
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _selectedCategory = value!;
-                                    });
-                                    _applyFilters();
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              FilterChip(
-                                label: const Text('Low Stock'),
-                                selected: _showLowStock,
-                                selectedColor: Colors.red[100],
-                                checkmarkColor: Colors.red,
-                                onSelected: (value) {
-                                  setState(() {
-                                    _showLowStock = value;
-                                  });
-                                  _applyFilters();
-                                },
-                              ),
-                            ],
+                          const SizedBox(width: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: DropdownButton<String>(
+                              value: _categories.contains(_selectedCategory) ? _selectedCategory : (_categories.isNotEmpty ? _categories.first : null),
+                              underline: const SizedBox(),
+                              items: _categories.map((category) {
+                                return DropdownMenuItem(
+                                  value: category,
+                                  child: Text(
+                                    category,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedCategory = value!;
+                                });
+                                _applyFilters();
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          FilterChip(
+                            label: const Text('Low Stock'),
+                            selected: _showLowStock,
+                            selectedColor: Colors.red[100],
+                            checkmarkColor: Colors.red,
+                            onSelected: (value) {
+                              setState(() {
+                                _showLowStock = value;
+                              });
+                              _applyFilters();
+                            },
                           ),
                         ],
-                      ],
-                    ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
               const SizedBox(height: 24),
               // Inventory Report Section
@@ -551,6 +551,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 },
                 children: [
                   ExpansionPanel(
+                    isExpanded: _showInventoryReport,
                     headerBuilder: (context, isExpanded) {
                       return ListTile(
                         leading: Icon(Icons.bar_chart, color: Theme.of(context).primaryColor),
@@ -633,8 +634,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                   onPressed: _fetchInventoryReport,
                                 ),
                               ],
-                  ),
-                  const SizedBox(height: 16),
+                            ),
+                            const SizedBox(height: 16),
                             Text(t(context, 'Stock Summary'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                             Row(
                               children: [
@@ -949,68 +950,67 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         ),
                       ),
                     ),
-                    isExpanded: _showInventoryReport,
                     canTapOnHeader: true,
                   ),
                 ],
               ),
               const SizedBox(height: 16),
-                  // Products Table Section
+              // Products Table Section
               Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: _isLoading
-                          ?  Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  CircularProgressIndicator(),
-                                  SizedBox(height: 16),
-                                  Text(t(context, 'Loading products...')),
-                                ],
-                              ),
-                            )
-                          : _filteredProducts.isEmpty
-                              ?  Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.inventory_2_outlined,
-                                        size: 64,
-                                        color: Colors.grey,
-                                      ),
-                                      SizedBox(height: 16),
-                                      Text(
-                                        t(context, 'No products found'),
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              : isMobile
-                                  ? _buildMobileProductList()
-                                  : SingleChildScrollView(
-                                      child: DataTable(
-                                        columns: _buildDataTableColumns(isTablet),
-                                        rows: _buildProductRows(isTablet),
-                                    ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                child: _isLoading
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text(t(context, 'Loading products...')),
+                          ],
+                        ),
+                      )
+                    : _filteredProducts.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.inventory_2_outlined,
+                                  size: 64,
+                                  color: Colors.grey,
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  t(context, 'No products found'),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : isMobile
+                            ? _buildMobileProductList()
+                            : SingleChildScrollView(
+                                child: DataTable(
+                                  columns: _buildDataTableColumns(isTablet),
+                                  rows: _buildProductRows(isTablet),
+                                ),
+                              ),
               ),
+            ],
+          ),
         ),
       ),
     );
@@ -1131,13 +1131,27 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 color: _getCategoryColor(product.categoryName ?? 'Uncategorized').withOpacity(0.3),
                               ),
                             ),
-                            child: Text(
-                              product.categoryName ?? 'Uncategorized',
-                              style: TextStyle(
-                                color: _getCategoryColor(product.categoryName ?? 'Uncategorized'),
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.category,
+                                  size: 14,
+                                  color: _getCategoryColor(product.categoryName ?? 'Uncategorized'),
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    product.categoryName ?? 'Uncategorized',
+                                    style: TextStyle(
+                                      color: _getCategoryColor(product.categoryName ?? 'Uncategorized'),
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -2313,6 +2327,43 @@ class _ProductDialogState extends State<_ProductDialog> {
                           }
                           if (int.tryParse(value) == null) {
                             return t(context, 'Please enter a valid number');
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<int>(
+                        value: _categories.any((cat) => cat['id'] == _selectedCategoryId) ? _selectedCategoryId : null,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Category *'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.category),
+                          filled: true,
+                          fillColor: Colors.purple[50],
+                          helperText: t(context, 'Select a category for this product'),
+                        ),
+                        items: [
+                          DropdownMenuItem<int>(
+                            value: null,
+                            child: Text(t(context, 'Select Category')),
+                          ),
+                          ..._categories.map((category) {
+                            return DropdownMenuItem<int>(
+                              value: category['id'] as int,
+                              child: Text(category['name'] as String),
+                            );
+                          }).toList(),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedCategoryId = value;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null) {
+                            return t(context, 'Please select a category');
                           }
                           return null;
                         },

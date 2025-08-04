@@ -732,6 +732,25 @@ class ApiService {
     }
   }
 
+  // Get credit customers
+  Future<List<Map<String, dynamic>>> getCreditCustomers() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/sales/credit-customers'),
+        headers: _headers,
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data['customers'] ?? []);
+      } else {
+        throw Exception('Failed to get credit customers: ${response.body}');
+      }
+    } catch (e) {
+      print('Error fetching credit customers: $e');
+      rethrow;
+    }
+  }
+
   // Pay a credit sale (partial payments supported)
   Future<Map<String, dynamic>> payCreditSale(int saleId, double amount, {required String paymentMethod}) async {
     final response = await http.put(

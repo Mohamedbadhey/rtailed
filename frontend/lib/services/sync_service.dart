@@ -23,19 +23,24 @@ class SyncService {
 
   // Initialize sync service
   Future<void> initialize() async {
-    // Listen to connectivity changes
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
-      if (result != ConnectivityResult.none) {
-        _startPeriodicSync();
-      } else {
-        _stopPeriodicSync();
-      }
-    });
+    try {
+      // Listen to connectivity changes
+      _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
+        if (result != ConnectivityResult.none) {
+          _startPeriodicSync();
+        } else {
+          _stopPeriodicSync();
+        }
+      });
 
-    // Check initial connectivity
-    final connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult != ConnectivityResult.none) {
-      _startPeriodicSync();
+      // Check initial connectivity
+      final connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult != ConnectivityResult.none) {
+        _startPeriodicSync();
+      }
+    } catch (e) {
+      print('SyncService initialization warning: $e');
+      // Continue without sync functionality if initialization fails
     }
   }
 

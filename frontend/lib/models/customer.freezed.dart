@@ -20,6 +20,7 @@ Customer _$CustomerFromJson(Map<String, dynamic> json) {
 
 /// @nodoc
 mixin _$Customer {
+  @JsonKey(fromJson: _idFromJson, toJson: _idToJson)
   String? get id => throw _privateConstructorUsedError;
   String get name => throw _privateConstructorUsedError;
   String get email => throw _privateConstructorUsedError;
@@ -48,7 +49,7 @@ abstract class $CustomerCopyWith<$Res> {
       _$CustomerCopyWithImpl<$Res, Customer>;
   @useResult
   $Res call(
-      {String? id,
+      {@JsonKey(fromJson: _idFromJson, toJson: _idToJson) String? id,
       String name,
       String email,
       String? phone,
@@ -146,7 +147,7 @@ abstract class _$$CustomerImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {String? id,
+      {@JsonKey(fromJson: _idFromJson, toJson: _idToJson) String? id,
       String name,
       String email,
       String? phone,
@@ -237,7 +238,7 @@ class __$$CustomerImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$CustomerImpl implements _Customer {
   const _$CustomerImpl(
-      {this.id,
+      {@JsonKey(fromJson: _idFromJson, toJson: _idToJson) this.id,
       required this.name,
       required this.email,
       this.phone,
@@ -253,6 +254,7 @@ class _$CustomerImpl implements _Customer {
       _$$CustomerImplFromJson(json);
 
   @override
+  @JsonKey(fromJson: _idFromJson, toJson: _idToJson)
   final String? id;
   @override
   final String name;
@@ -330,7 +332,7 @@ class _$CustomerImpl implements _Customer {
 
 abstract class _Customer implements Customer {
   const factory _Customer(
-      {final String? id,
+      {@JsonKey(fromJson: _idFromJson, toJson: _idToJson) final String? id,
       required final String name,
       required final String email,
       final String? phone,
@@ -346,6 +348,7 @@ abstract class _Customer implements Customer {
       _$CustomerImpl.fromJson;
 
   @override
+  @JsonKey(fromJson: _idFromJson, toJson: _idToJson)
   String? get id;
   @override
   String get name;

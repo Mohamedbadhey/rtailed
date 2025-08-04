@@ -6,7 +6,7 @@ part 'customer.g.dart';
 @freezed
 class Customer with _$Customer {
   const factory Customer({
-    String? id,
+    @JsonKey(fromJson: _idFromJson, toJson: _idToJson) String? id,
     required String name,
     required String email,
     String? phone,
@@ -20,6 +20,18 @@ class Customer with _$Customer {
   }) = _Customer;
 
   factory Customer.fromJson(Map<String, dynamic> json) => _$CustomerFromJson(json);
+}
+
+String? _idFromJson(dynamic value) {
+  if (value == null) return null;
+  if (value is String) return value;
+  if (value is int) return value.toString();
+  return value.toString();
+}
+
+dynamic _idToJson(String? value) {
+  if (value == null) return null;
+  return int.tryParse(value) ?? value;
 }
 
 String _intToString(dynamic value) {

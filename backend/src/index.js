@@ -10,7 +10,9 @@ const app = express();
 
 // Create uploads directories if they don't exist
 const createUploadsDirectories = () => {
-  const uploadsDir = path.join(__dirname, '../uploads');
+  // Use Railway's persistent storage directory if available
+  const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
+  const uploadsDir = path.join(baseDir, 'uploads');
   const productsDir = path.join(uploadsDir, 'products');
   const brandingDir = path.join(uploadsDir, 'branding');
 
@@ -18,19 +20,19 @@ const createUploadsDirectories = () => {
     // Create main uploads directory
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
-      console.log('✅ Created uploads directory');
+      console.log('✅ Created uploads directory:', uploadsDir);
     }
 
     // Create products subdirectory
     if (!fs.existsSync(productsDir)) {
       fs.mkdirSync(productsDir, { recursive: true });
-      console.log('✅ Created uploads/products directory');
+      console.log('✅ Created uploads/products directory:', productsDir);
     }
 
     // Create branding subdirectory
     if (!fs.existsSync(brandingDir)) {
       fs.mkdirSync(brandingDir, { recursive: true });
-      console.log('✅ Created uploads/branding directory');
+      console.log('✅ Created uploads/branding directory:', brandingDir);
     }
 
     console.log('📁 Uploads directories ready');
@@ -82,7 +84,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve static files (for product images)
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
+app.use('/uploads', express.static(path.join(baseDir, 'uploads')));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

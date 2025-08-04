@@ -9,7 +9,11 @@ const { auth } = require('../middleware/auth');
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads/branding');
+    // Use Railway's persistent storage directory
+    const uploadDir = process.env.RAILWAY_VOLUME_MOUNT_PATH 
+      ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'uploads', 'branding')
+      : path.join(__dirname, '../../uploads/branding');
+    
     try {
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });

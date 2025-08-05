@@ -152,6 +152,7 @@ app.use('/uploads', express.static(uploadsDir, {
 
 // Root endpoint for Railway health checks
 app.get('/', (req, res) => {
+  console.log('🏥 Root health check requested');
   res.json({ 
     status: 'OK', 
     message: 'Retail Management API is running',
@@ -163,13 +164,20 @@ app.get('/', (req, res) => {
   });
 });
 
-// Health check endpoint
+// Health check endpoint (keeping for backward compatibility)
 app.get('/api/health', (req, res) => {
+  console.log('🏥 API health check requested');
   res.json({ 
     status: 'OK', 
     message: 'Retail Management API is running',
     timestamp: new Date().toISOString()
   });
+});
+
+// Railway-specific health check endpoint
+app.get('/health', (req, res) => {
+  console.log('🏥 Railway health check requested');
+  res.status(200).send('OK');
 });
 
 // Test image serving endpoint
@@ -348,7 +356,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-app.listen(PORT, HOST, () => {
+const server = app.listen(PORT, HOST, () => {
   console.log(`🚀 Server is running on http://${HOST}:${PORT}`);
   console.log(`📊 Health check: http://${HOST}:${PORT}/`);
   console.log(`🔗 API Base URL: http://${HOST}:${PORT}/api`);
@@ -357,4 +365,21 @@ app.listen(PORT, HOST, () => {
   console.log(`🔧 Railway Volume: ${process.env.RAILWAY_VOLUME_MOUNT_PATH || 'Not set'}`);
   console.log(`🔧 Port: ${PORT}`);
   console.log(`🔧 Host: ${HOST}`);
+});
+
+// Graceful shutdown handling
+process.on('SIGTERM', () => {
+  console.log('🛑 Received SIGTERM, shutting down gracefully...');
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('🛑 Received SIGINT, shutting down gracefully...');
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
 }); 

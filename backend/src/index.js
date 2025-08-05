@@ -113,16 +113,16 @@ app.get('/api/health', (req, res) => {
 // Test file system endpoint
 app.get('/api/test-filesystem', (req, res) => {
   try {
-    const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
-    const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
-    const productsDir = path.join(uploadsDir, 'products');
+    const testBaseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
+    const testUploadsDir = testBaseDir.endsWith('uploads') ? testBaseDir : path.join(testBaseDir, 'uploads');
+    const productsDir = path.join(testUploadsDir, 'products');
     
     console.log('🔍 Testing file system access...');
-    console.log('🔍 Base directory:', baseDir);
-    console.log('🔍 Uploads directory:', uploadsDir);
+    console.log('🔍 Base directory:', testBaseDir);
+    console.log('🔍 Uploads directory:', testUploadsDir);
     console.log('🔍 Products directory:', productsDir);
     
-    const uploadsExists = fs.existsSync(uploadsDir);
+    const uploadsExists = fs.existsSync(testUploadsDir);
     const productsExists = fs.existsSync(productsDir);
     
     let files = [];
@@ -139,8 +139,8 @@ app.get('/api/test-filesystem', (req, res) => {
       status: 'OK',
       environment: process.env.RAILWAY_VOLUME_MOUNT_PATH ? 'Railway' : 'Local',
       railwayVolumePath: process.env.RAILWAY_VOLUME_MOUNT_PATH,
-      baseDirectory: baseDir,
-      uploadsDirectory: uploadsDir,
+      baseDirectory: testBaseDir,
+      uploadsDirectory: testUploadsDir,
       productsDirectory: productsDir,
       uploadsExists,
       productsExists,
@@ -161,9 +161,9 @@ app.get('/api/test-filesystem', (req, res) => {
 app.get('/api/test-image/:filename', (req, res) => {
   try {
     const filename = req.params.filename;
-    const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
-    const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
-    const imagePath = path.join(uploadsDir, 'products', filename);
+    const imageBaseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
+    const imageUploadsDir = imageBaseDir.endsWith('uploads') ? imageBaseDir : path.join(imageBaseDir, 'uploads');
+    const imagePath = path.join(imageUploadsDir, 'products', filename);
     
     console.log('🖼️ Testing image:', filename);
     console.log('🖼️ Full path:', imagePath);

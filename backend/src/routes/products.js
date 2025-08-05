@@ -15,10 +15,16 @@ const storage = multer.diskStorage({
       ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'uploads', 'products')
       : path.join(__dirname, '../../uploads/products');
     
+    console.log('📁 File upload destination:', uploadDir);
+    console.log('📁 Railway volume path:', process.env.RAILWAY_VOLUME_MOUNT_PATH);
+    console.log('📁 Environment:', process.env.RAILWAY_VOLUME_MOUNT_PATH ? 'Railway' : 'Local');
+    
     // Ensure directory exists
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
       console.log('✅ Created uploads/products directory for file upload:', uploadDir);
+    } else {
+      console.log('✅ Upload directory already exists:', uploadDir);
     }
     
     cb(null, uploadDir);
@@ -26,7 +32,9 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     // Sanitize filename to prevent issues
     const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-    cb(null, `${Date.now()}-${sanitizedName}`);
+    const finalFilename = `${Date.now()}-${sanitizedName}`;
+    console.log('📁 File will be saved as:', finalFilename);
+    cb(null, finalFilename);
   }
 });
 

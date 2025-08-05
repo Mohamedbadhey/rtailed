@@ -2023,18 +2023,93 @@ class _ProductDialogState extends State<_ProductDialog> {
 
   Future<void> _pickImage() async {
     try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
+      // Show dialog to choose between camera and gallery
+      final ImageSource? source = await showDialog<ImageSource>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Icon(Icons.add_a_photo, color: Theme.of(context).primaryColor),
+                const SizedBox(width: 8),
+                Text(t(context, 'Select Image Source')),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.camera_alt, color: Colors.blue),
+                        ),
+                        title: Text(
+                          t(context, 'Camera'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(t(context, 'Take a new photo')),
+                        onTap: () => Navigator.of(context).pop(ImageSource.camera),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      ),
+                      Divider(height: 1, color: Colors.grey[300]),
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.green[50],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.photo_library, color: Colors.green),
+                        ),
+                        title: Text(
+                          t(context, 'Gallery'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(t(context, 'Choose from gallery')),
+                        onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(t(context, 'Cancel')),
+              ),
+            ],
+          );
+        },
       );
-      
-      if (image != null) {
-        setState(() {
-          _imageFile = File(image.path);
-        });
+
+      if (source != null) {
+        final ImagePicker picker = ImagePicker();
+        final XFile? image = await picker.pickImage(
+          source: source,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85,
+        );
+        
+        if (image != null) {
+          setState(() {
+            _imageFile = File(image.path);
+          });
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2045,27 +2120,126 @@ class _ProductDialogState extends State<_ProductDialog> {
 
   Future<void> _pickImageWeb() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['png', 'jpg', 'jpeg'],
-        allowMultiple: false,
-        withData: true,
+      // Show dialog to choose between camera and file picker
+      final bool? useCamera = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Icon(Icons.add_a_photo, color: Theme.of(context).primaryColor),
+                const SizedBox(width: 8),
+                Text(t(context, 'Select Image Source')),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.camera_alt, color: Colors.blue),
+                        ),
+                        title: Text(
+                          t(context, 'Camera'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(t(context, 'Take a new photo')),
+                        onTap: () => Navigator.of(context).pop(true),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      ),
+                      Divider(height: 1, color: Colors.grey[300]),
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.green[50],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.photo_library, color: Colors.green),
+                        ),
+                        title: Text(
+                          t(context, 'File Picker'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(t(context, 'Choose from files')),
+                        onTap: () => Navigator.of(context).pop(false),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(t(context, 'Cancel')),
+              ),
+            ],
+          );
+        },
       );
 
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
-        if (file.bytes != null) {
-          // Determine MIME type and force lowercase extension
-          String? ext = file.extension?.toLowerCase();
-          String mimeType =
-              ext == 'png' ? 'image/png' :
-              (ext == 'jpg' || ext == 'jpeg') ? 'image/jpeg' : 'image/jpeg';
-          String forcedExt = (ext == 'png' || ext == 'jpg' || ext == 'jpeg') ? ext! : 'jpg';
-          String baseName = file.name.contains('.') ? file.name.substring(0, file.name.lastIndexOf('.')) : file.name;
+      if (useCamera == null) return;
+
+      if (useCamera) {
+        // Use camera for web
+        final ImagePicker picker = ImagePicker();
+        final XFile? image = await picker.pickImage(
+          source: ImageSource.camera,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85,
+        );
+        
+        if (image != null) {
+          final bytes = await image.readAsBytes();
+          final base64String = base64Encode(bytes);
+          final mimeType = 'image/jpeg'; // Camera typically returns JPEG
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+          
           setState(() {
-            _webImageDataUrl = 'data:$mimeType;base64,${base64Encode(file.bytes!)}';
-            _webImageName = baseName + '.' + forcedExt;
+            _webImageDataUrl = 'data:$mimeType;base64,$base64String';
+            _webImageName = 'camera_$timestamp.jpg';
           });
+        }
+      } else {
+        // Use file picker
+        FilePickerResult? result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['png', 'jpg', 'jpeg'],
+          allowMultiple: false,
+          withData: true,
+        );
+
+        if (result != null && result.files.isNotEmpty) {
+          final file = result.files.first;
+          if (file.bytes != null) {
+            // Determine MIME type and force lowercase extension
+            String? ext = file.extension?.toLowerCase();
+            String mimeType =
+                ext == 'png' ? 'image/png' :
+                (ext == 'jpg' || ext == 'jpeg') ? 'image/jpeg' : 'image/jpeg';
+            String forcedExt = (ext == 'png' || ext == 'jpg' || ext == 'jpeg') ? ext! : 'jpg';
+            String baseName = file.name.contains('.') ? file.name.substring(0, file.name.lastIndexOf('.')) : file.name;
+            setState(() {
+              _webImageDataUrl = 'data:$mimeType;base64,${base64Encode(file.bytes!)}';
+              _webImageName = baseName + '.' + forcedExt;
+            });
+          }
         }
       }
     } catch (e) {
@@ -2664,10 +2838,27 @@ class _ProductDialogState extends State<_ProductDialog> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(
-          Icons.add_a_photo,
-          size: isMobile ? 24 : 32,
-          color: Colors.grey[600],
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.camera_alt,
+              size: isMobile ? 16 : 20,
+              color: Colors.blue[600],
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.add,
+              size: isMobile ? 12 : 16,
+              color: Colors.grey[600],
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.photo_library,
+              size: isMobile ? 16 : 20,
+              color: Colors.green[600],
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         Text(
@@ -2676,6 +2867,14 @@ class _ProductDialogState extends State<_ProductDialog> {
             color: Colors.grey[600],
             fontSize: isMobile ? 10 : 12,
             fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          t(context, 'Camera or Gallery'),
+          style: TextStyle(
+            color: Colors.grey[500],
+            fontSize: isMobile ? 8 : 10,
           ),
         ),
       ],

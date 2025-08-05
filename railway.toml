@@ -4,17 +4,9 @@ builder = "nixpacks"
 [deploy]
 startCommand = "npm start"
 healthcheckPath = "/api/health"
-healthcheckTimeout = 300
-restartPolicyType = "on_failure"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
 
-[[services]]
-name = "backend"
-sourceDir = "."
-
-[services.env]
-NODE_ENV = "production"
-RAILWAY_VOLUME_MOUNT_PATH = "/data"
-
-[[volumes]]
-name = "uploads"
-mountPath = "/data/uploads" 
+[deploy.targets]
+backend = { source = "backend" } 

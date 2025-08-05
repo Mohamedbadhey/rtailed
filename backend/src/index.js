@@ -10,9 +10,7 @@ const app = express();
 
 // Create uploads directories if they don't exist
 const createUploadsDirectories = () => {
-  // Use Railway's persistent storage directory if available
-  const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
-  const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
+  const uploadsDir = path.join(__dirname, '../uploads');
   const productsDir = path.join(uploadsDir, 'products');
   const brandingDir = path.join(uploadsDir, 'branding');
 
@@ -20,19 +18,19 @@ const createUploadsDirectories = () => {
     // Create main uploads directory
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
-      console.log('✅ Created uploads directory:', uploadsDir);
+      console.log('✅ Created uploads directory');
     }
 
     // Create products subdirectory
     if (!fs.existsSync(productsDir)) {
       fs.mkdirSync(productsDir, { recursive: true });
-      console.log('✅ Created uploads/products directory:', productsDir);
+      console.log('✅ Created uploads/products directory');
     }
 
     // Create branding subdirectory
     if (!fs.existsSync(brandingDir)) {
       fs.mkdirSync(brandingDir, { recursive: true });
-      console.log('✅ Created uploads/branding directory:', brandingDir);
+      console.log('✅ Created uploads/branding directory');
     }
 
     console.log('📁 Uploads directories ready');
@@ -84,22 +82,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve static files (for product images)
-const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
-const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
-app.use('/uploads', (req, res, next) => {
-  console.log('📁 Static file request:', req.url);
-  console.log('📁 Base directory:', baseDir);
-  console.log('📁 Uploads directory:', uploadsDir);
-  console.log('📁 Full path:', path.join(uploadsDir, req.url));
-  console.log('📁 Environment:', process.env.RAILWAY_VOLUME_MOUNT_PATH ? 'Railway' : 'Local');
-  
-  // Add CORS headers for image requests
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
-  
-  next();
-}, express.static(uploadsDir));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -108,85 +91,6 @@ app.get('/api/health', (req, res) => {
     message: 'Retail Management API is running',
     timestamp: new Date().toISOString()
   });
-});
-
-// Test file system endpoint
-app.get('/api/test-filesystem', (req, res) => {
-  try {
-    const testBaseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
-    const testUploadsDir = testBaseDir.endsWith('uploads') ? testBaseDir : path.join(testBaseDir, 'uploads');
-    const productsDir = path.join(testUploadsDir, 'products');
-    
-    console.log('🔍 Testing file system access...');
-    console.log('🔍 Base directory:', testBaseDir);
-    console.log('🔍 Uploads directory:', testUploadsDir);
-    console.log('🔍 Products directory:', productsDir);
-    
-    const uploadsExists = fs.existsSync(testUploadsDir);
-    const productsExists = fs.existsSync(productsDir);
-    
-    let files = [];
-    if (productsExists) {
-      try {
-        files = fs.readdirSync(productsDir);
-        console.log('🔍 Found files in products directory:', files);
-      } catch (error) {
-        console.log('🔍 Error reading products directory:', error.message);
-      }
-    }
-    
-    res.json({
-      status: 'OK',
-      environment: process.env.RAILWAY_VOLUME_MOUNT_PATH ? 'Railway' : 'Local',
-      railwayVolumePath: process.env.RAILWAY_VOLUME_MOUNT_PATH,
-      baseDirectory: testBaseDir,
-      uploadsDirectory: testUploadsDir,
-      productsDirectory: productsDir,
-      uploadsExists,
-      productsExists,
-      files,
-      fileCount: files.length
-    });
-  } catch (error) {
-    console.error('🔍 File system test error:', error);
-    res.status(500).json({
-      status: 'ERROR',
-      message: error.message,
-      stack: error.stack
-    });
-  }
-});
-
-// Test specific image endpoint
-app.get('/api/test-image/:filename', (req, res) => {
-  try {
-    const filename = req.params.filename;
-    const imageBaseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
-    const imageUploadsDir = imageBaseDir.endsWith('uploads') ? imageBaseDir : path.join(imageBaseDir, 'uploads');
-    const imagePath = path.join(imageUploadsDir, 'products', filename);
-    
-    console.log('🖼️ Testing image:', filename);
-    console.log('🖼️ Full path:', imagePath);
-    
-    const exists = fs.existsSync(imagePath);
-    const stats = exists ? fs.statSync(imagePath) : null;
-    
-    res.json({
-      filename,
-      exists,
-      fullPath: imagePath,
-      size: stats?.size || 0,
-      created: stats?.birthtime || null,
-      modified: stats?.mtime || null,
-      url: `https://rtailed-production.up.railway.app/uploads/products/${filename}`
-    });
-  } catch (error) {
-    console.error('🖼️ Image test error:', error);
-    res.status(500).json({
-      status: 'ERROR',
-      message: error.message
-    });
-  }
 });
 
 // Routes

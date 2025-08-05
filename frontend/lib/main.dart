@@ -9,6 +9,8 @@ import 'package:retail_management/screens/auth/login_screen.dart';
 
 import 'package:retail_management/screens/home/home_screen.dart';
 import 'package:retail_management/screens/home/superadmin_dashboard.dart';
+import 'package:retail_management/screens/home/superadmin_dashboard_mobile.dart';
+import 'package:retail_management/screens/home/superadmin_dashboard_simple.dart';
 import 'package:retail_management/utils/theme.dart';
 import 'package:retail_management/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -91,7 +93,7 @@ class MyApp extends StatelessWidget {
                     builder: (context, auth, _) {
                       if (auth.isAuthenticated) {
                         if (auth.user?.role == 'superadmin') {
-                          return const SuperadminDashboard();
+                          return const SuperadminDashboardSimple();
                         } else {
                           return const HomeScreen();
                         }
@@ -102,7 +104,7 @@ class MyApp extends StatelessWidget {
                   ),
                   '/login': (context) => const LoginScreen(),
                   '/home': (context) => const HomeScreen(),
-                  '/superadmin': (context) => const SuperadminDashboard(),
+                  '/superadmin': (context) => const SuperadminDashboardSimple(),
                 },
                 debugShowCheckedModeBanner: false,
               ),

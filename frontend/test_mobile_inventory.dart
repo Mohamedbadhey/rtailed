@@ -18,7 +18,7 @@ void main() {
       await tester.pumpAndSettle();
       
       // Verify category dropdown exists
-      expect(find.text('Category *'), findsOneWidget);
+      expect(find.text('Category'), findsOneWidget);
       expect(find.text('Select Category'), findsOneWidget);
     });
 
@@ -54,7 +54,7 @@ void main() {
       expect(find.text('Add Product'), findsOneWidget);
     });
 
-    testWidgets('Category validation works in mobile form', (WidgetTester tester) async {
+    testWidgets('Category is optional in mobile form', (WidgetTester tester) async {
       // Set mobile screen size
       tester.binding.window.physicalSizeTestValue = const Size(400, 800);
       tester.binding.window.devicePixelRatioTestValue = 1.0;
@@ -74,12 +74,12 @@ void main() {
       await tester.enterText(find.byType(TextFormField).at(4), '5.00');
       await tester.enterText(find.byType(TextFormField).at(5), '100');
       
-      // Try to save without selecting category
+      // Try to save without selecting category (should work now)
       await tester.tap(find.text('Add Product'));
       await tester.pumpAndSettle();
       
-      // Should show validation error
-      expect(find.text('Please select a category'), findsOneWidget);
+      // Should not show validation error for category
+      expect(find.text('Please select a category'), findsNothing);
     });
   });
 } 

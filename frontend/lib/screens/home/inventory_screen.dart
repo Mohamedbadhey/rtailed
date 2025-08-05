@@ -2392,14 +2392,14 @@ class _ProductDialogState extends State<_ProductDialog> {
                       DropdownButtonFormField<int>(
                         value: _categories.any((cat) => cat['id'] == _selectedCategoryId) ? _selectedCategoryId : null,
                         decoration: InputDecoration(
-                          labelText: t(context, 'Category *'),
+                          labelText: t(context, 'Category'),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                           prefixIcon: const Icon(Icons.category),
                           filled: true,
                           fillColor: Colors.purple[50],
-                          helperText: t(context, 'Select a category for this product'),
+                          helperText: t(context, 'Select a category for this product (optional)'),
                         ),
                         items: [
                           DropdownMenuItem<int>(
@@ -2418,12 +2418,7 @@ class _ProductDialogState extends State<_ProductDialog> {
                             _selectedCategoryId = value;
                           });
                         },
-                        validator: (value) {
-                          if (value == null) {
-                            return t(context, 'Please select a category');
-                          }
-                          return null;
-                        },
+
                       ),
                     ] else ...[
                       // Desktop/Tablet layout - horizontal rows

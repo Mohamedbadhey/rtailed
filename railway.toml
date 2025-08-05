@@ -9,7 +9,7 @@ restartPolicyType = "on_failure"
 
 [[services]]
 name = "backend"
-sourceDir = "backend"
+sourceDir = "."
 
 [services.env]
 NODE_ENV = "production"

@@ -11,9 +11,8 @@ const uploadErrorHandler = require('../middleware/uploadErrorHandler');
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Use Railway's persistent storage directory
-    const uploadDir = process.env.RAILWAY_VOLUME_MOUNT_PATH 
-      ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'uploads', 'products')
-      : path.join(__dirname, '../../uploads/products');
+    const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '../../uploads');
+    const uploadDir = baseDir.endsWith('uploads') ? path.join(baseDir, 'products') : path.join(baseDir, 'uploads', 'products');
     
     console.log('📁 File upload destination:', uploadDir);
     console.log('📁 Railway volume path:', process.env.RAILWAY_VOLUME_MOUNT_PATH);

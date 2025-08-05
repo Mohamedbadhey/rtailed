@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Access Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .image-container {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            display: inline-block;
+            margin-right: 20px;
+            margin-bottom: 20px;
+        }
+        .image-container img {
+            max-width: 200px;
+            max-height: 200px;
+            border: 1px solid #ddd;
+        }
+        .error {
+            color: red;
+            background: #ffe6e6;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            color: green;
+            background: #e6ffe6;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .loading {
+            color: blue;
+            background: #e6f3ff;
+            padding: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Access Test</h1>
+    <p>Testing if uploaded images are accessible from the browser...</p>
+    
+    <div id="results"></div>
+    
+    <div id="images"></div>
+
+    <script>
+        const baseUrl = 'https://rtailed-production.up.railway.app';
+        const imageFiles = [
+            '1754387753641-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg',
+            '1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg',
+            '1754389338371-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg',
+            '1754389606324-download__4_.jpg',
+            '1754394903951-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg',
+            '1754395479991-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg'
+        ];
+        
+        // Test both direct uploads and API endpoint
+        const testMethods = [
+            { name: 'Direct Uploads', url: (filename) => `${baseUrl}/uploads/products/${filename}` },
+            { name: 'API Endpoint', url: (filename) => `${baseUrl}/api/test-image/${filename}` }
+        ];
+        
+        async function testImageAccess() {
+            document.getElementById('results').innerHTML = '<div class="loading">Testing image access...</div>';
+            
+            let totalSuccessCount = 0;
+            let totalErrorCount = 0;
+            
+            for (const method of testMethods) {
+                const methodContainer = document.createElement('div');
+                methodContainer.innerHTML = `<h2>${method.name}</h2>`;
+                document.getElementById('images').appendChild(methodContainer);
+                
+                let methodSuccessCount = 0;
+                let methodErrorCount = 0;
+                
+                for (const filename of imageFiles) {
+                    const imageUrl = method.url(filename);
+                    const container = document.createElement('div');
+                    container.className = 'image-container';
+                    container.innerHTML = `
+                        <h3>${filename}</h3>
+                        <div class="loading">Loading...</div>
+                        <p>URL: <a href="${imageUrl}" target="_blank">${imageUrl}</a></p>
+                    `;
+                    methodContainer.appendChild(container);
+                    
+                    try {
+                        const response = await fetch(imageUrl, { method: 'HEAD' });
+                        if (response.ok) {
+                            container.innerHTML = `
+                                <h3>${filename}</h3>
+                                <img src="${imageUrl}" alt="${filename}" onerror="this.parentElement.innerHTML += '<div class=error>Failed to load image</div>'">
+                                <p>URL: <a href="${imageUrl}" target="_blank">${imageUrl}</a></p>
+                                <div class="success">✅ Accessible (Status: ${response.status})</div>
+                            `;
+                            methodSuccessCount++;
+                            totalSuccessCount++;
+                        } else {
+                            container.innerHTML = `
+                                <h3>${filename}</h3>
+                                <p>URL: <a href="${imageUrl}" target="_blank">${imageUrl}</a></p>
+                                <div class="error">❌ Not accessible (Status: ${response.status})</div>
+                            `;
+                            methodErrorCount++;
+                            totalErrorCount++;
+                        }
+                    } catch (error) {
+                        container.innerHTML = `
+                            <h3>${filename}</h3>
+                            <p>URL: <a href="${imageUrl}" target="_blank">${imageUrl}</a></p>
+                            <div class="error">❌ Error: ${error.message}</div>
+                        `;
+                        methodErrorCount++;
+                        totalErrorCount++;
+                    }
+                }
+                
+                // Add method summary
+                const summary = document.createElement('div');
+                summary.className = methodErrorCount === 0 ? 'success' : 'error';
+                summary.innerHTML = `<strong>${method.name} Results:</strong> ✅ ${methodSuccessCount} | ❌ ${methodErrorCount}`;
+                methodContainer.appendChild(summary);
+            }
+            
+            document.getElementById('results').innerHTML = `
+                <div class="${totalErrorCount === 0 ? 'success' : 'error'}">
+                    <h3>Overall Test Results:</h3>
+                    <p>✅ Successfully accessible: ${totalSuccessCount}</p>
+                    <p>❌ Failed to access: ${totalErrorCount}</p>
+                    <p>Total images tested: ${imageFiles.length * testMethods.length}</p>
+                </div>
+            `;
+        }
+        
+        // Auto-run test on page load
+        window.onload = testImageAccess;
+    </script>
+</body>
+</html> 

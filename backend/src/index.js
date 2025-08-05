@@ -68,11 +68,26 @@ checkDatabaseMode();
 
 // CORS configuration for Flutter web
 const corsOptions = {
-  origin: true, // Allow all origins for development
-  credentials: true,
+  origin: '*', // Allow all origins
+  credentials: false, // Disable credentials for cross-origin requests
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Range'],
+  exposedHeaders: ['Content-Length', 'Content-Range']
 };
+
+// Global CORS middleware for all routes
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Range');
+  res.header('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  next();
+});
 
 // Middleware
 app.use(helmet());
@@ -84,6 +99,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Serve static files (for product images) - Updated for Railway volume
 const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
 const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
+
+// Serve static files with proper MIME types and CORS
 app.use('/uploads', (req, res, next) => {
   console.log('📁 Static file request:', req.url);
   console.log('📁 Base directory:', baseDir);
@@ -91,13 +108,47 @@ app.use('/uploads', (req, res, next) => {
   console.log('📁 Full path:', path.join(uploadsDir, req.url));
   console.log('📁 Environment:', process.env.RAILWAY_VOLUME_MOUNT_PATH ? 'Railway' : 'Local');
   
-  // Add CORS headers for image requests
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  // Set CORS headers for all static file requests
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
   
   next();
-}, express.static(uploadsDir));
+});
+
+// Serve static files with proper MIME types and CORS headers
+app.use('/uploads', express.static(uploadsDir, {
+  setHeaders: (res, filePath) => {
+    console.log('📁 Setting headers for:', filePath);
+    
+    // Set proper MIME types for images
+    if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
+      res.setHeader('Content-Type', 'image/jpeg');
+    } else if (filePath.endsWith('.png')) {
+      res.setHeader('Content-Type', 'image/png');
+    } else if (filePath.endsWith('.gif')) {
+      res.setHeader('Content-Type', 'image/gif');
+    } else if (filePath.endsWith('.webp')) {
+      res.setHeader('Content-Type', 'image/webp');
+    }
+    
+    // CORS headers for images - CRITICAL for browser access
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
+    res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+    
+    console.log('📁 CORS headers set for:', filePath);
+  }
+}));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -106,6 +157,100 @@ app.get('/api/health', (req, res) => {
     message: 'Retail Management API is running',
     timestamp: new Date().toISOString()
   });
+});
+
+// Test image serving endpoint
+app.get('/api/test-image/:filename', (req, res) => {
+  try {
+    const { filename } = req.params;
+    const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
+    const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
+    const imagePath = path.join(uploadsDir, 'products', filename);
+    
+    console.log('🖼️ Testing image serving for:', filename);
+    console.log('🖼️ Full path:', imagePath);
+    
+    if (!fs.existsSync(imagePath)) {
+      return res.status(404).json({
+        status: 'ERROR',
+        message: 'Image not found',
+        filename,
+        path: imagePath
+      });
+    }
+    
+    // Set proper headers for image serving
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+    
+    // Determine MIME type
+    let mimeType = 'image/jpeg'; // default
+    if (filename.endsWith('.png')) mimeType = 'image/png';
+    else if (filename.endsWith('.gif')) mimeType = 'image/gif';
+    else if (filename.endsWith('.webp')) mimeType = 'image/webp';
+    
+    res.setHeader('Content-Type', mimeType);
+    
+    // Send the image file
+    res.sendFile(imagePath);
+    
+  } catch (error) {
+    console.error('🖼️ Image test error:', error);
+    res.status(500).json({
+      status: 'ERROR',
+      message: error.message
+    });
+  }
+});
+
+// Direct image serving route with CORS for Flutter app
+app.get('/api/images/:filename', (req, res) => {
+  try {
+    const { filename } = req.params;
+    const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
+    const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
+    const imagePath = path.join(uploadsDir, 'products', filename);
+    
+    console.log('🖼️ Direct image request:', filename);
+    console.log('🖼️ Full path:', imagePath);
+    
+    if (!fs.existsSync(imagePath)) {
+      return res.status(404).json({
+        status: 'ERROR',
+        message: 'Image not found',
+        filename,
+        path: imagePath
+      });
+    }
+    
+    // Set CORS headers explicitly - CRITICAL for browser access
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+    
+    // Determine MIME type
+    let mimeType = 'image/jpeg'; // default
+    if (filename.endsWith('.png')) mimeType = 'image/png';
+    else if (filename.endsWith('.gif')) mimeType = 'image/gif';
+    else if (filename.endsWith('.webp')) mimeType = 'image/webp';
+    
+    res.setHeader('Content-Type', mimeType);
+    
+    console.log('🖼️ Serving image via API with CORS:', imagePath);
+    res.sendFile(imagePath);
+    
+  } catch (error) {
+    console.error('🖼️ Direct image error:', error);
+    res.status(500).json({
+      status: 'ERROR',
+      message: error.message
+    });
+  }
 });
 
 // Test file system endpoint

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>CORS Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        const baseUrl = 'https://rtailed-production.up.railway.app';
+        const testImage = '1754394903951-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg';
+        
+        async function testCORS() {
+            const results = document.getElementById('results');
+            
+            // Test 1: Check if we can fetch the image with fetch (direct uploads)
+            results.innerHTML += '<div class="info">Testing fetch request (direct uploads)...</div>';
+            try {
+                const response = await fetch(`${baseUrl}/uploads/products/${testImage}`);
+                results.innerHTML += `<div class="success">✅ Fetch successful: ${response.status} ${response.statusText}</div>`;
+                results.innerHTML += `<div class="info">Content-Type: ${response.headers.get('content-type')}</div>`;
+                results.innerHTML += `<div class="info">CORS Origin: ${response.headers.get('access-control-allow-origin')}</div>`;
+            } catch (error) {
+                results.innerHTML += `<div class="error">❌ Fetch failed: ${error.message}</div>`;
+            }
+            
+            // Test 2: Check if we can fetch the image with fetch (API endpoint)
+            results.innerHTML += '<div class="info">Testing fetch request (API endpoint)...</div>';
+            try {
+                const response = await fetch(`${baseUrl}/api/images/${testImage}`);
+                results.innerHTML += `<div class="success">✅ API Fetch successful: ${response.status} ${response.statusText}</div>`;
+                results.innerHTML += `<div class="info">Content-Type: ${response.headers.get('content-type')}</div>`;
+                results.innerHTML += `<div class="info">CORS Origin: ${response.headers.get('access-control-allow-origin')}</div>`;
+            } catch (error) {
+                results.innerHTML += `<div class="error">❌ API Fetch failed: ${error.message}</div>`;
+            }
+            
+            // Test 3: Try to create an image element (direct uploads)
+            results.innerHTML += '<div class="info">Testing image element (direct uploads)...</div>';
+            const img1 = new Image();
+            img1.crossOrigin = 'anonymous';
+            
+            img1.onload = function() {
+                results.innerHTML += '<div class="success">✅ Direct uploads image loaded successfully!</div>';
+                document.body.appendChild(img1);
+            };
+            
+            img1.onerror = function() {
+                results.innerHTML += '<div class="error">❌ Direct uploads image failed to load</div>';
+            };
+            
+            img1.src = `${baseUrl}/uploads/products/${testImage}`;
+            
+            // Test 4: Try to create an image element (API endpoint)
+            results.innerHTML += '<div class="info">Testing image element (API endpoint)...</div>';
+            const img2 = new Image();
+            img2.crossOrigin = 'anonymous';
+            
+            img2.onload = function() {
+                results.innerHTML += '<div class="success">✅ API endpoint image loaded successfully!</div>';
+                document.body.appendChild(img2);
+            };
+            
+            img2.onerror = function() {
+                results.innerHTML += '<div class="error">❌ API endpoint image failed to load</div>';
+            };
+            
+            img2.src = `${baseUrl}/api/images/${testImage}`;
+            
+            // Test 5: Check headers with HEAD request
+            results.innerHTML += '<div class="info">Testing HEAD request...</div>';
+            try {
+                const headResponse = await fetch(`${baseUrl}/uploads/products/${testImage}`, { method: 'HEAD' });
+                results.innerHTML += `<div class="success">✅ HEAD successful: ${headResponse.status}</div>`;
+                
+                // Log all headers
+                const headers = {};
+                headResponse.headers.forEach((value, key) => {
+                    headers[key] = value;
+                });
+                results.innerHTML += `<div class="info">Headers: ${JSON.stringify(headers, null, 2)}</div>`;
+            } catch (error) {
+                results.innerHTML += `<div class="error">❌ HEAD failed: ${error.message}</div>`;
+            }
+        }
+        
+        window.onload = testCORS;
+    </script>
+</body>
+</html> 

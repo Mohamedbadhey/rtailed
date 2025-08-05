@@ -92,6 +92,12 @@ app.use('/uploads', (req, res, next) => {
   console.log('📁 Uploads directory:', uploadsDir);
   console.log('📁 Full path:', path.join(uploadsDir, req.url));
   console.log('📁 Environment:', process.env.RAILWAY_VOLUME_MOUNT_PATH ? 'Railway' : 'Local');
+  
+  // Add CORS headers for image requests
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  
   next();
 }, express.static(uploadsDir));
 
@@ -147,6 +153,38 @@ app.get('/api/test-filesystem', (req, res) => {
       status: 'ERROR',
       message: error.message,
       stack: error.stack
+    });
+  }
+});
+
+// Test specific image endpoint
+app.get('/api/test-image/:filename', (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
+    const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
+    const imagePath = path.join(uploadsDir, 'products', filename);
+    
+    console.log('🖼️ Testing image:', filename);
+    console.log('🖼️ Full path:', imagePath);
+    
+    const exists = fs.existsSync(imagePath);
+    const stats = exists ? fs.statSync(imagePath) : null;
+    
+    res.json({
+      filename,
+      exists,
+      fullPath: imagePath,
+      size: stats?.size || 0,
+      created: stats?.birthtime || null,
+      modified: stats?.mtime || null,
+      url: `https://rtailed-production.up.railway.app/uploads/products/${filename}`
+    });
+  } catch (error) {
+    console.error('🖼️ Image test error:', error);
+    res.status(500).json({
+      status: 'ERROR',
+      message: error.message
     });
   }
 });

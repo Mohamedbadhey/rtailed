@@ -12,7 +12,7 @@ const app = express();
 const createUploadsDirectories = () => {
   // Use Railway's persistent storage directory if available
   const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
-  const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
+  const uploadsDir = path.join(baseDir, 'uploads');
   const productsDir = path.join(uploadsDir, 'products');
   const brandingDir = path.join(uploadsDir, 'branding');
 
@@ -85,15 +85,13 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve static files (for product images)
 const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
-const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
 app.use('/uploads', (req, res, next) => {
   console.log('📁 Static file request:', req.url);
   console.log('📁 Base directory:', baseDir);
-  console.log('📁 Uploads directory:', uploadsDir);
-  console.log('📁 Full path:', path.join(uploadsDir, req.url));
+  console.log('📁 Full path:', path.join(baseDir, 'uploads', req.url));
   console.log('📁 Environment:', process.env.RAILWAY_VOLUME_MOUNT_PATH ? 'Railway' : 'Local');
   next();
-}, express.static(uploadsDir));
+}, express.static(path.join(baseDir, 'uploads')));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -108,7 +106,7 @@ app.get('/api/health', (req, res) => {
 app.get('/api/test-filesystem', (req, res) => {
   try {
     const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
-    const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
+    const uploadsDir = path.join(baseDir, 'uploads');
     const productsDir = path.join(uploadsDir, 'products');
     
     console.log('🔍 Testing file system access...');

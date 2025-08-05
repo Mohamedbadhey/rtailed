@@ -150,6 +150,19 @@ app.use('/uploads', express.static(uploadsDir, {
   }
 }));
 
+// Root endpoint for Railway health checks
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Retail Management API is running',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/api/health',
+      api: '/api'
+    }
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -337,7 +350,11 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 app.listen(PORT, HOST, () => {
   console.log(`🚀 Server is running on http://${HOST}:${PORT}`);
-  console.log(`📊 Health check: http://${HOST}:${PORT}/api/health`);
+  console.log(`📊 Health check: http://${HOST}:${PORT}/`);
   console.log(`🔗 API Base URL: http://${HOST}:${PORT}/api`);
   console.log(`📁 Uploads served from: http://${HOST}:${PORT}/uploads`);
+  console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔧 Railway Volume: ${process.env.RAILWAY_VOLUME_MOUNT_PATH || 'Not set'}`);
+  console.log(`🔧 Port: ${PORT}`);
+  console.log(`🔧 Host: ${HOST}`);
 }); 

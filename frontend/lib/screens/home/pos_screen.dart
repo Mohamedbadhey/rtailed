@@ -47,16 +47,6 @@ class _POSScreenState extends State<POSScreen> {
 
     try {
       final products = await _apiService.getProducts();
-      print('🖼️ POS: Loaded ${products.length} products');
-      
-      // Debug: Print image URLs for products with images
-      for (final product in products) {
-        if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
-          final fullUrl = Api.getFullImageUrl(product.imageUrl);
-          print('🖼️ POS: Product "${product.name}" - Image URL: $fullUrl');
-        }
-      }
-      
       setState(() {
         _products = products;
         _filteredProducts = products;
@@ -401,20 +391,7 @@ class _POSScreenState extends State<POSScreen> {
                             child: Image.network(
                               Api.getFullImageUrl(product.imageUrl),
                               fit: BoxFit.cover,
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) {
-                                  print('🖼️ POS: Image loaded successfully for product ${product.name}');
-                                  return child;
-                                }
-                                print('🖼️ POS: Loading image for product ${product.name}: ${loadingProgress.expectedTotalBytes != null ? (loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! * 100).toStringAsFixed(1) : 'Unknown'}%');
-                                return Center(
-                                  child: CircularProgressIndicator(
-                                    value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null,
-                                  ),
-                                );
-                              },
                               errorBuilder: (context, error, stackTrace) {
-                                print('🖼️ POS: Image error for product ${product.name}: $error');
                                 return Center(
                                   child: Icon(
                                     Icons.image,

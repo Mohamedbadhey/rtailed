@@ -10,7 +10,9 @@ const app = express();
 
 // Create uploads directories if they don't exist
 const createUploadsDirectories = () => {
-  const uploadsDir = path.join(__dirname, '../uploads');
+  // Use Railway's persistent storage directory if available
+  const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
+  const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
   const productsDir = path.join(uploadsDir, 'products');
   const brandingDir = path.join(uploadsDir, 'branding');
 
@@ -18,19 +20,19 @@ const createUploadsDirectories = () => {
     // Create main uploads directory
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
-      console.log('✅ Created uploads directory');
+      console.log('✅ Created uploads directory:', uploadsDir);
     }
 
     // Create products subdirectory
     if (!fs.existsSync(productsDir)) {
       fs.mkdirSync(productsDir, { recursive: true });
-      console.log('✅ Created uploads/products directory');
+      console.log('✅ Created uploads/products directory:', productsDir);
     }
 
     // Create branding subdirectory
     if (!fs.existsSync(brandingDir)) {
       fs.mkdirSync(brandingDir, { recursive: true });
-      console.log('✅ Created uploads/branding directory');
+      console.log('✅ Created uploads/branding directory:', brandingDir);
     }
 
     console.log('📁 Uploads directories ready');
@@ -82,7 +84,16 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve static files (for product images)
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
+const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
+app.use('/uploads', (req, res, next) => {
+  console.log('📁 Static file request:', req.url);
+  console.log('📁 Base directory:', baseDir);
+  console.log('📁 Uploads directory:', uploadsDir);
+  console.log('📁 Full path:', path.join(uploadsDir, req.url));
+  console.log('📁 Environment:', process.env.RAILWAY_VOLUME_MOUNT_PATH ? 'Railway' : 'Local');
+  next();
+}, express.static(uploadsDir));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -91,6 +102,53 @@ app.get('/api/health', (req, res) => {
     message: 'Retail Management API is running',
     timestamp: new Date().toISOString()
   });
+});
+
+// Test file system endpoint
+app.get('/api/test-filesystem', (req, res) => {
+  try {
+    const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
+    const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
+    const productsDir = path.join(uploadsDir, 'products');
+    
+    console.log('🔍 Testing file system access...');
+    console.log('🔍 Base directory:', baseDir);
+    console.log('🔍 Uploads directory:', uploadsDir);
+    console.log('🔍 Products directory:', productsDir);
+    
+    const uploadsExists = fs.existsSync(uploadsDir);
+    const productsExists = fs.existsSync(productsDir);
+    
+    let files = [];
+    if (productsExists) {
+      try {
+        files = fs.readdirSync(productsDir);
+        console.log('🔍 Found files in products directory:', files);
+      } catch (error) {
+        console.log('🔍 Error reading products directory:', error.message);
+      }
+    }
+    
+    res.json({
+      status: 'OK',
+      environment: process.env.RAILWAY_VOLUME_MOUNT_PATH ? 'Railway' : 'Local',
+      railwayVolumePath: process.env.RAILWAY_VOLUME_MOUNT_PATH,
+      baseDirectory: baseDir,
+      uploadsDirectory: uploadsDir,
+      productsDirectory: productsDir,
+      uploadsExists,
+      productsExists,
+      files,
+      fileCount: files.length
+    });
+  } catch (error) {
+    console.error('🔍 File system test error:', error);
+    res.status(500).json({
+      status: 'ERROR',
+      message: error.message,
+      stack: error.stack
+    });
+  }
 });
 
 // Routes

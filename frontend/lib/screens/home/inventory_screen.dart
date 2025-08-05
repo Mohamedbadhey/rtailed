@@ -133,38 +133,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Future<void> _loadProducts() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final products = await _apiService.getProducts();
-      print('🖼️ Inventory: Loaded ${products.length} products');
-      
-      // Debug: Print image URLs for products with images
-      for (final product in products) {
-        if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
-          final fullUrl = Api.getFullImageUrl(product.imageUrl);
-          print('🖼️ Inventory: Product "${product.name}" - Image URL: $fullUrl');
-        }
-      }
-      
-      setState(() {
-        _products = products;
-        _filteredProducts = products;
-        _isLoading = false;
-      });
-      _applyFilters();
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${t(context, 'error_loading_products')}: $e')),
-        );
-      }
-    }
+    await _loadData();
   }
 
   void _applyFilters() {
@@ -1090,20 +1059,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               child: Image.network(
                                 Api.getFullImageUrl(product.imageUrl),
                                 fit: BoxFit.cover,
-                                loadingBuilder: (context, child, loadingProgress) {
-                                  if (loadingProgress == null) {
-                                    print('🖼️ Inventory: Image loaded successfully for product ${product.name}');
-                                    return child;
-                                  }
-                                  print('🖼️ Inventory: Loading image for product ${product.name}: ${loadingProgress.expectedTotalBytes != null ? (loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! * 100).toStringAsFixed(1) : 'Unknown'}%');
-                                  return Center(
-                                    child: CircularProgressIndicator(
-                                      value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null,
-                                    ),
-                                  );
-                                },
                                 errorBuilder: (context, error, stackTrace) {
-                                  print('🖼️ Inventory: Image error for product ${product.name}: $error');
                                   return Container(
                                     decoration: BoxDecoration(
                                       color: Colors.blue[50],
@@ -1361,29 +1317,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             child: Image.network(
                               Api.getFullImageUrl(product.imageUrl),
                               fit: BoxFit.cover,
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) {
-                                  print('🖼️ Inventory: Image loaded successfully for product ${product.name}');
-                                  return child;
-                                }
-                                print('🖼️ Inventory: Loading image for product ${product.name}: ${loadingProgress.expectedTotalBytes != null ? (loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! * 100).toStringAsFixed(1) : 'Unknown'}%');
-                                return Center(
-                                  child: CircularProgressIndicator(
-                                    value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null,
-                                  ),
-                                );
-                              },
                               errorBuilder: (context, error, stackTrace) {
-                                print('🖼️ Inventory: Image error for product ${product.name}: $error');
                                 return Container(
                                   decoration: BoxDecoration(
                                     color: Colors.blue[50],
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: const Icon(
                                     Icons.image,
                                     color: Colors.blue,
-                                    size: 24,
+                                    size: 20,
                                   ),
                                 );
                               },

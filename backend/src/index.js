@@ -81,8 +81,10 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Serve static files (for product images)
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Serve static files (for product images) - Updated for Railway volume
+const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
+const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
+app.use('/uploads', express.static(uploadsDir));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

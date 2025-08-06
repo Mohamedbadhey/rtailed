@@ -12,7 +12,7 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Use Railway's persistent storage directory
     const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '../../uploads');
-    const uploadDir = baseDir.endsWith('uploads') ? path.join(baseDir, 'products') : path.join(baseDir, 'uploads', 'products');
+    const uploadDir = path.join(baseDir, 'products');
     
     console.log('📁 File upload destination:', uploadDir);
     console.log('📁 Railway volume path:', process.env.RAILWAY_VOLUME_MOUNT_PATH);

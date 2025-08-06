@@ -98,7 +98,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve static files (for product images) - Updated for Railway volume
 const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
-const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
+const uploadsDir = baseDir;
 
 // Serve static files with proper MIME types and CORS
 app.use('/uploads', (req, res, next) => {
@@ -185,7 +185,7 @@ app.get('/api/test-image/:filename', (req, res) => {
   try {
     const { filename } = req.params;
     const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
-    const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
+    const uploadsDir = baseDir;
     const imagePath = path.join(uploadsDir, 'products', filename);
     
     console.log('🖼️ Testing image serving for:', filename);
@@ -232,7 +232,7 @@ app.get('/api/images/:filename', (req, res) => {
   try {
     const { filename } = req.params;
     const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
-    const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
+    const uploadsDir = baseDir;
     const imagePath = path.join(uploadsDir, 'products', filename);
     
     console.log('🖼️ Direct image request:', filename);
@@ -278,7 +278,7 @@ app.get('/api/images/:filename', (req, res) => {
 app.get('/api/test-filesystem', (req, res) => {
   try {
     const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
-    const uploadsDir = baseDir.endsWith('uploads') ? baseDir : path.join(baseDir, 'uploads');
+    const uploadsDir = baseDir;
     const productsDir = path.join(uploadsDir, 'products');
     
     console.log('🔍 Testing file system access...');

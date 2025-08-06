@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image URL Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .image-test {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .image-test img {
+            max-width: 200px;
+            max-height: 200px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .loading { background-color: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>Image URL Test for Railway Deployment</h1>
+    
+    <div class="image-test">
+        <h3>Test 1: Direct Image Access</h3>
+        <p>Testing: <code>https://rtailed-production.up.railway.app/uploads/products/1754387753641-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg</code></p>
+        <img id="test1" src="https://rtailed-production.up.railway.app/uploads/products/1754387753641-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
+             alt="Test Image 1" onload="markSuccess('test1')" onerror="markError('test1')">
+        <div id="status1" class="status loading">Loading...</div>
+    </div>
+
+    <div class="image-test">
+        <h3>Test 2: API Image Endpoint</h3>
+        <p>Testing: <code>https://rtailed-production.up.railway.app/api/images/1754387753641-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg</code></p>
+        <img id="test2" src="https://rtailed-production.up.railway.app/api/images/1754387753641-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
+             alt="Test Image 2" onload="markSuccess('test2')" onerror="markError('test2')">
+        <div id="status2" class="status loading">Loading...</div>
+    </div>
+
+    <div class="image-test">
+        <h3>Test 3: Another Image</h3>
+        <p>Testing: <code>https://rtailed-production.up.railway.app/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg</code></p>
+        <img id="test3" src="https://rtailed-production.up.railway.app/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
+             alt="Test Image 3" onload="markSuccess('test3')" onerror="markError('test3')">
+        <div id="status3" class="status loading">Loading...</div>
+    </div>
+
+    <div class="image-test">
+        <h3>Test 4: Filesystem Status</h3>
+        <div id="filesystem-status">Loading filesystem status...</div>
+    </div>
+
+    <script>
+        function markSuccess(testId) {
+            const status = document.getElementById('status' + testId.slice(-1));
+            status.textContent = '✅ Image loaded successfully';
+            status.className = 'status success';
+        }
+
+        function markError(testId) {
+            const status = document.getElementById('status' + testId.slice(-1));
+            status.textContent = '❌ Failed to load image';
+            status.className = 'status error';
+        }
+
+        // Test filesystem status
+        fetch('https://rtailed-production.up.railway.app/api/test-filesystem')
+            .then(response => response.json())
+            .then(data => {
+                const statusDiv = document.getElementById('filesystem-status');
+                statusDiv.innerHTML = `
+                    <strong>Environment:</strong> ${data.environment}<br>
+                    <strong>Railway Volume Path:</strong> ${data.railwayVolumePath}<br>
+                    <strong>Uploads Exist:</strong> ${data.uploadsExists}<br>
+                    <strong>Products Exist:</strong> ${data.productsExists}<br>
+                    <strong>File Count:</strong> ${data.fileCount}<br>
+                    <strong>Files:</strong> ${data.files.join(', ')}
+                `;
+                statusDiv.className = 'status success';
+            })
+            .catch(error => {
+                const statusDiv = document.getElementById('filesystem-status');
+                statusDiv.textContent = '❌ Failed to get filesystem status: ' + error.message;
+                statusDiv.className = 'status error';
+            });
+    </script>
+</body>
+</html> 

@@ -21,7 +21,7 @@ _$ProductImpl _$$ProductImplFromJson(Map<String, dynamic> json) =>
       stockQuantity: _stringToInt(json['stock_quantity']),
       damagedQuantity: _stringToInt(json['damaged_quantity']),
       lowStockThreshold: _stringToInt(json['low_stock_threshold']),
-      imageUrl: json['imageUrl'] as String?,
+      imageUrl: json['image_url'] as String?,
       businessId: (json['businessId'] as num?)?.toInt() ?? 1,
       createdAt: json['createdAt'] == null
           ? null
@@ -46,7 +46,7 @@ Map<String, dynamic> _$$ProductImplToJson(_$ProductImpl instance) =>
       'stock_quantity': _intToString(instance.stockQuantity),
       'damaged_quantity': _intToString(instance.damagedQuantity),
       'low_stock_threshold': _intToString(instance.lowStockThreshold),
-      'imageUrl': instance.imageUrl,
+      'image_url': instance.imageUrl,
       'businessId': instance.businessId,
       'createdAt': instance.createdAt?.toIso8601String(),
       'updatedAt': instance.updatedAt?.toIso8601String(),

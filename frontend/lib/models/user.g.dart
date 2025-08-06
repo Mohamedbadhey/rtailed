@@ -12,7 +12,9 @@ _$UserImpl _$$UserImplFromJson(Map<String, dynamic> json) => _$UserImpl(
       email: json['email'] as String,
       role: json['role'] as String,
       businessId: (json['business_id'] as num?)?.toInt(),
-      isActive: json['is_active'] as bool? ?? false,
+      isActive: json['is_active'] == null
+          ? false
+          : TypeConverter.safeToBool(json['is_active']),
       lastLogin: json['last_login'] == null
           ? null
           : DateTime.parse(json['last_login'] as String),

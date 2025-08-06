@@ -243,19 +243,47 @@ class ApiService {
   // Products
   Future<List<Product>> getProducts() async {
     try {
+      print('🛍️ ===== API GET PRODUCTS START =====');
       final response = await http.get(
         Uri.parse('$baseUrl/api/products'),
         headers: _headers,
       );
 
+      print('🛍️ Response status: ${response.statusCode}');
+      print('🛍️ Response headers: ${response.headers}');
+
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        return data.map((json) => Product.fromJson(json)).toList();
+        print('🛍️ Raw JSON response length: ${data.length}');
+        
+        // Debug: Print first product's raw JSON
+        if (data.isNotEmpty) {
+          print('🛍️ First product raw JSON: ${data.first}');
+          print('🛍️ First product image_url field: ${data.first['image_url']}');
+        }
+        
+        final products = data.map((json) => Product.fromJson(json)).toList();
+        print('🛍️ Parsed products length: ${products.length}');
+        
+        // Debug: Print first product's parsed data
+        if (products.isNotEmpty) {
+          final firstProduct = products.first;
+          print('🛍️ First product parsed:');
+          print('  - ID: ${firstProduct.id}');
+          print('  - Name: ${firstProduct.name}');
+          print('  - Image URL: ${firstProduct.imageUrl}');
+        }
+        
+        print('🛍️ ===== API GET PRODUCTS END (SUCCESS) =====');
+        return products;
       } else {
+        print('🛍️ ❌ Error response: ${response.body}');
+        print('🛍️ ===== API GET PRODUCTS END (ERROR) =====');
         throw Exception('Failed to get products: ${response.body}');
       }
     } catch (e) {
-      print('Get Products Error: $e');
+      print('🛍️ ❌ Exception: $e');
+      print('🛍️ ===== API GET PRODUCTS END (EXCEPTION) =====');
       rethrow;
     }
   }

@@ -25,6 +25,7 @@ class Product with _$Product {
     required int damagedQuantity,
     @JsonKey(name: 'low_stock_threshold', fromJson: _stringToInt, toJson: _intToString)
     required int lowStockThreshold,
+    @JsonKey(name: 'image_url')
     String? imageUrl,
     @Default(1) int businessId,
     DateTime? createdAt,

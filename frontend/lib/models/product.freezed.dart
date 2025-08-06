@@ -42,6 +42,7 @@ mixin _$Product {
   @JsonKey(
       name: 'low_stock_threshold', fromJson: _stringToInt, toJson: _intToString)
   int get lowStockThreshold => throw _privateConstructorUsedError;
+  @JsonKey(name: 'image_url')
   String? get imageUrl => throw _privateConstructorUsedError;
   int get businessId => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
@@ -90,7 +91,7 @@ abstract class $ProductCopyWith<$Res> {
           fromJson: _stringToInt,
           toJson: _intToString)
       int lowStockThreshold,
-      String? imageUrl,
+      @JsonKey(name: 'image_url') String? imageUrl,
       int businessId,
       DateTime? createdAt,
       DateTime? updatedAt});
@@ -238,7 +239,7 @@ abstract class _$$ProductImplCopyWith<$Res> implements $ProductCopyWith<$Res> {
           fromJson: _stringToInt,
           toJson: _intToString)
       int lowStockThreshold,
-      String? imageUrl,
+      @JsonKey(name: 'image_url') String? imageUrl,
       int businessId,
       DateTime? createdAt,
       DateTime? updatedAt});
@@ -381,7 +382,7 @@ class _$ProductImpl implements _Product {
           fromJson: _stringToInt,
           toJson: _intToString)
       required this.lowStockThreshold,
-      this.imageUrl,
+      @JsonKey(name: 'image_url') this.imageUrl,
       this.businessId = 1,
       this.createdAt,
       this.updatedAt});
@@ -425,6 +426,7 @@ class _$ProductImpl implements _Product {
       name: 'low_stock_threshold', fromJson: _stringToInt, toJson: _intToString)
   final int lowStockThreshold;
   @override
+  @JsonKey(name: 'image_url')
   final String? imageUrl;
   @override
   @JsonKey()
@@ -544,7 +546,7 @@ abstract class _Product implements Product {
           fromJson: _stringToInt,
           toJson: _intToString)
       required final int lowStockThreshold,
-      final String? imageUrl,
+      @JsonKey(name: 'image_url') final String? imageUrl,
       final int businessId,
       final DateTime? createdAt,
       final DateTime? updatedAt}) = _$ProductImpl;
@@ -587,6 +589,7 @@ abstract class _Product implements Product {
       name: 'low_stock_threshold', fromJson: _stringToInt, toJson: _intToString)
   int get lowStockThreshold;
   @override
+  @JsonKey(name: 'image_url')
   String? get imageUrl;
   @override
   int get businessId;

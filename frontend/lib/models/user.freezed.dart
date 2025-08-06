@@ -26,7 +26,7 @@ mixin _$User {
   String get role => throw _privateConstructorUsedError;
   @JsonKey(name: 'business_id')
   int? get businessId => throw _privateConstructorUsedError;
-  @JsonKey(name: 'is_active')
+  @JsonKey(name: 'is_active', fromJson: TypeConverter.safeToBool)
   bool get isActive => throw _privateConstructorUsedError;
   @JsonKey(name: 'last_login')
   DateTime? get lastLogin => throw _privateConstructorUsedError;
@@ -57,7 +57,8 @@ abstract class $UserCopyWith<$Res> {
       String email,
       String role,
       @JsonKey(name: 'business_id') int? businessId,
-      @JsonKey(name: 'is_active') bool isActive,
+      @JsonKey(name: 'is_active', fromJson: TypeConverter.safeToBool)
+      bool isActive,
       @JsonKey(name: 'last_login') DateTime? lastLogin,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'updated_at') DateTime? updatedAt,
@@ -148,7 +149,8 @@ abstract class _$$UserImplCopyWith<$Res> implements $UserCopyWith<$Res> {
       String email,
       String role,
       @JsonKey(name: 'business_id') int? businessId,
-      @JsonKey(name: 'is_active') bool isActive,
+      @JsonKey(name: 'is_active', fromJson: TypeConverter.safeToBool)
+      bool isActive,
       @JsonKey(name: 'last_login') DateTime? lastLogin,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'updated_at') DateTime? updatedAt,
@@ -232,7 +234,8 @@ class _$UserImpl implements _User {
       required this.email,
       required this.role,
       @JsonKey(name: 'business_id') this.businessId,
-      @JsonKey(name: 'is_active') this.isActive = false,
+      @JsonKey(name: 'is_active', fromJson: TypeConverter.safeToBool)
+      this.isActive = false,
       @JsonKey(name: 'last_login') this.lastLogin,
       @JsonKey(name: 'created_at') this.createdAt,
       @JsonKey(name: 'updated_at') this.updatedAt,
@@ -253,7 +256,7 @@ class _$UserImpl implements _User {
   @JsonKey(name: 'business_id')
   final int? businessId;
   @override
-  @JsonKey(name: 'is_active')
+  @JsonKey(name: 'is_active', fromJson: TypeConverter.safeToBool)
   final bool isActive;
   @override
   @JsonKey(name: 'last_login')
@@ -325,7 +328,8 @@ abstract class _User implements User {
       required final String email,
       required final String role,
       @JsonKey(name: 'business_id') final int? businessId,
-      @JsonKey(name: 'is_active') final bool isActive,
+      @JsonKey(name: 'is_active', fromJson: TypeConverter.safeToBool)
+      final bool isActive,
       @JsonKey(name: 'last_login') final DateTime? lastLogin,
       @JsonKey(name: 'created_at') final DateTime? createdAt,
       @JsonKey(name: 'updated_at') final DateTime? updatedAt,
@@ -345,7 +349,7 @@ abstract class _User implements User {
   @JsonKey(name: 'business_id')
   int? get businessId;
   @override
-  @JsonKey(name: 'is_active')
+  @JsonKey(name: 'is_active', fromJson: TypeConverter.safeToBool)
   bool get isActive;
   @override
   @JsonKey(name: 'last_login')

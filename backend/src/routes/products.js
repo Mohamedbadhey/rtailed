@@ -64,7 +64,10 @@ const upload = multer({
 // Get all products
 router.get('/', auth, async (req, res) => {
   try {
-    console.log('PRODUCTS GET: user role =', req.user.role, 'business_id =', req.user.business_id);
+    console.log('🛍️ ===== PRODUCTS GET REQUEST START =====');
+    console.log('🛍️ User role:', req.user.role);
+    console.log('🛍️ Business ID:', req.user.business_id);
+    console.log('🛍️ User ID:', req.user.id);
     
     let query = 'SELECT * FROM products WHERE business_id = ? ORDER BY name';
     let params = [req.user.business_id];
@@ -73,13 +76,30 @@ router.get('/', auth, async (req, res) => {
       params = [];
     }
     
-    console.log('PRODUCTS GET: query =', query, 'params =', params);
+    console.log('🛍️ Query:', query);
+    console.log('🛍️ Params:', params);
     const [products] = await pool.query(query, params);
-    console.log('PRODUCTS GET: found', products.length, 'products');
+    console.log('🛍️ Found', products.length, 'products');
+    
+    // Debug each product's image URL
+    products.forEach((product, index) => {
+      console.log(`🛍️ Product ${index + 1}:`);
+      console.log(`  - ID: ${product.id}`);
+      console.log(`  - Name: ${product.name}`);
+      console.log(`  - Image URL: ${product.image_url || 'NULL'}`);
+      if (product.image_url) {
+        const fullUrl = `https://rtailed-production.up.railway.app${product.image_url}`;
+        console.log(`  - Full URL: ${fullUrl}`);
+      }
+    });
+    
+    console.log('🛍️ ===== PRODUCTS GET REQUEST END =====');
     res.json(products);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.log('🛍️ ❌ Error in products GET:', error);
+    console.log('🛍️ Error stack:', error.stack);
+    console.log('🛍️ ===== PRODUCTS GET REQUEST END (ERROR) =====');
+    res.status(500).json({ message: 'Server error', details: error.message });
   }
 });
 

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Bypass Cache Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-item {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-item img {
+            max-width: 300px;
+            max-height: 300px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .loading { background-color: #fff3cd; color: #856404; }
+        .url-info {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>CORS Bypass Cache Test</h1>
+    
+    <div class="test-item">
+        <h3>Test 1: Image with Cache Buster</h3>
+        <div class="url-info">
+            <strong>URL with timestamp:</strong> https://rtailed-production.up.railway.app/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg?t=<span id="timestamp"></span>
+        </div>
+        <img id="testImage1" 
+             alt="Test Image 1" 
+             onload="markSuccess('testImage1')" 
+             onerror="markError('testImage1')">
+        <div id="status1" class="status loading">Loading image...</div>
+    </div>
+
+    <div class="test-item">
+        <h3>Test 2: Direct Image Load</h3>
+        <img id="testImage2" 
+             src="https://rtailed-production.up.railway.app/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
+             alt="Test Image 2" 
+             onload="markSuccess('testImage2')" 
+             onerror="markError('testImage2')">
+        <div id="status2" class="status loading">Loading image...</div>
+    </div>
+
+    <div class="test-item">
+        <h3>Test 3: CORS Headers Check</h3>
+        <div id="corsStatus">Testing CORS headers...</div>
+    </div>
+
+    <div class="test-item">
+        <h3>Test 4: Browser Console Check</h3>
+        <p>Open browser developer tools (F12) and check the Console tab for any CORS errors.</p>
+        <button onclick="testImageLoad()">Test Image Load</button>
+        <div id="consoleTest">Click button to test...</div>
+    </div>
+
+    <script>
+        // Set timestamp for cache buster
+        const timestamp = Date.now();
+        document.getElementById('timestamp').textContent = timestamp;
+        
+        // Set image source with cache buster
+        document.getElementById('testImage1').src = 
+            `https://rtailed-production.up.railway.app/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg?t=${timestamp}`;
+
+        function markSuccess(imgId) {
+            const status = document.getElementById('status' + imgId.slice(-1));
+            status.textContent = '✅ Image loaded successfully!';
+            status.className = 'status success';
+        }
+
+        function markError(imgId) {
+            const status = document.getElementById('status' + imgId.slice(-1));
+            status.textContent = '❌ Failed to load image';
+            status.className = 'status error';
+        }
+
+        // Test CORS headers
+        async function testCORS() {
+            const statusDiv = document.getElementById('corsStatus');
+            const testUrl = 'https://rtailed-production.up.railway.app/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg';
+            
+            try {
+                const response = await fetch(testUrl, { method: 'HEAD' });
+                const corsOrigin = response.headers.get('access-control-allow-origin');
+                const corsMethods = response.headers.get('access-control-allow-methods');
+                const corsHeaders = response.headers.get('access-control-allow-headers');
+                
+                statusDiv.innerHTML = `
+                    <strong>CORS Headers Test Results:</strong><br>
+                    ✅ Status: ${response.status} ${response.statusText}<br>
+                    ✅ CORS Origin: ${corsOrigin || 'Not set'}<br>
+                    ✅ CORS Methods: ${corsMethods || 'Not set'}<br>
+                    ✅ CORS Headers: ${corsHeaders || 'Not set'}<br>
+                    ✅ Content-Type: ${response.headers.get('content-type')}<br>
+                    ${corsOrigin === '*' ? '🎉 CORS is properly configured!' : '⚠️ CORS headers may be missing'}
+                `;
+                statusDiv.className = 'status success';
+            } catch (error) {
+                statusDiv.innerHTML = `
+                    <strong>CORS Test Failed:</strong><br>
+                    ❌ Error: ${error.message}
+                `;
+                statusDiv.className = 'status error';
+            }
+        }
+
+        // Test image loading programmatically
+        function testImageLoad() {
+            const statusDiv = document.getElementById('consoleTest');
+            statusDiv.textContent = 'Testing image load...';
+            
+            const img = new Image();
+            img.onload = function() {
+                statusDiv.innerHTML = '✅ Image loaded successfully via JavaScript!';
+                statusDiv.className = 'status success';
+                console.log('✅ Image loaded successfully via JavaScript');
+            };
+            img.onerror = function() {
+                statusDiv.innerHTML = '❌ Image failed to load via JavaScript';
+                statusDiv.className = 'status error';
+                console.error('❌ Image failed to load via JavaScript');
+            };
+            
+            img.src = 'https://rtailed-production.up.railway.app/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg';
+        }
+
+        // Run CORS test
+        testCORS();
+    </script>
+</body>
+</html> 

@@ -100,13 +100,90 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
 const uploadsDir = baseDir;
 
-// Custom image serving route with CORS headers
-app.get('/uploads/*', (req, res) => {
+// Custom image serving route with CORS headers for products
+app.get('/uploads/products/:filename', (req, res) => {
   try {
-    const filePath = req.path.replace('/uploads/', '');
-    const fullPath = path.join(uploadsDir, filePath);
+    const { filename } = req.params;
+    const fullPath = path.join(uploadsDir, 'products', filename);
     
-    console.log('📁 Image request:', req.path);
+    console.log('🖼️ ===== PRODUCT IMAGE REQUEST START =====');
+    console.log('🖼️ Request path:', req.path);
+    console.log('🖼️ Filename:', filename);
+    console.log('🖼️ Full path:', fullPath);
+    console.log('🖼️ Uploads dir:', uploadsDir);
+    console.log('🖼️ Base dir:', baseDir);
+    console.log('🖼️ Railway volume path:', process.env.RAILWAY_VOLUME_MOUNT_PATH);
+    console.log('🖼️ Request headers:', req.headers);
+    console.log('🖼️ Request method:', req.method);
+    console.log('🖼️ Request URL:', req.url);
+    
+    // Check if file exists
+    console.log('🖼️ Checking if file exists:', fullPath);
+    if (!fs.existsSync(fullPath)) {
+      console.log('🖼️ ❌ File not found:', fullPath);
+      console.log('🖼️ ===== PRODUCT IMAGE REQUEST END (404) =====');
+      return res.status(404).json({ error: 'Image not found', path: fullPath });
+    }
+    console.log('🖼️ ✅ File exists:', fullPath);
+    
+    // Get file stats
+    const stats = fs.statSync(fullPath);
+    console.log('🖼️ File size:', stats.size, 'bytes');
+    console.log('🖼️ File permissions:', stats.mode);
+    
+    // Set CORS headers
+    console.log('🖼️ Setting CORS headers...');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+    console.log('🖼️ ✅ CORS headers set');
+    
+    // Set proper MIME type
+    console.log('🖼️ Setting MIME type for:', filename);
+    if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) {
+      res.setHeader('Content-Type', 'image/jpeg');
+      console.log('🖼️ ✅ MIME type: image/jpeg');
+    } else if (filename.endsWith('.png')) {
+      res.setHeader('Content-Type', 'image/png');
+      console.log('🖼️ ✅ MIME type: image/png');
+    } else if (filename.endsWith('.gif')) {
+      res.setHeader('Content-Type', 'image/gif');
+      console.log('🖼️ ✅ MIME type: image/gif');
+    } else if (filename.endsWith('.webp')) {
+      res.setHeader('Content-Type', 'image/webp');
+      console.log('🖼️ ✅ MIME type: image/webp');
+    }
+    
+    console.log('🖼️ Sending file:', fullPath);
+    console.log('🖼️ Response headers before send:', res.getHeaders());
+    res.sendFile(fullPath, (err) => {
+      if (err) {
+        console.log('🖼️ ❌ Error sending file:', err);
+        console.log('🖼️ ===== PRODUCT IMAGE REQUEST END (ERROR) =====');
+      } else {
+        console.log('🖼️ ✅ File sent successfully');
+        console.log('🖼️ ===== PRODUCT IMAGE REQUEST END (SUCCESS) =====');
+      }
+    });
+    
+  } catch (error) {
+    console.log('🖼️ ❌ Error serving product image:', error);
+    console.log('🖼️ Error stack:', error.stack);
+    console.log('🖼️ ===== PRODUCT IMAGE REQUEST END (EXCEPTION) =====');
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// Custom image serving route with CORS headers for branding
+app.get('/uploads/branding/:filename', (req, res) => {
+  try {
+    const { filename } = req.params;
+    const fullPath = path.join(uploadsDir, 'branding', filename);
+    
+    console.log('📁 Branding image request:', req.path);
+    console.log('📁 Filename:', filename);
     console.log('📁 Full path:', fullPath);
     
     // Check if file exists
@@ -123,32 +200,53 @@ app.get('/uploads/*', (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=31536000');
     
     // Set proper MIME type
-    if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
+    if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) {
       res.setHeader('Content-Type', 'image/jpeg');
-    } else if (filePath.endsWith('.png')) {
+    } else if (filename.endsWith('.png')) {
       res.setHeader('Content-Type', 'image/png');
-    } else if (filePath.endsWith('.gif')) {
+    } else if (filename.endsWith('.gif')) {
       res.setHeader('Content-Type', 'image/gif');
-    } else if (filePath.endsWith('.webp')) {
+    } else if (filename.endsWith('.webp')) {
       res.setHeader('Content-Type', 'image/webp');
     }
     
-    console.log('📁 Serving image with CORS headers:', fullPath);
+    console.log('📁 Serving branding image with CORS headers:', fullPath);
     res.sendFile(fullPath);
     
   } catch (error) {
-    console.error('📁 Error serving image:', error);
+    console.error('📁 Error serving branding image:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Handle CORS preflight requests for uploads
-app.options('/uploads/*', (req, res) => {
+app.options('/uploads/products/:filename', (req, res) => {
+  console.log('📁 CORS preflight request for products:', req.path);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
   res.status(200).end();
+});
+
+app.options('/uploads/branding/:filename', (req, res) => {
+  console.log('📁 CORS preflight request for branding:', req.path);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
+  res.status(200).end();
+});
+
+// Test endpoint to verify route is working
+app.get('/test-uploads', (req, res) => {
+  console.log('📁 Test uploads endpoint hit');
+  res.json({ 
+    message: 'Uploads route is working',
+    uploadsDir,
+    baseDir,
+    railwayVolumePath: process.env.RAILWAY_VOLUME_MOUNT_PATH
+  });
 });
 
 // Root endpoint for Railway health checks

@@ -133,29 +133,48 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Future<void> _loadProducts() async {
+    print('📦 ===== INVENTORY LOAD PRODUCTS START =====');
     setState(() {
       _isLoading = true;
     });
 
     try {
+      print('📦 Calling API service to get products...');
       final products = await _apiService.getProducts();
-      print('🖼️ Inventory: Loaded ${products.length} products');
+      print('📦 ✅ API call successful, loaded ${products.length} products');
       
       // Debug: Print image URLs for products with images
+      print('📦 Analyzing product images...');
+      int productsWithImages = 0;
+      int productsWithoutImages = 0;
+      
       for (final product in products) {
+        print('📦 Product: ${product.name} (ID: ${product.id})');
+        print('📦   - Image URL from API: ${product.imageUrl ?? 'NULL'}');
+        
         if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
+          productsWithImages++;
           final fullUrl = Api.getFullImageUrl(product.imageUrl);
-          print('🖼️ Inventory: Product "${product.name}" - Image URL: $fullUrl');
+          print('📦   - Full image URL: $fullUrl');
+        } else {
+          productsWithoutImages++;
+          print('📦   - No image URL');
         }
       }
+      
+      print('📦 Summary: $productsWithImages products with images, $productsWithoutImages without images');
       
       setState(() {
         _products = products;
         _filteredProducts = products;
         _isLoading = false;
       });
+      print('📦 ✅ State updated, applying filters...');
       _applyFilters();
+      print('📦 ===== INVENTORY LOAD PRODUCTS END (SUCCESS) =====');
     } catch (e) {
+      print('📦 ❌ Error loading products: $e');
+      print('📦 Error stack trace: ${StackTrace.current}');
       setState(() {
         _isLoading = false;
       });
@@ -164,6 +183,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           SnackBar(content: Text('${t(context, 'error_loading_products')}: $e')),
         );
       }
+      print('📦 ===== INVENTORY LOAD PRODUCTS END (ERROR) =====');
     }
   }
 
@@ -1092,10 +1112,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 fit: BoxFit.cover,
                                 loadingBuilder: (context, child, loadingProgress) {
                                   if (loadingProgress == null) {
-                                    print('🖼️ Inventory: Image loaded successfully for product ${product.name}');
+                                    print('🖼️ ✅ Inventory: Image loaded successfully for product "${product.name}"');
                                     return child;
                                   }
-                                  print('🖼️ Inventory: Loading image for product ${product.name}: ${loadingProgress.expectedTotalBytes != null ? (loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! * 100).toStringAsFixed(1) : 'Unknown'}%');
+                                  final progress = loadingProgress.expectedTotalBytes != null 
+                                      ? (loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! * 100).toStringAsFixed(1)
+                                      : 'Unknown';
+                                  print('🖼️ 📥 Inventory: Loading image for product "${product.name}": $progress%');
                                   return Center(
                                     child: CircularProgressIndicator(
                                       value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null,
@@ -1103,7 +1126,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                   );
                                 },
                                 errorBuilder: (context, error, stackTrace) {
-                                  print('🖼️ Inventory: Image error for product ${product.name}: $error');
+                                  print('🖼️ ❌ Inventory: Image error for product "${product.name}"');
+                                  print('🖼️ ❌ Error: $error');
+                                  print('🖼️ ❌ Stack trace: $stackTrace');
+                                  print('🖼️ ❌ Image URL: ${Api.getFullImageUrl(product.imageUrl)}');
                                   return Container(
                                     decoration: BoxDecoration(
                                       color: Colors.blue[50],

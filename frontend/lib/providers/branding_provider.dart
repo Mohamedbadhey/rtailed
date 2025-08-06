@@ -35,25 +35,39 @@ class BrandingProvider extends ChangeNotifier {
   // Get system branding info
   Future<void> loadSystemBranding() async {
     try {
-      print('Loading system branding...');
+      print('🎨 ===== LOAD SYSTEM BRANDING START =====');
       final response = await http.get(
         Uri.parse('https://rtailed-production.up.railway.app/api/branding/system'),
         headers: {'Content-Type': 'application/json'},
       );
       
-      print('System branding response status: ${response.statusCode}');
-      print('System branding response body: ${response.body}');
+      print('🎨 Response status: ${response.statusCode}');
+      print('🎨 Response headers: ${response.headers}');
       
       if (response.statusCode == 200) {
-        _systemBranding = TypeConverter.safeToMap(json.decode(response.body));
+        final rawData = json.decode(response.body);
+        print('🎨 Raw system branding data: $rawData');
+        print('🎨 Raw logo_url field: ${rawData['logo_url']}');
+        print('🎨 Raw favicon_url field: ${rawData['favicon_url']}');
+        print('🎨 Raw app_name field: ${rawData['app_name']}');
+        
+        _systemBranding = TypeConverter.safeToMap(rawData);
         _systemBrandingLoaded = true;
-        print('System branding loaded: $_systemBranding');
+        
+        print('🎨 Parsed system branding: $_systemBranding');
+        print('🎨 Parsed logo_url: ${_systemBranding['logo_url']}');
+        print('🎨 Parsed favicon_url: ${_systemBranding['favicon_url']}');
+        print('🎨 Parsed app_name: ${_systemBranding['app_name']}');
+        
         notifyListeners();
+        print('🎨 ===== LOAD SYSTEM BRANDING END (SUCCESS) =====');
       } else {
-        print('Failed to load system branding: ${response.statusCode}');
+        print('🎨 ❌ Error response: ${response.body}');
+        print('🎨 ===== LOAD SYSTEM BRANDING END (ERROR) =====');
       }
     } catch (e) {
-      print('Error loading system branding: $e');
+      print('🎨 ❌ Exception: $e');
+      print('🎨 ===== LOAD SYSTEM BRANDING END (EXCEPTION) =====');
     }
   }
   
@@ -188,6 +202,9 @@ class BrandingProvider extends ChangeNotifier {
   // Load business branding
   Future<void> loadBusinessBranding(int businessId) async {
     try {
+      print('🎨 ===== LOAD BUSINESS BRANDING START =====');
+      print('🎨 Business ID: $businessId');
+      
       final response = await http.get(
         Uri.parse('https://rtailed-production.up.railway.app/api/branding/business/$businessId'),
         headers: {
@@ -196,13 +213,33 @@ class BrandingProvider extends ChangeNotifier {
         },
       );
       
+      print('🎨 Response status: ${response.statusCode}');
+      print('🎨 Response headers: ${response.headers}');
+      
       if (response.statusCode == 200) {
-        _businessBranding = TypeConverter.safeToMap(json.decode(response.body));
+        final rawData = json.decode(response.body);
+        print('🎨 Raw business branding data: $rawData');
+        print('🎨 Raw logo field: ${rawData['logo']}');
+        print('🎨 Raw favicon field: ${rawData['favicon']}');
+        print('🎨 Raw name field: ${rawData['name']}');
+        
+        _businessBranding = TypeConverter.safeToMap(rawData);
         _businessBrandingLoaded = true;
+        
+        print('🎨 Parsed business branding: $_businessBranding');
+        print('🎨 Parsed logo: ${_businessBranding['logo']}');
+        print('🎨 Parsed favicon: ${_businessBranding['favicon']}');
+        print('🎨 Parsed name: ${_businessBranding['name']}');
+        
         notifyListeners();
+        print('🎨 ===== LOAD BUSINESS BRANDING END (SUCCESS) =====');
+      } else {
+        print('🎨 ❌ Error response: ${response.body}');
+        print('🎨 ===== LOAD BUSINESS BRANDING END (ERROR) =====');
       }
     } catch (e) {
-      print('Error loading business branding: $e');
+      print('🎨 ❌ Exception: $e');
+      print('🎨 ===== LOAD BUSINESS BRANDING END (EXCEPTION) =====');
     }
   }
   

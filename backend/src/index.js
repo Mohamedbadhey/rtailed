@@ -100,42 +100,29 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
 const uploadsDir = baseDir;
 
-// Handle CORS preflight requests for uploads
-app.options('/uploads/*', (req, res) => {
-  console.log('📁 CORS preflight request for:', req.url);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
-  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
-  res.status(200).end();
-});
-
-// Custom middleware for serving images with CORS
-app.use('/uploads', (req, res, next) => {
-  console.log('📁 Image request:', req.url);
-  
-  // Set CORS headers for all image requests
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
-  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
-  res.setHeader('Cache-Control', 'public, max-age=31536000');
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-  
-  next();
-});
-
-// Serve static files with proper MIME types
-app.use('/uploads', express.static(uploadsDir, {
-  setHeaders: (res, filePath) => {
-    console.log('📁 Setting content-type for:', filePath);
+// Custom image serving route with CORS headers
+app.get('/uploads/*', (req, res) => {
+  try {
+    const filePath = req.path.replace('/uploads/', '');
+    const fullPath = path.join(uploadsDir, filePath);
     
-    // Set proper MIME types for images
+    console.log('📁 Image request:', req.path);
+    console.log('📁 Full path:', fullPath);
+    
+    // Check if file exists
+    if (!fs.existsSync(fullPath)) {
+      console.log('📁 File not found:', fullPath);
+      return res.status(404).json({ error: 'Image not found' });
+    }
+    
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+    
+    // Set proper MIME type
     if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
       res.setHeader('Content-Type', 'image/jpeg');
     } else if (filePath.endsWith('.png')) {
@@ -146,9 +133,23 @@ app.use('/uploads', express.static(uploadsDir, {
       res.setHeader('Content-Type', 'image/webp');
     }
     
-    console.log('📁 Content-type set for:', filePath);
+    console.log('📁 Serving image with CORS headers:', fullPath);
+    res.sendFile(fullPath);
+    
+  } catch (error) {
+    console.error('📁 Error serving image:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
-}));
+});
+
+// Handle CORS preflight requests for uploads
+app.options('/uploads/*', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
+  res.status(200).end();
+});
 
 // Root endpoint for Railway health checks
 app.get('/', (req, res) => {

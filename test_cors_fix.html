@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Fix Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-item {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-item img {
+            max-width: 300px;
+            max-height: 300px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .loading { background-color: #fff3cd; color: #856404; }
+        .url-info {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>CORS Fix Test</h1>
+    
+    <div class="test-item">
+        <h3>Test: CORS Headers Check</h3>
+        <div class="url-info">
+            <strong>Image URL:</strong> https://rtailed-production.up.railway.app/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg
+        </div>
+        <img id="testImage" 
+             src="https://rtailed-production.up.railway.app/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
+             alt="Test Image" 
+             onload="markSuccess()" 
+             onerror="markError()">
+        <div id="status" class="status loading">Loading image...</div>
+    </div>
+
+    <div class="test-item">
+        <h3>CORS Headers Test</h3>
+        <div id="corsStatus">Testing CORS headers...</div>
+    </div>
+
+    <script>
+        function markSuccess() {
+            const status = document.getElementById('status');
+            status.textContent = '✅ Image loaded successfully! CORS is working!';
+            status.className = 'status success';
+        }
+
+        function markError() {
+            const status = document.getElementById('status');
+            status.textContent = '❌ Failed to load image - CORS issue still exists';
+            status.className = 'status error';
+        }
+
+        // Test CORS headers
+        async function testCORS() {
+            const statusDiv = document.getElementById('corsStatus');
+            const testUrl = 'https://rtailed-production.up.railway.app/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg';
+            
+            try {
+                const response = await fetch(testUrl, { method: 'HEAD' });
+                const corsOrigin = response.headers.get('access-control-allow-origin');
+                const corsMethods = response.headers.get('access-control-allow-methods');
+                const corsHeaders = response.headers.get('access-control-allow-headers');
+                
+                statusDiv.innerHTML = `
+                    <strong>CORS Headers Test Results:</strong><br>
+                    ✅ Status: ${response.status} ${response.statusText}<br>
+                    ✅ CORS Origin: ${corsOrigin || 'Not set'}<br>
+                    ✅ CORS Methods: ${corsMethods || 'Not set'}<br>
+                    ✅ CORS Headers: ${corsHeaders || 'Not set'}<br>
+                    ✅ Content-Type: ${response.headers.get('content-type')}<br>
+                    ${corsOrigin === '*' ? '🎉 CORS is properly configured!' : '⚠️ CORS headers may be missing'}
+                `;
+                statusDiv.className = 'status success';
+            } catch (error) {
+                statusDiv.innerHTML = `
+                    <strong>CORS Test Failed:</strong><br>
+                    ❌ Error: ${error.message}
+                `;
+                statusDiv.className = 'status error';
+            }
+        }
+
+        // Run CORS test
+        testCORS();
+    </script>
+</body>
+</html> 

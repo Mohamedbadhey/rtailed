@@ -100,19 +100,26 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
 const uploadsDir = baseDir;
 
-// Serve static files with proper MIME types and CORS
-app.use('/uploads', (req, res, next) => {
-  console.log('📁 Static file request:', req.url);
-  console.log('📁 Base directory:', baseDir);
-  console.log('📁 Uploads directory:', uploadsDir);
-  console.log('📁 Full path:', path.join(uploadsDir, req.url));
-  console.log('📁 Environment:', process.env.RAILWAY_VOLUME_MOUNT_PATH ? 'Railway' : 'Local');
-  
-  // Set CORS headers for all static file requests
+// Handle CORS preflight requests for uploads
+app.options('/uploads/*', (req, res) => {
+  console.log('📁 CORS preflight request for:', req.url);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
+  res.status(200).end();
+});
+
+// Custom middleware for serving images with CORS
+app.use('/uploads', (req, res, next) => {
+  console.log('📁 Image request:', req.url);
+  
+  // Set CORS headers for all image requests
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
+  res.setHeader('Cache-Control', 'public, max-age=31536000');
   
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
@@ -123,10 +130,10 @@ app.use('/uploads', (req, res, next) => {
   next();
 });
 
-// Serve static files with proper MIME types and CORS headers
+// Serve static files with proper MIME types
 app.use('/uploads', express.static(uploadsDir, {
   setHeaders: (res, filePath) => {
-    console.log('📁 Setting headers for:', filePath);
+    console.log('📁 Setting content-type for:', filePath);
     
     // Set proper MIME types for images
     if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
@@ -139,14 +146,7 @@ app.use('/uploads', express.static(uploadsDir, {
       res.setHeader('Content-Type', 'image/webp');
     }
     
-    // CORS headers for images - CRITICAL for browser access
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range');
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
-    res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
-    
-    console.log('📁 CORS headers set for:', filePath);
+    console.log('📁 Content-type set for:', filePath);
   }
 }));
 

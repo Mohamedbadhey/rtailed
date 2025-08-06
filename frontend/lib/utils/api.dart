@@ -36,6 +36,8 @@ class Api {
     }
     final fullUrl = '$baseUrl$imageUrl';
     print('🖼️ getFullImageUrl: Generated URL: $fullUrl');
+    print('🖼️ getFullImageUrl: Base URL: $baseUrl');
+    print('🖼️ getFullImageUrl: Image URL: $imageUrl');
     return fullUrl;
   }
 } 

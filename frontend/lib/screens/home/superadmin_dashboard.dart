@@ -67,6 +67,22 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     });
   }
 
+  // Helper method to build responsive data displays
+  Widget _buildResponsiveDataWidget({
+    required bool isMobile,
+    required Widget mobileWidget,
+    required Widget desktopWidget,
+  }) {
+    return isMobile ? mobileWidget : desktopWidget;
+  }
+
+  // Helper method to get responsive font size
+  double _getResponsiveFontSize(bool isTiny, bool isExtraSmall, double defaultSize) {
+    if (isTiny) return defaultSize - 4;
+    if (isExtraSmall) return defaultSize - 2;
+    return defaultSize;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -102,7 +118,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       List<Map<String, dynamic>> businesses = [];
       if (businessesResponse.statusCode == 200) {
         final businessesData = TypeConverter.safeToMap(json.decode(businessesResponse.body))['businesses'] ?? [];
-        businesses = TypeConverter.safeToList(businessesData);
+        businesses = TypeConverter.convertMySQLList(businessesData);
         _allBusinesses = businesses;
       }
 
@@ -117,9 +133,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
           
           if (messagesResponse.statusCode == 200) {
             final messages = TypeConverter.safeToMap(json.decode(messagesResponse.body))['messages'] ?? [];
-            for (final message in messages) {
-              allMessages.add(TypeConverter.safeToMap(message));
-            }
+            allMessages.addAll(TypeConverter.convertMySQLList(messages));
           }
         } catch (e) {
           print('Error loading messages for business ${business['id']}: $e');
@@ -140,9 +154,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
           
           if (paymentsResponse.statusCode == 200) {
             final payments = TypeConverter.safeToMap(json.decode(paymentsResponse.body))['payments'] ?? [];
-            for (final payment in payments) {
-              allPayments.add(TypeConverter.safeToMap(payment));
-            }
+            allPayments.addAll(TypeConverter.convertMySQLList(payments));
           }
         } catch (e) {
           print('Error loading payments for business ${business['id']}: $e');
@@ -325,47 +337,79 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     return Scaffold(
       appBar: BrandedAppBar(
-        title: isTiny ? 'Admin' : (isVerySmall ? 'Superadmin' : t(context, 'Superadmin Dashboard')),
-        bottom: isMobile ? PreferredSize(
-          preferredSize: Size.fromHeight(isTiny ? 44 : 52), // Increased height for better touch targets
+        title: isTiny ? 'Admin' : (isVerySmall ? 'Superadmin' : (isMobile ? 'Superadmin' : t(context, 'Superadmin Dashboard'))),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(isMobile ? (isTiny ? 50 : 56) : 48),
           child: Container(
-            height: isTiny ? 44 : 52,
+            height: isMobile ? (isTiny ? 50 : 56) : 48,
             child: TabBar(
               controller: _tabController,
-              isScrollable: true,
+              isScrollable: isMobile,
               labelColor: Theme.of(context).primaryColor,
               unselectedLabelColor: Colors.grey[600],
               indicatorColor: Theme.of(context).primaryColor,
-              labelPadding: EdgeInsets.symmetric(horizontal: isTiny ? 6 : (isExtraSmall ? 8 : 10)),
-              labelStyle: TextStyle(fontSize: isTiny ? 9 : (isExtraSmall ? 11 : 13), fontWeight: FontWeight.w500),
-              unselectedLabelStyle: TextStyle(fontSize: isTiny ? 9 : (isExtraSmall ? 11 : 13)),
+              labelPadding: EdgeInsets.symmetric(horizontal: isMobile ? (isTiny ? 8 : 12) : 16),
+              labelStyle: TextStyle(fontSize: isMobile ? (isTiny ? 10 : 12) : 14, fontWeight: FontWeight.w500),
+              unselectedLabelStyle: TextStyle(fontSize: isMobile ? (isTiny ? 10 : 12) : 14),
               indicatorSize: TabBarIndicatorSize.label,
               tabs: [
-                Tab(icon: Icon(Icons.dashboard, size: isTiny ? 16 : (isExtraSmall ? 18 : 20)), text: isTiny ? 'Overview' : (isExtraSmall ? 'Overview' : 'Overview')),
-                Tab(icon: Icon(Icons.business, size: isTiny ? 16 : (isExtraSmall ? 18 : 20)), text: isTiny ? 'Biz' : (isExtraSmall ? 'Businesses' : 'Businesses')),
-                Tab(icon: Icon(Icons.people, size: isTiny ? 16 : (isExtraSmall ? 18 : 20)), text: isTiny ? 'Users' : (isExtraSmall ? 'Users' : 'Users')),
-                Tab(icon: Icon(Icons.analytics, size: isTiny ? 16 : (isExtraSmall ? 18 : 20)), text: isTiny ? 'Analytics' : (isExtraSmall ? 'Analytics' : 'Analytics')),
-                Tab(icon: Icon(Icons.settings, size: isTiny ? 16 : (isExtraSmall ? 18 : 20)), text: isTiny ? 'Settings' : (isExtraSmall ? 'Settings' : 'Settings')),
-                Tab(icon: Icon(Icons.storage, size: isTiny ? 16 : (isExtraSmall ? 18 : 20)), text: isTiny ? 'Data' : (isExtraSmall ? 'Data' : 'Data')),
+                Tab(
+                  icon: Icon(Icons.dashboard, size: isMobile ? (isTiny ? 18 : 20) : 22), 
+                  child: Text(
+                    isMobile ? (isTiny ? 'Overview' : 'Overview') : t(context, 'Overview'),
+                    style: TextStyle(fontSize: isMobile ? (isTiny ? 10 : 12) : 14),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  )
+                ),
+                Tab(
+                  icon: Icon(Icons.business, size: isMobile ? (isTiny ? 18 : 20) : 22), 
+                  child: Text(
+                    isMobile ? (isTiny ? 'Business' : 'Businesses') : t(context, 'Businesses'),
+                    style: TextStyle(fontSize: isMobile ? (isTiny ? 10 : 12) : 14),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  )
+                ),
+                Tab(
+                  icon: Icon(Icons.people, size: isMobile ? (isTiny ? 18 : 20) : 22), 
+                  child: Text(
+                    isMobile ? (isTiny ? 'Users' : 'Users & Security') : t(context, 'Users & Security'),
+                    style: TextStyle(fontSize: isMobile ? (isTiny ? 9 : 11) : 14),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  )
+                ),
+                Tab(
+                  icon: Icon(Icons.analytics, size: isMobile ? (isTiny ? 18 : 20) : 22), 
+                  child: Text(
+                    isMobile ? (isTiny ? 'Analytics' : 'Analytics') : t(context, 'Analytics'),
+                    style: TextStyle(fontSize: isMobile ? (isTiny ? 10 : 12) : 14),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  )
+                ),
+                Tab(
+                  icon: Icon(Icons.settings, size: isMobile ? (isTiny ? 18 : 20) : 22), 
+                  child: Text(
+                    isMobile ? (isTiny ? 'Settings' : 'Settings') : t(context, 'Settings'),
+                    style: TextStyle(fontSize: isMobile ? (isTiny ? 10 : 12) : 14),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  )
+                ),
+                Tab(
+                  icon: Icon(Icons.storage, size: isMobile ? (isTiny ? 18 : 20) : 22), 
+                  child: Text(
+                    isMobile ? (isTiny ? 'Data' : 'Data Management') : t(context, 'Data Management'),
+                    style: TextStyle(fontSize: isMobile ? (isTiny ? 9 : 11) : 14),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  )
+                ),
               ],
             ),
           ),
-        ) : TabBar(
-          controller: _tabController,
-          labelColor: Theme.of(context).primaryColor,
-          unselectedLabelColor: Colors.grey[600],
-          indicatorColor: Theme.of(context).primaryColor,
-          labelPadding: const EdgeInsets.symmetric(horizontal: 16),
-          labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          unselectedLabelStyle: const TextStyle(fontSize: 14),
-          tabs: [
-            Tab(icon: Icon(Icons.dashboard), text: t(context, 'Overview')),
-            Tab(icon: Icon(Icons.business), text: t(context, 'Businesses')),
-            Tab(icon: Icon(Icons.people), text: t(context, 'Users & Security')),
-            Tab(icon: Icon(Icons.analytics), text: t(context, 'Analytics')),
-            Tab(icon: Icon(Icons.settings), text: t(context, 'Settings')),
-            Tab(icon: Icon(Icons.storage), text: t(context, 'Data Management')),
-          ],
         ),
         actions: [
           // Refresh button - show on all screens except tiny
@@ -379,14 +423,18 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
               minHeight: isTiny ? 36 : 44,
             ),
           ),
-          // Account menu - ALWAYS visible on ALL screen sizes
+          // Account menu - Enhanced for mobile
           PopupMenuButton<String>(
-            icon: Icon(Icons.account_circle, color: Colors.white, size: isTiny ? 22 : 24),
+            icon: Icon(
+              Icons.account_circle, 
+              color: Colors.white, 
+              size: isMobile ? (isTiny ? 24 : 26) : 24
+            ),
             tooltip: t(context, 'Account'),
-            padding: EdgeInsets.all(isTiny ? 6 : 8),
+            padding: EdgeInsets.all(isMobile ? (isTiny ? 8 : 10) : 8),
             constraints: BoxConstraints(
-              minWidth: isTiny ? 36 : 44,
-              minHeight: isTiny ? 36 : 44,
+              minWidth: isMobile ? (isTiny ? 44 : 48) : 44,
+              minHeight: isMobile ? (isTiny ? 44 : 48) : 44,
             ),
             onSelected: (value) {
               if (value == 'logout') {
@@ -398,21 +446,32 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
             itemBuilder: (context) => [
               PopupMenuItem(
                 value: 'profile',
+                height: isMobile ? 48 : 40,
                 child: Row(
                   children: [
-                    Icon(Icons.person, size: isTiny ? 16 : 20),
-                    SizedBox(width: isTiny ? 6 : 8),
-                    Text(t(context, 'Profile'), style: TextStyle(fontSize: isTiny ? 12 : 14)),
+                    Icon(Icons.person, size: isMobile ? (isTiny ? 18 : 20) : 18),
+                    SizedBox(width: isMobile ? 10 : 8),
+                    Text(
+                      t(context, 'Profile'), 
+                      style: TextStyle(fontSize: isMobile ? (isTiny ? 14 : 16) : 14)
+                    ),
                   ],
                 ),
               ),
               PopupMenuItem(
                 value: 'logout',
+                height: isMobile ? 48 : 40,
                 child: Row(
                   children: [
-                    Icon(Icons.logout, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Logout', style: TextStyle(color: Colors.red)),
+                    Icon(Icons.logout, color: Colors.red, size: isMobile ? (isTiny ? 18 : 20) : 18),
+                    SizedBox(width: isMobile ? 10 : 8),
+                    Text(
+                      'Logout', 
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: isMobile ? (isTiny ? 14 : 16) : 14
+                      )
+                    ),
                   ],
                 ),
               ),
@@ -423,7 +482,9 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
-              child: Column(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return Column(
                 children: [
                   Expanded(
                     child: TabBarView(
@@ -439,6 +500,8 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                     ),
                   ),
                 ],
+                  );
+                },
               ),
             ),
     );
@@ -521,187 +584,35 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     );
   }
 
-  // Simple responsive content methods
+  // Responsive content methods - FULL functionality on all devices
   Widget _buildOverviewContent(bool isTiny, bool isExtraSmall, bool isVerySmall, bool isMobile) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isTablet = screenWidth >= 768 && screenWidth < 1024;
-    
-    if (isMobile) {
-      return SingleChildScrollView(
-        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              isTiny ? 'Overview' : 'System Overview', 
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold, 
-                color: Theme.of(context).primaryColor,
-                fontSize: isTiny ? 16 : (isExtraSmall ? 18 : 20),
-              )
-            ),
-            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-            _buildSystemHealthCard(isTiny, isExtraSmall),
-            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-            _buildNotificationsCard(isTiny, isExtraSmall),
-            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-            _buildBillingCard(isTiny, isExtraSmall),
-          ],
-        ),
-      );
-    } else {
+    // Always use the full desktop functionality, just with responsive layout
       return _buildOverviewTab();
-    }
   }
 
   Widget _buildBusinessesContent(bool isTiny, bool isExtraSmall, bool isVerySmall, bool isMobile) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    
-    if (isMobile) {
-      return SingleChildScrollView(
-        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              isTiny ? 'Biz' : 'Businesses', 
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold, 
-                color: Theme.of(context).primaryColor,
-                fontSize: isTiny ? 16 : (isExtraSmall ? 18 : 20),
-              )
-            ),
-            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-            _buildBusinessesTab(),
-          ],
-        ),
-      );
-    } else {
+    // Always use the full desktop functionality, just with responsive layout
       return _buildBusinessesTab();
-    }
   }
 
   Widget _buildUsersAndSecurityContent(bool isTiny, bool isExtraSmall, bool isVerySmall, bool isMobile) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    
-    if (isMobile) {
-      return SingleChildScrollView(
-        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              isTiny ? 'Users' : 'Users & Security', 
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold, 
-                color: Theme.of(context).primaryColor,
-                fontSize: isTiny ? 16 : (isExtraSmall ? 18 : 20),
-              )
-            ),
-            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-            _buildUserManagementCard(isTiny, isExtraSmall),
-            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-            _buildAuditCard(isTiny, isExtraSmall),
-            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-            _buildAccessControlCard(isTiny, isExtraSmall),
-          ],
-        ),
-      );
-    } else {
+    // Always use the full desktop functionality, just with responsive layout
       return _buildUsersAndSecurityTab();
-    }
   }
 
   Widget _buildAnalyticsContent(bool isTiny, bool isExtraSmall, bool isVerySmall, bool isMobile) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isExtraSmall = screenWidth < 360;
-    
-    if (isMobile) {
-      return SingleChildScrollView(
-        padding: EdgeInsets.all(isExtraSmall ? 8 : 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Analytics', 
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold, 
-                color: Theme.of(context).primaryColor,
-                fontSize: isExtraSmall ? 18 : 20,
-              )
-            ),
-            SizedBox(height: isExtraSmall ? 8 : 12),
-            _buildAnalyticsTab(),
-          ],
-        ),
-      );
-    } else {
+    // Always use the full desktop functionality, just with responsive layout
       return _buildAnalyticsTab();
-    }
   }
 
   Widget _buildSettingsContent(bool isTiny, bool isExtraSmall, bool isVerySmall, bool isMobile) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    
-    if (isMobile) {
-      return SingleChildScrollView(
-        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Settings', 
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold, 
-                color: Theme.of(context).primaryColor,
-                fontSize: isTiny ? 16 : (isExtraSmall ? 18 : 20),
-              )
-            ),
-            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-            _buildSystemSettingsCard(isTiny, isExtraSmall),
-            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-            _buildAdminCodesCard(isTiny, isExtraSmall),
-            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-            _buildBrandingCardDesktop(isTiny, isExtraSmall),
-            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-            _buildBackupsCard(isTiny, isExtraSmall),
-          ],
-        ),
-      );
-    } else {
+    // Always use the full desktop functionality, just with responsive layout
       return _buildSettingsTab();
-    }
   }
 
   Widget _buildDataManagementContent(bool isTiny, bool isExtraSmall, bool isVerySmall, bool isMobile) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    
-    if (isMobile) {
-      return SingleChildScrollView(
-        padding: EdgeInsets.all(isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              isTiny ? 'Data' : 'Data Management', 
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold, 
-                color: Theme.of(context).primaryColor,
-                fontSize: isTiny ? 16 : (isExtraSmall ? 18 : 20),
-              )
-            ),
-            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-            _buildDataOverviewCard(isTiny, isExtraSmall),
-            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-            _buildDeletedDataCard(isTiny, isExtraSmall),
-            SizedBox(height: isTiny ? 6 : (isExtraSmall ? 8 : 12)),
-            _buildDataExportCard(isTiny, isExtraSmall),
-          ],
-        ),
-      );
-    } else {
+    // Always use the full desktop functionality, just with responsive layout
       return _buildDataManagementTab();
-    }
   }
 
   // Simple card components for mobile
@@ -742,9 +653,21 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text('Status: ${TypeConverter.safeToString(health['status'] ?? 'Unknown')}'),
-                Text('Uptime: ${TypeConverter.safeToString(health['uptime'] ?? 'N/A')}'),
-                Text('Memory: ${TypeConverter.safeToString(health['memory'] ?? 'N/A')}'),
+                Text(
+                  'Status: ${TypeConverter.safeToString(health['status'] ?? 'Unknown')}',
+                  style: TextStyle(fontSize: isTiny ? 11 : 12),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'Uptime: ${TypeConverter.safeToString(health['uptime'] ?? 'N/A')}',
+                  style: TextStyle(fontSize: isTiny ? 11 : 12),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'Memory: ${TypeConverter.safeToString(health['memory'] ?? 'N/A')}',
+                  style: TextStyle(fontSize: isTiny ? 11 : 12),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
@@ -1595,18 +1518,52 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         children: [
           Container(
             color: Colors.grey[100],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobile = constraints.maxWidth < 768;
+                final isTiny = constraints.maxWidth < 400;
+                return Container(
+                  height: isMobile ? 56 : 48,
             child: TabBar(
-              isScrollable: MediaQuery.of(context).size.width < 600,
+                    isScrollable: isMobile,
               labelColor: Theme.of(context).primaryColor,
               unselectedLabelColor: Colors.grey[600],
               indicatorColor: Theme.of(context).primaryColor,
-              labelPadding: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width < 400 ? 4 : 16),
-              labelStyle: TextStyle(fontSize: MediaQuery.of(context).size.width < 400 ? 10 : 14),
+                    labelPadding: EdgeInsets.symmetric(horizontal: isTiny ? 6 : (isMobile ? 10 : 16)),
+                    labelStyle: TextStyle(fontSize: isTiny ? 10 : (isMobile ? 12 : 14), fontWeight: FontWeight.w500),
+                    unselectedLabelStyle: TextStyle(fontSize: isTiny ? 10 : (isMobile ? 12 : 14)),
               tabs: [
-                Tab(icon: Icon(Icons.monitor_heart, size: MediaQuery.of(context).size.width < 400 ? 16 : 20), text: 'System Health'),
-                Tab(icon: Icon(Icons.notifications, size: MediaQuery.of(context).size.width < 400 ? 16 : 20), text: 'Notifications'),
-                Tab(icon: Icon(Icons.payment, size: MediaQuery.of(context).size.width < 400 ? 16 : 20), text: 'Billing'),
-              ],
+                      Tab(
+                        icon: Icon(Icons.monitor_heart, size: isTiny ? 16 : (isMobile ? 18 : 20)), 
+                        child: Text(
+                          isTiny ? 'Health' : 'System Health',
+                          style: TextStyle(fontSize: isTiny ? 10 : (isMobile ? 12 : 14)),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        )
+                      ),
+                      Tab(
+                        icon: Icon(Icons.notifications, size: isTiny ? 16 : (isMobile ? 18 : 20)), 
+                        child: Text(
+                          isTiny ? 'Alerts' : 'Notifications',
+                          style: TextStyle(fontSize: isTiny ? 10 : (isMobile ? 12 : 14)),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        )
+                      ),
+                      Tab(
+                        icon: Icon(Icons.payment, size: isTiny ? 16 : (isMobile ? 18 : 20)), 
+                        child: Text(
+                          'Billing',
+                          style: TextStyle(fontSize: isTiny ? 10 : (isMobile ? 12 : 14)),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        )
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
           Expanded(
@@ -1680,18 +1637,52 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         children: [
           Container(
             color: Colors.grey[100],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobile = constraints.maxWidth < 768;
+                final isTiny = constraints.maxWidth < 400;
+                return Container(
+                  height: isMobile ? 56 : 48,
             child: TabBar(
-              isScrollable: MediaQuery.of(context).size.width < 600,
+                    isScrollable: isMobile,
               labelColor: Theme.of(context).primaryColor,
               unselectedLabelColor: Colors.grey[600],
               indicatorColor: Theme.of(context).primaryColor,
-              labelPadding: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width < 400 ? 4 : 16),
-              labelStyle: TextStyle(fontSize: MediaQuery.of(context).size.width < 400 ? 10 : 14),
+                    labelPadding: EdgeInsets.symmetric(horizontal: isTiny ? 6 : (isMobile ? 10 : 16)),
+                    labelStyle: TextStyle(fontSize: isTiny ? 10 : (isMobile ? 12 : 14), fontWeight: FontWeight.w500),
+                    unselectedLabelStyle: TextStyle(fontSize: isTiny ? 10 : (isMobile ? 12 : 14)),
               tabs: [
-                Tab(icon: Icon(Icons.people, size: MediaQuery.of(context).size.width < 400 ? 16 : 20), text: 'User Management'),
-                Tab(icon: Icon(Icons.security, size: MediaQuery.of(context).size.width < 400 ? 16 : 20), text: 'Audit Logs'),
-                Tab(icon: Icon(Icons.manage_accounts, size: MediaQuery.of(context).size.width < 400 ? 16 : 20), text: 'Access Control'),
-              ],
+                      Tab(
+                        icon: Icon(Icons.people, size: isTiny ? 16 : (isMobile ? 18 : 20)), 
+                        child: Text(
+                          isTiny ? 'Users' : 'User Management',
+                          style: TextStyle(fontSize: isTiny ? 9 : (isMobile ? 11 : 14)),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        )
+                      ),
+                      Tab(
+                        icon: Icon(Icons.security, size: isTiny ? 16 : (isMobile ? 18 : 20)), 
+                        child: Text(
+                          isTiny ? 'Audit' : 'Audit Logs',
+                          style: TextStyle(fontSize: isTiny ? 10 : (isMobile ? 12 : 14)),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        )
+                      ),
+                      Tab(
+                        icon: Icon(Icons.manage_accounts, size: isTiny ? 16 : (isMobile ? 18 : 20)), 
+                        child: Text(
+                          isTiny ? 'Access' : 'Access Control',
+                          style: TextStyle(fontSize: isTiny ? 9 : (isMobile ? 11 : 14)),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        )
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
           Expanded(
@@ -1746,39 +1737,73 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   }
 
   Widget _buildRolePermissionsTable() {
-    return DataTable(
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 768;
+    
+    final roles = [
+      {'role': 'Superadmin', 'permissions': 'Full system access'},
+      {'role': 'Admin', 'permissions': 'Business management'},
+      {'role': 'Cashier', 'permissions': 'Sales and inventory'},
+    ];
+    
+    if (isMobile) {
+      // Mobile: Use cards instead of table
+      return Column(
+        children: roles.map((roleData) => Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      roleData['role']!,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(60, 32),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                      child: const Text('Edit', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  roleData['permissions']!,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+        )).toList(),
+      );
+    } else {
+      // Desktop: Use table
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
       columns: const [
         DataColumn(label: Text('Role')),
         DataColumn(label: Text('Permissions')),
         DataColumn(label: Text('Actions')),
       ],
-      rows: [
-        DataRow(cells: [
-          const DataCell(Text('Superadmin')),
-          const DataCell(Text('Full system access')),
+          rows: roles.map((roleData) => DataRow(cells: [
+            DataCell(Text(roleData['role']!)),
+            DataCell(Text(roleData['permissions']!)),
           DataCell(ElevatedButton(
             onPressed: () {},
             child: const Text('Edit'),
           )),
-        ]),
-        DataRow(cells: [
-          const DataCell(Text('Admin')),
-          const DataCell(Text('Business management')),
-          DataCell(ElevatedButton(
-            onPressed: () {},
-            child: const Text('Edit'),
-          )),
-        ]),
-        DataRow(cells: [
-          const DataCell(Text('Cashier')),
-          const DataCell(Text('Sales and inventory')),
-          DataCell(ElevatedButton(
-            onPressed: () {},
-            child: const Text('Edit'),
-          )),
-        ]),
-      ],
-    );
+          ])).toList(),
+        ),
+      );
+    }
   }
 
   Future<Map<String, dynamic>> _fetchSystemHealth() async {
@@ -1994,16 +2019,61 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         children: [
           Container(
             color: Colors.grey[100],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 768;
+              final isTiny = constraints.maxWidth < 400;
+              return Container(
+                height: isMobile ? 52 : 48,
             child: TabBar(
-              tabs: const [
-                Tab(text: 'Overview'),
-                Tab(text: 'Messages'),
-                Tab(text: 'Payments'),
-                Tab(text: 'Analytics'),
+                  isScrollable: isMobile,
+                                    tabs: [
+                    Tab(
+                      icon: Icon(Icons.dashboard_outlined, size: isTiny ? 16 : 18),
+                      child: Text(
+                        'Overview',
+                        style: TextStyle(fontSize: isTiny ? 10 : (isMobile ? 12 : 14)),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      )
+                    ),
+                    Tab(
+                      icon: Icon(Icons.message, size: isTiny ? 16 : 18),
+                      child: Text(
+                        'Messages',
+                        style: TextStyle(fontSize: isTiny ? 10 : (isMobile ? 12 : 14)),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      )
+                    ),
+                    Tab(
+                      icon: Icon(Icons.payment, size: isTiny ? 16 : 18),
+                      child: Text(
+                        'Payments',
+                        style: TextStyle(fontSize: isTiny ? 10 : (isMobile ? 12 : 14)),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      )
+                    ),
+                    Tab(
+                      icon: Icon(Icons.analytics, size: isTiny ? 16 : 18),
+                      child: Text(
+                        'Analytics',
+                        style: TextStyle(fontSize: isTiny ? 10 : (isMobile ? 12 : 14)),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      )
+                    ),
               ],
               labelColor: Theme.of(context).primaryColor,
               unselectedLabelColor: Colors.grey[600],
               indicatorColor: Theme.of(context).primaryColor,
+                  labelStyle: TextStyle(fontSize: isTiny ? 10 : (isMobile ? 12 : 14), fontWeight: FontWeight.w500),
+                  unselectedLabelStyle: TextStyle(fontSize: isTiny ? 10 : (isMobile ? 12 : 14)),
+                  labelPadding: EdgeInsets.symmetric(horizontal: isTiny ? 6 : (isMobile ? 8 : 16)),
+                ),
+              );
+            },
             ),
           ),
           Expanded(
@@ -2027,10 +2097,58 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 768;
+              
+              if (isMobile) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Business Management', 
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold, 
+                          color: Theme.of(context).primaryColor,
+                          fontSize: 18,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.add_business),
+                        label: const Text('Add Business'),
+                        onPressed: _showCreateBusinessDialog,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).primaryColor, 
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              } else {
+                                return Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Business Management', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor)),
+                    Expanded(
+                      child: Text(
+                        'Business Management', 
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold, 
+                          color: Theme.of(context).primaryColor
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
               ElevatedButton.icon(
                 icon: const Icon(Icons.add_business),
                 label: const Text('Add Business'),
@@ -2038,6 +2156,9 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).primaryColor, foregroundColor: Colors.white),
               ),
             ],
+                );
+              }
+            },
           ),
           const SizedBox(height: 16),
           _buildBusinessesList(),
@@ -2072,20 +2193,45 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
               onChanged: (value) => _searchBusinesses(value),
             ),
             const SizedBox(height: 16),
-            // Businesses grid
-            GridView.builder(
+            // Businesses grid - Responsive
+            LayoutBuilder(
+              builder: (context, constraints) {
+                int crossAxisCount;
+                double aspectRatio;
+                double spacing;
+                
+                if (constraints.maxWidth < 768) {
+                  // Mobile: 1 column
+                  crossAxisCount = 1;
+                  aspectRatio = 2.5;
+                  spacing = 8;
+                } else if (constraints.maxWidth < 1024) {
+                  // Tablet: 2 columns
+                  crossAxisCount = 2;
+                  aspectRatio = 2.0;
+                  spacing = 12;
+                } else {
+                  // Desktop: 3 columns
+                  crossAxisCount = 3;
+                  aspectRatio = 1.5;
+                  spacing = 16;
+                }
+                
+                return GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                childAspectRatio: 1.5,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    childAspectRatio: aspectRatio,
+                    crossAxisSpacing: spacing,
+                    mainAxisSpacing: spacing,
               ),
               itemCount: businesses.length,
               itemBuilder: (context, index) {
                 final business = businesses[index];
                 return _buildBusinessCard(business);
+                  },
+                );
               },
             ),
             const SizedBox(height: 16),
@@ -2126,8 +2272,8 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
               Row(
                 children: [
                   Icon(
-                    business['is_active'] == true ? Icons.business : Icons.business_outlined,
-                    color: business['is_active'] == true ? Colors.green : Colors.red,
+                    business['is_active'] == true || business['is_active'] == 1 ? Icons.business : Icons.business_outlined,
+                    color: business['is_active'] == true || business['is_active'] == 1 ? Colors.green : Colors.red,
                     size: 24,
                   ),
                   const SizedBox(width: 8),
@@ -2136,6 +2282,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                       business['name'] ?? '',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                   PopupMenuButton<String>(
@@ -2413,7 +2560,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       );
       
       final businesses = businessesResponse.statusCode == 200 
-          ? json.decode(businessesResponse.body)['businesses'] ?? []
+          ? TypeConverter.convertMySQLList(json.decode(businessesResponse.body)['businesses'] ?? [])
           : [];
       
       // Get messages for each business
@@ -2426,8 +2573,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         
         if (messagesResponse.statusCode == 200) {
           final messages = json.decode(messagesResponse.body)['messages'] ?? [];
-          final convertedMessages = _safeConvertToList(messages);
-          allMessages.addAll(convertedMessages);
+          allMessages.addAll(TypeConverter.convertMySQLList(messages));
         }
       }
       
@@ -2455,7 +2601,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       );
       
       final businesses = businessesResponse.statusCode == 200 
-          ? json.decode(businessesResponse.body)['businesses'] ?? []
+          ? TypeConverter.convertMySQLList(json.decode(businessesResponse.body)['businesses'] ?? [])
           : [];
       
       // Get payments for each business
@@ -2468,8 +2614,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         
         if (paymentsResponse.statusCode == 200) {
           final payments = json.decode(paymentsResponse.body)['payments'] ?? [];
-          final convertedPayments = _safeConvertToList(payments);
-          allPayments.addAll(convertedPayments);
+          allPayments.addAll(TypeConverter.convertMySQLList(payments));
         }
       }
       
@@ -2497,7 +2642,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       );
       
       final businesses = businessesResponse.statusCode == 200 
-          ? json.decode(businessesResponse.body)['businesses'] ?? []
+          ? TypeConverter.convertMySQLList(json.decode(businessesResponse.body)['businesses'] ?? [])
           : [];
       
       // Calculate analytics
@@ -2509,7 +2654,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       int totalSales = 0;
       
       for (final business in businesses) {
-        if (business['is_active'] == true) activeBusinesses++;
+        if (business['is_active'] == true || business['is_active'] == 1) activeBusinesses++;
         if (business['payment_status'] == 'overdue') overduePayments++;
         
         totalUsers += (business['user_count'] ?? 0) as int;
@@ -2714,8 +2859,8 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                   final user = users[index];
                   return ListTile(
                     leading: Icon(
-                      user['is_active'] == true ? Icons.person : Icons.person_outline,
-                      color: user['is_active'] == true ? Colors.green : Colors.red,
+                      user['is_active'] == true || user['is_active'] == 1 ? Icons.person : Icons.person_outline,
+                      color: user['is_active'] == true || user['is_active'] == 1 ? Colors.green : Colors.red,
                     ),
                     title: Text(user['username'] ?? ''),
                     subtitle: Text('${user['email']} • ${user['role']}'),
@@ -3341,7 +3486,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   }
 
   void _toggleBusinessStatus(Map<String, dynamic> business) {
-    final isCurrentlyActive = business['is_active'] == true;
+    final isCurrentlyActive = business['is_active'] == true || business['is_active'] == 1;
     final reasonController = TextEditingController();
 
     showDialog(
@@ -3646,7 +3791,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         final businesses = data['businesses'] ?? [];
         
         // Convert each business to Map<String, dynamic> safely
-        return _safeConvertToList(businesses);
+        return TypeConverter.convertMySQLList(businesses);
       } else {
         throw Exception('Failed to fetch businesses: ${response.statusCode}');
       }
@@ -5086,7 +5231,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       final backupsRaw = data['backups'] ?? [];
-      return _safeConvertToList(backupsRaw);
+      return TypeConverter.convertMySQLList(backupsRaw);
     }
     throw Exception('Failed to fetch backups');
   }
@@ -5732,7 +5877,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final logsRaw = data['logs'] ?? [];
-        final logs = _safeConvertToList(logsRaw);
+        final logs = TypeConverter.convertMySQLList(logsRaw);
 
         showDialog(
           context: context,
@@ -6041,11 +6186,11 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
             const SizedBox(height: 12),
             if (isMobile) ...[
               ElevatedButton.icon(
-                icon: Icon(stats['maintenanceMode'] == true ? Icons.play_arrow : Icons.pause),
-                label: Text(stats['maintenanceMode'] == true ? 'Disable Maintenance' : 'Enable Maintenance'),
+                icon: Icon(stats['maintenanceMode'] == true || stats['maintenanceMode'] == 1 ? Icons.play_arrow : Icons.pause),
+                label: Text(stats['maintenanceMode'] == true || stats['maintenanceMode'] == 1 ? 'Disable Maintenance' : 'Enable Maintenance'),
                 onPressed: _toggleMaintenanceMode,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: stats['maintenanceMode'] == true ? Colors.green : Colors.orange,
+                  backgroundColor: stats['maintenanceMode'] == true || stats['maintenanceMode'] == 1 ? Colors.green : Colors.orange,
                   foregroundColor: Colors.white,
                 ),
               ),
@@ -6061,13 +6206,13 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
-                      icon: Icon(stats['maintenanceMode'] == true ? Icons.play_arrow : Icons.pause),
-                      label: Text(stats['maintenanceMode'] == true ? 'Disable Maintenance' : 'Enable Maintenance'),
+                      icon: Icon(stats['maintenanceMode'] == true || stats['maintenanceMode'] == 1 ? Icons.play_arrow : Icons.pause),
+                      label: Text(stats['maintenanceMode'] == true || stats['maintenanceMode'] == 1 ? 'Disable Maintenance' : 'Enable Maintenance'),
                       onPressed: _toggleMaintenanceMode,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: stats['maintenanceMode'] == true ? Colors.green : Colors.orange,
-                        foregroundColor: Colors.white,
-                      ),
+                                              style: ElevatedButton.styleFrom(
+                          backgroundColor: stats['maintenanceMode'] == true || stats['maintenanceMode'] == 1 ? Colors.green : Colors.orange,
+                          foregroundColor: Colors.white,
+                        ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -6958,7 +7103,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                           onChanged: (checked) {
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                             setState(() {
-                              if (checked == true) {
+                              if (checked == true || checked == 1) {
                                 selectedUsers.add(user['id']);
                               } else {
                                 selectedUsers.remove(user['id']);
@@ -7051,7 +7196,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed == true || confirmed == 1) {
       final authProvider = context.read<AuthProvider>();
       final token = authProvider.token;
       final response = await http.delete(
@@ -7867,7 +8012,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       int totalSales = 0;
       
       for (final business in businesses) {
-        if (business['is_active'] == true) activeBusinesses++;
+        if (business['is_active'] == true || business['is_active'] == 1) activeBusinesses++;
         if (business['payment_status'] == 'overdue') overduePayments++;
         
         totalUsers += (business['user_count'] ?? 0) as int;
@@ -8055,7 +8200,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       int totalSales = 0;
       
       for (final business in businesses) {
-        if (business['is_active'] == true) activeBusinesses++;
+        if (business['is_active'] == true || business['is_active'] == 1) activeBusinesses++;
         if (business['payment_status'] == 'overdue') overduePayments++;
         
         totalUsers += (business['user_count'] ?? 0) as int;
@@ -8662,8 +8807,8 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   }
 
   Widget _buildBusinessStatusCard(List<dynamic> businesses) {
-    final activeCount = businesses.where((b) => b['is_active'] == true).length;
-    final inactiveCount = businesses.where((b) => b['is_active'] != true).length;
+    final activeCount = businesses.where((b) => b['is_active'] == true || b['is_active'] == 1).length;
+    final inactiveCount = businesses.where((b) => b['is_active'] != true && b['is_active'] != 1).length;
     
     return Card(
       elevation: 2,
@@ -9107,8 +9252,8 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   }
 
   Widget _buildBusinessActivityCard(List<dynamic> businesses) {
-    final activeBusinesses = businesses.where((b) => b['is_active'] == true).length;
-    final inactiveBusinesses = businesses.where((b) => b['is_active'] != true).length;
+    final activeBusinesses = businesses.where((b) => b['is_active'] == true || b['is_active'] == 1).length;
+    final inactiveBusinesses = businesses.where((b) => b['is_active'] != true && b['is_active'] != 1).length;
     
     return Card(
       elevation: 2,

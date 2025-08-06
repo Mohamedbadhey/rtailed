@@ -10,6 +10,8 @@ import 'package:retail_management/screens/home/damaged_products_screen.dart';
 import 'package:retail_management/screens/home/pos_screen.dart';
 import 'package:retail_management/screens/home/reports_screen.dart';
 import 'package:retail_management/screens/home/settings_screen.dart';
+import 'package:retail_management/screens/home/admin_settings_screen.dart';
+import 'package:retail_management/screens/home/profile_screen.dart';
 import 'package:retail_management/screens/home/notifications_screen.dart';
 import 'package:retail_management/screens/accounting/accounting_dashboard_screen.dart';
 import 'package:retail_management/screens/accounting/expenses_screen.dart';
@@ -74,9 +76,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ? [
             const DashboardScreen(),
             const POSScreen(),
-            const DamagedProductsScreen(),
             const ReportsScreen(),
-            const SettingsScreen(),
+            const AdminSettingsScreen(), // Settings with Damages included
+          ]
+        : isAdmin
+        ? [
+            const DashboardScreen(),
+            const POSScreen(),
+            const InventoryScreen(),
+            const ReportsScreen(),
+            const AdminSettingsScreen(), // Settings with Damages and Accounting included
           ]
         : [
             const DashboardScreen(),
@@ -85,7 +94,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             const DamagedProductsScreen(),
             const ReportsScreen(),
             const SettingsScreen(),
-            if (isAdmin) const AccountingDashboardScreen(),
           ];
 
     final List<BottomNavigationBarItem> navItems = isCashier
@@ -101,9 +109,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               label: t(context, 'POS'),
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.warning_outlined),
-              activeIcon: Icon(Icons.warning),
-              label: t(context, 'Damaged'),
+              icon: Icon(Icons.analytics_outlined),
+              activeIcon: Icon(Icons.analytics),
+              label: t(context, 'Reports'),
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.settings_outlined),
+              activeIcon: Icon(Icons.settings),
+              label: t(context, 'Settings'),
+            ),
+          ]
+        : isAdmin
+        ? [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.dashboard_outlined),
+              activeIcon: Icon(Icons.dashboard),
+              label: t(context, 'Dashboard'),
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.point_of_sale_outlined),
+              activeIcon: Icon(Icons.point_of_sale),
+              label: t(context, 'POS'),
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.inventory_2_outlined),
+              activeIcon: Icon(Icons.inventory_2),
+              label: t(context, 'Inventory'),
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.analytics_outlined),
@@ -147,20 +178,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               activeIcon: Icon(Icons.settings),
               label: t(context, 'Settings'),
             ),
-            if (isAdmin)
-              BottomNavigationBarItem(
-                icon: Icon(Icons.account_balance_outlined),
-                activeIcon: Icon(Icons.account_balance),
-                label: t(context, 'Accounting'),
-              ),
           ];
 
     // Adjust _currentIndex if user is cashier and tries to access a non-existent tab
     int currentIndex = _currentIndex;
-    if (isCashier && _currentIndex > 4) { // Changed from 5 to 4 since we removed notifications
+    if (isCashier && _currentIndex > 3) {
       currentIndex = 0;
     }
-    if (!isAdmin && _currentIndex == 6) { // Changed from 7 to 6 since we removed notifications
+    if (isAdmin && _currentIndex > 4) {
+      currentIndex = 0;
+    }
+    if (!isAdmin && !isCashier && _currentIndex > 5) {
       currentIndex = 0;
     }
 
@@ -272,7 +300,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               if (value == 'logout') {
                 _showLogoutDialog();
               } else if (value == 'profile') {
-                // TODO: Navigate to profile
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                );
               }
             },
             itemBuilder: (context) => [
@@ -323,6 +354,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _getAppBarTitle() {
     final user = context.read<AuthProvider>().user;
     final isCashier = user != null && user.role == 'cashier';
+    final isAdmin = user != null && user.role == 'admin';
     
     if (isCashier) {
       switch (_currentIndex) {
@@ -331,7 +363,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         case 1:
           return 'Point of Sale';
         case 2:
-          return 'Damaged Products';
+          return 'Reports & Analytics';
+        case 3:
+          return 'Settings';
+        default:
+          return 'Retail Management';
+      }
+    } else if (isAdmin) {
+      switch (_currentIndex) {
+        case 0:
+          return 'Dashboard';
+        case 1:
+          return 'Point of Sale';
+        case 2:
+          return 'Inventory';
         case 3:
           return 'Reports & Analytics';
         case 4:
@@ -353,8 +398,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           return 'Reports & Analytics';
         case 5:
           return 'Settings';
-        case 6:
-          return 'Accounting';
         default:
           return 'Retail Management';
       }

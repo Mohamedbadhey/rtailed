@@ -108,14 +108,14 @@ class TypeConverter {
     return value.toString();
   }
 
-  /// Safely convert to boolean
+  /// Safely converts a value to bool, handling int values (0/1) as well
   static bool safeToBool(dynamic value) {
     if (value == null) return false;
     if (value is bool) return value;
-    if (value is num) return value != 0;
+    if (value is int) return value != 0;
     if (value is String) {
-      final lower = value.toLowerCase();
-      return lower == 'true' || lower == '1' || lower == 'yes';
+      final lowerValue = value.toLowerCase();
+      return lowerValue == 'true' || lowerValue == '1' || lowerValue == 'yes';
     }
     return false;
   }

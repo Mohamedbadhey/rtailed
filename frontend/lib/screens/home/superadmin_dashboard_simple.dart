@@ -6,6 +6,7 @@ import 'package:retail_management/widgets/notification_badge.dart';
 import 'package:retail_management/widgets/branded_app_bar.dart';
 import 'package:retail_management/widgets/offline_status_widget.dart';
 import 'package:retail_management/services/api_service.dart';
+import 'package:retail_management/utils/type_converter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -88,8 +89,9 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-          setState(() {
-          _allBusinesses = List<Map<String, dynamic>>.from(data['businesses'] ?? []);
+        final businesses = data['businesses'] ?? [];
+        setState(() {
+          _allBusinesses = TypeConverter.convertMySQLList(businesses);
         });
       }
     } catch (e) {
@@ -107,8 +109,9 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        final users = data['users'] ?? [];
         setState(() {
-          _allUsers = List<Map<String, dynamic>>.from(data['users'] ?? []);
+          _allUsers = TypeConverter.convertMySQLList(users);
         });
       }
     } catch (e) {
@@ -126,8 +129,9 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        final payments = data['payments'] ?? [];
         setState(() {
-          _allPayments = List<Map<String, dynamic>>.from(data['payments'] ?? []);
+          _allPayments = TypeConverter.convertMySQLList(payments);
         });
       }
     } catch (e) {
@@ -145,8 +149,9 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        final messages = data['messages'] ?? [];
         setState(() {
-          _allMessages = List<Map<String, dynamic>>.from(data['messages'] ?? []);
+          _allMessages = TypeConverter.convertMySQLList(messages);
         });
       }
     } catch (e) {
@@ -164,8 +169,9 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        final notifications = data['notifications'] ?? [];
         setState(() {
-          _notifications = List<Map<String, dynamic>>.from(data['notifications'] ?? []);
+          _notifications = TypeConverter.convertMySQLList(notifications);
         });
       }
     } catch (e) {
@@ -441,7 +447,7 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
               Expanded(
                 child: _buildStatCard(
                   'Active Businesses',
-                  _allBusinesses.where((b) => b['is_active'] == true).length.toString(),
+                  _allBusinesses.where((b) => b['is_active'] == true || b['is_active'] == 1).length.toString(),
                   Icons.check_circle,
                   Colors.green,
                 ),
@@ -520,7 +526,7 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
               Expanded(
                 child: _buildStatCard(
                   'Active',
-                  _allBusinesses.where((b) => b['is_active'] == true).length.toString(),
+                  _allBusinesses.where((b) => b['is_active'] == true || b['is_active'] == 1).length.toString(),
                   Icons.check_circle,
                   Colors.green,
                 ),
@@ -529,7 +535,7 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
               Expanded(
                 child: _buildStatCard(
                   'Inactive',
-                  _allBusinesses.where((b) => b['is_active'] == false).length.toString(),
+                  _allBusinesses.where((b) => b['is_active'] == false || b['is_active'] == 0).length.toString(),
                   Icons.pause_circle,
                   Colors.orange,
                 ),
@@ -595,7 +601,7 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
               Expanded(
                 child: _buildStatCard(
                   'Active Users',
-                  _allUsers.where((u) => u['is_active'] == true).length.toString(),
+                  _allUsers.where((u) => u['is_active'] == true || u['is_active'] == 1).length.toString(),
                   Icons.check_circle,
                   Colors.green,
                 ),
@@ -654,7 +660,7 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
             Colors.blue,
             [
               _buildStatRow('Total Businesses', _allBusinesses.length.toString()),
-              _buildStatRow('Active Businesses', _allBusinesses.where((b) => b['is_active'] == true).length.toString()),
+              _buildStatRow('Active Businesses', _allBusinesses.where((b) => b['is_active'] == true || b['is_active'] == 1).length.toString()),
               _buildStatRow('Avg Revenue/Business', '\$${_calculateAverageRevenuePerBusiness()}'),
             ],
           ),
@@ -667,7 +673,7 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
             Colors.orange,
             [
               _buildStatRow('Total Users', _allUsers.length.toString()),
-              _buildStatRow('Active Users', _allUsers.where((u) => u['is_active'] == true).length.toString()),
+              _buildStatRow('Active Users', _allUsers.where((u) => u['is_active'] == true || u['is_active'] == 1).length.toString()),
               _buildStatRow('Users per Business', '${_calculateUsersPerBusiness()}'),
             ],
           ),

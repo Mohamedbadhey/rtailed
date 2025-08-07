@@ -1319,10 +1319,21 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
   }
 
   // Analytics helper methods
-  bool _isWithinLast30Days(String? dateString) {
-    if (dateString == null) return false;
+  bool _isWithinLast30Days(dynamic dateValue) {
+    if (dateValue == null) return false;
     try {
-      final date = DateTime.parse(dateString);
+      DateTime date;
+      
+      if (dateValue is int) {
+        // Handle timestamp (seconds since epoch)
+        date = DateTime.fromMillisecondsSinceEpoch(dateValue * 1000);
+      } else if (dateValue is String) {
+        // Handle string date
+        date = DateTime.parse(dateValue);
+      } else {
+        return false;
+      }
+      
       return date.isAfter(DateTime.now().subtract(const Duration(days: 30)));
     } catch (e) {
       return false;
@@ -2471,7 +2482,7 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
                   ),
                 ),
                 Text(
-                  '\$${payment['amount']?.toString() ?? '0'}',
+                  '\$${TypeConverter.safeToDouble(payment['amount'] ?? 0).toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: isTiny ? 10 : 12,
                     color: Colors.grey[600],
@@ -2481,7 +2492,7 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
             ),
           ),
           Text(
-            payment['created_at'] ?? '',
+            _formatDate(payment['created_at']),
             style: TextStyle(
               fontSize: isTiny ? 10 : 12,
               color: Colors.grey[500],
@@ -2526,7 +2537,7 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
                   ),
                 ),
                 Text(
-                  '\$${payment['amount']?.toString() ?? '0'}',
+                  '\$${TypeConverter.safeToDouble(payment['amount'] ?? 0).toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: isTiny ? 10 : 12,
                     color: Colors.grey[600],
@@ -2536,7 +2547,7 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
             ),
           ),
           Text(
-            payment['due_date'] ?? '',
+            _formatDate(payment['due_date']),
             style: TextStyle(
               fontSize: isTiny ? 10 : 12,
               color: Colors.orange,
@@ -2566,7 +2577,7 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
     double total = 0;
     for (var payment in _allPayments) {
       if (payment['status'] == 'completed') {
-        final paymentDate = DateTime.tryParse(payment['created_at'] ?? '');
+        final paymentDate = _safeParseDate(payment['created_at']);
         if (paymentDate != null && paymentDate.isAfter(startOfMonth)) {
           total += TypeConverter.safeToDouble(payment['amount'] ?? 0);
         }
@@ -2583,7 +2594,7 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
     double total = 0;
     for (var payment in _allPayments) {
       if (payment['status'] == 'completed') {
-        final paymentDate = DateTime.tryParse(payment['created_at'] ?? '');
+        final paymentDate = _safeParseDate(payment['created_at']);
         if (paymentDate != null && 
             paymentDate.isAfter(startOfLastMonth) && 
             paymentDate.isBefore(endOfLastMonth)) {
@@ -2886,7 +2897,7 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
 
   Widget _buildPaymentCard(Map<String, dynamic> payment, bool isTiny, bool isExtraSmall) {
     final businessName = payment['business_name'] ?? 'Unknown Business';
-    final amount = payment['amount'] ?? 0;
+    final amount = TypeConverter.safeToDouble(payment['amount'] ?? 0);
     final status = payment['status'] ?? 'pending';
     final createdAt = payment['created_at'] ?? '';
 
@@ -3145,13 +3156,40 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
     );
   }
 
-  String _formatDate(String dateString) {
+  String _formatDate(dynamic dateValue) {
     try {
-      final date = DateTime.parse(dateString);
+      DateTime date;
+      
+      if (dateValue is int) {
+        // Handle timestamp (seconds since epoch)
+        date = DateTime.fromMillisecondsSinceEpoch(dateValue * 1000);
+      } else if (dateValue is String) {
+        // Handle string date
+        date = DateTime.parse(dateValue);
+      } else {
+        return TypeConverter.safeToString(dateValue);
+      }
+      
       return '${date.day}/${date.month}/${date.year}';
     } catch (e) {
-      return dateString;
+      return TypeConverter.safeToString(dateValue);
     }
+  }
+
+  DateTime? _safeParseDate(dynamic dateValue) {
+    if (dateValue == null) return null;
+    try {
+      if (dateValue is int) {
+        // Handle timestamp (seconds since epoch)
+        return DateTime.fromMillisecondsSinceEpoch(dateValue * 1000);
+      } else if (dateValue is String) {
+        // Handle string date
+        return DateTime.parse(dateValue);
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
   }
 
   double _getBusinessRevenue(int? businessId) {

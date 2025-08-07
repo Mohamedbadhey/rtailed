@@ -141,7 +141,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       }
       
       // Sort messages by creation date
-      allMessages.sort((a, b) => DateTime.parse(b['created_at']).compareTo(DateTime.parse(a['created_at'])));
+      allMessages.sort((a, b) => _safeParseDate(b['created_at'])?.compareTo(_safeParseDate(a['created_at']) ?? DateTime(1900)) ?? 0);
       
       // Load payments
       List<Map<String, dynamic>> allPayments = [];
@@ -162,7 +162,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       }
       
       // Sort payments by creation date
-      allPayments.sort((a, b) => DateTime.parse(b['created_at']).compareTo(DateTime.parse(a['created_at'])));
+      allPayments.sort((a, b) => _safeParseDate(b['created_at'])?.compareTo(_safeParseDate(a['created_at']) ?? DateTime(1900)) ?? 0);
 
       setState(() {
         _allMessages = allMessages;
@@ -2578,7 +2578,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       }
       
       // Sort by creation date
-      allMessages.sort((a, b) => DateTime.parse(b['created_at']).compareTo(DateTime.parse(a['created_at'])));
+      allMessages.sort((a, b) => _safeParseDate(b['created_at'])?.compareTo(_safeParseDate(a['created_at']) ?? DateTime(1900)) ?? 0);
       
       return {
         'messages': allMessages,
@@ -2619,7 +2619,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       }
       
       // Sort by creation date
-      allPayments.sort((a, b) => DateTime.parse(b['created_at']).compareTo(DateTime.parse(a['created_at'])));
+      allPayments.sort((a, b) => _safeParseDate(b['created_at'])?.compareTo(_safeParseDate(a['created_at']) ?? DateTime(1900)) ?? 0);
       
       return {
         'payments': allPayments,
@@ -3908,8 +3908,11 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       // Sort by creation date (with null safety)
       allBills.sort((a, b) {
         try {
-          final dateA = DateTime.parse(a['created_at'] ?? '');
-          final dateB = DateTime.parse(b['created_at'] ?? '');
+          final dateA = _safeParseDate(a['created_at']);
+          final dateB = _safeParseDate(b['created_at']);
+          if (dateA == null && dateB == null) return 0;
+          if (dateA == null) return 1;
+          if (dateB == null) return -1;
           return dateB.compareTo(dateA);
         } catch (e) {
           return 0; // Keep original order if date parsing fails
@@ -4793,7 +4796,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
             color: _getBillStatusColor(bill['status']),
           ),
         ),
-        title: Text('\$${bill['total_amount']?.toString() ?? '0'}'),
+        title: Text('\$${_safeToDouble(bill['total_amount'] ?? 0).toStringAsFixed(2)}'),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -4971,7 +4974,8 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   }
 
   Widget _buildOverdueBillCard(Map<String, dynamic> bill) {
-    final daysOverdue = DateTime.now().difference(DateTime.parse(bill['due_date'])).inDays;
+    final dueDate = _safeParseDate(bill['due_date']);
+    final daysOverdue = dueDate != null ? DateTime.now().difference(dueDate).inDays : 0;
     
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -4980,7 +4984,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
           backgroundColor: Colors.red.withOpacity(0.2),
           child: const Icon(Icons.warning, color: Colors.red),
         ),
-        title: Text('\$${bill['total_amount']?.toString() ?? '0'}'),
+        title: Text('\$${_safeToDouble(bill['total_amount'] ?? 0).toStringAsFixed(2)}'),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -7017,14 +7021,41 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     }
   }
 
-  String _formatDate(String? dateString) {
-    if (dateString == null) return 'Unknown';
+  String _formatDate(dynamic dateValue) {
+    if (dateValue == null) return 'Unknown';
     try {
-      final date = DateTime.parse(dateString);
+      DateTime date;
+      
+      if (dateValue is int) {
+        // Handle timestamp (seconds since epoch)
+        date = DateTime.fromMillisecondsSinceEpoch(dateValue * 1000);
+      } else if (dateValue is String) {
+        // Handle string date
+        date = DateTime.parse(dateValue);
+      } else {
+        return dateValue.toString();
+      }
+      
       return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute}';
     } catch (e) {
       return 'Invalid date';
     }
+  }
+
+  DateTime? _safeParseDate(dynamic dateValue) {
+    if (dateValue == null) return null;
+    try {
+      if (dateValue is int) {
+        // Handle timestamp (seconds since epoch)
+        return DateTime.fromMillisecondsSinceEpoch(dateValue * 1000);
+      } else if (dateValue is String) {
+        // Handle string date
+        return DateTime.parse(dateValue);
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
   }
 
   String _formatDateTime(DateTime date) {
@@ -7343,10 +7374,12 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     );
   }
 
-  String _formatLastActivity(String? lastActivity) {
+  String _formatLastActivity(dynamic lastActivity) {
     if (lastActivity == null) return 'Never';
     try {
-      final date = DateTime.parse(lastActivity);
+      final date = _safeParseDate(lastActivity);
+      if (date == null) return 'Unknown';
+      
       final now = DateTime.now();
       final difference = now.difference(date);
       
@@ -9871,7 +9904,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('ID: ${item['id']}'),
-                Text('Deleted: ${_formatDateTime(DateTime.parse(item['created_at']))}'),
+                Text('Deleted: ${_formatDateTime(_safeParseDate(item['created_at']) ?? DateTime.now())}'),
                 if (item['business_id'] != null) Text('Business ID: ${item['business_id']}'),
               ],
             ),

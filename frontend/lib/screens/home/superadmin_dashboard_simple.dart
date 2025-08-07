@@ -1272,7 +1272,7 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
     final thisMonth = DateTime(now.year, now.month);
     return _allPayments
         .where((payment) {
-          final paymentDate = DateTime.tryParse(payment['created_at'] ?? '');
+          final paymentDate = _safeParseDate(payment['created_at']);
           return paymentDate != null && paymentDate.isAfter(thisMonth);
         })
         .fold(0.0, (sum, payment) => sum + (payment['amount'] ?? 0.0));
@@ -1284,7 +1284,7 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
     final thisMonth = DateTime(now.year, now.month);
     return _allPayments
         .where((payment) {
-          final paymentDate = DateTime.tryParse(payment['created_at'] ?? '');
+          final paymentDate = _safeParseDate(payment['created_at']);
           return paymentDate != null && 
                  paymentDate.isAfter(lastMonth) && 
                  paymentDate.isBefore(thisMonth);
@@ -1300,6 +1300,22 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
   double _calculateUsersPerBusiness() {
     if (_allBusinesses.isEmpty) return 0.0;
     return _allUsers.length / _allBusinesses.length;
+  }
+
+  DateTime? _safeParseDate(dynamic dateValue) {
+    if (dateValue == null) return null;
+    try {
+      if (dateValue is int) {
+        // Handle timestamp (seconds since epoch)
+        return DateTime.fromMillisecondsSinceEpoch(dateValue * 1000);
+      } else if (dateValue is String) {
+        // Handle string date
+        return DateTime.parse(dateValue);
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
   }
 
   // Dialog stubs

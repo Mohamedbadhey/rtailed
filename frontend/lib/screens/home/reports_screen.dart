@@ -85,57 +85,61 @@ class _ReportsScreenState extends State<ReportsScreen> {
     DateTime? customStart = _filterStartDate;
     DateTime? customEnd = _filterEndDate;
     String? selectedQuick = _quickRangeLabel;
+    
+    // Responsive breakpoints for dialog
+    final isSmallMobile = MediaQuery.of(context).size.width <= 360;
+    final isMobile = MediaQuery.of(context).size.width <= 768;
+    
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(t(context, 'filter_by_date_title')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+        title: Row(
           children: [
-            ListTile(
-              title: Text(t(context, 'all_time')),
-              trailing: selectedQuick == 'All Time' ? const Icon(Icons.check, color: Colors.blue) : null,
-              onTap: () {
+            Icon(
+              Icons.filter_alt,
+              color: Theme.of(context).primaryColor,
+              size: isSmallMobile ? 18 : 24,
+            ),
+            SizedBox(width: isSmallMobile ? 6 : 8),
+            Text(
+              isSmallMobile ? 'Date Filter' : t(context, 'filter_by_date_title'),
+              style: TextStyle(
+                fontSize: isSmallMobile ? 14 : 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Container(
+          width: isSmallMobile ? double.maxFinite : (isMobile ? 300 : 400),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildQuickFilterOption('All Time', selectedQuick == 'All Time', () {
                 setState(() => _quickRangeLabel = 'All Time');
                 Navigator.pop(context);
                 _setQuickRange('All Time');
                 _loadAllReports();
-              },
-            ),
-            ListTile(
-              title: Text(t(context, 'today')),
-              trailing: selectedQuick == 'Today' ? const Icon(Icons.check, color: Colors.blue) : null,
-              onTap: () {
+              }, isSmallMobile),
+              _buildQuickFilterOption('Today', selectedQuick == 'Today', () {
                 setState(() => _quickRangeLabel = 'Today');
                 Navigator.pop(context);
                 _setQuickRange('Today');
                 _loadAllReports();
-              },
-            ),
-            ListTile(
-              title: Text(t(context, 'this_week')),
-              trailing: selectedQuick == 'This Week' ? const Icon(Icons.check, color: Colors.blue) : null,
-              onTap: () {
+              }, isSmallMobile),
+              _buildQuickFilterOption('This Week', selectedQuick == 'This Week', () {
                 setState(() => _quickRangeLabel = 'This Week');
                 Navigator.pop(context);
                 _setQuickRange('This Week');
                 _loadAllReports();
-              },
-            ),
-            ListTile(
-              title: Text(t(context, 'last_7_days')),
-              trailing: selectedQuick == 'Last 7 Days' ? const Icon(Icons.check, color: Colors.blue) : null,
-              onTap: () {
+              }, isSmallMobile),
+              _buildQuickFilterOption('Last 7 Days', selectedQuick == 'Last 7 Days', () {
                 setState(() => _quickRangeLabel = 'Last 7 Days');
                 Navigator.pop(context);
                 _setQuickRange('Last 7 Days');
                 _loadAllReports();
-              },
-            ),
-            ListTile(
-              title: Text(t(context, 'custom_range')),
-              trailing: selectedQuick == 'Custom' ? const Icon(Icons.check, color: Colors.blue) : null,
-              onTap: () async {
+              }, isSmallMobile),
+              _buildQuickFilterOption('Custom Range', selectedQuick == 'Custom', () async {
                 final picked = await showDateRangePicker(
                   context: context,
                   firstDate: DateTime(2020),
@@ -153,16 +157,52 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   Navigator.pop(context);
                   _loadAllReports();
                 }
-              },
-            ),
-          ],
+              }, isSmallMobile),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(t(context, 'cancel')),
+            child: Text(
+              t(context, 'cancel'),
+              style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildQuickFilterOption(String title, bool isSelected, VoidCallback onTap, bool isSmallMobile) {
+    return Container(
+      margin: EdgeInsets.only(bottom: isSmallMobile ? 6 : 8),
+      decoration: BoxDecoration(
+        color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : Colors.grey[50],
+        borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+        border: Border.all(
+          color: isSelected ? Theme.of(context).primaryColor : Colors.grey[300]!,
+        ),
+      ),
+      child: ListTile(
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: isSmallMobile ? 12 : 16,
+          vertical: isSmallMobile ? 4 : 8,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: isSmallMobile ? 12 : 14,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            color: isSelected ? Theme.of(context).primaryColor : Colors.grey[800],
+          ),
+        ),
+        trailing: isSelected ? Icon(
+          Icons.check,
+          color: Theme.of(context).primaryColor,
+          size: isSmallMobile ? 16 : 20,
+        ) : null,
+        onTap: onTap,
       ),
     );
   }
@@ -324,31 +364,464 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return value.toString();
   }
 
-  Widget _metricCard(String label, dynamic value, {Color? color, IconData? icon}) {
+  Widget _metricCard(String label, dynamic value, {Color? color, IconData? icon, bool isSmallMobile = false, bool isMobile = false}) {
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       color: color ?? Colors.white,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        padding: EdgeInsets.all(isSmallMobile ? 6 : (isMobile ? 8 : 12)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (icon != null) ...[
-              Icon(icon, color: Colors.blueAccent, size: 28),
-              const SizedBox(width: 12),
+              Icon(
+                icon, 
+                color: Colors.blueAccent, 
+                size: isSmallMobile ? 16 : (isMobile ? 20 : 24),
+              ),
+              SizedBox(height: isSmallMobile ? 3 : (isMobile ? 4 : 6)),
             ],
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 4),
-                Text(_formatMetricValue(value), style: const TextStyle(fontSize: 22, color: Colors.black87)),
-              ],
+            Text(
+              _formatMetricValue(value), 
+              style: TextStyle(
+                fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18), 
+                color: Colors.black87,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: isSmallMobile ? 2 : (isMobile ? 3 : 4)),
+            Text(
+              label, 
+              style: TextStyle(
+                fontWeight: FontWeight.w600, 
+                fontSize: isSmallMobile ? 8 : (isMobile ? 9 : 10),
+                color: Colors.grey[700],
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildMobileProductTransactionsCards(List<Map<String, dynamic>> transactions, bool isSmallMobile) {
+    if (transactions.isEmpty) {
+      return Text(t(context, 'no_transactions_found_for_product'));
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: transactions.length,
+      itemBuilder: (context, index) {
+        final tx = transactions[index];
+        // Check if this is a damaged product transaction
+        final isDamaged = tx['transaction_type'] == 'adjustment' && 
+                         tx['notes'] != null && 
+                         tx['notes'].toString().toLowerCase().contains('damaged');
+        final isNegativeQuantity = tx['quantity'] != null && tx['quantity'] < 0;
+        
+        return Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: EdgeInsets.only(bottom: isSmallMobile ? 8 : 12),
+          child: Padding(
+            padding: EdgeInsets.all(isSmallMobile ? 12 : 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Product Name + Type Badge
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Product:',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 10 : 11,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            tx['product_name'] ?? '',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.bold,
+                              color: isDamaged ? Colors.orange[700] : Colors.grey[800],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: isSmallMobile ? 8 : 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Type:',
+                          style: TextStyle(
+                            fontSize: isSmallMobile ? 10 : 11,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isDamaged ? Colors.orange[100] : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            isDamaged ? 'DAMAGED' : (tx['transaction_type'] ?? '').toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: isDamaged ? Colors.orange[800] : Colors.grey[700],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: isSmallMobile ? 8 : 12),
+                
+                // Date
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Date:',
+                      style: TextStyle(
+                        fontSize: isSmallMobile ? 10 : 11,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      tx['created_at'] ?? '',
+                      style: TextStyle(
+                        fontSize: isSmallMobile ? 11 : 13,
+                        color: Colors.grey[800],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: isSmallMobile ? 8 : 12),
+                
+                // Quantity + Notes
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Quantity:',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 10 : 11,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            '${tx['quantity']}',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.bold,
+                              color: isNegativeQuantity ? Colors.red[700] : Colors.grey[800],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: isSmallMobile ? 8 : 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Notes:',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 10 : 11,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Tooltip(
+                            message: tx['notes'] ?? '',
+                            child: Text(
+                              tx['notes'] ?? '',
+                              style: TextStyle(
+                                fontSize: isSmallMobile ? 11 : 13,
+                                color: isDamaged ? Colors.orange[700] : Colors.grey[600],
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: isSmallMobile ? 8 : 12),
+                
+                // Unit Price + Total Price
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Unit Price:',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 10 : 11,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            tx['sale_unit_price'] != null ? '\$${tx['sale_unit_price']}' : '-',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: isSmallMobile ? 8 : 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Total Price:',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 10 : 11,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            tx['sale_total_price'] != null ? '\$${tx['sale_total_price']}' : '-',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: isSmallMobile ? 8 : 12),
+                
+                // Profit + Customer
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Profit:',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 10 : 11,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            tx['profit'] != null ? '\$${tx['profit']}' : '-',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.teal[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: isSmallMobile ? 8 : 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Customer:',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 10 : 11,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            tx['customer_name'] ?? '-',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.purple[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: isSmallMobile ? 8 : 12),
+                
+                // Payment Method + Sale ID
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Payment:',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 10 : 11,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            tx['payment_method'] ?? '-',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.indigo[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: isSmallMobile ? 8 : 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Sale ID:',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 10 : 11,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            tx['sale_id']?.toString() ?? '-',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: isSmallMobile ? 8 : 12),
+                
+                // Status + Mode
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Status:',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 10 : 11,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            tx['status'] ?? '-',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: isSmallMobile ? 8 : 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Mode:',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 10 : 11,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            (tx['sale_mode'] ?? '').toString().isNotEmpty 
+                                ? (tx['sale_mode'] == 'wholesale' ? t(context, 'wholesale') : t(context, 'retail'))
+                                : '-',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: isSmallMobile ? 8 : 12),
+                
+                // Cashier
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Cashier:',
+                      style: TextStyle(
+                        fontSize: isSmallMobile ? 10 : 11,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      tx['cashier_name'] ?? '-',
+                      style: TextStyle(
+                        fontSize: isSmallMobile ? 12 : 14,
+                        fontWeight: FontWeight.bold,
+                        color: isDamaged ? Colors.orange[700] : Colors.grey[800],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -375,248 +848,392 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final isCashier = user != null && user.role == 'cashier';
     final isAdmin = user != null && user.role == 'admin';
 
+    // Responsive breakpoints
+    final isSmallMobile = MediaQuery.of(context).size.width <= 360;
+    final isMobile = MediaQuery.of(context).size.width <= 768;
+    final isTablet = MediaQuery.of(context).size.width > 768 && MediaQuery.of(context).size.width <= 1200;
+    final isLargeScreen = MediaQuery.of(context).size.width > 1200;
+
     return Scaffold(
       appBar: BrandedAppBar(
-        title: t(context, 'business_report_title'),
+        title: isSmallMobile ? 'Reports' : t(context, 'business_report_title'),
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_alt),
             tooltip: t(context, 'filter_by_date_tooltip'),
             onPressed: _showDateFilterDialog,
+            padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+            constraints: BoxConstraints(
+              minWidth: isSmallMobile ? 32 : 48,
+              minHeight: isSmallMobile ? 32 : 48,
+            ),
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(isSmallMobile ? 12 : (isMobile ? 16 : 20)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (isAdmin)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
+                    Container(
+                      margin: EdgeInsets.only(bottom: isSmallMobile ? 8 : 12),
+                      padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                        border: Border.all(color: Colors.blue[200]!),
+                      ),
                       child: Row(
                         children: [
-                          Text(t(context, 'Filter by Cashier: '), style: TextStyle(fontWeight: FontWeight.bold)),
-                          const SizedBox(width: 8),
-                          DropdownButton<String>(
-                            value: _selectedCashierId ?? 'all',
-                            items: [
-                              DropdownMenuItem(value: 'all', child: Text(t(context, 'All Cashiers'))),
-                              ..._cashiers.map((c) => DropdownMenuItem(
-                                value: c['id'].toString(),
-                                child: Text(c['username'] ?? ''),
-                              )),
-                            ],
-                            onChanged: (val) {
-                              setState(() { _selectedCashierId = val; });
-                              _loadAllReports();
-                            },
+                          Icon(
+                            Icons.person,
+                            color: Colors.blue[600],
+                            size: isSmallMobile ? 16 : 20,
+                          ),
+                          SizedBox(width: isSmallMobile ? 6 : 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  t(context, 'Filter by Cashier:'),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: isSmallMobile ? 12 : 14,
+                                    color: Colors.blue[800],
+                                  ),
+                                ),
+                                SizedBox(height: isSmallMobile ? 4 : 6),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                                    border: Border.all(color: Colors.blue[300]!),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: _selectedCashierId ?? 'all',
+                                      isExpanded: true,
+                                      items: [
+                                        DropdownMenuItem(value: 'all', child: Text(t(context, 'All Cashiers'))),
+                                        ..._cashiers.map((c) => DropdownMenuItem(
+                                          value: c['id'].toString(),
+                                          child: Text(
+                                            c['username'] ?? '',
+                                            style: TextStyle(fontSize: isSmallMobile ? 11 : 13),
+                                          ),
+                                        )),
+                                      ],
+                                      onChanged: (val) {
+                                        setState(() { _selectedCashierId = val; });
+                                        _loadAllReports();
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     ),
                   if (isCashier)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: Text(
-                        'This report shows only your own sales and performance.',
-                        style: TextStyle(
-                          color: Colors.blueAccent,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    Container(
+                      margin: EdgeInsets.only(bottom: isSmallMobile ? 8 : 12),
+                      padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                        border: Border.all(color: Colors.blue[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info,
+                            color: Colors.blue[600],
+                            size: isSmallMobile ? 16 : 20,
+                          ),
+                          SizedBox(width: isSmallMobile ? 6 : 8),
+                          Expanded(
+                            child: Text(
+                              'This report shows only your own sales and performance.',
+                              style: TextStyle(
+                                color: Colors.blue[800],
+                                fontWeight: FontWeight.bold,
+                                fontSize: isSmallMobile ? 11 : 13,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                  // Date Filter Section
                   Row(
                     children: [
-                      Chip(
-                        label: Text(_quickRangeLabel ?? t(context, 'custom_range_label')),
-                        avatar: const Icon(Icons.calendar_today, size: 18),
-                        backgroundColor: Colors.blue[50],
-                      ),
-                      const SizedBox(width: 8),
-                      if (_quickRangeLabel == 'All Time')
-                        Text(t(context, 'all_history'), style: const TextStyle(fontWeight: FontWeight.w500)),
-                      if (_quickRangeLabel != 'All Time' && _filterStartDate != null && _filterEndDate != null)
-                        Text(
-                          '${DateFormat('yyyy-MM-dd').format(_filterStartDate!)} - ${DateFormat('yyyy-MM-dd').format(_filterEndDate!)}',
-                          style: const TextStyle(fontWeight: FontWeight.w500),
+                      Container(
+                        padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[100],
+                          borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
                         ),
+                        child: Icon(
+                          Icons.calendar_today,
+                          color: Colors.blue[600],
+                          size: isSmallMobile ? 14 : 18,
+                        ),
+                      ),
+                      SizedBox(width: isSmallMobile ? 8 : 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _quickRangeLabel ?? t(context, 'custom_range_label'),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: isSmallMobile ? 12 : 14,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            SizedBox(height: isSmallMobile ? 2 : 4),
+                            if (_quickRangeLabel == 'All Time')
+                              Text(
+                                t(context, 'all_history'),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: isSmallMobile ? 10 : 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            if (_quickRangeLabel != 'All Time' && _filterStartDate != null && _filterEndDate != null)
+                              Text(
+                                '${DateFormat('yyyy-MM-dd').format(_filterStartDate!)} - ${DateFormat('yyyy-MM-dd').format(_filterEndDate!)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: isSmallMobile ? 10 : 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.blue[100],
+                          borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                        ),
+                        child: IconButton(
+                          onPressed: _showDateFilterDialog,
+                          icon: Icon(
+                            Icons.edit,
+                            color: Colors.blue[600],
+                            size: isSmallMobile ? 14 : 18,
+                          ),
+                          padding: EdgeInsets.all(isSmallMobile ? 4 : 6),
+                          constraints: BoxConstraints(
+                            minWidth: isSmallMobile ? 28 : 36,
+                            minHeight: isSmallMobile ? 28 : 36,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: isSmallMobile ? 8 : 16),
                   // Summary Metrics
                   GridView.count(
-                    crossAxisCount: 2,
+                    crossAxisCount: isSmallMobile ? 2 : (isMobile ? 2 : (isTablet ? 3 : 4)),
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    childAspectRatio: 2.5,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
+                    childAspectRatio: isSmallMobile ? 1.8 : (isMobile ? 2.0 : (isTablet ? 2.5 : 3.0)),
+                    mainAxisSpacing: isSmallMobile ? 4 : (isMobile ? 6 : 8),
+                    crossAxisSpacing: isSmallMobile ? 4 : (isMobile ? 6 : 8),
                     children: [
-                      _metricCard(t(context, 'Total Sales'), totalSales, color: Colors.lightBlue[50], icon: Icons.attach_money),
-                      _metricCard(t(context, 'Total Credits'), totalCredits, color: Colors.orange[50], icon: Icons.credit_card),
-                      _metricCard(t(context, 'Cash in Hand'), cashInHand, color: Colors.green[50], icon: Icons.account_balance_wallet),
-                      _metricCard(t(context, 'Total Orders'), totalOrders, color: Colors.purple[50], icon: Icons.shopping_cart),
-                      _metricCard(t(context, 'Profit'), profit, color: Colors.teal[50], icon: Icons.trending_up),
-                      _metricCard(t(context, 'Products Sold'), totalProductsSold, color: Colors.cyan[50], icon: Icons.inventory),
-                      _metricCard(t(context, 'Unique Customers'), uniqueCustomers, color: Colors.amber[50], icon: Icons.people),
-                      _metricCard(t(context, 'Cash (Balance Sheet)'), cashFromBalanceSheet, color: Colors.red[50], icon: Icons.account_balance),
+                      _metricCard(t(context, 'Total Sales'), totalSales, color: Colors.lightBlue[50], icon: Icons.attach_money, isSmallMobile: isSmallMobile, isMobile: isMobile),
+                      _metricCard(t(context, 'Total Credits'), totalCredits, color: Colors.orange[50], icon: Icons.credit_card, isSmallMobile: isSmallMobile, isMobile: isMobile),
+                      _metricCard(t(context, 'Cash in Hand'), cashInHand, color: Colors.green[50], icon: Icons.account_balance_wallet, isSmallMobile: isSmallMobile, isMobile: isMobile),
+                      _metricCard(t(context, 'Total Orders'), totalOrders, color: Colors.purple[50], icon: Icons.shopping_cart, isSmallMobile: isSmallMobile, isMobile: isMobile),
+                      _metricCard(t(context, 'Profit'), profit, color: Colors.teal[50], icon: Icons.trending_up, isSmallMobile: isSmallMobile, isMobile: isMobile),
+                      _metricCard(t(context, 'Products Sold'), totalProductsSold, color: Colors.cyan[50], icon: Icons.inventory, isSmallMobile: isSmallMobile, isMobile: isMobile),
+                      _metricCard(t(context, 'Unique Customers'), uniqueCustomers, color: Colors.amber[50], icon: Icons.people, isSmallMobile: isSmallMobile, isMobile: isMobile),
+                      _metricCard(t(context, 'Cash (Balance Sheet)'), cashFromBalanceSheet, color: Colors.red[50], icon: Icons.account_balance, isSmallMobile: isSmallMobile, isMobile: isMobile),
                       if (_damagedProductsReport != null) ...[
                         _metricCard(
                           'Damaged Items', 
                           int.tryParse(_damagedProductsReport!['summary']['total_quantity_damaged']?.toString() ?? '0') ?? 0, 
                           color: Colors.orange[50], 
-                          icon: Icons.warning
+                          icon: Icons.warning,
+                          isSmallMobile: isSmallMobile,
+                          isMobile: isMobile,
                         ),
                         _metricCard(
                           'Damage Loss', 
                           double.tryParse((_damagedProductsReport!['summary']['total_estimated_loss'] ?? 0).toString()) ?? 0.0, 
                           color: Colors.red[50], 
-                          icon: Icons.money_off
+                          icon: Icons.money_off,
+                          isSmallMobile: isSmallMobile,
+                          isMobile: isMobile,
                         ),
                       ],
                     ],
                   ),
-                  const SizedBox(height: 32),
+                  SizedBox(height: isSmallMobile ? 16 : 32),
                   // Payment Methods
-                  Text(t(context, 'payment_methods'), style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
+                  Text(
+                    t(context, 'payment_methods'),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isSmallMobile ? 14 : 16,
+                    ),
+                  ),
+                  SizedBox(height: isSmallMobile ? 6 : 10),
                   paymentMethods.isEmpty
                       ? Text(t(context, 'no_payment_method_data'))
                       : Card(
                           elevation: 2,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          child: DataTable(
-                            columns: [
-                              DataColumn(label: Text(t(context, 'method'))),
-                              DataColumn(label: Text(t(context, 'percentage'))),
-                              DataColumn(label: Text(t(context, 'total_amount'))),
-                            ],
-                            rows: paymentMethods.map((pm) {
-                              final total = paymentMethods.fold<double>(0, (sum, m) => sum + (m['total_amount'] is num ? m['total_amount'] : double.tryParse(m['total_amount'].toString()) ?? 0.0));
-                              final amount = pm['total_amount'] is num ? pm['total_amount'] : double.tryParse(pm['total_amount'].toString()) ?? 0.0;
-                              final percent = total > 0 ? (amount / total * 100) : 0.0;
-                              return DataRow(cells: [
-                                DataCell(Text(pm['payment_method'] ?? '')),
-                                DataCell(Text('${percent.toStringAsFixed(1)}%')),
-                                DataCell(Text(amount.toString())),
-                              ]);
-                            }).toList(),
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: DataTable(
+                              columns: [
+                                DataColumn(label: Text(t(context, 'method'))),
+                                DataColumn(label: Text(t(context, 'percentage'))),
+                                DataColumn(label: Text(t(context, 'total_amount'))),
+                              ],
+                              rows: paymentMethods.map((pm) {
+                                final total = paymentMethods.fold<double>(0, (sum, m) => sum + (m['total_amount'] is num ? m['total_amount'] : double.tryParse(m['total_amount'].toString()) ?? 0.0));
+                                final amount = pm['total_amount'] is num ? pm['total_amount'] : double.tryParse(pm['total_amount'].toString()) ?? 0.0;
+                                final percent = total > 0 ? (amount / total * 100) : 0.0;
+                                return DataRow(cells: [
+                                  DataCell(Text(pm['payment_method'] ?? '')),
+                                  DataCell(Text('${percent.toStringAsFixed(1)}%')),
+                                  DataCell(Text(amount.toString())),
+                                ]);
+                              }).toList(),
+                            ),
                           ),
                         ),
-                  const SizedBox(height: 32),
+                  SizedBox(height: isSmallMobile ? 16 : 32),
                   // Product Transactions
-                  Text(t(context, 'product_transactions'), style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  const SizedBox(height: 16),
+                  Text(
+                    t(context, 'product_transactions'),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isSmallMobile ? 14 : 16,
+                    ),
+                  ),
+                  SizedBox(height: isSmallMobile ? 8 : 12),
+                  SizedBox(height: isSmallMobile ? 8 : 16),
                   _isProductTxLoading
-                      ? const Center(child: CircularProgressIndicator())
+                      ? Center(child: CircularProgressIndicator())
                       : _productTxError != null
                           ? Text('${t(context, 'error')}: $_productTxError')
                           : _productTransactions.isEmpty
                               ? Text(t(context, 'no_transactions_found_for_product'))
-                              : SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: DataTable(
-                                    columns: [
-                                      DataColumn(label: Text(t(context, 'Product'))),
-                                      DataColumn(label: Text(t(context, 'Date'))),
-                                      DataColumn(label: Text(t(context, 'Type'))),
-                                      DataColumn(label: Text(t(context, 'Quantity'))),
-                                      DataColumn(label: Text(t(context, 'Notes'))),
-                                      DataColumn(label: Text(t(context, 'Unit Price'))),
-                                      DataColumn(label: Text(t(context, 'Total Price'))),
-                                      DataColumn(label: Text(t(context, 'Profit'))),
-                                      DataColumn(label: Text(t(context, 'Customer'))),
-                                      DataColumn(label: Text(t(context, 'Payment Method'))),
-                                      DataColumn(label: Text(t(context, 'Sale ID'))),
-                                      DataColumn(label: Text(t(context, 'Status'))),
-                                      DataColumn(label: Text(t(context, 'Mode'))),
-                                      DataColumn(label: Text(t(context, 'Cashier'))),
-                                    ],
-                                    rows: _productTransactions.map((tx) {
-                                      // Check if this is a damaged product transaction
-                                      final isDamaged = tx['transaction_type'] == 'adjustment' && 
-                                                       tx['notes'] != null && 
-                                                       tx['notes'].toString().toLowerCase().contains('damaged');
-                                      final isNegativeQuantity = tx['quantity'] != null && tx['quantity'] < 0;
-                                      
-                                      return DataRow(
-                                        cells: [
-                                          DataCell(
-                                            Text(
-                                              tx['product_name'] ?? '',
-                                              style: isDamaged ? TextStyle(
-                                                color: Colors.orange[700],
-                                                fontWeight: FontWeight.bold,
-                                              ) : null,
-                                            ),
-                                          ),
-                                          DataCell(Text(tx['created_at'] ?? '')),
-                                          DataCell(
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: isDamaged ? Colors.orange[100] : Colors.grey[100],
-                                                borderRadius: BorderRadius.circular(12),
-                                              ),
-                                              child: Text(
-                                                isDamaged ? 'DAMAGED' : (tx['transaction_type'] ?? '').toUpperCase(),
-                                                style: TextStyle(
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: isDamaged ? Colors.orange[800] : Colors.grey[700],
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              '${tx['quantity']}',
-                                              style: isNegativeQuantity ? TextStyle(
-                                                color: Colors.red[700],
-                                                fontWeight: FontWeight.bold,
-                                              ) : null,
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Tooltip(
-                                              message: tx['notes'] ?? '',
-                                              child: Text(
-                                                tx['notes'] ?? '',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: isDamaged ? Colors.orange[700] : Colors.grey[600],
-                                                ),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ),
-                                          DataCell(Text(tx['sale_unit_price'] != null ? tx['sale_unit_price'].toString() : '')),
-                                          DataCell(Text(tx['sale_total_price'] != null ? tx['sale_total_price'].toString() : '')),
-                                          DataCell(Text(tx['profit'] != null ? tx['profit'].toString() : '')),
-                                          DataCell(Text(tx['customer_name'] ?? '')),
-                                          DataCell(Text(tx['payment_method'] ?? '')),
-                                          DataCell(Text(tx['sale_id']?.toString() ?? '')),
-                                          DataCell(Text(tx['status'] ?? '')),
-                                          DataCell(Text((tx['sale_mode'] ?? '').toString().isNotEmpty ? (tx['sale_mode'] == 'wholesale' ? t(context, 'wholesale') : t(context, 'retail')) : '')),
-                                          DataCell(
-                                            Text(
-                                              tx['cashier_name'] ?? '',
-                                              style: isDamaged ? TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.orange[700],
-                                              ) : null,
-                                            ),
-                                          ),
+                              : isMobile
+                                  ? _buildMobileProductTransactionsCards(_productTransactions, isSmallMobile)
+                                  : SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: DataTable(
+                                        columns: [
+                                          DataColumn(label: Text(t(context, 'Product'))),
+                                          DataColumn(label: Text(t(context, 'Date'))),
+                                          DataColumn(label: Text(t(context, 'Type'))),
+                                          DataColumn(label: Text(t(context, 'Quantity'))),
+                                          DataColumn(label: Text(t(context, 'Notes'))),
+                                          DataColumn(label: Text(t(context, 'Unit Price'))),
+                                          DataColumn(label: Text(t(context, 'Total Price'))),
+                                          DataColumn(label: Text(t(context, 'Profit'))),
+                                          DataColumn(label: Text(t(context, 'Customer'))),
+                                          DataColumn(label: Text(t(context, 'Payment Method'))),
+                                          DataColumn(label: Text(t(context, 'Sale ID'))),
+                                          DataColumn(label: Text(t(context, 'Status'))),
+                                          DataColumn(label: Text(t(context, 'Mode'))),
+                                          DataColumn(label: Text(t(context, 'Cashier'))),
                                         ],
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
+                                        rows: _productTransactions.map((tx) {
+                                          // Check if this is a damaged product transaction
+                                          final isDamaged = tx['transaction_type'] == 'adjustment' && 
+                                                           tx['notes'] != null && 
+                                                           tx['notes'].toString().toLowerCase().contains('damaged');
+                                          final isNegativeQuantity = tx['quantity'] != null && tx['quantity'] < 0;
+                                          
+                                          return DataRow(
+                                            cells: [
+                                              DataCell(
+                                                Text(
+                                                  tx['product_name'] ?? '',
+                                                  style: isDamaged ? TextStyle(
+                                                    color: Colors.orange[700],
+                                                    fontWeight: FontWeight.bold,
+                                                  ) : null,
+                                                ),
+                                              ),
+                                              DataCell(Text(tx['created_at'] ?? '')),
+                                              DataCell(
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: isDamaged ? Colors.orange[100] : Colors.grey[100],
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                  child: Text(
+                                                    isDamaged ? 'DAMAGED' : (tx['transaction_type'] ?? '').toUpperCase(),
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: isDamaged ? Colors.orange[800] : Colors.grey[700],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              DataCell(
+                                                Text(
+                                                  '${tx['quantity']}',
+                                                  style: isNegativeQuantity ? TextStyle(
+                                                    color: Colors.red[700],
+                                                    fontWeight: FontWeight.bold,
+                                                  ) : null,
+                                                ),
+                                              ),
+                                              DataCell(
+                                                Tooltip(
+                                                  message: tx['notes'] ?? '',
+                                                  child: Text(
+                                                    tx['notes'] ?? '',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      color: isDamaged ? Colors.orange[700] : Colors.grey[600],
+                                                    ),
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ),
+                                              DataCell(Text(tx['sale_unit_price'] != null ? tx['sale_unit_price'].toString() : '')),
+                                              DataCell(Text(tx['sale_total_price'] != null ? tx['sale_total_price'].toString() : '')),
+                                              DataCell(Text(tx['profit'] != null ? tx['profit'].toString() : '')),
+                                              DataCell(Text(tx['customer_name'] ?? '')),
+                                              DataCell(Text(tx['payment_method'] ?? '')),
+                                              DataCell(Text(tx['sale_id']?.toString() ?? '')),
+                                              DataCell(Text(tx['status'] ?? '')),
+                                              DataCell(Text((tx['sale_mode'] ?? '').toString().isNotEmpty ? (tx['sale_mode'] == 'wholesale' ? t(context, 'wholesale') : t(context, 'retail')) : '')),
+                                              DataCell(
+                                                Text(
+                                                  tx['cashier_name'] ?? '',
+                                                  style: isDamaged ? TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.orange[700],
+                                                  ) : null,
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
                 ],
               ),
             ),

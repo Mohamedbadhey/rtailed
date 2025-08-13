@@ -14,6 +14,7 @@ import 'dart:typed_data';
 import 'dart:convert';
 import 'package:retail_management/utils/api.dart';
 import 'package:retail_management/utils/translate.dart';
+import 'package:intl/intl.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -70,6 +71,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
   // Add state for stock summary filter type
   String _stockSummaryFilterType = 'Today';
   final List<String> _stockSummaryFilterOptions = ['Today', 'This Week', 'This Month', 'Custom'];
+  DateTime? _startDate;
+  DateTime? _endDate;
+  DateTime? _filterStartDate;
+  DateTime? _filterEndDate;
 
   @override
   void initState() {
@@ -403,8 +408,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final isTablet = screenWidth > 768;
-    final isMobile = screenWidth <= 600; // Increased mobile breakpoint for better coverage
+    final isLargeScreen = screenWidth > 1200;
+    final isTablet = screenWidth > 768 && screenWidth <= 1200;
+    final isMobile = screenWidth <= 768;
+    final isSmallMobile = screenWidth <= 480;
+    
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
@@ -415,650 +423,661 @@ class _InventoryScreenState extends State<InventoryScreen> {
               // Branded Header Section
               Consumer<BrandingProvider>(
                 builder: (context, brandingProvider, child) {
-                  return BrandedHeader(
-                    subtitle: t(context, 'Manage your product inventory efficiently'),
-                    logoSize: isMobile ? 50 : 60,
-                    actions: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Theme.of(context).primaryColor,
+                          Theme.of(context).primaryColor.withOpacity(0.8),
+                          Theme.of(context).primaryColor.withOpacity(0.6),
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 20,
+                          offset: const Offset(0, 4),
                         ),
-                        child: IconButton(
-                          icon: const Icon(Icons.refresh, color: Colors.white),
-                          onPressed: _loadProducts,
-                          tooltip: t(context, 'Refresh Data'),
+                      ],
+                    ),
+                    child: SafeArea(
+                      child: Padding(
+                        padding: EdgeInsets.all(isSmallMobile ? 8 : (isMobile ? 12 : 20)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                // Logo and Title
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.all(isSmallMobile ? 4 : 6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                                          border: Border.all(
+                                            color: Colors.white.withOpacity(0.3),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.inventory_2,
+                                          color: Colors.white,
+                                          size: isSmallMobile ? 14 : (isMobile ? 18 : 24),
+                                        ),
+                                      ),
+                                      SizedBox(width: isSmallMobile ? 6 : 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              isSmallMobile ? 'Inventory' : 'Inventory Management',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: isSmallMobile ? 12 : (isMobile ? 16 : 20),
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                            if (!isSmallMobile) ...[
+                                              SizedBox(height: isSmallMobile ? 2 : 4),
+                                              Text(
+                                                t(context, 'Manage your product inventory efficiently'),
+                                                style: TextStyle(
+                                                  color: Colors.white.withOpacity(0.9),
+                                                  fontSize: isSmallMobile ? 10 : (isMobile ? 12 : 14),
+                                                  fontWeight: FontWeight.w400,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // Action Buttons
+                                Row(
+                                  children: [
+                                    // Refresh Button
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.2),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: IconButton(
+                                        icon: const Icon(Icons.refresh, color: Colors.white),
+                                        onPressed: _loadProducts,
+                                        tooltip: t(context, 'Refresh Data'),
+                                        padding: EdgeInsets.all(isSmallMobile ? 4 : 6),
+                                        constraints: BoxConstraints(
+                                          minWidth: isSmallMobile ? 28 : 36,
+                                          minHeight: isSmallMobile ? 28 : 36,
+                                        ),
+                                      ),
+                                    ),
+                                    
+                                    SizedBox(width: isSmallMobile ? 4 : 6),
+                                    
+                                    // Add Product Button
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.1),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: isSmallMobile 
+                                        ? IconButton(
+                                            onPressed: () {
+                                              _showAddProductDialog();
+                                            },
+                                            icon: Icon(
+                                              Icons.add_circle_outline,
+                                              color: Theme.of(context).primaryColor,
+                                              size: 16,
+                                            ),
+                                            padding: EdgeInsets.all(6),
+                                            constraints: const BoxConstraints(
+                                              minWidth: 28,
+                                              minHeight: 28,
+                                            ),
+                                          )
+                                        : ElevatedButton.icon(
+                                            onPressed: () {
+                                              _showAddProductDialog();
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.transparent,
+                                              foregroundColor: Theme.of(context).primaryColor,
+                                              elevation: 0,
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 6,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                            icon: Icon(
+                                              Icons.add_circle_outline,
+                                              size: 14,
+                                            ),
+                                            label: Text(
+                                              isMobile ? t(context, 'Add') : t(context, 'Add Product'),
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            // Compact Mobile Stats
+                            if (isMobile) ...[
+                              SizedBox(height: isSmallMobile ? 8 : 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Container(
+                                      padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.2),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            '${_products.length}',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: isSmallMobile ? 14 : 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Text(
+                                            'Total',
+                                            style: TextStyle(
+                                              color: Colors.white.withOpacity(0.8),
+                                              fontSize: isSmallMobile ? 8 : 9,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(width: isSmallMobile ? 4 : 6),
+                                  Expanded(
+                                    child: Container(
+                                      padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.2),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            '${_filteredProducts.length}',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: isSmallMobile ? 14 : 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Text(
+                                            'Found',
+                                            style: TextStyle(
+                                              color: Colors.white.withOpacity(0.8),
+                                              fontSize: isSmallMobile ? 8 : 9,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(width: isSmallMobile ? 4 : 6),
+                                  Expanded(
+                                    child: Container(
+                                      padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.2),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            '${_products.where((p) => p.stockQuantity <= p.lowStockThreshold).length}',
+                                            style: TextStyle(
+                                              color: Colors.orange[300],
+                                              fontSize: isSmallMobile ? 14 : 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Text(
+                                            'Low',
+                                            style: TextStyle(
+                                              color: Colors.white.withOpacity(0.8),
+                                              fontSize: isSmallMobile ? 8 : 9,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          _showAddProductDialog();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Theme.of(context).primaryColor,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        icon: const Icon(Icons.add),
-                        label: Text(
-                          isMobile ? t(context, 'Add') : t(context, 'Add Product'),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
+                    ),
                   );
                 },
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: isSmallMobile ? 6 : 8),
               // Filters Section
               Container(
-                padding: EdgeInsets.all(isMobile ? 12 : 16),
+                margin: EdgeInsets.symmetric(horizontal: isSmallMobile ? 4 : 8),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header with Icon
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(isSmallMobile ? 4 : 6),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                            ),
+                            child: Icon(
+                              Icons.filter_list,
+                              color: Theme.of(context).primaryColor,
+                              size: isSmallMobile ? 12 : 14,
+                            ),
+                          ),
+                          SizedBox(width: isSmallMobile ? 6 : 8),
+                          Text(
+                            isSmallMobile ? 'Filters' : t(context, 'Search & Filters'),
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: isSmallMobile ? 8 : 12),
+                      
+                      if (isMobile) ...[
+                        // Mobile Layout - Stacked
+                        _buildMobileFilters(isSmallMobile),
+                      ] else ...[
+                        // Desktop Layout - Horizontal
+                        _buildDesktopFilters(),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              
+              SizedBox(height: isSmallMobile ? 4 : 6),
+              
+              // Inventory Report Section
+              Container(
+                margin: EdgeInsets.symmetric(horizontal: isSmallMobile ? 4 : 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: ExpansionPanelList(
+                  expansionCallback: (int index, bool isExpanded) {
+                    setState(() { _showInventoryReport = !_showInventoryReport; });
+                  },
+                  children: [
+                    ExpansionPanel(
+                      isExpanded: _showInventoryReport,
+                      headerBuilder: (context, isExpanded) {
+                        return ListTile(
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: isSmallMobile ? 8 : 12,
+                            vertical: isSmallMobile ? 4 : 8,
+                          ),
+                          leading: Container(
+                            padding: EdgeInsets.all(isSmallMobile ? 4 : 6),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                            ),
+                            child: Icon(
+                              Icons.bar_chart, 
+                              color: Theme.of(context).primaryColor,
+                              size: isSmallMobile ? 12 : 14,
+                            ),
+                          ),
+                          title: Text(
+                            isSmallMobile ? 'Reports' : t(context, 'Inventory Report'), 
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: isSmallMobile ? 11 : 13,
+                            ),
+                          ),
+                          trailing: Icon(
+                            isExpanded ? Icons.expand_less : Icons.expand_more,
+                            color: Colors.grey[600],
+                            size: isSmallMobile ? 16 : 18,
+                          ),
+                        );
+                      },
+                      body: Padding(
+                        padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.vertical,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (isMobile) ...[
+                                // Mobile layout - stacked vertically
+                                _buildMobileReportFilters(),
+                              ] else ...[
+                                // Desktop layout - horizontal
+                                _buildDesktopReportFilters(),
+                              ],
+                              SizedBox(height: isSmallMobile ? 6 : 8),
+                              Text(
+                                isSmallMobile ? 'Stock Summary' : t(context, 'Stock Summary'), 
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: isSmallMobile ? 11 : 13,
+                                ),
+                              ),
+                              SizedBox(height: isSmallMobile ? 4 : 6),
+                              _buildStockSummaryFilters(isSmallMobile),
+                              SizedBox(height: isSmallMobile ? 6 : 8),
+                              _buildValueReportTable(isSmallMobile),
+                              SizedBox(height: isSmallMobile ? 8 : 12),
+                              Text(
+                                isSmallMobile ? 'Recent Transactions' : t(context, 'Recent Transactions'), 
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: isSmallMobile ? 11 : 13,
+                                ),
+                              ),
+                              SizedBox(height: isSmallMobile ? 4 : 6),
+                              _buildTransactionsTable(_recentTransactions, _recentLoading, _recentError, 'No recent transactions', isSmallMobile),
+                              SizedBox(height: isSmallMobile ? 8 : 12),
+                              Text(
+                                'Todays Transactions', 
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: isSmallMobile ? 11 : 13,
+                                ),
+                              ),
+                              SizedBox(height: isSmallMobile ? 4 : 6),
+                              _buildTransactionsTable(_todayTransactions, _todayLoading, _todayError, 'No transactions today', isSmallMobile),
+                              SizedBox(height: isSmallMobile ? 8 : 12),
+                              Text(
+                                'This Weeks Transactions', 
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: isSmallMobile ? 11 : 13,
+                                ),
+                              ),
+                              SizedBox(height: isSmallMobile ? 4 : 6),
+                              _buildTransactionsTable(_weekTransactions, _weekLoading, _weekError, 'No transactions this week', isSmallMobile),
+                              SizedBox(height: isSmallMobile ? 8 : 12),
+                              Text(
+                                'Filter Transactions by Date', 
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: isSmallMobile ? 11 : 13,
+                                ),
+                              ),
+                              SizedBox(height: isSmallMobile ? 4 : 6),
+                              _buildDateFilterControls(isSmallMobile),
+                              SizedBox(height: isSmallMobile ? 6 : 8),
+                              _buildTransactionsTable(_filteredTransactions, _filteredLoading, _filteredError, 'No transactions for selected dates', isSmallMobile),
+                            ],
+                          ),
+                        ),
+                      ),
+                      canTapOnHeader: true,
+                    ),
+                  ],
+                ),
+              ),
+              
+              SizedBox(height: isSmallMobile ? 8 : 12),
+              
+              // Products Table Section
+              Container(
+                margin: EdgeInsets.symmetric(horizontal: isSmallMobile ? 4 : 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 12,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      t(context, 'Filters'),
-                      style: TextStyle(
-                        fontSize: isMobile ? 14 : 16,
-                        fontWeight: FontWeight.bold,
+                    // Table Header
+                    Container(
+                      padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(isSmallMobile ? 8 : 12),
+                          topRight: Radius.circular(isSmallMobile ? 8 : 12),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (isMobile) ...[
-                      CustomTextField(
-                        controller: _searchController,
-                        labelText: t(context, 'Search Products'),
-                        prefixIcon: const Icon(Icons.search),
-                        onChanged: (value) {
-                          _applyFilters();
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
+                      child: Row(
                         children: [
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey[300]!),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: DropdownButton<String>(
-                                value: _categories.contains(_selectedCategory) ? _selectedCategory : (_categories.isNotEmpty ? _categories.first : null),
-                                underline: const SizedBox(),
-                                isExpanded: true,
-                                items: _categories.map((category) {
-                                  return DropdownMenuItem(
-                                    value: category,
-                                    child: Text(
-                                      category,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  );
-                                }).toList(),
-                                onChanged: (value) {
-                                  setState(() {
-                                    _selectedCategory = value!;
-                                  });
-                                  _applyFilters();
-                                },
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          FilterChip(
-                            label: const Text('Low Stock'),
-                            selected: _showLowStock,
-                            selectedColor: Colors.red[100],
-                            checkmarkColor: Colors.red,
-                            onSelected: (value) {
-                              setState(() {
-                                _showLowStock = value;
-                              });
-                              _applyFilters();
-                            },
-                          ),
-                        ],
-                      ),
-                    ] else ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: CustomTextField(
-                              controller: _searchController,
-                              labelText: t(context, 'Search Products'),
-                              prefixIcon: const Icon(Icons.search),
-                              onChanged: (value) {
-                                _applyFilters();
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            padding: EdgeInsets.all(isSmallMobile ? 4 : 6),
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey[300]!),
-                              borderRadius: BorderRadius.circular(8),
+                              color: Theme.of(context).primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
                             ),
-                            child: DropdownButton<String>(
-                              value: _categories.contains(_selectedCategory) ? _selectedCategory : (_categories.isNotEmpty ? _categories.first : null),
-                              underline: const SizedBox(),
-                              items: _categories.map((category) {
-                                return DropdownMenuItem(
-                                  value: category,
-                                  child: Text(
-                                    category,
-                                    overflow: TextOverflow.ellipsis,
+                            child: Icon(
+                              Icons.inventory_2,
+                              color: Theme.of(context).primaryColor,
+                              size: isSmallMobile ? 12 : 14,
+                            ),
+                          ),
+                          SizedBox(width: isSmallMobile ? 6 : 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isSmallMobile ? 'Products' : 'Products Inventory',
+                                  style: TextStyle(
+                                    fontSize: isSmallMobile ? 12 : 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey[800],
                                   ),
-                                );
-                              }).toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedCategory = value!;
-                                });
-                                _applyFilters();
-                              },
+                                ),
+                                SizedBox(height: isSmallMobile ? 1 : 2),
+                                Text(
+                                  '${_filteredProducts.length} products found',
+                                  style: TextStyle(
+                                    fontSize: isSmallMobile ? 9 : 10,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 16),
-                          FilterChip(
-                            label: const Text('Low Stock'),
-                            selected: _showLowStock,
-                            selectedColor: Colors.red[100],
-                            checkmarkColor: Colors.red,
-                            onSelected: (value) {
-                              setState(() {
-                                _showLowStock = value;
-                              });
-                              _applyFilters();
-                            },
-                          ),
+                          if (!isMobile) ...[
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isSmallMobile ? 6 : 8,
+                                vertical: isSmallMobile ? 4 : 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                                border: Border.all(
+                                  color: Theme.of(context).primaryColor.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Text(
+                                '${_products.length} Total',
+                                style: TextStyle(
+                                  color: Theme.of(context).primaryColor,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: isSmallMobile ? 9 : 10,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Inventory Report Section
-              ExpansionPanelList(
-                expansionCallback: (int index, bool isExpanded) {
-                  setState(() { _showInventoryReport = !_showInventoryReport; });
-                },
-                children: [
-                  ExpansionPanel(
-                    isExpanded: _showInventoryReport,
-                    headerBuilder: (context, isExpanded) {
-                      return ListTile(
-                        leading: Icon(Icons.bar_chart, color: Theme.of(context).primaryColor),
-                        title: Text(t(context, 'Inventory Report'), style: TextStyle(fontWeight: FontWeight.bold)),
-                      );
-                    },
-                    body: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.vertical,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 12,
-                              children: [
-                                DropdownButton<String>(
-                                  value: _selectedReportCategory ?? 'All',
-                                  items: ['All', ..._categories.where((c) => c != 'All')]
-                                      .map((cat) => DropdownMenuItem(
-                                            value: cat,
-                                            child: Text(cat),
-                                          ))
-                                      .toList(),
-                                  onChanged: (val) {
-                                    setState(() { _selectedReportCategory = val; });
-                                  },
-                                  hint: Text(t(context, 'Category')),
-                                ),
-                                DropdownButton<String>(
-                                  value: _selectedReportProduct ?? 'All',
-                                  items: ['All', ..._products.map((p) => p.name)]
-                                      .map((prod) => DropdownMenuItem(
-                                            value: prod,
-                                            child: Text(prod),
-                                          ))
-                                      .toList(),
-                                  onChanged: (val) {
-                                    setState(() { _selectedReportProduct = val; });
-                                  },
-                                  hint: Text(t(context, 'Product')),
-                                ),
-                                SizedBox(
-                                  width: 120,
-                                  child: CustomTextField(
-                                    labelText: t(context, 'SKU'),
-                                    onChanged: (val) { setState(() { _reportSku = val; }); },
-                                  ),
-                                ),
-                                OutlinedButton.icon(
-                                  icon: Icon(Icons.date_range),
-                                  label: Text(_reportStartDate == null ? t(context, 'Start Date') : _reportStartDate!.toLocal().toString().split(' ')[0]),
-                                  onPressed: () async {
-                                    final picked = await showDatePicker(
-                                      context: context,
-                                      initialDate: DateTime.now(),
-                                      firstDate: DateTime(2000),
-                                      lastDate: DateTime(2100),
-                                    );
-                                    if (picked != null) setState(() { _reportStartDate = picked; });
-                                  },
-                                ),
-                                OutlinedButton.icon(
-                                  icon: Icon(Icons.date_range),
-                                  label: Text(_reportEndDate == null ? t(context, 'End Date') : _reportEndDate!.toLocal().toString().split(' ')[0]),
-                                  onPressed: () async {
-                                    final picked = await showDatePicker(
-                                      context: context,
-                                      initialDate: DateTime.now(),
-                                      firstDate: DateTime(2000),
-                                      lastDate: DateTime(2100),
-                                    );
-                                    if (picked != null) setState(() { _reportEndDate = picked; });
-                                  },
-                                ),
-                                ElevatedButton.icon(
-                                  icon: Icon(Icons.search),
-                                  label: Text(t(context, 'Filter')),
-                                  onPressed: _fetchInventoryReport,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(t(context, 'Stock Summary'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                            Row(
-                              children: [
-                                DropdownButton<String>(
-                                  value: _stockSummaryFilterType,
-                                  items: _stockSummaryFilterOptions.map((option) => DropdownMenuItem(
-                                    value: option,
-                                    child: Text(option),
-                                  )).toList(),
-                                  onChanged: (val) {
-                                    if (val == null) return;
-                                    setState(() { _stockSummaryFilterType = val; });
-                                    if (val != 'Custom') {
-                                      _applyStockSummaryPreset(val);
-                                    }
-                                  },
-                                ),
-                                if (_stockSummaryFilterType == 'Custom') ...[
-                                  const SizedBox(width: 8),
-                                  OutlinedButton.icon(
-                                    icon: Icon(Icons.date_range),
-                                    label: Text(_stockSummaryStartDate == null ? t(context, 'Start Date') : _stockSummaryStartDate!.toLocal().toString().split(' ')[0]),
-                                    onPressed: () async {
-                                      final picked = await showDatePicker(
-                                        context: context,
-                                        initialDate: _stockSummaryStartDate ?? DateTime.now(),
-                                        firstDate: DateTime(2000),
-                                        lastDate: DateTime(2100),
-                                      );
-                                      if (picked != null) setState(() { _stockSummaryStartDate = picked; });
-                                    },
-                                  ),
-                                  const SizedBox(width: 8),
-                                  OutlinedButton.icon(
-                                    icon: Icon(Icons.date_range),
-                                    label: Text(_stockSummaryEndDate == null ? t(context, 'End Date') : _stockSummaryEndDate!.toLocal().toString().split(' ')[0]),
-                                    onPressed: () async {
-                                      final picked = await showDatePicker(
-                                        context: context,
-                                        initialDate: _stockSummaryEndDate ?? DateTime.now(),
-                                        firstDate: DateTime(2000),
-                                        lastDate: DateTime(2100),
-                                      );
-                                      if (picked != null) setState(() { _stockSummaryEndDate = picked; });
-                                    },
-                                  ),
-                                  const SizedBox(width: 8),
-                                  ElevatedButton.icon(
-                                    icon: Icon(Icons.search),
-                                    label: Text(t(context, 'Filter')),
-                                    onPressed: _fetchInventoryValueReport,
-                                  ),
-                                ],
-                              ],
-                            ),
-                            _valueReportLoading
-                                ? Center(child: CircularProgressIndicator())
-                                : _valueReportError != null
-                                    ? Text(_valueReportError!, style: TextStyle(color: Colors.red))
-                                    : _valueReportRows.isEmpty
-                                        ? Text(t(context, 'No stock summary data'))
-                                        : SingleChildScrollView(
-                                            scrollDirection: Axis.horizontal,
-                                            child: DataTable(
-                                              columns: [
-                                                        DataColumn(label: Text(t(context, 'Product'))),
-        DataColumn(label: Text(t(context, 'SKU'))),
-        DataColumn(label: Text(t(context, 'Category'))),
-        DataColumn(label: Text(t(context, 'Sold Qty'))),
-        DataColumn(label: Text(t(context, 'Qty Remaining'))),
-        DataColumn(label: Text(t(context, 'Revenue'))),
-        DataColumn(label: Text(t(context, 'Profit'))),
-        DataColumn(label: Text(t(context, 'Mode'))),
-                                              ],
-                                              rows: [
-                                                ..._valueReportRows.map((row) => DataRow(
-                                                  cells: [
-                                                    DataCell(
-                                                      InkWell(
-                                                        child: Text(row['product_name'] ?? '', style: TextStyle(color: Theme.of(context).primaryColor, decoration: TextDecoration.underline)),
-                                                        onTap: () => _showProductTransactionsDialog(row['product_id'], row['product_name'] ?? ''),
-                                                      ),
-                                                    ),
-                                                    DataCell(Text(row['sku'] ?? '')),
-                                                    DataCell(Text(row['category_name'] ?? '')),
-                                                    DataCell(Text(_valueReportRows.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt().toString(), style: const TextStyle(fontWeight: FontWeight.bold))),
-                                                    DataCell(Text(row['quantity_remaining']?.toString() ?? '')),
-                                                    DataCell(Text(_safeToDouble(row['revenue']).toStringAsFixed(2))),
-                                                    DataCell(Text(_safeToDouble(row['profit']).toStringAsFixed(2))),
-                                                    DataCell(Text((row['sale_mode'] ?? '').toString().isNotEmpty ? (row['sale_mode'] == 'wholesale' ? 'Wholesale' : 'Retail') : '')),
-                                                  ],
-                                                )),
-                                                // Totals row
-                                                DataRow(
-                                                  color: MaterialStateProperty.resolveWith<Color?>((Set<MaterialState> states) {
-                                                    return Colors.grey[200];
-                                                  }),
-                                                  cells: [
-                                                    DataCell(Text(t(context, 'TOTAL'), style: TextStyle(fontWeight: FontWeight.bold))),
-                                                    const DataCell(Text('')),
-                                                    const DataCell(Text('')),
-                                                    DataCell(Text(_valueReportRows.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt().toString(), style: const TextStyle(fontWeight: FontWeight.bold))),
-                                                    const DataCell(Text('')),
-                                                    DataCell(Text(_valueReportRows.fold<double>(0, (sum, r) => sum + _safeToDouble(r['revenue'])).toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.bold))),
-                                                    DataCell(Text(_valueReportRows.fold<double>(0, (sum, r) => sum + _safeToDouble(r['profit'])).toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.bold))),
-                                                    const DataCell(Text('')),
-                                                  ],
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                            const SizedBox(height: 16),
-                            _reportLoading
-                                ? Center(child: CircularProgressIndicator())
-                                : _reportTransactions.isEmpty
-                                    ? Text(t(context, 'No report data, adjust filters and try again'))
-                                    : SingleChildScrollView(
-                                        scrollDirection: Axis.horizontal,
-                                        child: DataTable(
-                                          columns: [
-                                            DataColumn(label: Text(t(context, 'Date'))),
-                                            DataColumn(label: Text(t(context, 'Product'))),
-                                            DataColumn(label: Text(t(context, 'SKU'))),
-                                            DataColumn(label: Text(t(context, 'Category'))),
-                                            DataColumn(label: Text(t(context, 'Type'))),
-                                            DataColumn(label: Text(t(context, 'Quantity'))),
-                                            DataColumn(label: Text(t(context, 'Notes'))),
-                                            DataColumn(label: Text(t(context, 'Mode'))),
-                                          ],
-                                          rows: _reportTransactions.map((tx) => DataRow(cells: [
-                                            DataCell(Text(tx['created_at']?.toString()?.split('T')?.first ?? '')),
-                                            DataCell(Text(tx['product_name'] ?? '')),
-                                            DataCell(Text(tx['sku'] ?? '')),
-                                            DataCell(Text(tx['category_name'] ?? '')),
-                                            DataCell(Text(tx['transaction_type'] ?? '')),
-                                            DataCell(Text(tx['quantity']?.toString() ?? '')),
-                                            DataCell(Text(tx['notes'] ?? '')),
-                                            DataCell(Text((tx['sale_mode'] ?? '').toString().isNotEmpty ? (tx['sale_mode'] == 'wholesale' ? 'Wholesale' : 'Retail') : '')),
-                                          ])).toList(),
-                                        ),
-                                      ),
-                            const SizedBox(height: 24),
-                            Text(t(context, 'Recent Transactions'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                            _recentLoading
-                                ? Center(child: CircularProgressIndicator())
-                                : _recentError != null
-                                    ? Text(_recentError!, style: TextStyle(color: Colors.red))
-                                    : _recentTransactions.isEmpty
-                                        ? Text(t(context, 'No recent transactions'))
-                                        : SingleChildScrollView(
-                                            scrollDirection: Axis.horizontal,
-                                            child: DataTable(
-                                              columns: [
-                                                DataColumn(label: Text('Date')),
-                                                DataColumn(label: Text('Product')),
-                                                DataColumn(label: Text('Type')),
-                                                DataColumn(label: Text('Qty')),
-                                                DataColumn(label: Text('Sale Amount')),
-                                                DataColumn(label: Text('Profit')),
-                                                DataColumn(label: Text('Notes')),
-                                                DataColumn(label: Text('Mode')),
-                                              ],
-                                              rows: _recentTransactions.map((tx) => DataRow(cells: [
-                                                DataCell(Text(tx['created_at']?.toString()?.split('T')?.first ?? '')),
-                                                DataCell(Text(tx['product_name'] ?? '')),
-                                                DataCell(Text(tx['transaction_type'] ?? '')),
-                                                DataCell(Text(tx['quantity']?.toString() ?? '')),
-                                                DataCell(Text(_safeToDouble(tx['sale_total_price']).toStringAsFixed(2))),
-                                                DataCell(Text(_safeToDouble(tx['profit']).toStringAsFixed(2))),
-                                                DataCell(Text(tx['notes'] ?? '')),
-                                                DataCell(Text((tx['sale_mode'] ?? '').toString().isNotEmpty ? (tx['sale_mode'] == 'wholesale' ? 'Wholesale' : 'Retail') : '')),
-                                              ])).toList(),
-                                            ),
-                                          ),
-                            const SizedBox(height: 24),
-                            Text('Todays Transactions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                            _todayLoading
-                                ? Center(child: CircularProgressIndicator())
-                                : _todayError != null
-                                    ? Text(_todayError!, style: TextStyle(color: Colors.red))
-                                    : _todayTransactions.isEmpty
-                                        ? Text(t(context, 'No transactions today'))
-                                        : SingleChildScrollView(
-                                            scrollDirection: Axis.horizontal,
-                                            child: DataTable(
-                                              columns: [
-                                                DataColumn(label: Text('Date')),
-                                                DataColumn(label: Text('Product')),
-                                                DataColumn(label: Text('Type')),
-                                                DataColumn(label: Text('Qty')),
-                                                DataColumn(label: Text('Sale Amount')),
-                                                DataColumn(label: Text('Profit')),
-                                                DataColumn(label: Text('Notes')),
-                                                DataColumn(label: Text('Mode')),
-                                              ],
-                                              rows: _todayTransactions.map((tx) => DataRow(cells: [
-                                                DataCell(Text(tx['created_at']?.toString()?.split('T')?.first ?? '')),
-                                                DataCell(Text(tx['product_name'] ?? '')),
-                                                DataCell(Text(tx['transaction_type'] ?? '')),
-                                                DataCell(Text(tx['quantity']?.toString() ?? '')),
-                                                DataCell(Text(_safeToDouble(tx['sale_total_price']).toStringAsFixed(2))),
-                                                DataCell(Text(_safeToDouble(tx['profit']).toStringAsFixed(2))),
-                                                DataCell(Text(tx['notes'] ?? '')),
-                                                DataCell(Text((tx['sale_mode'] ?? '').toString().isNotEmpty ? (tx['sale_mode'] == 'wholesale' ? 'Wholesale' : 'Retail') : '')),
-                                              ])).toList(),
-                                            ),
-                                          ),
-                            const SizedBox(height: 24),
-                            Text('This Weeks Transactions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                            _weekLoading
-                                ? Center(child: CircularProgressIndicator())
-                                : _weekError != null
-                                    ? Text(_weekError!, style: TextStyle(color: Colors.red))
-                                    : _weekTransactions.isEmpty
-                                        ? Text(t(context, 'No transactions this week'))
-                                        : SingleChildScrollView(
-                                            scrollDirection: Axis.horizontal,
-                                            child: DataTable(
-                                              columns: [
-                                                DataColumn(label: Text('Date')),
-                                                DataColumn(label: Text('Product')),
-                                                DataColumn(label: Text('Type')),
-                                                DataColumn(label: Text('Qty')),
-                                                DataColumn(label: Text('Sale Amount')),
-                                                DataColumn(label: Text('Profit')),
-                                                DataColumn(label: Text('Notes')),
-                                                DataColumn(label: Text('Mode')),
-                                              ],
-                                              rows: _weekTransactions.map((tx) => DataRow(cells: [
-                                                DataCell(Text(tx['created_at']?.toString()?.split('T')?.first ?? '')),
-                                                DataCell(Text(tx['product_name'] ?? '')),
-                                                DataCell(Text(tx['transaction_type'] ?? '')),
-                                                DataCell(Text(tx['quantity']?.toString() ?? '')),
-                                                DataCell(Text(_safeToDouble(tx['sale_total_price']).toStringAsFixed(2))),
-                                                DataCell(Text(_safeToDouble(tx['profit']).toStringAsFixed(2))),
-                                                DataCell(Text(tx['notes'] ?? '')),
-                                                DataCell(Text((tx['sale_mode'] ?? '').toString().isNotEmpty ? (tx['sale_mode'] == 'wholesale' ? 'Wholesale' : 'Retail') : '')),
-                                              ])).toList(),
-                                            ),
-                                          ),
-                            const SizedBox(height: 24),
-                            Text('Filter Transactions by Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                            Row(
-                              children: [
-                                OutlinedButton.icon(
-                                  icon: Icon(Icons.date_range),
-                                  label: Text(_reportStartDate == null ? t(context, 'Start Date') : _reportStartDate!.toLocal().toString().split(' ')[0]),
-                                  onPressed: () async {
-                                    final picked = await showDatePicker(
-                                      context: context,
-                                      initialDate: DateTime.now(),
-                                      firstDate: DateTime(2000),
-                                      lastDate: DateTime(2100),
-                                    );
-                                    if (picked != null) setState(() { _reportStartDate = picked; });
-                                  },
-                                ),
-                                const SizedBox(width: 8),
-                                OutlinedButton.icon(
-                                  icon: Icon(Icons.date_range),
-                                  label: Text(_reportEndDate == null ? t(context, 'End Date') : _reportEndDate!.toLocal().toString().split(' ')[0]),
-                                  onPressed: () async {
-                                    final picked = await showDatePicker(
-                                      context: context,
-                                      initialDate: DateTime.now(),
-                                      firstDate: DateTime(2000),
-                                      lastDate: DateTime(2100),
-                                    );
-                                    if (picked != null) setState(() { _reportEndDate = picked; });
-                                  },
-                                ),
-                                const SizedBox(width: 8),
-                                ElevatedButton.icon(
-                                  icon: Icon(Icons.search),
-                                  label: Text(t(context, 'Filter')),
-                                  onPressed: () => _fetchFilteredTransactions(_reportStartDate, _reportEndDate),
-                                ),
-                              ],
-                            ),
-                            _filteredLoading
-                                ? Center(child: CircularProgressIndicator())
-                                : _filteredError != null
-                                    ? Text(_filteredError!, style: TextStyle(color: Colors.red))
-                                    : _filteredTransactions.isEmpty
-                                        ? Text(t(context, 'No transactions for selected dates'))
-                                        : SingleChildScrollView(
-                                            scrollDirection: Axis.horizontal,
-                                            child: DataTable(
-                                              columns: [
-                                                DataColumn(label: Text('Date')),
-                                                DataColumn(label: Text('Product')),
-                                                DataColumn(label: Text('Type')),
-                                                DataColumn(label: Text('Qty')),
-                                                DataColumn(label: Text('Sale Amount')),
-                                                DataColumn(label: Text('Profit')),
-                                                DataColumn(label: Text('Notes')),
-                                                DataColumn(label: Text('Mode')),
-                                              ],
-                                              rows: _filteredTransactions.map((tx) => DataRow(cells: [
-                                                DataCell(Text(tx['created_at']?.toString()?.split('T')?.first ?? '')),
-                                                DataCell(Text(tx['product_name'] ?? '')),
-                                                DataCell(Text(tx['transaction_type'] ?? '')),
-                                                DataCell(Text(tx['quantity']?.toString() ?? '')),
-                                                DataCell(Text(_safeToDouble(tx['sale_total_price']).toStringAsFixed(2))),
-                                                DataCell(Text(_safeToDouble(tx['profit']).toStringAsFixed(2))),
-                                                DataCell(Text(tx['notes'] ?? '')),
-                                                DataCell(Text((tx['sale_mode'] ?? '').toString().isNotEmpty ? (tx['sale_mode'] == 'wholesale' ? 'Wholesale' : 'Retail') : '')),
-                                              ])).toList(),
-                                            ),
-                                          ),
-                          ],
-                        ),
-                      ),
                     ),
-                    canTapOnHeader: true,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Products Table Section
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: _isLoading
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
-                            Text(t(context, 'Loading products...')),
-                          ],
-                        ),
-                      )
-                    : _filteredProducts.isEmpty
-                        ? Center(
+                    
+                    // Table Content
+                    _isLoading
+                        ? Container(
+                            padding: EdgeInsets.all(isSmallMobile ? 20 : 30),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  Icons.inventory_2_outlined,
-                                  size: 64,
-                                  color: Colors.grey,
+                                CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Theme.of(context).primaryColor,
+                                  ),
                                 ),
-                                SizedBox(height: 16),
+                                SizedBox(height: isSmallMobile ? 8 : 12),
                                 Text(
-                                  t(context, 'No products found'),
+                                  t(context, 'Loading products...'),
                                   style: TextStyle(
-                                    fontSize: 18,
-                                    color: Colors.grey,
+                                    fontSize: isSmallMobile ? 10 : 12,
+                                    color: Colors.grey[600],
                                   ),
                                 ),
                               ],
                             ),
                           )
-                        : isMobile
-                            ? _buildMobileProductList()
-                            : SingleChildScrollView(
-                                child: DataTable(
-                                  columns: _buildDataTableColumns(isTablet),
-                                  rows: _buildProductRows(isTablet),
+                        : _filteredProducts.isEmpty
+                            ? Container(
+                                padding: EdgeInsets.all(isSmallMobile ? 20 : 30),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[100],
+                                        borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                                      ),
+                                      child: Icon(
+                                        Icons.inventory_2_outlined,
+                                        size: isSmallMobile ? 24 : 32,
+                                        color: Colors.grey[400],
+                                      ),
+                                    ),
+                                    SizedBox(height: isSmallMobile ? 8 : 12),
+                                    Text(
+                                      t(context, 'No products found'),
+                                      style: TextStyle(
+                                        fontSize: isSmallMobile ? 12 : 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    SizedBox(height: isSmallMobile ? 4 : 6),
+                                    Text(
+                                      'Try adjusting your search or filters',
+                                      style: TextStyle(
+                                        fontSize: isSmallMobile ? 9 : 10,
+                                        color: Colors.grey[500],
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
                                 ),
-                              ),
+                              )
+                            : isMobile
+                                ? _buildMobileProductList(isSmallMobile)
+                                : Container(
+                                    padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
+                                    child: SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: DataTable(
+                                        columns: _buildDataTableColumns(isTablet),
+                                        rows: _buildProductRows(isTablet),
+                                        headingRowColor: MaterialStateProperty.resolveWith<Color?>(
+                                          (Set<MaterialState> states) => Colors.grey[50],
+                                        ),
+                                        dataRowColor: MaterialStateProperty.resolveWith<Color?>(
+                                          (Set<MaterialState> states) => Colors.white,
+                                        ),
+                                        border: TableBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          horizontalInside: BorderSide(
+                                            color: Colors.grey[200]!,
+                                            width: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -1078,284 +1097,377 @@ class _InventoryScreenState extends State<InventoryScreen> {
     ];
   }
 
-  Widget _buildMobileProductList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(8),
+  Widget _buildMobileProductList(bool isSmallMobile) {
+    return GridView.builder(
+      padding: EdgeInsets.all(isSmallMobile ? 4 : 6),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: isSmallMobile ? 1 : 2,
+        childAspectRatio: isSmallMobile ? 2.8 : 2.5,
+        crossAxisSpacing: isSmallMobile ? 0 : 8,
+        mainAxisSpacing: isSmallMobile ? 6 : 8,
+      ),
       itemCount: _filteredProducts.length,
       itemBuilder: (context, index) {
         final product = _filteredProducts[index];
         final isLowStock = product.stockQuantity <= product.lowStockThreshold;
         
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Product Header
-                Row(
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 10),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Compact Header Row
+              Expanded(
+                flex: 3,
+                child: Row(
                   children: [
+                    // Product Image
                     Container(
-                      width: 50,
-                      height: 50,
+                      width: isSmallMobile ? 40 : 50,
+                      height: isSmallMobile ? 40 : 50,
+                      margin: EdgeInsets.all(isSmallMobile ? 4 : 6),
                       decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey[300]!),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
                       ),
-                      child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                        child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
+                            ? Image.network(
                                 Api.getFullImageUrl(product.imageUrl),
                                 fit: BoxFit.cover,
                                 loadingBuilder: (context, child, loadingProgress) {
                                   if (loadingProgress == null) {
-                                    print('🖼️ ✅ Inventory: Image loaded successfully for product "${product.name}"');
                                     return child;
                                   }
-                                  final progress = loadingProgress.expectedTotalBytes != null 
-                                      ? (loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! * 100).toStringAsFixed(1)
-                                      : 'Unknown';
-                                  print('🖼️ 📥 Inventory: Loading image for product "${product.name}": $progress%');
                                   return Center(
                                     child: CircularProgressIndicator(
                                       value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null,
+                                      strokeWidth: 1.5,
                                     ),
                                   );
                                 },
                                 errorBuilder: (context, error, stackTrace) {
-                                  print('🖼️ ❌ Inventory: Image error for product "${product.name}"');
-                                  print('🖼️ ❌ Error: $error');
-                                  print('🖼️ ❌ Stack trace: $stackTrace');
-                                  print('🖼️ ❌ Image URL: ${Api.getFullImageUrl(product.imageUrl)}');
                                   return Container(
                                     decoration: BoxDecoration(
                                       color: Colors.blue[50],
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
                                     ),
-                                    child: const Icon(
+                                    child: Icon(
                                       Icons.image,
-                                      color: Colors.blue,
-                                      size: 24,
+                                      color: Colors.blue[600],
+                                      size: isSmallMobile ? 16 : 18,
                                     ),
                                   );
                                 },
+                              )
+                            : Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[50],
+                                  borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                                ),
+                                child: Icon(
+                                  Icons.image,
+                                  color: Colors.blue[600],
+                                  size: isSmallMobile ? 16 : 18,
+                                ),
                               ),
-                            )
-                          : Container(
-                              decoration: BoxDecoration(
-                                color: Colors.blue[50],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.image,
-                                color: Colors.blue,
-                                size: 24,
-                              ),
-                            ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            product.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'SKU: ${product.sku}',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                
-                // Product Details
-                Row(
-                  children: [
+                    
+                    // Product Info
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: _getCategoryColor(product.categoryName ?? 'Uncategorized').withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: _getCategoryColor(product.categoryName ?? 'Uncategorized').withOpacity(0.3),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.category,
-                                  size: 14,
-                                  color: _getCategoryColor(product.categoryName ?? 'Uncategorized'),
-                                ),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    product.categoryName ?? 'Uncategorized',
-                                    style: TextStyle(
-                                      color: _getCategoryColor(product.categoryName ?? 'Uncategorized'),
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 12,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.green[50],
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: Colors.green[200]!),
-                            ),
-                            child: Text(
-                              '\$${product.costPrice.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                color: Colors.green,
+                      child: Padding(
+                        padding: EdgeInsets.only(right: isSmallMobile ? 4 : 6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Product Name
+                            Text(
+                              product.name,
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 14,
+                                fontSize: isSmallMobile ? 10 : 12,
+                                color: Colors.grey[800],
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            
+                            SizedBox(height: isSmallMobile ? 1 : 2),
+                            
+                            // SKU
+                            Text(
+                              'SKU: ${product.sku}',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: isSmallMobile ? 7 : 8,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                          ),
-                        ],
+                            
+                            SizedBox(height: isSmallMobile ? 2 : 3),
+                            
+                            // Category Badge
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isSmallMobile ? 4 : 6,
+                                vertical: isSmallMobile ? 1 : 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _getCategoryColor(product.categoryName ?? 'Uncategorized').withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                                border: Border.all(
+                                  color: _getCategoryColor(product.categoryName ?? 'Uncategorized').withOpacity(0.3),
+                                ),
+                              ),
+                              child: Text(
+                                product.categoryName ?? 'Uncategorized',
+                                style: TextStyle(
+                                  color: _getCategoryColor(product.categoryName ?? 'Uncategorized'),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: isSmallMobile ? 6 : 7,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isLowStock ? Colors.red[50] : Colors.blue[50],
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: isLowStock ? Colors.red[200]! : Colors.blue[200]!,
+                  ],
+                ),
+              ),
+              
+              // Compact Stats Row
+              Expanded(
+                flex: 2,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallMobile ? 6 : 8,
+                    vertical: isSmallMobile ? 4 : 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(isSmallMobile ? 8 : 10),
+                      bottomRight: Radius.circular(isSmallMobile ? 8 : 10),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      // Cost
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Cost',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: isSmallMobile ? 6 : 7,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Stock: ${product.stockQuantity}',
-                                  style: TextStyle(
-                                    color: isLowStock ? Colors.red : Colors.blue,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
+                            Text(
+                              '\$${product.costPrice.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                color: Colors.green[700],
+                                fontWeight: FontWeight.bold,
+                                fontSize: isSmallMobile ? 8 : 9,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Stock
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Stock',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: isSmallMobile ? 6 : 7,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              '${product.stockQuantity}',
+                              style: TextStyle(
+                                color: isLowStock ? Colors.red[700] : Colors.blue[700],
+                                fontWeight: FontWeight.bold,
+                                fontSize: isSmallMobile ? 8 : 9,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Price
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Price',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: isSmallMobile ? 6 : 7,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              '\$${product.price.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                color: Colors.purple[700],
+                                fontWeight: FontWeight.bold,
+                                fontSize: isSmallMobile ? 8 : 9,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Status Indicator
+                      Container(
+                        padding: EdgeInsets.all(isSmallMobile ? 3 : 4),
+                        decoration: BoxDecoration(
+                          color: isLowStock ? Colors.red[100] : Colors.green[100],
+                          borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                          border: Border.all(
+                            color: isLowStock ? Colors.red[200]! : Colors.green[200]!,
+                          ),
+                        ),
+                        child: Icon(
+                          isLowStock ? Icons.warning : Icons.check_circle,
+                          size: isSmallMobile ? 10 : 12,
+                          color: isLowStock ? Colors.red[600] : Colors.green[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              // Action Buttons Row
+              Expanded(
+                flex: 2,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallMobile ? 6 : 8,
+                    vertical: isSmallMobile ? 2 : 4,
+                  ),
+                  child: Row(
+                    children: [
+                      // Edit Button
+                      Expanded(
+                        child: Container(
+                          height: isSmallMobile ? 24 : 28,
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                            border: Border.all(color: Colors.blue[200]!),
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                              onTap: () {
+                                _showEditProductDialog(product);
+                              },
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.edit,
+                                    color: Colors.blue[600],
+                                    size: isSmallMobile ? 10 : 12,
                                   ),
-                                ),
-                                if (product.damagedQuantity > 0)
+                                  SizedBox(width: isSmallMobile ? 2 : 3),
                                   Text(
-                                    'Damaged: ${product.damagedQuantity}',
-                                    style: const TextStyle(
-                                      color: Colors.orange,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 10,
+                                    'Edit',
+                                    style: TextStyle(
+                                      color: Colors.blue[700],
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: isSmallMobile ? 7 : 8,
                                     ),
                                   ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isLowStock
-                                  ? Colors.red[100]
-                                  : Colors.green[100],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  isLowStock ? Icons.warning : Icons.check_circle,
-                                  size: 14,
-                                  color: isLowStock ? Colors.red : Colors.green,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  isLowStock ? t(context, 'Low Stock') : t(context, 'In Stock'),
-                                  style: TextStyle(
-                                    color: isLowStock ? Colors.red : Colors.green,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
+                        ),
+                      ),
+                      
+                      SizedBox(width: isSmallMobile ? 4 : 6),
+                      
+                      // Delete Button
+                      Expanded(
+                        child: Container(
+                          height: isSmallMobile ? 24 : 28,
+                          decoration: BoxDecoration(
+                            color: Colors.red[50],
+                            borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                            border: Border.all(color: Colors.red[200]!),
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                              onTap: () {
+                                _showDeleteProductDialog(product);
+                              },
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.delete,
+                                    color: Colors.red[600],
+                                    size: isSmallMobile ? 10 : 12,
                                   ),
-                                ),
-                              ],
+                                  SizedBox(width: isSmallMobile ? 2 : 3),
+                                  Text(
+                                    'Delete',
+                                    style: TextStyle(
+                                      color: Colors.red[700],
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: isSmallMobile ? 7 : 8,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 12),
-                
-                // Actions
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
-                        onPressed: () {
-                          _showEditProductDialog(product);
-                        },
-                        tooltip: t(context, 'Edit Product'),
-                        padding: const EdgeInsets.all(8),
-                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.red[50],
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                        onPressed: () {
-                          _showDeleteProductDialog(product);
-                        },
-                        tooltip: t(context, 'Delete Product'),
-                        padding: const EdgeInsets.all(8),
-                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
@@ -1497,7 +1609,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               ),
               child: Text(
                 '\$${product.costPrice.toStringAsFixed(2)}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.green,
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
@@ -1947,18 +2059,29 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
   }
 
-  Future<void> _fetchFilteredTransactions(DateTime? start, DateTime? end) async {
-    setState(() { _filteredLoading = true; _filteredError = null; });
-    try {
-      final params = <String, dynamic>{};
-      if (start != null) params['start_date'] = start.toIso8601String();
-      if (end != null) params['end_date'] = end.toIso8601String();
-      final data = await _apiService.getInventoryTransactions(params);
-      setState(() { _filteredTransactions = List<Map<String, dynamic>>.from(data); });
-    } catch (e) {
-      setState(() { _filteredError = 'Failed to load filtered transactions: $e'; });
-    } finally {
-      setState(() { _filteredLoading = false; });
+  void _loadFilteredTransactions() {
+    if (_filterStartDate != null && _filterEndDate != null) {
+      setState(() {
+        _filteredLoading = true;
+        _filteredError = null;
+      });
+      
+      final params = <String, dynamic>{
+        'start_date': _filterStartDate!.toIso8601String(),
+        'end_date': _filterEndDate!.toIso8601String(),
+      };
+      
+      _apiService.getInventoryTransactions(params).then((transactions) {
+        setState(() {
+          _filteredTransactions = transactions;
+          _filteredLoading = false;
+        });
+      }).catchError((error) {
+        setState(() {
+          _filteredError = error.toString();
+          _filteredLoading = false;
+        });
+      });
     }
   }
 
@@ -1976,6 +2099,1080 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
     setState(() {});
     _fetchInventoryValueReport();
+  }
+
+  Widget _buildMobileReportFilters() {
+    return Column(
+      children: [
+        // Horizontal Date Range Row
+        Row(
+          children: [
+            // Start Date
+            Expanded(
+              child: Container(
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: InkWell(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _startDate ?? DateTime.now().subtract(const Duration(days: 30)),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) {
+                      setState(() {
+                        _startDate = date;
+                      });
+                      _loadFilteredTransactions();
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            _startDate != null
+                                ? DateFormat('MMM dd').format(_startDate!)
+                                : 'Start',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[800],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            
+            const SizedBox(width: 6),
+            
+            // End Date
+            Expanded(
+              child: Container(
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: InkWell(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _endDate ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) {
+                      setState(() {
+                        _endDate = date;
+                      });
+                      _loadFilteredTransactions();
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            _endDate != null
+                                ? DateFormat('MMM dd').format(_endDate!)
+                                : 'End',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[800],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 6),
+        
+        // Horizontal Quick Date Buttons
+        Row(
+          children: [
+            Expanded(
+              child: _buildQuickDateButton('Today', () {
+                setState(() {
+                  _startDate = DateTime.now();
+                  _endDate = DateTime.now();
+                });
+                _loadFilteredTransactions();
+              }, isActive: _startDate?.day == DateTime.now().day && _endDate?.day == DateTime.now().day),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: _buildQuickDateButton('Week', () {
+                setState(() {
+                  _startDate = DateTime.now().subtract(const Duration(days: 7));
+                  _endDate = DateTime.now();
+                });
+                _loadFilteredTransactions();
+              }, isActive: _startDate?.difference(DateTime.now()).inDays.abs() == 7),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: _buildQuickDateButton('Month', () {
+                setState(() {
+                  _startDate = DateTime.now().subtract(const Duration(days: 30));
+                  _endDate = DateTime.now();
+                });
+                _loadFilteredTransactions();
+              }, isActive: _startDate?.difference(DateTime.now()).inDays.abs() == 30),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickDateButton(String text, VoidCallback onTap, {required bool isActive}) {
+    return Container(
+      height: 28,
+      decoration: BoxDecoration(
+        color: isActive ? Theme.of(context).primaryColor : Colors.grey[100],
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: isActive ? Theme.of(context).primaryColor : Colors.grey[300]!,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(4),
+          onTap: onTap,
+          child: Center(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                color: isActive ? Colors.white : Colors.grey[700],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopReportFilters() {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        DropdownButton<String>(
+          value: _selectedReportCategory ?? 'All',
+          items: ['All', ..._categories.where((c) => c != 'All')]
+              .map((cat) => DropdownMenuItem(
+                    value: cat,
+                    child: Text(cat),
+                  ))
+              .toList(),
+          onChanged: (val) {
+            setState(() { _selectedReportCategory = val; });
+          },
+          hint: Text(t(context, 'Category')),
+        ),
+        DropdownButton<String>(
+          value: _selectedReportProduct ?? 'All',
+          items: ['All', ..._products.map((p) => p.name)]
+              .map((prod) => DropdownMenuItem(
+                    value: prod,
+                    child: Text(prod),
+                  ))
+              .toList(),
+          onChanged: (val) {
+            setState(() { _selectedReportProduct = val; });
+          },
+          hint: Text(t(context, 'Product')),
+        ),
+        SizedBox(
+          width: 120,
+          child: CustomTextField(
+            labelText: t(context, 'SKU'),
+            onChanged: (val) { setState(() { _reportSku = val; }); },
+          ),
+        ),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.date_range),
+          label: Text(_reportStartDate == null ? t(context, 'Start Date') : _reportStartDate!.toLocal().toString().split(' ')[0]),
+          onPressed: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: DateTime.now(),
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2100),
+            );
+            if (picked != null) setState(() { _reportStartDate = picked; });
+          },
+        ),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.date_range),
+          label: Text(_reportEndDate == null ? t(context, 'End Date') : _reportEndDate!.toLocal().toString().split(' ')[0]),
+          onPressed: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: DateTime.now(),
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2100),
+            );
+            if (picked != null) setState(() { _reportEndDate = picked; });
+          },
+        ),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.search),
+          label: Text(t(context, 'Filter')),
+          onPressed: _fetchInventoryReport,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStockSummaryFilters(bool isSmallMobile) {
+    return Column(
+      children: [
+        // Horizontal Filter Row
+        Row(
+          children: [
+            // Filter Type Dropdown
+            Expanded(
+              flex: 2,
+              child: Container(
+                height: isSmallMobile ? 28 : 32,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _stockSummaryFilterType,
+                    isExpanded: true,
+                    icon: Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Colors.grey[600],
+                      size: isSmallMobile ? 12 : 14,
+                    ),
+                    items: _stockSummaryFilterOptions.map((option) {
+                      return DropdownMenuItem(
+                        value: option,
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 6 : 8),
+                          child: Text(
+                            option,
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 9 : 10,
+                              color: Colors.grey[800],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _stockSummaryFilterType = value!;
+                      });
+                      _fetchInventoryReport();
+                    },
+                  ),
+                ),
+              ),
+            ),
+            
+            SizedBox(width: isSmallMobile ? 4 : 6),
+            
+            // Refresh Button
+            Container(
+              height: isSmallMobile ? 28 : 32,
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                border: Border.all(
+                  color: Theme.of(context).primaryColor.withOpacity(0.3),
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                  onTap: _fetchInventoryReport,
+                  child: Center(
+                    child: Icon(
+                      Icons.refresh,
+                      color: Theme.of(context).primaryColor,
+                      size: isSmallMobile ? 12 : 14,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildValueReportTable(bool isSmallMobile) {
+    if (_valueReportLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    
+    if (_valueReportError != null) {
+      return Text(
+        _valueReportError!,
+        style: TextStyle(color: Colors.red, fontSize: isSmallMobile ? 12 : 14),
+      );
+    }
+    
+    if (_valueReportRows.isEmpty) {
+      return Text(
+        t(context, 'No stock summary data'),
+        style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+      );
+    }
+
+    if (isSmallMobile) {
+      // Mobile layout - cards
+      return Column(
+        children: _valueReportRows.map((row) => Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  row['product_name'] ?? '',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('SKU: ${row['sku'] ?? ''}', style: const TextStyle(fontSize: 12)),
+                          Text('Category: ${row['category_name'] ?? ''}', style: const TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text('Sold: ${_valueReportRows.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt()}', 
+                               style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text('Remaining: ${row['quantity_remaining']?.toString() ?? ''}'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('Revenue: \$${_safeToDouble(row['revenue']).toStringAsFixed(2)}'),
+                    ),
+                    Expanded(
+                      child: Text('Profit: \$${_safeToDouble(row['profit']).toStringAsFixed(2)}'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        )).toList(),
+      );
+    }
+
+    // Desktop layout - table
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columns: [
+          DataColumn(label: Text(t(context, 'Product'))),
+          DataColumn(label: Text(t(context, 'SKU'))),
+          DataColumn(label: Text(t(context, 'Category'))),
+          DataColumn(label: Text(t(context, 'Sold Qty'))),
+          DataColumn(label: Text(t(context, 'Qty Remaining'))),
+          DataColumn(label: Text(t(context, 'Revenue'))),
+          DataColumn(label: Text(t(context, 'Profit'))),
+          DataColumn(label: Text(t(context, 'Mode'))),
+        ],
+        rows: [
+          ..._valueReportRows.map((row) => DataRow(
+            cells: [
+              DataCell(
+                InkWell(
+                  child: Text(row['product_name'] ?? '', style: TextStyle(color: Theme.of(context).primaryColor, decoration: TextDecoration.underline)),
+                  onTap: () => _showProductTransactionsDialog(row['product_id'], row['product_name'] ?? ''),
+                ),
+              ),
+              DataCell(Text(row['sku'] ?? '')),
+              DataCell(Text(row['category_name'] ?? '')),
+              DataCell(Text(_valueReportRows.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt().toString(), style: const TextStyle(fontWeight: FontWeight.bold))),
+              DataCell(Text(row['quantity_remaining']?.toString() ?? '')),
+              DataCell(Text(_safeToDouble(row['revenue']).toStringAsFixed(2))),
+              DataCell(Text(_safeToDouble(row['profit']).toStringAsFixed(2))),
+              DataCell(Text((row['sale_mode'] ?? '').toString().isNotEmpty ? (row['sale_mode'] == 'wholesale' ? 'Wholesale' : 'Retail') : '')),
+            ],
+          )),
+          // Totals row
+          DataRow(
+            color: MaterialStateProperty.resolveWith<Color?>((Set<MaterialState> states) {
+              return Colors.grey[200];
+            }),
+            cells: [
+              DataCell(Text(t(context, 'TOTAL'), style: TextStyle(fontWeight: FontWeight.bold))),
+              const DataCell(Text('')),
+              const DataCell(Text('')),
+              DataCell(Text(_valueReportRows.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt().toString(), style: TextStyle(fontWeight: FontWeight.bold))),
+              const DataCell(Text('')),
+              DataCell(Text(_valueReportRows.fold<double>(0, (sum, r) => sum + _safeToDouble(r['revenue'])).toStringAsFixed(2), style: TextStyle(fontWeight: FontWeight.bold))),
+              DataCell(Text(_valueReportRows.fold<double>(0, (sum, r) => sum + _safeToDouble(r['profit'])).toStringAsFixed(2), style: TextStyle(fontWeight: FontWeight.bold))),
+              const DataCell(Text('')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionsTable(List<Map<String, dynamic>> transactions, bool isLoading, String? error, String emptyMessage, bool isSmallMobile) {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    
+    if (error != null) {
+      return Text(
+        error,
+        style: TextStyle(color: Colors.red, fontSize: isSmallMobile ? 12 : 14),
+      );
+    }
+    
+    if (transactions.isEmpty) {
+      return Text(
+        emptyMessage,
+        style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+      );
+    }
+
+    if (isSmallMobile) {
+      // Mobile layout - cards
+      return Column(
+        children: transactions.map((tx) => Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        tx['product_name'] ?? '',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[100],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        tx['transaction_type'] ?? '',
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text('Date: ${tx['created_at']?.toString()?.split('T')?.first ?? ''}', style: const TextStyle(fontSize: 12)),
+                Text('Qty: ${tx['quantity']?.toString() ?? ''}', style: const TextStyle(fontSize: 12)),
+                Text('Amount: \$${_safeToDouble(tx['sale_total_price']).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
+                if (tx['notes'] != null && tx['notes'].toString().isNotEmpty)
+                  Text('Notes: ${tx['notes']}', style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+        )).toList(),
+      );
+    }
+
+    // Desktop layout - table
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columns: [
+          DataColumn(label: Text('Date')),
+          DataColumn(label: Text('Product')),
+          DataColumn(label: Text('Type')),
+          DataColumn(label: Text('Qty')),
+          DataColumn(label: Text('Sale Amount')),
+          DataColumn(label: Text('Profit')),
+          DataColumn(label: Text('Notes')),
+          DataColumn(label: Text('Mode')),
+        ],
+        rows: transactions.map((tx) => DataRow(cells: [
+          DataCell(Text(tx['created_at']?.toString()?.split('T')?.first ?? '')),
+          DataCell(Text(tx['product_name'] ?? '')),
+          DataCell(Text(tx['transaction_type'] ?? '')),
+          DataCell(Text(tx['quantity']?.toString() ?? '')),
+          DataCell(Text(_safeToDouble(tx['sale_total_price']).toStringAsFixed(2))),
+          DataCell(Text(_safeToDouble(tx['profit']).toStringAsFixed(2))),
+          DataCell(Text(tx['notes'] ?? '')),
+          DataCell(Text((tx['sale_mode'] ?? '').toString().isNotEmpty ? (tx['sale_mode'] == 'wholesale' ? 'Wholesale' : 'Retail') : '')),
+        ])).toList(),
+      ),
+    );
+  }
+
+  Widget _buildDateFilterControls(bool isSmallMobile) {
+    return Column(
+      children: [
+        // Horizontal Date Range Row
+        Row(
+          children: [
+            // Start Date
+            Expanded(
+              child: Container(
+                height: isSmallMobile ? 28 : 32,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: InkWell(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _filterStartDate ?? DateTime.now().subtract(const Duration(days: 30)),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) {
+                      setState(() {
+                        _filterStartDate = date;
+                      });
+                      _loadFilteredTransactions();
+                    }
+                  },
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 6 : 8, vertical: isSmallMobile ? 4 : 6),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          size: isSmallMobile ? 12 : 14,
+                          color: Colors.grey[600],
+                        ),
+                        SizedBox(width: isSmallMobile ? 3 : 4),
+                        Expanded(
+                          child: Text(
+                            _filterStartDate != null
+                                ? DateFormat('MMM dd').format(_filterStartDate!)
+                                : 'Start',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 9 : 10,
+                              color: Colors.grey[800],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            
+            SizedBox(width: isSmallMobile ? 4 : 6),
+            
+            // End Date
+            Expanded(
+              child: Container(
+                height: isSmallMobile ? 28 : 32,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: InkWell(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _filterEndDate ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) {
+                      setState(() {
+                        _filterEndDate = date;
+                      });
+                      _loadFilteredTransactions();
+                    }
+                  },
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 6 : 8, vertical: isSmallMobile ? 4 : 6),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          size: isSmallMobile ? 12 : 14,
+                          color: Colors.grey[600],
+                        ),
+                        SizedBox(width: isSmallMobile ? 3 : 4),
+                        Expanded(
+                          child: Text(
+                            _filterEndDate != null
+                                ? DateFormat('MMM dd').format(_filterEndDate!)
+                                : 'End',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 9 : 10,
+                              color: Colors.grey[800],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        
+        SizedBox(height: isSmallMobile ? 4 : 6),
+        
+        // Horizontal Quick Date Buttons
+        Row(
+          children: [
+            Expanded(
+              child: _buildQuickFilterButton('Today', () {
+                setState(() {
+                  _filterStartDate = DateTime.now();
+                  _filterEndDate = DateTime.now();
+                });
+                _loadFilteredTransactions();
+              }, isActive: _filterStartDate?.day == DateTime.now().day && _filterEndDate?.day == DateTime.now().day),
+            ),
+            SizedBox(width: isSmallMobile ? 3 : 4),
+            Expanded(
+              child: _buildQuickFilterButton('Week', () {
+                setState(() {
+                  _filterStartDate = DateTime.now().subtract(const Duration(days: 7));
+                  _filterEndDate = DateTime.now();
+                });
+                _loadFilteredTransactions();
+              }, isActive: _filterStartDate?.difference(DateTime.now()).inDays.abs() == 7),
+            ),
+            SizedBox(width: isSmallMobile ? 3 : 4),
+            Expanded(
+              child: _buildQuickFilterButton('Month', () {
+                setState(() {
+                  _filterStartDate = DateTime.now().subtract(const Duration(days: 30));
+                  _filterEndDate = DateTime.now();
+                });
+                _loadFilteredTransactions();
+              }, isActive: _filterStartDate?.difference(DateTime.now()).inDays.abs() == 30),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickFilterButton(String text, VoidCallback onTap, {required bool isActive}) {
+    return Container(
+      height: 24,
+      decoration: BoxDecoration(
+        color: isActive ? Theme.of(context).primaryColor : Colors.grey[100],
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(
+          color: isActive ? Theme.of(context).primaryColor : Colors.grey[300]!,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(3),
+          onTap: onTap,
+          child: Center(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 8,
+                fontWeight: FontWeight.w600,
+                color: isActive ? Colors.white : Colors.grey[700],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImagePlaceholder(bool isSmallMobile) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.camera_alt,
+              size: isSmallMobile ? 14 : 16,
+              color: Colors.blue[600],
+            ),
+            SizedBox(width: isSmallMobile ? 3 : 4),
+            Icon(
+              Icons.add,
+              size: isSmallMobile ? 10 : 12,
+              color: Colors.grey[600],
+            ),
+            SizedBox(width: isSmallMobile ? 3 : 4),
+            Icon(
+              Icons.photo_library,
+              size: isSmallMobile ? 14 : 16,
+              color: Colors.green[600],
+            ),
+          ],
+        ),
+        SizedBox(height: isSmallMobile ? 6 : 8),
+        Text(
+          t(context, 'Add Image'),
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: isSmallMobile ? 9 : 10,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        SizedBox(height: isSmallMobile ? 2 : 4),
+        Text(
+          t(context, 'Camera or Gallery'),
+          style: TextStyle(
+            color: Colors.grey[500],
+            fontSize: isSmallMobile ? 7 : 8,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileFilters(bool isSmallMobile) {
+    return Column(
+      children: [
+        // Horizontal Search and Category Row
+        Row(
+          children: [
+            // Search Field - Compact
+            Expanded(
+              flex: 2,
+              child: Container(
+                height: isSmallMobile ? 32 : 36,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: isSmallMobile ? 'Search...' : 'Search...',
+                    prefixIcon: Icon(
+                      Icons.search,
+                      color: Colors.grey[600],
+                      size: isSmallMobile ? 14 : 16,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: isSmallMobile ? 8 : 10,
+                      vertical: isSmallMobile ? 6 : 8,
+                    ),
+                  ),
+                  onChanged: (value) {
+                    _applyFilters();
+                  },
+                ),
+              ),
+            ),
+            
+            SizedBox(width: isSmallMobile ? 6 : 8),
+            
+            // Category Dropdown - Compact
+            Expanded(
+              flex: 1,
+              child: Container(
+                height: isSmallMobile ? 32 : 36,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _categories.contains(_selectedCategory) ? _selectedCategory : (_categories.isNotEmpty ? _categories.first : null),
+                    isExpanded: true,
+                    icon: Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Colors.grey[600],
+                      size: isSmallMobile ? 14 : 16,
+                    ),
+                    items: _categories.map((category) {
+                      return DropdownMenuItem(
+                        value: category,
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 6 : 8),
+                          child: Text(
+                            category,
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 10 : 11,
+                              color: Colors.grey[800],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCategory = value!;
+                      });
+                      _applyFilters();
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        
+        SizedBox(height: isSmallMobile ? 6 : 8),
+        
+        // Horizontal Low Stock Toggle
+        Container(
+          height: isSmallMobile ? 32 : 36,
+          decoration: BoxDecoration(
+            color: _showLowStock ? Colors.red[50] : Colors.grey[50],
+            borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+            border: Border.all(
+              color: _showLowStock ? Colors.red[200]! : Colors.grey[200]!,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(isSmallMobile ? 4 : 6),
+                margin: EdgeInsets.only(left: isSmallMobile ? 8 : 10),
+                decoration: BoxDecoration(
+                  color: _showLowStock ? Colors.red[100] : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                ),
+                child: Icon(
+                  _showLowStock ? Icons.warning : Icons.inventory,
+                  color: _showLowStock ? Colors.red[600] : Colors.grey[600],
+                  size: isSmallMobile ? 14 : 16,
+                ),
+              ),
+              SizedBox(width: isSmallMobile ? 6 : 8),
+              Expanded(
+                child: Text(
+                  'Low Stock Only',
+                  style: TextStyle(
+                    fontSize: isSmallMobile ? 10 : 11,
+                    fontWeight: FontWeight.w600,
+                    color: _showLowStock ? Colors.red[800] : Colors.grey[800],
+                  ),
+                ),
+              ),
+              Switch(
+                value: _showLowStock,
+                onChanged: (value) {
+                  setState(() {
+                    _showLowStock = value;
+                  });
+                  _applyFilters();
+                },
+                activeColor: Colors.red[600],
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              SizedBox(width: isSmallMobile ? 8 : 10),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopFilters() {
+    return Row(
+      children: [
+        // Search Field
+        Expanded(
+          flex: 3,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey[200]!),
+            ),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: t(context, 'Search products by name or SKU...'),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: Colors.grey[600],
+                  size: 22,
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 18,
+                ),
+              ),
+              onChanged: (value) {
+                _applyFilters();
+              },
+            ),
+          ),
+        ),
+        const SizedBox(width: 20),
+        
+        // Category Dropdown
+        Expanded(
+          flex: 2,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey[200]!),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _categories.contains(_selectedCategory) ? _selectedCategory : (_categories.isNotEmpty ? _categories.first : null),
+                isExpanded: true,
+                icon: Icon(
+                  Icons.keyboard_arrow_down,
+                  color: Colors.grey[600],
+                  size: 24,
+                ),
+                items: _categories.map((category) {
+                  return DropdownMenuItem(
+                    value: category,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Text(
+                        category,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCategory = value!;
+                  });
+                  _applyFilters();
+                },
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 20),
+        
+        // Low Stock Toggle
+        Container(
+          decoration: BoxDecoration(
+            color: _showLowStock ? Colors.red[50] : Colors.grey[50],
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _showLowStock ? Colors.red[200]! : Colors.grey[200]!,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _showLowStock ? Icons.warning : Icons.inventory,
+                  color: _showLowStock ? Colors.red[600] : Colors.grey[600],
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Low Stock',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: _showLowStock ? Colors.red[800] : Colors.grey[800],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Switch(
+                  value: _showLowStock,
+                  onChanged: (value) {
+                    setState(() {
+                      _showLowStock = value;
+                    });
+                    _applyFilters();
+                  },
+                  activeColor: Colors.red[600],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -2314,14 +3511,15 @@ class _ProductDialogState extends State<_ProductDialog> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isMobile = constraints.maxWidth <= 480;
+          final isSmallMobile = constraints.maxWidth <= 360;
           
           return Container(
-            width: MediaQuery.of(context).size.width * (isMobile ? 0.95 : 0.9),
+            width: MediaQuery.of(context).size.width * (isSmallMobile ? 0.98 : (isMobile ? 0.95 : 0.9)),
             constraints: BoxConstraints(
-              maxWidth: isMobile ? 400 : 600,
-              maxHeight: MediaQuery.of(context).size.height * 0.9,
+              maxWidth: isSmallMobile ? 350 : (isMobile ? 400 : 600),
+              maxHeight: MediaQuery.of(context).size.height * (isSmallMobile ? 0.95 : 0.9),
             ),
-            padding: EdgeInsets.all(isMobile ? 16 : 24),
+            padding: EdgeInsets.all(isSmallMobile ? 12 : (isMobile ? 16 : 24)),
             child: Form(
               key: _formKey,
               child: SingleChildScrollView(
@@ -2331,7 +3529,7 @@ class _ProductDialogState extends State<_ProductDialog> {
                   children: [
                     // Header
                     Container(
-                      padding: EdgeInsets.all(isMobile ? 12 : 16),
+                      padding: EdgeInsets.all(isSmallMobile ? 8 : (isMobile ? 12 : 16)),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
@@ -2341,23 +3539,23 @@ class _ProductDialogState extends State<_ProductDialog> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(isSmallMobile ? 12 : 16),
                       ),
                       child: Row(
                         children: [
                           Container(
-                            padding: EdgeInsets.all(isMobile ? 6 : 8),
+                            padding: EdgeInsets.all(isSmallMobile ? 4 : (isMobile ? 6 : 8)),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
                             ),
                             child: Icon(
                               widget.product == null ? Icons.add_box : Icons.edit,
                               color: Colors.white,
-                              size: isMobile ? 20 : 24,
+                              size: isSmallMobile ? 18 : (isMobile ? 20 : 24),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          SizedBox(width: isSmallMobile ? 8 : 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2365,18 +3563,18 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 Text(
                                   widget.product == null ? t(context, 'Add New Product') : t(context, 'Edit Product'),
                                   style: TextStyle(
-                                    fontSize: isMobile ? 16 : 20,
+                                    fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 20),
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
+                                SizedBox(height: isSmallMobile ? 1 : 2),
                                 Text(
                                   widget.product == null 
                                       ? t(context, 'Create a new product in your inventory')
                                       : t(context, 'Update product information'),
                                   style: TextStyle(
-                                    fontSize: isMobile ? 11 : 14,
+                                    fontSize: isSmallMobile ? 9 : (isMobile ? 11 : 14),
                                     color: Colors.white.withOpacity(0.9),
                                   ),
                                 ),
@@ -2386,16 +3584,16 @@ class _ProductDialogState extends State<_ProductDialog> {
                           IconButton(
                             onPressed: () => Navigator.of(context).pop(),
                             icon: const Icon(Icons.close, color: Colors.white),
-                            padding: EdgeInsets.all(isMobile ? 4 : 8),
+                            padding: EdgeInsets.all(isSmallMobile ? 2 : (isMobile ? 4 : 8)),
                             constraints: BoxConstraints(
-                              minWidth: isMobile ? 32 : 40,
-                              minHeight: isMobile ? 32 : 40,
+                              minWidth: isSmallMobile ? 28 : (isMobile ? 32 : 40),
+                              minHeight: isSmallMobile ? 28 : (isMobile ? 32 : 40),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    SizedBox(height: isSmallMobile ? 16 : 24),
                     
                     // Image Section
                     Center(
@@ -2408,11 +3606,11 @@ class _ProductDialogState extends State<_ProductDialog> {
                           }
                         },
                         child: Container(
-                          width: isMobile ? 100 : 120,
-                          height: isMobile ? 100 : 120,
+                          width: isSmallMobile ? 80 : (isMobile ? 100 : 120),
+                          height: isSmallMobile ? 80 : (isMobile ? 100 : 120),
                           decoration: BoxDecoration(
                             color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(isSmallMobile ? 12 : 16),
                             border: Border.all(
                               color: Colors.grey[300]!,
                               width: 2,
@@ -2422,28 +3620,28 @@ class _ProductDialogState extends State<_ProductDialog> {
                           child: kIsWeb
                               ? (_webImageDataUrl != null
                                   ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(14),
+                                      borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 14),
                                       child: Image.network(
                                         _webImageDataUrl!,
                                         fit: BoxFit.cover,
                                         errorBuilder: (context, error, stackTrace) =>
-                                            _buildImagePlaceholder(isMobile),
+                                            _buildImagePlaceholder(isSmallMobile),
                                       ),
                                     )
                                   : (_imageUrl != null && _imageUrl!.isNotEmpty)
                                       ? ClipRRect(
-                                          borderRadius: BorderRadius.circular(14),
+                                          borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 14),
                                           child: Image.network(
                                             Api.getFullImageUrl(_imageUrl),
                                             fit: BoxFit.cover,
                                             errorBuilder: (context, error, stackTrace) =>
-                                                _buildImagePlaceholder(isMobile),
+                                                _buildImagePlaceholder(isSmallMobile),
                                           ),
                                         )
-                                      : _buildImagePlaceholder(isMobile))
+                                      : _buildImagePlaceholder(isSmallMobile))
                               : _imageFile != null
                                   ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(14),
+                                      borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 14),
                                       child: Image.file(
                                         _imageFile!,
                                         fit: BoxFit.cover,
@@ -2451,353 +3649,29 @@ class _ProductDialogState extends State<_ProductDialog> {
                                     )
                                   : (_imageUrl != null && _imageUrl!.isNotEmpty)
                                       ? ClipRRect(
-                                          borderRadius: BorderRadius.circular(14),
+                                          borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 14),
                                           child: Image.network(
                                             Api.getFullImageUrl(_imageUrl),
                                             fit: BoxFit.cover,
                                             errorBuilder: (context, error, stackTrace) =>
-                                                _buildImagePlaceholder(isMobile),
+                                                _buildImagePlaceholder(isSmallMobile),
                                           ),
                                         )
-                                      : _buildImagePlaceholder(isMobile),
+                                      : _buildImagePlaceholder(isSmallMobile),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    SizedBox(height: isSmallMobile ? 16 : 24),
 
                     // Form Fields
                     if (isMobile) ...[
                       // Mobile layout - stacked vertically
-                      TextFormField(
-                        controller: _nameController,
-                        decoration: InputDecoration(
-                          labelText: t(context, 'Product Name *'),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          prefixIcon: const Icon(Icons.inventory_2),
-                          filled: true,
-                          fillColor: Colors.grey[50],
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return t(context, 'Product name is required');
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _skuController,
-                        decoration: InputDecoration(
-                          labelText: t(context, 'SKU *'),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          prefixIcon: const Icon(Icons.qr_code),
-                          filled: true,
-                          fillColor: Colors.grey[50],
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return t(context, 'SKU is required');
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _descriptionController,
-                        decoration: InputDecoration(
-                          labelText: t(context, 'Description'),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          prefixIcon: const Icon(Icons.description),
-                          filled: true,
-                          fillColor: Colors.grey[50],
-                        ),
-                        maxLines: 3,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _priceController,
-                        decoration: InputDecoration(
-                          labelText: t(context, 'Price *'),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          prefixIcon: const Icon(Icons.attach_money),
-                          filled: true,
-                          fillColor: Colors.green[50],
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return t(context, 'Price is required');
-                          }
-                          if (double.tryParse(value) == null) {
-                            return t(context, 'Please enter a valid number');
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _costController,
-                        decoration: InputDecoration(
-                          labelText: t(context, 'Cost *'),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          prefixIcon: const Icon(Icons.account_balance_wallet),
-                          filled: true,
-                          fillColor: Colors.orange[50],
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return t(context, 'Cost is required');
-                          }
-                          if (double.tryParse(value) == null) {
-                            return t(context, 'Please enter a valid number');
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _stockController,
-                        decoration: InputDecoration(
-                          labelText: t(context, 'Stock Quantity'),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          prefixIcon: const Icon(Icons.inventory),
-                          filled: true,
-                          fillColor: Colors.blue[50],
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return t(context, 'Stock quantity is required');
-                          }
-                          if (int.tryParse(value) == null) {
-                            return t(context, 'Please enter a valid number');
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<int>(
-                        value: _categories.any((cat) => cat['id'] == _selectedCategoryId) ? _selectedCategoryId : null,
-                        decoration: InputDecoration(
-                          labelText: t(context, 'Category'),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          prefixIcon: const Icon(Icons.category),
-                          filled: true,
-                          fillColor: Colors.purple[50],
-                          helperText: t(context, 'Select a category for this product (optional)'),
-                        ),
-                        items: [
-                          DropdownMenuItem<int>(
-                            value: null,
-                            child: Text(t(context, 'Select Category')),
-                          ),
-                          ..._categories.map((category) {
-                            return DropdownMenuItem<int>(
-                              value: category['id'] as int,
-                              child: Text(category['name'] as String),
-                            );
-                          }).toList(),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedCategoryId = value;
-                          });
-                        },
-
-                      ),
+                      _buildMobileFormFields(isSmallMobile),
                     ] else ...[
                       // Desktop/Tablet layout - horizontal rows
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _nameController,
-                              decoration: InputDecoration(
-                                labelText: t(context, 'Product Name *'),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                prefixIcon: const Icon(Icons.inventory_2),
-                                filled: true,
-                                fillColor: Colors.grey[50],
-                              ),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return t(context, 'Product name is required');
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _skuController,
-                              decoration: InputDecoration(
-                                labelText: t(context, 'SKU *'),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                prefixIcon: const Icon(Icons.qr_code),
-                                filled: true,
-                                fillColor: Colors.grey[50],
-                              ),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return t(context, 'SKU is required');
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _descriptionController,
-                        decoration: InputDecoration(
-                          labelText: t(context, 'Description'),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          prefixIcon: const Icon(Icons.description),
-                          filled: true,
-                          fillColor: Colors.grey[50],
-                        ),
-                        maxLines: 3,
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _priceController,
-                              decoration: InputDecoration(
-                                labelText: t(context, 'Price *'),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                prefixIcon: const Icon(Icons.attach_money),
-                                filled: true,
-                                fillColor: Colors.green[50],
-                              ),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return t(context, 'Price is required');
-                                }
-                                if (double.tryParse(value) == null) {
-                                  return t(context, 'Please enter a valid number');
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _costController,
-                              decoration: InputDecoration(
-                                labelText: t(context, 'Cost *'),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                prefixIcon: const Icon(Icons.account_balance_wallet),
-                                filled: true,
-                                fillColor: Colors.orange[50],
-                              ),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return t(context, 'Cost is required');
-                                }
-                                if (double.tryParse(value) == null) {
-                                  return t(context, 'Please enter a valid number');
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _stockController,
-                              decoration: InputDecoration(
-                                labelText: t(context, 'Stock Quantity'),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                prefixIcon: const Icon(Icons.inventory),
-                                filled: true,
-                                fillColor: Colors.blue[50],
-                              ),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return t(context, 'Stock quantity is required');
-                                }
-                                if (int.tryParse(value) == null) {
-                                  return t(context, 'Please enter a valid number');
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: DropdownButtonFormField<int>(
-                              value: _categories.any((cat) => cat['id'] == _selectedCategoryId) ? _selectedCategoryId : null,
-                              decoration: InputDecoration(
-                                labelText: t(context, 'Category'),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                prefixIcon: const Icon(Icons.category),
-                                filled: true,
-                                fillColor: Colors.purple[50],
-                              ),
-                              items: [
-                                DropdownMenuItem<int>(
-                                  value: null,
-                                  child: Text(t(context, 'Select Category')),
-                                ),
-                                ..._categories.map((category) {
-                                  return DropdownMenuItem<int>(
-                                    value: category['id'] as int,
-                                    child: Text(category['name'] as String),
-                                  );
-                                }).toList(),
-                              ],
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedCategoryId = value;
-                                });
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
+                      _buildDesktopFormFields(),
                     ],
-                    const SizedBox(height: 24),
+                    SizedBox(height: isSmallMobile ? 16 : 24),
 
                     // Action Buttons
                     Row(
@@ -2806,34 +3680,34 @@ class _ProductDialogState extends State<_ProductDialog> {
                           child: OutlinedButton(
                             onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
                             style: OutlinedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(vertical: isMobile ? 12 : 16),
+                              padding: EdgeInsets.symmetric(vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16)),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
                               ),
                             ),
                             child: Text(
                               t(context, 'Cancel'),
-                              style: TextStyle(fontSize: isMobile ? 14 : 16),
+                              style: TextStyle(fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16)),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        SizedBox(width: isSmallMobile ? 12 : 16),
                         Expanded(
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _save,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Theme.of(context).primaryColor,
                               foregroundColor: Colors.white,
-                              padding: EdgeInsets.symmetric(vertical: isMobile ? 12 : 16),
+                              padding: EdgeInsets.symmetric(vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16)),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
                               ),
                               elevation: 2,
                             ),
                             child: _isLoading
                                 ? SizedBox(
-                                    height: isMobile ? 16 : 20,
-                                    width: isMobile ? 16 : 20,
+                                    height: isSmallMobile ? 14 : (isMobile ? 16 : 20),
+                                    width: isSmallMobile ? 14 : (isMobile ? 16 : 20),
                                     child: const CircularProgressIndicator(
                                       strokeWidth: 2,
                                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -2842,7 +3716,7 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 : Text(
                                     widget.product == null ? 'Add Product' : 'Update Product',
                                     style: TextStyle(
-                                      fontSize: isMobile ? 14 : 16,
+                                      fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -2860,7 +3734,374 @@ class _ProductDialogState extends State<_ProductDialog> {
     );
   }
 
-  Widget _buildImagePlaceholder(bool isMobile) {
+  Widget _buildMobileFormFields(bool isSmallMobile) {
+    return Column(
+      children: [
+        TextFormField(
+          controller: _nameController,
+          decoration: InputDecoration(
+            labelText: t(context, 'Product Name *'),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+            ),
+            prefixIcon: Icon(Icons.inventory_2, size: isSmallMobile ? 18 : 20),
+            filled: true,
+            fillColor: Colors.grey[50],
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: isSmallMobile ? 12 : 16,
+              vertical: isSmallMobile ? 10 : 14,
+            ),
+          ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return t(context, 'Product name is required');
+            }
+            return null;
+          },
+        ),
+        SizedBox(height: isSmallMobile ? 12 : 16),
+        TextFormField(
+          controller: _skuController,
+          decoration: InputDecoration(
+            labelText: t(context, 'SKU *'),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+            ),
+            prefixIcon: Icon(Icons.qr_code, size: isSmallMobile ? 18 : 20),
+            filled: true,
+            fillColor: Colors.grey[50],
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: isSmallMobile ? 12 : 16,
+              vertical: isSmallMobile ? 10 : 14,
+            ),
+          ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return t(context, 'SKU is required');
+            }
+            return null;
+          },
+        ),
+        SizedBox(height: isSmallMobile ? 12 : 16),
+        TextFormField(
+          controller: _descriptionController,
+          decoration: InputDecoration(
+            labelText: t(context, 'Description'),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+            ),
+            prefixIcon: Icon(Icons.description, size: isSmallMobile ? 18 : 20),
+            filled: true,
+            fillColor: Colors.grey[50],
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: isSmallMobile ? 12 : 16,
+              vertical: isSmallMobile ? 10 : 14,
+            ),
+          ),
+          maxLines: 3,
+        ),
+        SizedBox(height: isSmallMobile ? 12 : 16),
+        TextFormField(
+          controller: _priceController,
+          decoration: InputDecoration(
+            labelText: t(context, 'Price *'),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+            ),
+            prefixIcon: Icon(Icons.attach_money, size: isSmallMobile ? 18 : 20),
+            filled: true,
+            fillColor: Colors.green[50],
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: isSmallMobile ? 12 : 16,
+              vertical: isSmallMobile ? 10 : 14,
+            ),
+          ),
+          keyboardType: TextInputType.number,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return t(context, 'Price is required');
+            }
+            if (double.tryParse(value) == null) {
+              return t(context, 'Please enter a valid number');
+            }
+            return null;
+          },
+        ),
+        SizedBox(height: isSmallMobile ? 12 : 16),
+        TextFormField(
+          controller: _costController,
+          decoration: InputDecoration(
+            labelText: t(context, 'Cost *'),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+            ),
+            prefixIcon: Icon(Icons.account_balance_wallet, size: isSmallMobile ? 18 : 20),
+            filled: true,
+            fillColor: Colors.orange[50],
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: isSmallMobile ? 12 : 16,
+              vertical: isSmallMobile ? 10 : 14,
+            ),
+          ),
+          keyboardType: TextInputType.number,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return t(context, 'Cost is required');
+            }
+            if (double.tryParse(value) == null) {
+              return t(context, 'Please enter a valid number');
+            }
+            return null;
+          },
+        ),
+        SizedBox(height: isSmallMobile ? 12 : 16),
+        TextFormField(
+          controller: _stockController,
+          decoration: InputDecoration(
+            labelText: t(context, 'Stock Quantity'),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+            ),
+            prefixIcon: Icon(Icons.inventory, size: isSmallMobile ? 18 : 20),
+            filled: true,
+            fillColor: Colors.blue[50],
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: isSmallMobile ? 12 : 16,
+              vertical: isSmallMobile ? 10 : 14,
+            ),
+          ),
+          keyboardType: TextInputType.number,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return t(context, 'Stock quantity is required');
+            }
+            if (int.tryParse(value) == null) {
+              return t(context, 'Please enter a valid number');
+            }
+            return null;
+          },
+        ),
+        SizedBox(height: isSmallMobile ? 12 : 16),
+        DropdownButtonFormField<int>(
+          value: _categories.any((cat) => cat['id'] == _selectedCategoryId) ? _selectedCategoryId : null,
+          decoration: InputDecoration(
+            labelText: t(context, 'Category'),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+            ),
+            prefixIcon: Icon(Icons.category, size: isSmallMobile ? 18 : 20),
+            filled: true,
+            fillColor: Colors.purple[50],
+            helperText: t(context, 'Select a category for this product (optional)'),
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: isSmallMobile ? 12 : 16,
+              vertical: isSmallMobile ? 10 : 14,
+            ),
+          ),
+          items: [
+            DropdownMenuItem<int>(
+              value: null,
+              child: Text(t(context, 'Select Category')),
+            ),
+            ..._categories.map((category) {
+              return DropdownMenuItem<int>(
+                value: category['id'] as int,
+                child: Text(category['name'] as String),
+              );
+            }).toList(),
+          ],
+          onChanged: (value) {
+            setState(() {
+              _selectedCategoryId = value;
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopFormFields() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _nameController,
+                decoration: InputDecoration(
+                  labelText: t(context, 'Product Name *'),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: const Icon(Icons.inventory_2),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return t(context, 'Product name is required');
+                  }
+                  return null;
+                },
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextFormField(
+                controller: _skuController,
+                decoration: InputDecoration(
+                  labelText: t(context, 'SKU *'),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: const Icon(Icons.qr_code),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return t(context, 'SKU is required');
+                  }
+                  return null;
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _descriptionController,
+          decoration: InputDecoration(
+            labelText: t(context, 'Description'),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            prefixIcon: const Icon(Icons.description),
+            filled: true,
+            fillColor: Colors.grey[50],
+          ),
+          maxLines: 3,
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _priceController,
+                decoration: InputDecoration(
+                  labelText: t(context, 'Price *'),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: const Icon(Icons.attach_money),
+                  filled: true,
+                  fillColor: Colors.green[50],
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return t(context, 'Price is required');
+                  }
+                  if (double.tryParse(value) == null) {
+                    return t(context, 'Please enter a valid number');
+                  }
+                  return null;
+                },
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextFormField(
+                controller: _costController,
+                decoration: InputDecoration(
+                  labelText: t(context, 'Cost *'),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: const Icon(Icons.account_balance_wallet),
+                  filled: true,
+                  fillColor: Colors.orange[50],
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return t(context, 'Price is required');
+                  }
+                  if (double.tryParse(value) == null) {
+                    return t(context, 'Please enter a valid number');
+                  }
+                  return null;
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _stockController,
+                decoration: InputDecoration(
+                  labelText: t(context, 'Stock Quantity'),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: const Icon(Icons.inventory),
+                  filled: true,
+                  fillColor: Colors.blue[50],
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return t(context, 'Stock quantity is required');
+                  }
+                  if (int.tryParse(value) == null) {
+                    return t(context, 'Please enter a valid number');
+                  }
+                  return null;
+                },
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                value: _categories.any((cat) => cat['id'] == _selectedCategoryId) ? _selectedCategoryId : null,
+                decoration: InputDecoration(
+                  labelText: t(context, 'Category'),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: const Icon(Icons.category),
+                  filled: true,
+                  fillColor: Colors.purple[50],
+                ),
+                items: [
+                  DropdownMenuItem<int>(
+                    value: null,
+                    child: Text(t(context, 'Select Category')),
+                  ),
+                  ..._categories.map((category) {
+                    return DropdownMenuItem<int>(
+                      value: category['id'] as int,
+                      child: Text(category['name'] as String),
+                    );
+                  }).toList(),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCategoryId = value;
+                  });
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImagePlaceholder(bool isSmallMobile) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -2869,38 +4110,38 @@ class _ProductDialogState extends State<_ProductDialog> {
           children: [
             Icon(
               Icons.camera_alt,
-              size: isMobile ? 16 : 20,
+              size: isSmallMobile ? 14 : 16,
               color: Colors.blue[600],
             ),
-            const SizedBox(width: 4),
+            SizedBox(width: isSmallMobile ? 3 : 4),
             Icon(
               Icons.add,
-              size: isMobile ? 12 : 16,
+              size: isSmallMobile ? 10 : 12,
               color: Colors.grey[600],
             ),
-            const SizedBox(width: 4),
+            SizedBox(width: isSmallMobile ? 3 : 4),
             Icon(
               Icons.photo_library,
-              size: isMobile ? 16 : 20,
+              size: isSmallMobile ? 14 : 16,
               color: Colors.green[600],
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: isSmallMobile ? 6 : 8),
         Text(
           t(context, 'Add Image'),
           style: TextStyle(
             color: Colors.grey[600],
-            fontSize: isMobile ? 10 : 12,
+            fontSize: isSmallMobile ? 9 : 10,
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: isSmallMobile ? 2 : 4),
         Text(
           t(context, 'Camera or Gallery'),
           style: TextStyle(
             color: Colors.grey[500],
-            fontSize: isMobile ? 8 : 10,
+            fontSize: isSmallMobile ? 7 : 8,
           ),
         ),
       ],

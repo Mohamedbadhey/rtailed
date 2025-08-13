@@ -172,8 +172,10 @@ router.get('/report', auth, async (req, res) => {
     const { start_date, end_date, group_by = 'day', user_id } = req.query;
     const isCashier = req.user.role === 'cashier';
     console.log('SALES REPORT: user_id param =', user_id, 'isCashier =', isCashier, 'req.user.id =', req.user.id);
-    // Build the WHERE clause - include both completed sales and credit sales (unpaid)
-    let whereClause = 'WHERE (s.status = "completed" OR s.payment_method = "credit")';
+    
+    // Build the WHERE clause - include both completed sales and credit sales (unpaid) but EXCLUDE credit payments
+    // Credit payments have parent_sale_id IS NOT NULL and should not be counted as revenue
+    let whereClause = 'WHERE (s.status = "completed" OR s.payment_method = "credit") AND s.parent_sale_id IS NULL';
     const params = [];
     
     // Add business_id filter unless superadmin
@@ -209,7 +211,7 @@ router.get('/report', auth, async (req, res) => {
     // Debug: Check what sales exist for this business
     if (req.user.role !== 'superadmin' && req.user.business_id) {
       const [debugSales] = await pool.query(
-        'SELECT id, total_amount, status, business_id, created_at FROM sales WHERE business_id = ? ORDER BY created_at DESC LIMIT 5',
+        'SELECT id, total_amount, status, business_id, created_at, parent_sale_id, payment_method FROM sales WHERE business_id = ? ORDER BY created_at DESC LIMIT 10',
         [req.user.business_id]
       );
       console.log('SALES REPORT: Found', debugSales.length, 'sales for business_id', req.user.business_id, ':', debugSales);
@@ -221,6 +223,7 @@ router.get('/report', auth, async (req, res) => {
       `SELECT COUNT(*) as total_sales_in_range, MIN(s.created_at) as earliest_date, MAX(s.created_at) as latest_date FROM sales s ${whereClause}`,
       params
     );
+    
     // Sales by period
     const dateFormat = group_by === 'day' ? '%Y-%m-%d' : group_by === 'week' ? '%Y-%u' : '%Y-%m';
     const salesByPeriodQuery = `SELECT DATE_FORMAT(s.created_at, ?) as period, COUNT(*) as total_sales, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_sale FROM sales s ${whereClause} GROUP BY DATE_FORMAT(s.created_at, ?) ORDER BY period DESC`;
@@ -242,29 +245,34 @@ router.get('/report', auth, async (req, res) => {
         throw error;
       }
     }
-    // Payment methods
+    
+    // Payment methods - exclude credit payments from this calculation
     const [paymentMethods] = await pool.query(
       `SELECT s.payment_method, COUNT(*) as count, SUM(s.total_amount) as total_amount FROM sales s ${whereClause} GROUP BY s.payment_method ORDER BY total_amount DESC`,
       params
     );
-    // Customer insights
+    
+    // Customer insights - exclude credit payments
     const [customerInsights] = await pool.query(
       `SELECT COUNT(DISTINCT s.customer_id) as unique_customers, COUNT(*) as total_transactions, AVG(s.total_amount) as average_customer_spend FROM sales s ${whereClause} AND s.customer_id IS NOT NULL`,
       params
     );
-    // Summary statistics
+    
+    // Summary statistics - exclude credit payments from revenue calculation
     console.log('SALES REPORT: Running summary query with whereClause =', whereClause, 'params =', params);
     const [summary] = await pool.query(
       `SELECT COUNT(*) as total_orders, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_order_value, MIN(s.total_amount) as min_order, MAX(s.total_amount) as max_order FROM sales s ${whereClause}`,
       params
     );
     console.log('SALES REPORT: Summary result =', summary[0]);
-    // Credit sales summary
+    
+    // Credit sales summary - only original credit sales, not payments
     const [creditSummary] = await pool.query(
       `SELECT COUNT(*) as total_credit_sales, SUM(s.total_amount) as total_credit_amount, COUNT(DISTINCT s.customer_id) as unique_credit_customers FROM sales s ${whereClause} AND s.payment_method = 'credit'`,
       params
     );
-    // Product breakdown (fix ambiguous business_id)
+    
+    // Product breakdown - exclude credit payments
     console.log('SALES REPORT: Running product breakdown query with whereClause =', whereClause, 'params =', params);
     const [productBreakdown] = await pool.query(
       `SELECT p.id, p.name, SUM(si.quantity) as quantity_sold, SUM(si.total_price) as revenue, SUM(si.total_price - (si.quantity * p.cost_price)) as profit FROM sale_items si JOIN products p ON si.product_id = p.id JOIN sales s ON si.sale_id = s.id ${whereClause} GROUP BY p.id, p.name ORDER BY revenue DESC`,
@@ -272,13 +280,13 @@ router.get('/report', auth, async (req, res) => {
     );
     console.log('SALES REPORT: Product breakdown result =', productBreakdown);
     
-    // Calculate total cost of goods sold (COGS) for profit calculation
+    // Calculate total cost of goods sold (COGS) for profit calculation - exclude credit payments
     let cogsQuery = `
       SELECT SUM(si.quantity * p.cost_price) as total_cost 
       FROM sale_items si 
       JOIN products p ON si.product_id = p.id 
       JOIN sales s ON si.sale_id = s.id 
-      WHERE (s.status = "completed" OR s.payment_method = "credit")
+      WHERE (s.status = "completed" OR s.payment_method = "credit") AND s.parent_sale_id IS NULL
     `;
     let cogsParams = [];
     if (req.user.role !== 'superadmin') {
@@ -308,7 +316,7 @@ router.get('/report', auth, async (req, res) => {
     const [cogs] = await pool.query(cogsQuery, cogsParams);
     const total_cost = cogs[0]?.total_cost || 0;
     
-    // Net revenue (total - credit)
+    // Net revenue (total - credit) - this calculation is now correct since we excluded payments
     const netRevenue = (summary[0]?.total_revenue || 0) - (creditSummary[0]?.total_credit_amount || 0);
     const totalProductsSold = productBreakdown.reduce((sum, p) => sum + (p.quantity_sold || 0), 0);
     
@@ -320,7 +328,8 @@ router.get('/report', auth, async (req, res) => {
     console.log('  - Total Revenue:', totalRevenue);
     console.log('  - Total COGS:', total_cost);
     console.log('  - Calculated totalProfit:', totalProfit);
-    // Outstanding credits
+    
+    // Outstanding credits - this query is already correct as it only looks at original credit sales
     let outstandingCreditsQuery = `SELECT SUM(orig.total_amount - IFNULL(pay.paid,0)) as total_outstanding_credit FROM sales orig LEFT JOIN (SELECT parent_sale_id, SUM(total_amount) as paid FROM sales WHERE parent_sale_id IS NOT NULL GROUP BY parent_sale_id) pay ON pay.parent_sale_id = orig.id WHERE orig.payment_method = 'credit' AND orig.parent_sale_id IS NULL AND (orig.status != 'paid' OR orig.status IS NULL)`;
     let outstandingCreditsParams = [];
     
@@ -349,39 +358,43 @@ router.get('/report', auth, async (req, res) => {
       outstandingCreditsParams.push(end_date);
     }
     
-    console.log('OUTSTANDING CREDITS: query =', outstandingCreditsQuery, 'params =', outstandingCreditsParams);
-    
     const [outstandingCredits] = await pool.query(outstandingCreditsQuery, outstandingCreditsParams);
-    // Prepare safe summary object
+    
+    // Prepare safe response data
     const safeSummary = {
-      total_orders: summary[0]?.total_orders ?? 0,
+      total_orders: Number(summary[0]?.total_orders) || 0,
       total_revenue: Number(summary[0]?.total_revenue) || 0,
       average_order_value: Number(summary[0]?.average_order_value) || 0,
       min_order: Number(summary[0]?.min_order) || 0,
       max_order: Number(summary[0]?.max_order) || 0,
     };
+    
     const safeCreditSummary = {
-      total_credit_sales: creditSummary[0]?.total_credit_sales ?? 0,
+      total_credit_sales: Number(creditSummary[0]?.total_credit_sales) || 0,
       total_credit_amount: Number(creditSummary[0]?.total_credit_amount) || 0,
-      unique_credit_customers: creditSummary[0]?.unique_credit_customers ?? 0,
+      unique_credit_customers: Number(creditSummary[0]?.unique_credit_customers) || 0,
     };
+    
     const safeCustomerInsights = {
-      unique_customers: customerInsights[0]?.unique_customers ?? 0,
-      total_transactions: customerInsights[0]?.total_transactions ?? 0,
+      unique_customers: Number(customerInsights[0]?.unique_customers) || 0,
+      total_transactions: Number(customerInsights[0]?.total_transactions) || 0,
       average_customer_spend: Number(customerInsights[0]?.average_customer_spend) || 0,
     };
+    
     const safeProductBreakdown = Array.isArray(productBreakdown) ? productBreakdown.map(p => ({
       id: p.id,
       name: p.name,
       quantity_sold: Number(p.quantity_sold) || 0,
       revenue: Number(p.revenue) || 0,
     })) : [];
+    
     const safeSalesByPeriod = Array.isArray(salesByPeriod) ? salesByPeriod : [];
     const safePaymentMethods = Array.isArray(paymentMethods) ? paymentMethods.map(m => ({
       payment_method: m.payment_method,
       count: Number(m.count) || 0,
       total_amount: Number(m.total_amount) || 0,
     })) : [];
+    
     const safeNetRevenue = Number(netRevenue) || 0;
     const safeTotalProductsSold = Number(totalProductsSold) || 0;
     const safeTotalProfit = Number(totalProfit) || 0;
@@ -432,7 +445,7 @@ router.get('/top-products', [auth, checkRole(['admin', 'manager'])], async (req,
       FROM sale_items si
       JOIN products p ON si.product_id = p.id
       JOIN sales s ON si.sale_id = s.id
-      WHERE s.status = 'completed'
+      WHERE s.status = 'completed' AND s.parent_sale_id IS NULL
       ${start_date ? 'AND s.created_at >= ?' : ''}
       ${end_date ? 'AND s.created_at <= ?' : ''}
       GROUP BY p.id, p.name
@@ -456,7 +469,8 @@ router.get('/top-products', [auth, checkRole(['admin', 'manager'])], async (req,
 router.get('/credit-report', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
     const { start_date, end_date } = req.query;
-    let whereClause = 'WHERE s.payment_method = "credit"';
+    // Only include original credit sales, exclude credit payments (parent_sale_id IS NOT NULL)
+    let whereClause = 'WHERE s.payment_method = "credit" AND s.parent_sale_id IS NULL';
     const params = [];
     
     // Add business_id filter unless superadmin
@@ -512,8 +526,8 @@ router.get('/credit-report', [auth, checkRole(['admin', 'manager', 'cashier'])],
     );
     
     res.json({
-      summary: summary[0],
-      byCustomer: byCustomer
+      byCustomer,
+      summary: summary[0]
     });
   } catch (error) {
     console.error('Error getting credit report:', error);

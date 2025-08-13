@@ -262,10 +262,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth <= 768;
+        final isSmallMobile = constraints.maxWidth <= 480;
         final isTablet = constraints.maxWidth > 768 && constraints.maxWidth <= 1024;
         
         return SingleChildScrollView(
-          padding: EdgeInsets.all(isMobile ? 12 : 16),
+          padding: EdgeInsets.all(isSmallMobile ? 8 : (isMobile ? 12 : 16)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -315,28 +316,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ],
               ),
-              const SizedBox(height: 24),
-              _buildAccountingSummaryCardsWithValues(isMobile, isTablet, totalSales, totalProfit, totalCreditAmount, receivables, cashOnHand),
-              const SizedBox(height: 24),
-              _buildSummaryCardsWithValues(isMobile, isTablet, totalSales, totalOrders, totalCustomers, totalProducts, averageOrderValue, lowStockCount),
-              const SizedBox(height: 24),
-              _buildCharts(isMobile, isTablet),
-              const SizedBox(height: 24),
-              _buildRecentActivity(isMobile),
-              const SizedBox(height: 24),
-              _buildLowStockAlert(isMobile),
+              SizedBox(height: isSmallMobile ? 12 : (isMobile ? 16 : 24)),
+              _buildAccountingSummaryCardsWithValues(isSmallMobile, isMobile, isTablet, totalSales, totalProfit, totalCreditAmount, receivables, cashOnHand),
+              SizedBox(height: isSmallMobile ? 12 : (isMobile ? 16 : 24)),
+              _buildSummaryCardsWithValues(isSmallMobile, isMobile, isTablet, totalSales, totalOrders, totalCustomers, totalProducts, averageOrderValue, lowStockCount),
+              SizedBox(height: isSmallMobile ? 12 : (isMobile ? 16 : 24)),
+              _buildCharts(isSmallMobile, isMobile, isTablet),
+              SizedBox(height: isSmallMobile ? 12 : (isMobile ? 16 : 24)),
+              _buildRecentActivity(isSmallMobile, isMobile),
+              SizedBox(height: isSmallMobile ? 12 : (isMobile ? 16 : 24)),
+              _buildLowStockAlert(isSmallMobile, isMobile),
               if (_showCreditSection) ...[
                 const SizedBox(height: 24),
                 Container(
-                  padding: EdgeInsets.all(isMobile ? 12 : 16),
+                  padding: EdgeInsets.all(isSmallMobile ? 10 : (isMobile ? 12 : 16)),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
+                        blurRadius: isSmallMobile ? 6 : 10,
+                        offset: Offset(0, isSmallMobile ? 1 : 2),
                       ),
                     ],
                   ),
@@ -345,18 +346,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.credit_card, color: Colors.orange),
-                          const SizedBox(width: 8),
+                          Icon(Icons.credit_card, color: Colors.orange, size: isSmallMobile ? 20 : 24),
+                          SizedBox(width: isSmallMobile ? 6 : 8),
                           Text(
                             t(context, 'Credit Customers'),
                             style: TextStyle(
-                              fontSize: isMobile ? 16 : 18,
+                              fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: isSmallMobile ? 12 : 16),
                       _creditLoading
                           ? Center(child: CircularProgressIndicator())
                           : _creditError != null
@@ -366,26 +367,80 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   : SingleChildScrollView(
                                       scrollDirection: Axis.horizontal,
                                       child: DataTable(
-                                        columns: const [
-                                          DataColumn(label: Text('Customer')),
-                                          DataColumn(label: Text('Phone')),
-                                          DataColumn(label: Text('Credit Sales')),
-                                          DataColumn(label: Text('Outstanding')),
-                                          DataColumn(label: Text('Email')),
-                                          DataColumn(label: Text('Actions')),
+                                        columnSpacing: isSmallMobile ? 8 : 16,
+                                        columns: [
+                                          DataColumn(
+                                            label: Text(
+                                              'Customer',
+                                              style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                            ),
+                                          ),
+                                          DataColumn(
+                                            label: Text(
+                                              'Phone',
+                                              style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                            ),
+                                          ),
+                                          DataColumn(
+                                            label: Text(
+                                              'Credit Sales',
+                                              style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                            ),
+                                          ),
+                                          DataColumn(
+                                            label: Text(
+                                              'Outstanding',
+                                              style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                            ),
+                                          ),
+                                          DataColumn(
+                                            label: Text(
+                                              'Email',
+                                              style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                            ),
+                                          ),
+                                          DataColumn(
+                                            label: Text(
+                                              'Actions',
+                                              style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                            ),
+                                          ),
                                         ],
                                         rows: _creditCustomers.map((customer) {
                                           return DataRow(
                                             cells: [
-                                              DataCell(Text(customer['name'] ?? '')),
-                                              DataCell(Text(customer['phone'] ?? '')),
-                                              DataCell(Text('${customer['credit_sales_count'] ?? 0}')),
-                                              DataCell(Text('\$${(double.tryParse((customer['outstanding_amount'] ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}')),
-                                              DataCell(Text(customer['email'] ?? '')),
+                                              DataCell(Text(
+                                                customer['name'] ?? '',
+                                                style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
+                                              )),
+                                              DataCell(Text(
+                                                customer['phone'] ?? '',
+                                                style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
+                                              )),
+                                              DataCell(Text(
+                                                '${customer['credit_sales_count'] ?? 0}',
+                                                style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
+                                              )),
+                                              DataCell(Text(
+                                                '\$${(double.tryParse((customer['outstanding_amount'] ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}',
+                                                style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
+                                              )),
+                                              DataCell(Text(
+                                                customer['email'] ?? '',
+                                                style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
+                                              )),
                                               DataCell(
                                                 IconButton(
-                                                  icon: Icon(Icons.visibility),
+                                                  icon: Icon(
+                                                    Icons.visibility,
+                                                    size: isSmallMobile ? 18 : 20,
+                                                  ),
                                                   onPressed: () => _showCustomerTransactions(customer),
+                                                  padding: EdgeInsets.all(isSmallMobile ? 4 : 8),
+                                                  constraints: BoxConstraints(
+                                                    minWidth: isSmallMobile ? 32 : 40,
+                                                    minHeight: isSmallMobile ? 32 : 40,
+                                                  ),
                                                 ),
                                               ),
                                             ],
@@ -404,87 +459,128 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildAccountingSummaryCardsWithValues(bool isMobile, bool isTablet, double totalSales, double totalProfit, double totalCreditAmount, double receivables, double cashOnHand) {
-    if (isMobile) {
-      return Column(
+  Widget _buildAccountingSummaryCardsWithValues(bool isSmallMobile, bool isMobile, bool isTablet, double totalSales, double totalProfit, double totalCreditAmount, double receivables, double cashOnHand) {
+    if (isSmallMobile) {
+      return GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: 1.8,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
         children: [
-          _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '', isMobile),
-          _buildSummaryCard(t(context, 'Outstanding Credits'), '\$${receivables.toStringAsFixed(2)}', Icons.credit_card, Colors.orange, t(context, 'Receivables'), isMobile),
-          _buildSummaryCard(t(context, 'Cash on Hand'), '\$${cashOnHand.toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.teal, t(context, 'Available'), isMobile),
-          _buildSummaryCard(t(context, 'Profit'), '\$${totalProfit.toStringAsFixed(2)}', Icons.trending_up, Colors.deepPurple, t(context, 'Gross profit'), isMobile),
+          _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '', isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Outstanding Credits'), '\$${receivables.toStringAsFixed(2)}', Icons.credit_card, Colors.orange, t(context, 'Receivables'), isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Cash on Hand'), '\$${cashOnHand.toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.teal, t(context, 'Available'), isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Profit'), '\$${totalProfit.toStringAsFixed(2)}', Icons.trending_up, Colors.deepPurple, t(context, 'Gross profit'), isSmallMobile, isMobile),
+        ],
+      );
+    } else if (isMobile) {
+      return GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: 1.6,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        children: [
+          _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '', isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Outstanding Credits'), '\$${receivables.toStringAsFixed(2)}', Icons.credit_card, Colors.orange, t(context, 'Receivables'), isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Cash on Hand'), '\$${cashOnHand.toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.teal, t(context, 'Available'), isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Profit'), '\$${totalProfit.toStringAsFixed(2)}', Icons.trending_up, Colors.deepPurple, t(context, 'Gross profit'), isSmallMobile, isMobile),
         ],
       );
     } else if (isTablet) {
-    return GridView.count(
+      return GridView.count(
         crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
         childAspectRatio: 2.5,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-      children: [
-          _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '', isMobile),
-          _buildSummaryCard(t(context, 'Outstanding Credits'), '\$${receivables.toStringAsFixed(2)}', Icons.credit_card, Colors.orange, t(context, 'Receivables'), isMobile),
-          _buildSummaryCard(t(context, 'Cash on Hand'), '\$${cashOnHand.toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.teal, t(context, 'Available'), isMobile),
-          _buildSummaryCard(t(context, 'Profit'), '\$${totalProfit.toStringAsFixed(2)}', Icons.trending_up, Colors.deepPurple, t(context, 'Gross profit'), isMobile),
+        children: [
+          _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '', isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Outstanding Credits'), '\$${receivables.toStringAsFixed(2)}', Icons.credit_card, Colors.orange, t(context, 'Receivables'), isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Cash on Hand'), '\$${cashOnHand.toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.teal, t(context, 'Available'), isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Profit'), '\$${totalProfit.toStringAsFixed(2)}', Icons.trending_up, Colors.deepPurple, t(context, 'Gross profit'), isSmallMobile, isMobile),
         ],
       );
     } else {
       return Row(
         children: [
-          Expanded(child: _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '', isMobile)),
+          Expanded(child: _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '', isSmallMobile, isMobile)),
           const SizedBox(width: 16),
-          Expanded(child: _buildSummaryCard(t(context, 'Outstanding Credits'), '\$${receivables.toStringAsFixed(2)}', Icons.credit_card, Colors.orange, t(context, 'Receivables'), isMobile)),
+          Expanded(child: _buildSummaryCard(t(context, 'Outstanding Credits'), '\$${receivables.toStringAsFixed(2)}', Icons.credit_card, Colors.orange, t(context, 'Receivables'), isSmallMobile, isMobile)),
           const SizedBox(width: 16),
-          Expanded(child: _buildSummaryCard(t(context, 'Cash on Hand'), '\$${cashOnHand.toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.teal, t(context, 'Available'), isMobile)),
+          Expanded(child: _buildSummaryCard(t(context, 'Cash on Hand'), '\$${cashOnHand.toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.teal, t(context, 'Available'), isSmallMobile, isMobile)),
           const SizedBox(width: 16),
-          Expanded(child: _buildSummaryCard(t(context, 'Profit'), '\$${totalProfit.toStringAsFixed(2)}', Icons.trending_up, Colors.deepPurple, t(context, 'Gross profit'), isMobile)),
+          Expanded(child: _buildSummaryCard(t(context, 'Profit'), '\$${totalProfit.toStringAsFixed(2)}', Icons.trending_up, Colors.deepPurple, t(context, 'Gross profit'), isSmallMobile, isMobile)),
         ],
       );
     }
   }
 
-  Widget _buildSummaryCardsWithValues(bool isMobile, bool isTablet, double totalSales, int totalOrders, int totalCustomers, int totalProducts, double averageOrderValue, int lowStockCount) {
-    if (isMobile) {
-      return Column(
+  Widget _buildSummaryCardsWithValues(bool isSmallMobile, bool isMobile, bool isTablet, double totalSales, int totalOrders, int totalCustomers, int totalProducts, double averageOrderValue, int lowStockCount) {
+    if (isSmallMobile) {
+      return GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: 1.8,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
         children: [
-          _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '$totalOrders orders', isMobile),
-          _buildSummaryCard(t(context, 'Total Orders'), '$totalOrders', Icons.shopping_cart, Colors.blue, '${averageOrderValue.toStringAsFixed(2)} avg', isMobile),
-          _buildSummaryCard(t(context, 'Total Customers'), '$totalCustomers', Icons.people, Colors.orange, '$totalCustomers active', isMobile),
-          _buildSummaryCard(t(context, 'Total Products'), '$totalProducts', Icons.inventory, Colors.purple, '$lowStockCount low stock', isMobile),
+          _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '$totalOrders orders', isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Total Orders'), '$totalOrders', Icons.shopping_cart, Colors.blue, '${averageOrderValue.toStringAsFixed(2)} avg', isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Total Customers'), '$totalCustomers', Icons.people, Colors.orange, '$totalCustomers active', isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Total Products'), '$totalProducts', Icons.inventory, Colors.purple, '$lowStockCount low stock', isSmallMobile, isMobile),
+        ],
+      );
+    } else if (isMobile) {
+      return GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: 1.6,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        children: [
+          _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '$totalOrders orders', isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Total Orders'), '$totalOrders', Icons.shopping_cart, Colors.blue, '${averageOrderValue.toStringAsFixed(2)} avg', isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Total Customers'), '$totalCustomers', Icons.people, Colors.orange, '$totalCustomers active', isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Total Products'), '$totalProducts', Icons.inventory, Colors.purple, '$lowStockCount low stock', isSmallMobile, isMobile),
         ],
       );
     } else if (isTablet) {
-    return GridView.count(
+      return GridView.count(
         crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
         childAspectRatio: 2.5,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-      children: [
-        _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '$totalOrders orders', isMobile),
-        _buildSummaryCard(t(context, 'Total Orders'), '$totalOrders', Icons.shopping_cart, Colors.blue, '${averageOrderValue.toStringAsFixed(2)} avg', isMobile),
-        _buildSummaryCard(t(context, 'Total Customers'), '$totalCustomers', Icons.people, Colors.orange, '$totalCustomers active', isMobile),
-        _buildSummaryCard(t(context, 'Total Products'), '$totalProducts', Icons.inventory, Colors.purple, '$lowStockCount low stock', isMobile),
-      ],
-    );
-    } else {
-      return Row(
+        children: [
+          _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '$totalOrders orders', isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Total Orders'), '$totalOrders', Icons.shopping_cart, Colors.blue, '${averageOrderValue.toStringAsFixed(2)} avg', isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Total Products'), '$totalProducts', Icons.inventory, Colors.purple, '$lowStockCount low stock', isSmallMobile, isMobile),
+        ],
+      );
+          } else {
+        return Row(
           children: [
-          Expanded(child: _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '$totalOrders orders', isMobile)),
-          const SizedBox(width: 16),
-          Expanded(child: _buildSummaryCard(t(context, 'Total Orders'), '$totalOrders', Icons.shopping_cart, Colors.blue, '${averageOrderValue.toStringAsFixed(2)} avg', isMobile)),
-          const SizedBox(width: 16),
-          Expanded(child: _buildSummaryCard(t(context, 'Total Customers'), '$totalCustomers', Icons.people, Colors.orange, '$totalCustomers active', isMobile)),
-          const SizedBox(width: 16),
-          Expanded(child: _buildSummaryCard(t(context, 'Total Products'), '$totalProducts', Icons.inventory, Colors.purple, '$lowStockCount low stock', isMobile)),
-        ],
-      );
+            Expanded(child: _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '$totalOrders orders', isSmallMobile, isMobile)),
+            const SizedBox(width: 16),
+            Expanded(child: _buildSummaryCard(t(context, 'Total Orders'), '$totalOrders', Icons.shopping_cart, Colors.blue, '${averageOrderValue.toStringAsFixed(2)} avg', isSmallMobile, isMobile)),
+            const SizedBox(width: 16),
+            Expanded(child: _buildSummaryCard(t(context, 'Total Customers'), '$totalCustomers', Icons.people, Colors.orange, '$totalCustomers active', isSmallMobile, isMobile)),
+            const SizedBox(width: 16),
+            Expanded(child: _buildSummaryCard(t(context, 'Total Products'), '$totalProducts', Icons.inventory, Colors.purple, '$lowStockCount low stock', isSmallMobile, isMobile)),
+          ],
+        );
     }
   }
 
-  Widget _buildCharts(bool isMobile, bool isTablet) {
+  Widget _buildCharts(bool isSmallMobile, bool isMobile, bool isTablet) {
     final List<dynamic> salesByPeriod = _salesReport['salesByPeriod'] ?? [];
     final List<dynamic> paymentMethods = _dashboardData['paymentMethodBreakdown'] ?? _salesReport['paymentMethods'] ?? [];
 
@@ -503,37 +599,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
         if (salesByPeriod.isNotEmpty) ...[
           Container(
-            padding: EdgeInsets.all(isMobile ? 12 : 16),
+            padding: EdgeInsets.all(isSmallMobile ? 10 : (isMobile ? 12 : 16)),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
+                  blurRadius: isSmallMobile ? 6 : 10,
+                  offset: Offset(0, isSmallMobile ? 1 : 2),
                 ),
               ],
             ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                    Icon(Icons.show_chart, color: Colors.blue),
-                    const SizedBox(width: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.show_chart, color: Colors.blue, size: isSmallMobile ? 20 : 24),
+                    SizedBox(width: isSmallMobile ? 6 : 8),
                     Text(
                       t(context, 'Sales Overview'),
-                        style: TextStyle(
-                        fontSize: isMobile ? 16 : 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      style: TextStyle(
+                        fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18),
+                        fontWeight: FontWeight.bold,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                  height: isMobile ? 200 : 300,
+                    ),
+                  ],
+                ),
+                SizedBox(height: isSmallMobile ? 12 : 16),
+                SizedBox(
+                  height: isSmallMobile ? 120 : (isMobile ? 160 : 300),
                     child: LineChart(
                       LineChartData(
                       gridData: FlGridData(show: true),
@@ -593,39 +689,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 16),
         ],
         if (paymentMethods.isNotEmpty) ...[
-                      Container(
-            padding: EdgeInsets.all(isMobile ? 12 : 16),
-                        decoration: BoxDecoration(
-                              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+          Container(
+            padding: EdgeInsets.all(isSmallMobile ? 10 : (isMobile ? 12 : 16)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
+                  blurRadius: isSmallMobile ? 6 : 10,
+                  offset: Offset(0, isSmallMobile ? 1 : 2),
                 ),
               ],
             ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                    Icon(Icons.pie_chart, color: Colors.green),
-                    const SizedBox(width: 8),
-                        Text(
+                    Icon(Icons.pie_chart, color: Colors.green, size: isSmallMobile ? 20 : 24),
+                    SizedBox(width: isSmallMobile ? 6 : 8),
+                    Text(
                       t(context, 'Revenue Distribution'),
-                          style: TextStyle(
-                        fontSize: isMobile ? 16 : 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
+                      style: TextStyle(
+                        fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                const SizedBox(height: 16),
-                    SizedBox(
-                  height: isMobile ? 200 : 300,
-                  child: PieChart(
+                  ],
+                ),
+                SizedBox(height: isSmallMobile ? 12 : 16),
+                                    SizedBox(
+                      height: isSmallMobile ? 120 : (isMobile ? 160 : 300),
+                      child: PieChart(
                     PieChartData(
                       sections: paymentMethods.map((method) {
                         final value = safeToDouble(method['total_amount']);
@@ -634,38 +730,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           value: value,
                           title: '${percentage.toStringAsFixed(1)}%',
                           color: _getPaymentMethodColor(method['payment_method']),
-                          radius: isMobile ? 60 : 80,
-                          titleStyle: const TextStyle(
-                                    fontSize: 12,
+                          radius: isSmallMobile ? 40 : (isMobile ? 50 : 80),
+                          titleStyle: TextStyle(
+                            fontSize: isSmallMobile ? 9 : 12,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         );
                       }).toList(),
-                      centerSpaceRadius: isMobile ? 30 : 40,
+                      centerSpaceRadius: isSmallMobile ? 20 : (isMobile ? 25 : 40),
                               ),
                             ),
                           ),
-                const SizedBox(height: 16),
+                SizedBox(height: isSmallMobile ? 12 : 16),
                 Wrap(
-                  spacing: 16,
-                  runSpacing: 8,
+                  spacing: isSmallMobile ? 12 : 16,
+                  runSpacing: isSmallMobile ? 6 : 8,
                   children: paymentMethods.map((method) {
                     return Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 12,
-                          height: 12,
+                          width: isSmallMobile ? 10 : 12,
+                          height: isSmallMobile ? 10 : 12,
                           decoration: BoxDecoration(
                             color: _getPaymentMethodColor(method['payment_method']),
                             shape: BoxShape.circle,
                           ),
-                          ),
-                        const SizedBox(width: 4),
+                        ),
+                        SizedBox(width: isSmallMobile ? 3 : 4),
                         Text(
                           '${method['payment_method']}: \$${safeToDouble(method['total_amount']).toStringAsFixed(2)}',
-                          style: const TextStyle(fontSize: 12),
+                          style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
                         ),
                       ],
                     );
@@ -679,38 +775,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
   }
 
-  Widget _buildRecentActivity(bool isMobile) {
+  Widget _buildRecentActivity(bool isSmallMobile, bool isMobile) {
     print('Dashboard: recentSales=${_recentSales.length}');
     return Container(
-        padding: EdgeInsets.all(isMobile ? 12 : 16),
+      padding: EdgeInsets.all(isSmallMobile ? 10 : (isMobile ? 12 : 16)),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            blurRadius: isSmallMobile ? 6 : 10,
+            offset: Offset(0, isSmallMobile ? 1 : 2),
           ),
         ],
       ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-              Icon(Icons.receipt, color: Colors.orange),
-              const SizedBox(width: 8),
-                Text(
-                  t(context, 'Recent Sales'),
-                  style: TextStyle(
-                    fontSize: isMobile ? 16 : 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.receipt, color: Colors.orange, size: isSmallMobile ? 20 : 24),
+              SizedBox(width: isSmallMobile ? 6 : 8),
+              Text(
+                t(context, 'Recent Sales'),
+                style: TextStyle(
+                  fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18),
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
+              ),
+            ],
+          ),
+          SizedBox(height: isSmallMobile ? 12 : 16),
             if (_recentSales.isEmpty)
               Center(
                 child: Column(
@@ -756,28 +852,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildLowStockAlert(bool isMobile) {
+  Widget _buildLowStockAlert(bool isSmallMobile, bool isMobile) {
     if (_lowStockProducts.isEmpty) return const SizedBox.shrink();
 
     return Container(
-        padding: EdgeInsets.all(isMobile ? 12 : 16),
+      padding: EdgeInsets.all(isSmallMobile ? 10 : (isMobile ? 12 : 16)),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            blurRadius: isSmallMobile ? 6 : 10,
+            offset: Offset(0, isSmallMobile ? 1 : 2),
           ),
         ],
       ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-              Icon(Icons.warning, color: Colors.orange),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning, color: Colors.orange, size: isSmallMobile ? 20 : 24),
               const SizedBox(width: 8),
                 Text(
                   t(context, 'Low Stock Alert'),
@@ -820,17 +916,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildSummaryCard(String title, String value, IconData icon, Color color, String subtitle, bool isMobile) {
+  Widget _buildSummaryCard(String title, String value, IconData icon, Color color, String subtitle, bool isSmallMobile, bool isMobile) {
     return Container(
-      padding: EdgeInsets.all(isMobile ? 12 : 16),
-                    decoration: BoxDecoration(
+      padding: EdgeInsets.all(isSmallMobile ? 6 : (isMobile ? 8 : 16)),
+      decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            blurRadius: isSmallMobile ? 4 : 10,
+            offset: Offset(0, isSmallMobile ? 1 : 2),
           ),
         ],
       ),
@@ -840,14 +936,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(isSmallMobile ? 4 : 6),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                child: Icon(icon, color: color, size: 20),
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                ),
+                child: Icon(icon, color: color, size: isSmallMobile ? 16 : 18),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isSmallMobile ? 6 : 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -855,29 +951,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: isMobile ? 12 : 14,
+                        fontSize: isSmallMobile ? 10 : (isMobile ? 11 : 14),
                         color: Colors.grey[600],
                       ),
                     ),
+                    SizedBox(height: isSmallMobile ? 2 : 3),
                     Text(
                       value,
                       style: TextStyle(
-                        fontSize: isMobile ? 16 : 18,
+                        fontSize: isSmallMobile ? 13 : (isMobile ? 15 : 18),
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
                     ),
                   ],
-                  ),
-            ),
-          ],
-        ),
+                ),
+              ),
+            ],
+          ),
           if (subtitle.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            SizedBox(height: isSmallMobile ? 4 : 6),
             Text(
               subtitle,
               style: TextStyle(
-                fontSize: isMobile ? 10 : 12,
+                fontSize: isSmallMobile ? 8 : (isMobile ? 9 : 12),
                 color: Colors.grey[500],
               ),
             ),

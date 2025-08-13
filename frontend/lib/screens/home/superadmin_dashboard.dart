@@ -358,6 +358,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final isVerySmall = screenWidth < 480;
     final isExtraSmall = screenWidth < 360;
     final isTiny = screenWidth < 320;
+    final isUltraSmall = screenWidth < 280;
     
     return Scaffold(
       appBar: BrandedAppBar(
@@ -2280,39 +2281,18 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
               onChanged: (value) => _searchBusinesses(value),
             ),
             const SizedBox(height: 16),
-            // Businesses grid - Responsive
+            // Businesses grid - Single column for visibility
             LayoutBuilder(
               builder: (context, constraints) {
-                int crossAxisCount;
-                double aspectRatio;
-                double spacing;
-                
-                if (constraints.maxWidth < 360) {
-                  // Very small phones: 1 column, very flat cards
-                  crossAxisCount = 1;
-                  aspectRatio = 2.1;
-                  spacing = 6;
-                } else if (constraints.maxWidth < 480) {
-                  // Small phones: 1 column, flat cards to reduce vertical space
-                  crossAxisCount = 1;
-                  aspectRatio = 1.9;
-                  spacing = 8;
-                } else if (constraints.maxWidth < 768) {
-                  // Large phones/phablets: 2 columns, flatter cards
-                  crossAxisCount = 2;
-                  aspectRatio = 1.8;
-                  spacing = 8;
-                } else if (constraints.maxWidth < 1024) {
-                  // Tablet: 2 columns
-                  crossAxisCount = 2;
-                  aspectRatio = 1.6;
-                  spacing = 10;
-                } else {
-                  // Desktop: 3 columns
-                  crossAxisCount = 3;
-                  aspectRatio = 1.5;
-                  spacing = 12;
-                }
+                // Force a single column for better readability across devices
+                final int crossAxisCount = 1;
+                // Much flatter cards to minimize height - higher ratio = flatter cards
+                final double aspectRatio = constraints.maxWidth < 360
+                    ? 3.0  // Very flat on tiny screens
+                    : (constraints.maxWidth < 480
+                        ? 4.0  // Flat on mobile
+                        : (constraints.maxWidth < 768 ? 5.0 : 6.0));  // Flat on larger screens
+                final double spacing = constraints.maxWidth < 480 ? 4 : 6;
                 
                 return GridView.builder(
               shrinkWrap: true,
@@ -2357,126 +2337,306 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   Widget _buildBusinessCard(Map<String, dynamic> business) {
     return Card(
       elevation: 1,
-      margin: const EdgeInsets.symmetric(vertical: 3),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      margin: const EdgeInsets.symmetric(vertical: 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       child: InkWell(
         onTap: () => _showBusinessDetails(business),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
         child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    business['is_active'] == true || business['is_active'] == 1 ? Icons.business : Icons.business_outlined,
-                    color: business['is_active'] == true || business['is_active'] == 1 ? Colors.green : Colors.red,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Column(
+          padding: const EdgeInsets.all(3),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 480;
+              
+                             if (isMobile) {
+                 // Ultra-compact single-row layout for mobile
+                 return Row(
+                   children: [
+                     Container(
+                       padding: const EdgeInsets.all(6),
+                       decoration: BoxDecoration(
+                         color: (business['is_active'] == true || business['is_active'] == 1) 
+                           ? Colors.green.withOpacity(0.1) 
+                           : Colors.red.withOpacity(0.1),
+                         borderRadius: BorderRadius.circular(8),
+                         border: Border.all(
+                           color: (business['is_active'] == true || business['is_active'] == 1) 
+                             ? Colors.green.withOpacity(0.3) 
+                             : Colors.red.withOpacity(0.3),
+                           width: 1,
+                         ),
+                       ),
+                       child: Icon(
+                         business['is_active'] == true || business['is_active'] == 1 ? Icons.business : Icons.business_outlined,
+                         color: business['is_active'] == true || business['is_active'] == 1 ? Colors.green[700] : Colors.red[700],
+                         size: 16,
+                       ),
+                     ),
+                     const SizedBox(width: 8),
+                     Expanded(
+                       child: Column(
+                         crossAxisAlignment: CrossAxisAlignment.start,
+                         mainAxisSize: MainAxisSize.min,
+                         children: [
+                           Text(
+                             (business['name'] ?? '').toString(),
+                             style: const TextStyle(
+                               fontWeight: FontWeight.w700, 
+                               fontSize: 13, 
+                               color: Colors.black87,
+                               letterSpacing: 0.2,
+                             ),
+                             overflow: TextOverflow.ellipsis,
+                             maxLines: 1,
+                           ),
+                           const SizedBox(height: 2),
+                           Container(
+                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                             decoration: BoxDecoration(
+                               color: Colors.blue.withOpacity(0.1),
+                               borderRadius: BorderRadius.circular(4),
+                               border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                             ),
+                             child: Text(
+                               'Code: ${(business['business_code'] ?? '').toString()} • Users: ${business['user_count'] ?? 0} • Products: ${business['product_count'] ?? 0}',
+                               style: TextStyle(
+                                 color: Colors.blue[700], 
+                                 fontSize: 10,
+                                 fontWeight: FontWeight.w500,
+                               ),
+                               overflow: TextOverflow.ellipsis,
+                               maxLines: 1,
+                             ),
+                           ),
+                           const SizedBox(height: 2),
+                           Row(
+                             children: [
+                               Container(
+                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                 decoration: BoxDecoration(
+                                   color: _getSubscriptionColor(business['subscription_plan']).withOpacity(0.1),
+                                   borderRadius: BorderRadius.circular(4),
+                                   border: Border.all(
+                                     color: _getSubscriptionColor(business['subscription_plan']).withOpacity(0.4),
+                                   ),
+                                 ),
+                                 child: Text(
+                                   (business['subscription_plan'] ?? 'BASIC').toString().toUpperCase(),
+                                   style: TextStyle(
+                                     color: _getSubscriptionColor(business['subscription_plan']),
+                                     fontSize: 9,
+                                     fontWeight: FontWeight.w600,
+                                   ),
+                                 ),
+                               ),
+                               const SizedBox(width: 4),
+                               Container(
+                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                 decoration: BoxDecoration(
+                                   color: _getPaymentStatusColor(business['payment_status'] ?? 'current').withOpacity(0.1),
+                                   borderRadius: BorderRadius.circular(4),
+                                   border: Border.all(
+                                     color: _getPaymentStatusColor(business['payment_status'] ?? 'current').withOpacity(0.4),
+                                   ),
+                                 ),
+                                 child: Text(
+                                   (business['payment_status'] ?? 'current').toString().toUpperCase(),
+                                   style: TextStyle(
+                                     color: _getPaymentStatusColor(business['payment_status'] ?? 'current'),
+                                     fontSize: 9,
+                                     fontWeight: FontWeight.w600,
+                                   ),
+                                 ),
+                               ),
+                             ],
+                           ),
+                         ],
+                       ),
+                     ),
+                     Container(
+                       decoration: BoxDecoration(
+                         color: Colors.grey.withOpacity(0.1),
+                         borderRadius: BorderRadius.circular(6),
+                         border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                       ),
+                       child: PopupMenuButton<String>(
+                         padding: const EdgeInsets.all(4),
+                         onSelected: (value) => _handleBusinessAction(value, business),
+                         itemBuilder: (context) => [
+                           const PopupMenuItem(value: 'message', child: Text('Send Message')),
+                           const PopupMenuItem(value: 'payment', child: Text('Add Payment')),
+                           const PopupMenuItem(value: 'settings', child: Text('Settings')),
+                           const PopupMenuItem(value: 'users', child: Text('Manage Users')),
+                           const PopupMenuItem(value: 'analytics', child: Text('Analytics')),
+                           const PopupMenuItem(value: 'toggle_status', child: Text('Toggle Status')),
+                         ],
+                         child: const Icon(Icons.more_vert, size: 16, color: Colors.grey),
+                       ),
+                     ),
+                   ],
+                 );
+              } else {
+                // Desktop layout with more details
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          (business['name'] ?? '').toString(),
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: (business['is_active'] == true || business['is_active'] == 1) 
+                              ? Colors.green.withOpacity(0.1) 
+                              : Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: (business['is_active'] == true || business['is_active'] == 1) 
+                                ? Colors.green.withOpacity(0.3) 
+                                : Colors.red.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Icon(
+                            business['is_active'] == true || business['is_active'] == 1 ? Icons.business : Icons.business_outlined,
+                            color: business['is_active'] == true || business['is_active'] == 1 ? Colors.green[700] : Colors.red[700],
+                            size: 18,
+                          ),
                         ),
-                        const SizedBox(height: 1),
-                        Text(
-                          (business['business_code'] ?? '').toString(),
-                          style: TextStyle(color: Colors.grey[600], fontSize: 9),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                (business['name'] ?? '').toString(),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700, 
+                                  fontSize: 13, 
+                                  color: Colors.black87,
+                                  letterSpacing: 0.2,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                (business['business_code'] ?? '').toString(),
+                                style: TextStyle(
+                                  color: Colors.blue[600], 
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                          ),
+                          child: PopupMenuButton<String>(
+                            padding: const EdgeInsets.all(4),
+                            onSelected: (value) => _handleBusinessAction(value, business),
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(value: 'message', child: Text('Send Message')),
+                              const PopupMenuItem(value: 'payment', child: Text('Add Payment')),
+                              const PopupMenuItem(value: 'settings', child: Text('Settings')),
+                              const PopupMenuItem(value: 'users', child: Text('Manage Users')),
+                              const PopupMenuItem(value: 'analytics', child: Text('Analytics')),
+                              const PopupMenuItem(value: 'toggle_status', child: Text('Toggle Status')),
+                            ],
+                            child: const Icon(Icons.more_vert, size: 16, color: Colors.grey),
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                  PopupMenuButton<String>(
-                    padding: EdgeInsets.zero,
-                    onSelected: (value) => _handleBusinessAction(value, business),
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(value: 'message', child: Text('Send Message')),
-                      const PopupMenuItem(value: 'payment', child: Text('Add Payment')),
-                      const PopupMenuItem(value: 'settings', child: Text('Settings')),
-                      const PopupMenuItem(value: 'users', child: Text('Manage Users')),
-                      const PopupMenuItem(value: 'analytics', child: Text('Analytics')),
-                      const PopupMenuItem(value: 'toggle_status', child: Text('Toggle Status')),
-                    ],
-                    child: const Icon(Icons.more_vert, size: 18),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Wrap(
-                spacing: 4,
-                runSpacing: 2,
-                children: [
-                  _buildStatChip('Users', business['user_count']?.toString() ?? '0'),
-                  _buildStatChip('Products', business['product_count']?.toString() ?? '0'),
-                  _buildStatChip('Sales', business['sale_count']?.toString() ?? '0'),
-                  _buildStatChip('Customers', business['customer_count']?.toString() ?? '0'),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Wrap(
-                spacing: 4,
-                runSpacing: 2,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: _getSubscriptionColor(business['subscription_plan']),
-                      borderRadius: BorderRadius.circular(10),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 2,
+                      children: [
+                        _buildStatChip('Users', business['user_count']?.toString() ?? '0'),
+                        _buildStatChip('Products', business['product_count']?.toString() ?? '0'),
+                        _buildStatChip('Sales', business['sale_count']?.toString() ?? '0'),
+                        _buildStatChip('Customers', business['customer_count']?.toString() ?? '0'),
+                      ],
                     ),
-                    child: Text(
-                      (business['subscription_plan']?.toString().toUpperCase() ?? 'BASIC'),
-                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _getSubscriptionColor(business['subscription_plan']).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: _getSubscriptionColor(business['subscription_plan']).withOpacity(0.4),
+                            ),
+                          ),
+                          child: Text(
+                            (business['subscription_plan']?.toString().toUpperCase() ?? 'BASIC'),
+                            style: TextStyle(
+                              color: _getSubscriptionColor(business['subscription_plan']),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _getPaymentStatusColor(business['payment_status'] ?? 'current').withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: _getPaymentStatusColor(business['payment_status'] ?? 'current').withOpacity(0.4),
+                            ),
+                          ),
+                          child: Text(
+                            (business['payment_status'] ?? 'current').toString().toUpperCase(),
+                            style: TextStyle(
+                              color: _getPaymentStatusColor(business['payment_status'] ?? 'current'),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: _getPaymentStatusColor(business['payment_status'] ?? 'current'),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      (business['payment_status'] ?? 'current').toString().toUpperCase(),
-                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-              if (business['payment_status'] == 'overdue' || business['payment_status'] == 'suspended')
-                Container(
-                  margin: const EdgeInsets.only(top: 4),
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.warning, color: Colors.red, size: 12),
-                      const SizedBox(width: 3),
-                      Expanded(
-                        child: Text(
-                          business['payment_status'] == 'overdue' ? 'Payment Overdue' : 'Account Suspended',
-                          style: const TextStyle(color: Colors.red, fontSize: 9, fontWeight: FontWeight.bold),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    if (business['payment_status'] == 'overdue' || business['payment_status'] == 'suspended')
+                      Container(
+                        margin: const EdgeInsets.only(top: 3),
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.red.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.warning, color: Colors.red, size: 12),
+                            const SizedBox(width: 3),
+                            Expanded(
+                              child: Text(
+                                business['payment_status'] == 'overdue' ? 'Payment Overdue' : 'Account Suspended',
+                                style: const TextStyle(color: Colors.red, fontSize: 9, fontWeight: FontWeight.w600),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-            ],
+                  ],
+                );
+              }
+            },
           ),
         ),
       ),
@@ -2487,12 +2647,17 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.blue.withOpacity(0.3)),
       ),
       child: Text(
         '$label: $value',
-        style: const TextStyle(fontSize: 10),
+        style: TextStyle(
+          color: Colors.blue[700],
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -2555,8 +2720,8 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     }
     final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
     final response = await http.get(uri, headers: {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
     });
     if (response.statusCode == 200) {
       return json.decode(response.body);
@@ -4873,7 +5038,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                       Text(
                         (payment['description'] ?? '').toString(),
                         style: const TextStyle(fontSize: 13),
-                      ),
+            ),
           ],
         ),
                 ),
@@ -4889,7 +5054,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 ),
                 child: Text((payment['payment_type'] ?? '').toString(),
                     style: const TextStyle(fontSize: 11, color: Colors.blue, fontWeight: FontWeight.w500)),
-              ),
+                ),
                     const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -6878,15 +7043,15 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
           children: [
             // Visual picker with search and dropdown for mobile
             FutureBuilder<List<Map<String, dynamic>>>(
-              future: _fetchBusinessesForSelection(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+            future: _fetchBusinessesForSelection(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Padding(
                     padding: EdgeInsets.all(16),
                     child: Center(child: CircularProgressIndicator()),
                   );
-                }
-                if (snapshot.hasError) {
+              }
+              if (snapshot.hasError) {
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -6894,10 +7059,10 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                       const SizedBox(height: 8),
                       Text('Error: ${snapshot.error}'),
                     ],
-                  );
-                }
-                final businesses = snapshot.data ?? [];
-                if (businesses.isEmpty) {
+                );
+              }
+              final businesses = snapshot.data ?? [];
+              if (businesses.isEmpty) {
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: const [
@@ -6953,25 +7118,25 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                         maxWidth: MediaQuery.of(context).size.width * 0.8,
                       ),
                       child: ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: businesses.length,
+                shrinkWrap: true,
+                itemCount: businesses.length,
                         separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final business = businesses[index];
+                itemBuilder: (context, index) {
+                  final business = businesses[index];
                           final id = TypeConverter.safeToInt(business['id']);
                           final name = TypeConverter.safeToString(business['name'] ?? 'Unknown Business');
                           final email = TypeConverter.safeToString(business['email'] ?? '');
                           final isNarrow = MediaQuery.of(context).size.width < 380;
-                          return ListTile(
+                  return ListTile(
                             dense: true,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            leading: CircleAvatar(
-                              backgroundColor: Theme.of(context).primaryColor,
-                              child: Text(
+                    leading: CircleAvatar(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      child: Text(
                                 _getBusinessInitial(name),
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                              ),
-                            ),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
                             title: Text(
                               name,
                               maxLines: 1,
@@ -6988,10 +7153,10 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                                 ? IconButton(
                                     tooltip: 'Brand',
                                     onPressed: () {
-                                      Navigator.pop(context);
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
                                           builder: (context) => BusinessBrandingScreen(businessId: id),
                                         ),
                                       );
@@ -7017,15 +7182,15 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                                   ),
                             onTap: () {
                               setState(() => _brandingSelectedBusinessId = id);
-                            },
-                          );
-                        },
+                    },
+                  );
+                },
                       ),
                     ),
                   ],
-                );
-              },
-            ),
+              );
+            },
+          ),
           ],
         ),
         actions: [
@@ -10752,29 +10917,29 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 ? 100
                 : 120;
         return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
               width: labelWidth,
-              child: Text(
-                '$label:',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 softWrap: false,
-              ),
             ),
+          ),
             const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                value,
-                style: const TextStyle(fontWeight: FontWeight.w500),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w500),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 softWrap: false,
-              ),
             ),
-          ],
+          ),
+        ],
         );
       }),
     );
@@ -10934,19 +11099,19 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         CircleAvatar(
-                          backgroundColor: _getRoleColor(user['role']).withOpacity(0.2),
-                          child: Text(
+                backgroundColor: _getRoleColor(user['role']).withOpacity(0.2),
+                child: Text(
                             (user['name']?.toString().isNotEmpty ?? false)
                                 ? user['name'].toString()[0].toUpperCase()
                                 : 'U',
-                            style: TextStyle(color: _getRoleColor(user['role']), fontSize: 12),
-                          ),
-                        ),
+                  style: TextStyle(color: _getRoleColor(user['role']), fontSize: 12),
+                ),
+              ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: Column(
+                child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                  children: [
                               Text(user['name']?.toString() ?? '',
                                   style: const TextStyle(fontWeight: FontWeight.w600)),
                               const SizedBox(height: 2),
@@ -10956,26 +11121,26 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _getRoleColor(user['role']).withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            user['role']?.toString().toUpperCase() ?? '',
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _getRoleColor(user['role']).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        user['role']?.toString().toUpperCase() ?? '',
                             style: TextStyle(
                               color: _getRoleColor(user['role']),
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                      ),
+                    ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      _formatDate(user['last_login']),
+                      _formatDate(user['last_login']), 
                       style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                     ),
                   ],
@@ -11215,8 +11380,8 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         CircleAvatar(
-                          backgroundColor: Colors.blue.withOpacity(0.2),
-                          child: Text(
+                backgroundColor: Colors.blue.withOpacity(0.2),
+                child: Text(
                             (customer['name']?.toString().isNotEmpty ?? false)
                                 ? customer['name'].toString()[0].toUpperCase()
                                 : 'C',
@@ -11225,9 +11390,9 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: Column(
+                child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                  children: [
                               Text((customer['name'] ?? '').toString(),
                                   style: const TextStyle(fontWeight: FontWeight.w600)),
                               const SizedBox(height: 2),
@@ -11238,16 +11403,16 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                         ),
                         const SizedBox(width: 8),
                         if (customer['loyalty_points'] != null && (customer['loyalty_points'] is num) && (customer['loyalty_points'] as num) > 0)
-                          Container(
+                      Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withOpacity(0.2),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
-                            ),
+                        ),
                             child: Text('${customer['loyalty_points']} pts',
                                 style: TextStyle(color: Colors.amber[800], fontSize: 10, fontWeight: FontWeight.bold)),
-                          ),
-                      ],
+                        ),
+                    ],
                     ),
                     const SizedBox(height: 6),
                     Text(

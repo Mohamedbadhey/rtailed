@@ -121,22 +121,76 @@ class _POSScreenState extends State<POSScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth <= 768;
+        final isSmallMobile = constraints.maxWidth <= 480;
         
         if (isMobile) {
-          // Mobile layout - stacked vertically
-          return Column(
+          // Mobile layout - full screen products with floating cart icon
+          return Stack(
             children: [
-              Expanded(
-                flex: 2,
-                child: _buildProductSection(isMobile),
-              ),
-              Container(
-                height: 1,
-                color: Colors.grey[300],
-              ),
-              Expanded(
-                flex: 1,
-                child: _buildCartSection(isMobile),
+              // Full screen products section
+              _buildProductSection(isMobile, isSmallMobile),
+              
+              // Floating cart icon
+              Positioned(
+                top: isSmallMobile ? 16 : 20,
+                right: isSmallMobile ? 16 : 20,
+                child: Consumer<CartProvider>(
+                  builder: (context, cart, child) {
+                    return GestureDetector(
+                      onTap: () {
+                        _showMobileCartDialog(context, cart);
+                      },
+                      child: Container(
+                        width: isSmallMobile ? 56 : 64,
+                        height: isSmallMobile ? 56 : 64,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).primaryColor,
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Stack(
+                          children: [
+                            Center(
+                              child: Icon(
+                                Icons.shopping_cart,
+                                color: Colors.white,
+                                size: isSmallMobile ? 24 : 28,
+                              ),
+                            ),
+                                                              if (cart.items.isNotEmpty)
+                                    Positioned(
+                                      top: 4,
+                                      right: 4,
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 200),
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red,
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: Colors.white, width: 2),
+                                        ),
+                                        child: Text(
+                                          '${cart.items.length}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
             ],
           );
@@ -146,12 +200,12 @@ class _POSScreenState extends State<POSScreen> {
             children: [
               Expanded(
                 flex: 2,
-                child: _buildProductSection(isMobile),
+                child: _buildProductSection(isMobile, isSmallMobile),
               ),
               const VerticalDivider(width: 1),
               Expanded(
                 flex: 1,
-                child: _buildCartSection(isMobile),
+                child: _buildCartSection(isMobile, isSmallMobile),
               ),
             ],
           );
@@ -160,38 +214,104 @@ class _POSScreenState extends State<POSScreen> {
     );
   }
 
-  Widget _buildProductSection(bool isMobile) {
+  Widget _buildProductSection(bool isMobile, bool isSmallMobile) {
     return Column(
       children: [
-        // Branded Header
+        // Ultra-compact Branded Header for mobile
         Consumer<BrandingProvider>(
           builder: (context, brandingProvider, child) {
-            return BrandedHeader(
-              subtitle: t(context, 'Point of Sale'),
-              logoSize: isMobile ? 50 : 60,
+            return Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                vertical: isSmallMobile ? 6 : (isMobile ? 8 : 12),
+              ),
+              child: Row(
+                children: [
+                  // Compact logo
+                  Container(
+                    width: isSmallMobile ? 28 : (isMobile ? 36 : 60),
+                    height: isSmallMobile ? 28 : (isMobile ? 36 : 60),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.point_of_sale,
+                      color: Colors.white,
+                      size: isSmallMobile ? 16 : (isMobile ? 20 : 40),
+                    ),
+                  ),
+                  SizedBox(width: isSmallMobile ? 8 : 12),
+                  // Compact title
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Point of Sale',
+                          style: TextStyle(
+                            fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 24),
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                        if (isMobile) Text(
+                          'Tap products to add to cart',
+                          style: TextStyle(
+                            fontSize: isSmallMobile ? 10 : 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         ),
+        // Compact filter section for mobile
+        if (isMobile) ...[
         Padding(
-          padding: EdgeInsets.all(isMobile ? 12 : 16),
-          child: Column(
+            padding: EdgeInsets.symmetric(
+              horizontal: isSmallMobile ? 6 : 8,
+              vertical: isSmallMobile ? 4 : 6,
+            ),
+            child: Row(
             children: [
-              if (isMobile) ...[
-                // Mobile layout - stacked filters
-                CustomTextField(
+                // Compact search field
+                Expanded(
+                  flex: 3,
+                  child: Container(
+                    height: isSmallMobile ? 36 : 40,
+                    child: TextField(
                   controller: _searchController,
-                  labelText: t(context, 'search_products'),
-                  prefixIcon: const Icon(Icons.search),
+                      decoration: InputDecoration(
+                        hintText: t(context, 'search_products'),
+                        prefixIcon: Icon(Icons.search, size: isSmallMobile ? 16 : 18),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: isSmallMobile ? 8 : 10,
+                          vertical: isSmallMobile ? 8 : 10,
+                        ),
+                        isDense: true,
+                      ),
                   onChanged: (value) {
                     _applyFilters();
                   },
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
+                  ),
+                ),
+                SizedBox(width: isSmallMobile ? 6 : 8),
+                // Compact category dropdown
                     Expanded(
+                  flex: 2,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                    height: isSmallMobile ? 36 : 40,
+                    padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 6 : 8),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey[300]!),
                           borderRadius: BorderRadius.circular(8),
@@ -200,12 +320,14 @@ class _POSScreenState extends State<POSScreen> {
                           value: _selectedCategory,
                           underline: const SizedBox(),
                           isExpanded: true,
+                      isDense: true,
                           items: _categories.map((category) {
                             return DropdownMenuItem(
                               value: category,
                               child: Text(
                                 category,
                                 overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
                               ),
                             );
                           }).toList(),
@@ -218,21 +340,35 @@ class _POSScreenState extends State<POSScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                SizedBox(width: isSmallMobile ? 6 : 8),
+                // Compact refresh button
                     Container(
+                  height: isSmallMobile ? 36 : 40,
+                  width: isSmallMobile ? 36 : 40,
                       decoration: BoxDecoration(
                         color: Colors.blue[50],
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.refresh, color: Colors.blue),
+                    icon: Icon(Icons.refresh, color: Colors.blue, size: isSmallMobile ? 16 : 18),
                         onPressed: _loadProducts,
                         tooltip: t(context, 'refresh_products'),
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(
+                      minWidth: isSmallMobile ? 36 : 40,
+                      minHeight: isSmallMobile ? 36 : 40,
+                    ),
                       ),
                     ),
                   ],
+            ),
                 ),
               ] else ...[
+          // Desktop/Tablet layout - keep original padding
+          Padding(
+            padding: EdgeInsets.all(isSmallMobile ? 8 : (isMobile ? 12 : 16)),
+            child: Column(
+              children: [
                 // Desktop/Tablet layout - horizontal filters
                 Row(
                   children: [
@@ -284,10 +420,10 @@ class _POSScreenState extends State<POSScreen> {
                     ),
                   ],
                 ),
-              ],
             ],
           ),
         ),
+        ],
         Expanded(
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -298,14 +434,14 @@ class _POSScreenState extends State<POSScreen> {
                         children: [
                           Icon(
                             Icons.inventory_2_outlined,
-                            size: 64,
+                            size: isSmallMobile ? 32 : 64,
                             color: Colors.grey,
                           ),
-                          SizedBox(height: 16),
+                          SizedBox(height: isSmallMobile ? 6 : 16),
                           Text(
                             t(context, 'no_products_found'),
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: isSmallMobile ? 13 : 18,
                               color: Colors.grey,
                             ),
                           ),
@@ -313,16 +449,16 @@ class _POSScreenState extends State<POSScreen> {
                       ),
                     )
                   : GridView.builder(
-                      padding: EdgeInsets.all(isMobile ? 8 : 16),
+                      padding: EdgeInsets.all(isSmallMobile ? 4 : (isMobile ? 6 : 16)),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: isMobile ? 2 : 3,
-                        childAspectRatio: isMobile ? 0.7 : 0.8,
-                        crossAxisSpacing: isMobile ? 8 : 16,
-                        mainAxisSpacing: isMobile ? 8 : 16,
+                        crossAxisCount: isSmallMobile ? 2 : (isMobile ? 2 : 3),
+                        childAspectRatio: isSmallMobile ? 0.65 : (isMobile ? 0.7 : 0.8), // Better proportions for mobile
+                        crossAxisSpacing: isSmallMobile ? 6 : (isMobile ? 8 : 16),
+                        mainAxisSpacing: isSmallMobile ? 6 : (isMobile ? 8 : 16),
                       ),
                       itemCount: _filteredProducts.length,
                       itemBuilder: (context, index) {
-                        return _buildProductCard(_filteredProducts[index], isMobile);
+                        return _buildProductCard(_filteredProducts[index], isMobile, isSmallMobile);
                       },
                     ),
         ),
@@ -330,7 +466,7 @@ class _POSScreenState extends State<POSScreen> {
     );
   }
 
-  Widget _buildProductCard(Product product, bool isMobile) {
+  Widget _buildProductCard(Product product, bool isMobile, bool isSmallMobile) {
     final isLowStock = product.stockQuantity <= product.lowStockThreshold;
     
     return Card(
@@ -341,19 +477,50 @@ class _POSScreenState extends State<POSScreen> {
           if (product.stockQuantity > 0) {
             final mode = await showDialog<String>(
               context: context,
-              builder: (context) => AlertDialog(
-                title: Text(t(context, 'select_sale_mode')),
-                content: Text(t(context, 'is_this_sale_retail_or_wholesale')),
+              builder: (context) => LayoutBuilder(
+                builder: (context, constraints) {
+                  final isMobile = constraints.maxWidth <= 600;
+                  final isSmallMobile = constraints.maxWidth <= 480;
+                  
+                  return AlertDialog(
+                    title: Text(
+                      t(context, 'select_sale_mode'),
+                      style: TextStyle(fontSize: isSmallMobile ? 16 : (isMobile ? 18 : 20)),
+                    ),
+                    content: Text(
+                      t(context, 'is_this_sale_retail_or_wholesale'),
+                      style: TextStyle(fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18)),
+                    ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop('retail'),
-                    child: Text(t(context, 'retail')),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isSmallMobile ? 8 : 12,
+                            vertical: isSmallMobile ? 6 : 8,
+                          ),
+                        ),
+                        child: Text(
+                          t(context, 'retail'),
+                          style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+                        ),
                   ),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop('wholesale'),
-                    child: Text(t(context, 'wholesale')),
-                  ),
-                ],
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isSmallMobile ? 8 : 12,
+                            vertical: isSmallMobile ? 6 : 8,
+                          ),
+                        ),
+                        child: Text(
+                          t(context, 'wholesale'),
+                          style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             );
             if (mode == 'retail') {
@@ -363,20 +530,42 @@ class _POSScreenState extends State<POSScreen> {
                 context: context,
                 builder: (context) {
                   final controller = TextEditingController();
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isMobile = constraints.maxWidth <= 600;
+                      final isSmallMobile = constraints.maxWidth <= 480;
+                      
                   return AlertDialog(
-                    title: Text(t(context, 'wholesale_quantity')),
+                        title: Text(
+                          t(context, 'wholesale_quantity'),
+                          style: TextStyle(fontSize: isSmallMobile ? 16 : (isMobile ? 18 : 20)),
+                        ),
                     content: TextField(
                       controller: controller,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: t(context, 'quantity'),
                         hintText: t(context, 'enter_wholesale_quantity'),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: isSmallMobile ? 8 : 12,
+                              vertical: isSmallMobile ? 10 : 12,
                       ),
+                          ),
+                          style: TextStyle(fontSize: isSmallMobile ? 14 : 16),
                     ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        child: Text(t(context, 'cancel')),
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isSmallMobile ? 8 : 12,
+                                vertical: isSmallMobile ? 6 : 8,
+                              ),
+                            ),
+                            child: Text(
+                              t(context, 'cancel'),
+                              style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+                            ),
                       ),
                       ElevatedButton(
                         onPressed: () {
@@ -385,9 +574,20 @@ class _POSScreenState extends State<POSScreen> {
                             Navigator.of(context).pop(q);
                           }
                         },
-                        child: Text(t(context, 'add')),
-                      ),
-                    ],
+                            style: ElevatedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isSmallMobile ? 8 : 12,
+                                vertical: isSmallMobile ? 6 : 8,
+                              ),
+                            ),
+                            child: Text(
+                              t(context, 'add'),
+                              style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   );
                 },
               );
@@ -444,7 +644,7 @@ class _POSScreenState extends State<POSScreen> {
                                 return Center(
                                   child: Icon(
                                     Icons.image,
-                                    size: isMobile ? 32 : 48,
+                                    size: isSmallMobile ? 20 : (isMobile ? 28 : 48),
                                     color: Colors.grey,
                                   ),
                                 );
@@ -454,7 +654,7 @@ class _POSScreenState extends State<POSScreen> {
                         : Center(
                             child: Icon(
                               Icons.image,
-                              size: isMobile ? 32 : 48,
+                              size: isSmallMobile ? 20 : (isMobile ? 28 : 48),
                               color: Colors.grey,
                             ),
                           ),
@@ -465,18 +665,18 @@ class _POSScreenState extends State<POSScreen> {
                       right: 8,
                       child: Container(
                         padding: EdgeInsets.symmetric(
-                          horizontal: isMobile ? 4 : 6,
-                          vertical: isMobile ? 1 : 2,
+                          horizontal: isSmallMobile ? 2 : (isMobile ? 3 : 6),
+                          vertical: isSmallMobile ? 1 : (isMobile ? 1 : 2),
                         ),
                         decoration: BoxDecoration(
                           color: Colors.red,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           t(context, 'low'),
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: isMobile ? 8 : 10,
+                            fontSize: isSmallMobile ? 6 : (isMobile ? 7 : 10),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -488,18 +688,18 @@ class _POSScreenState extends State<POSScreen> {
                       left: 8,
                       child: Container(
                         padding: EdgeInsets.symmetric(
-                          horizontal: isMobile ? 4 : 6,
-                          vertical: isMobile ? 1 : 2,
+                          horizontal: isSmallMobile ? 2 : (isMobile ? 3 : 6),
+                          vertical: isSmallMobile ? 1 : (isMobile ? 1 : 2),
                         ),
                         decoration: BoxDecoration(
                           color: Colors.grey[700],
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           t(context, 'out'),
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: isMobile ? 8 : 10,
+                            fontSize: isSmallMobile ? 6 : (isMobile ? 7 : 10),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -511,7 +711,7 @@ class _POSScreenState extends State<POSScreen> {
             Expanded(
               flex: 2,
               child: Padding(
-                padding: EdgeInsets.all(isMobile ? 6 : 8),
+                padding: EdgeInsets.all(isSmallMobile ? 4 : (isMobile ? 6 : 8)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -519,26 +719,26 @@ class _POSScreenState extends State<POSScreen> {
                       product.name,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: isMobile ? 12 : 14,
+                        fontSize: isSmallMobile ? 11 : (isMobile ? 12 : 14),
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: isSmallMobile ? 3 : 4),
                     Text(
                       '${t(context, 'cost')}: ${product.costPrice.toStringAsFixed(2)}',
                       style: TextStyle(
                         color: Colors.green[700],
                         fontWeight: FontWeight.bold,
-                        fontSize: isMobile ? 12 : 14,
+                        fontSize: isSmallMobile ? 10 : (isMobile ? 11 : 14),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: isSmallMobile ? 3 : 4),
                     Text(
                       '${t(context, 'stock')}: ${product.stockQuantity}',
                       style: TextStyle(
                         color: Colors.grey[600],
-                        fontSize: isMobile ? 10 : 12,
+                        fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 12),
                       ),
                     ),
                   ],
@@ -551,14 +751,17 @@ class _POSScreenState extends State<POSScreen> {
     );
   }
 
-  Widget _buildCartSection(bool isMobile) {
+  Widget _buildCartSection(bool isMobile, bool isSmallMobile) {
     return Consumer<CartProvider>(
       builder: (context, cart, child) {
         return Column(
           children: [
-            // Header
+            // Ultra-compact cart header for mobile
             Container(
-              padding: EdgeInsets.all(isMobile ? 12 : 16),
+              padding: EdgeInsets.symmetric(
+                horizontal: isSmallMobile ? 4 : (isMobile ? 6 : 16),
+                vertical: isSmallMobile ? 4 : (isMobile ? 6 : 12),
+              ),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
@@ -576,18 +779,18 @@ class _POSScreenState extends State<POSScreen> {
               child: Row(
                 children: [
                   Container(
-                    padding: EdgeInsets.all(isMobile ? 6 : 8),
+                    padding: EdgeInsets.all(isSmallMobile ? 2 : (isMobile ? 3 : 8)),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: Icon(
                       Icons.shopping_cart,
                       color: Colors.white,
-                      size: isMobile ? 20 : 24,
+                      size: isSmallMobile ? 12 : (isMobile ? 16 : 24),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: isSmallMobile ? 4 : 6),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -595,16 +798,16 @@ class _POSScreenState extends State<POSScreen> {
                         Text(
                           t(context, 'shopping_cart'),
                           style: TextStyle(
-                            fontSize: isMobile ? 16 : 20,
+                            fontSize: isSmallMobile ? 11 : (isMobile ? 13 : 20),
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        SizedBox(height: isSmallMobile ? 1 : 2),
                         Text(
                           '${cart.items.length} ${t(context, 'items')}',
                           style: TextStyle(
-                            fontSize: isMobile ? 12 : 14,
+                            fontSize: isSmallMobile ? 8 : (isMobile ? 9 : 14),
                             color: Colors.white.withOpacity(0.9),
                           ),
                         ),
@@ -615,18 +818,18 @@ class _POSScreenState extends State<POSScreen> {
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.white),
+                        icon: Icon(Icons.clear, color: Colors.white, size: isSmallMobile ? 12 : 16),
                         onPressed: () {
                           cart.clearCart();
                         },
                         tooltip: t(context, 'clear_cart'),
-                        padding: EdgeInsets.all(isMobile ? 4 : 8),
+                        padding: EdgeInsets.all(isSmallMobile ? 1 : 3),
                         constraints: BoxConstraints(
-                          minWidth: isMobile ? 32 : 40,
-                          minHeight: isMobile ? 32 : 40,
+                          minWidth: isSmallMobile ? 18 : (isMobile ? 24 : 40),
+                          minHeight: isSmallMobile ? 18 : (isMobile ? 24 : 40),
                         ),
                       ),
                     ),
@@ -644,22 +847,22 @@ class _POSScreenState extends State<POSScreen> {
                           children: [
                             Icon(
                               Icons.shopping_cart_outlined,
-                              size: isMobile ? 48 : 64,
+                              size: isSmallMobile ? 20 : (isMobile ? 28 : 64),
                               color: Colors.grey,
                             ),
-                            const SizedBox(height: 16),
+                            SizedBox(height: isSmallMobile ? 6 : 10),
                             Text(
                               t(context, 'cart_is_empty'),
                               style: TextStyle(
-                                fontSize: isMobile ? 16 : 18,
+                                fontSize: isSmallMobile ? 11 : (isMobile ? 13 : 18),
                                 color: Colors.grey,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: isSmallMobile ? 3 : 6),
                             Text(
                               t(context, 'add_products_to_get_started'),
                               style: TextStyle(
-                                fontSize: isMobile ? 12 : 14,
+                                fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 14),
                                 color: Colors.grey[600],
                               ),
                             ),
@@ -668,7 +871,7 @@ class _POSScreenState extends State<POSScreen> {
                       ),
                     )
                   : ListView.builder(
-                      padding: EdgeInsets.all(isMobile ? 8 : 12),
+                      padding: EdgeInsets.all(isSmallMobile ? 1 : (isMobile ? 2 : 12)),
                       itemCount: cart.items.length,
                       itemBuilder: (context, index) {
                         final item = cart.items[index];
@@ -681,12 +884,12 @@ class _POSScreenState extends State<POSScreen> {
                         return StatefulBuilder(
                           builder: (context, setItemState) {
                             return Card(
-                              margin: EdgeInsets.only(bottom: isMobile ? 6 : 8),
+                              margin: EdgeInsets.only(bottom: isSmallMobile ? 1 : (isMobile ? 2 : 8)),
                               child: ListTile(
-                                contentPadding: EdgeInsets.all(isMobile ? 8 : 12),
+                                contentPadding: EdgeInsets.all(isSmallMobile ? 3 : (isMobile ? 4 : 12)),
                                 leading: Container(
-                                  width: isMobile ? 40 : 50,
-                                  height: isMobile ? 40 : 50,
+                                  width: isSmallMobile ? 24 : (isMobile ? 32 : 50),
+                                  height: isSmallMobile ? 24 : (isMobile ? 32 : 50),
                                   decoration: BoxDecoration(
                                     color: Colors.grey[200],
                                     borderRadius: BorderRadius.circular(8),
@@ -700,7 +903,7 @@ class _POSScreenState extends State<POSScreen> {
                                             errorBuilder: (context, error, stackTrace) {
                                               return Icon(
                                                 Icons.image,
-                                                size: isMobile ? 16 : 20,
+                                                size: isSmallMobile ? 12 : (isMobile ? 16 : 20),
                                                 color: Colors.grey,
                                               );
                                             },
@@ -708,14 +911,14 @@ class _POSScreenState extends State<POSScreen> {
                                         )
                                       : Icon(
                                           Icons.image,
-                                          size: isMobile ? 16 : 20,
+                                          size: isSmallMobile ? 12 : (isMobile ? 16 : 20),
                                           color: Colors.grey,
                                         ),
                                 ),
                                 title: Text(
                                   item.product.name,
                                   style: TextStyle(
-                                    fontSize: isMobile ? 14 : 16,
+                                    fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
                                     fontWeight: FontWeight.bold,
                                   ),
                                   maxLines: 1,
@@ -723,19 +926,20 @@ class _POSScreenState extends State<POSScreen> {
                                 ),
                                 subtitle: Text(
                                   '${t(context, 'cost')}: ${item.product.costPrice.toStringAsFixed(2)}',
+                                  style: TextStyle(fontSize: isSmallMobile ? 10 : (isMobile ? 12 : 14)),
                                 ),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     IconButton(
-                                      icon: const Icon(Icons.remove, size: 18),
+                                      icon: Icon(Icons.remove, size: isSmallMobile ? 14 : 18),
                                       onPressed: () {
                                         cart.removeItem(item.product);
                                       },
-                                      padding: EdgeInsets.all(isMobile ? 4 : 8),
+                                      padding: EdgeInsets.all(isSmallMobile ? 2 : (isMobile ? 4 : 8)),
                                       constraints: BoxConstraints(
-                                        minWidth: isMobile ? 28 : 32,
-                                        minHeight: isMobile ? 28 : 32,
+                                        minWidth: isSmallMobile ? 24 : (isMobile ? 28 : 32),
+                                        minHeight: isSmallMobile ? 24 : (isMobile ? 28 : 32),
                                       ),
                                     ),
                                     GestureDetector(
@@ -779,7 +983,7 @@ class _POSScreenState extends State<POSScreen> {
                                       child: Text(
                                       '${item.quantity}',
                                       style: TextStyle(
-                                        fontSize: isMobile ? 14 : 16,
+                                        fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
                                         fontWeight: FontWeight.bold,
                                           decoration: TextDecoration.underline,
                                           color: Colors.blue,
@@ -787,14 +991,14 @@ class _POSScreenState extends State<POSScreen> {
                                       ),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.add, size: 18),
+                                      icon: Icon(Icons.add, size: isSmallMobile ? 14 : 18),
                                       onPressed: () {
                                         cart.addItem(item.product);
                                       },
-                                      padding: EdgeInsets.all(isMobile ? 4 : 8),
+                                      padding: EdgeInsets.all(isSmallMobile ? 2 : (isMobile ? 4 : 8)),
                                       constraints: BoxConstraints(
-                                        minWidth: isMobile ? 28 : 32,
-                                        minHeight: isMobile ? 28 : 32,
+                                        minWidth: isSmallMobile ? 24 : (isMobile ? 28 : 32),
+                                        minHeight: isSmallMobile ? 24 : (isMobile ? 28 : 32),
                                       ),
                                     ),
                                   ],
@@ -807,9 +1011,9 @@ class _POSScreenState extends State<POSScreen> {
                     ),
             ),
             
-            // Total and Checkout
+            // Ultra-compact Total and Checkout for mobile
             Container(
-              padding: EdgeInsets.all(isMobile ? 12 : 16),
+              padding: EdgeInsets.all(isSmallMobile ? 6 : (isMobile ? 8 : 16)),
               decoration: BoxDecoration(
                 color: Colors.white,
                 border: Border(
@@ -824,21 +1028,21 @@ class _POSScreenState extends State<POSScreen> {
                       Text(
                         t(context, 'total'),
                         style: TextStyle(
-                          fontSize: isMobile ? 16 : 18,
+                          fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 18),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         '\$${cart.total.toStringAsFixed(2)}',
                         style: TextStyle(
-                          fontSize: isMobile ? 18 : 20,
+                          fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 20),
                           fontWeight: FontWeight.bold,
                           color: Colors.green[700],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: isSmallMobile ? 8 : 12),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -848,16 +1052,16 @@ class _POSScreenState extends State<POSScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: isMobile ? 12 : 16),
+                        padding: EdgeInsets.symmetric(vertical: isSmallMobile ? 8 : (isMobile ? 10 : 16)),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        elevation: 2,
+                        elevation: 1,
                       ),
                       child: Text(
                         t(context, 'checkout'),
                         style: TextStyle(
-                          fontSize: isMobile ? 16 : 18,
+                          fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 18),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -877,6 +1081,17 @@ class _POSScreenState extends State<POSScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => _CheckoutDialog(cart: cart, saleMode: _saleMode),
+    );
+  }
+
+  void _showMobileCartDialog(BuildContext context, CartProvider cart) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => _MobileCartDialog(cart: cart, onCheckout: () {
+        Navigator.of(context).pop();
+        _showCheckoutDialog(context, cart);
+      }),
     );
   }
 }
@@ -1025,7 +1240,8 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth <= 600;
-        final maxHeight = MediaQuery.of(context).size.height * 0.9;
+        final isSmallMobile = constraints.maxWidth <= 480;
+        final maxHeight = MediaQuery.of(context).size.height * (isSmallMobile ? 0.95 : 0.9);
         
         // Move these inside the builder so they are in scope for the widget tree
         final combinedCost = widget.cart.items.fold(0.0, (sum, item) => sum + (item.product.costPrice * item.quantity));
@@ -1043,19 +1259,19 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
         return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: Container(
-            width: MediaQuery.of(context).size.width * (isMobile ? 0.95 : 0.9),
+            width: MediaQuery.of(context).size.width * (isSmallMobile ? 0.98 : (isMobile ? 0.95 : 0.9)),
             constraints: BoxConstraints(
-              maxWidth: isMobile ? double.infinity : 500,
+              maxWidth: isSmallMobile ? double.infinity : (isMobile ? double.infinity : 500),
               maxHeight: maxHeight,
             ),
-            padding: EdgeInsets.all(isMobile ? 16 : 24),
+            padding: EdgeInsets.all(isSmallMobile ? 12 : (isMobile ? 16 : 24)),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header
                 Container(
-                  padding: EdgeInsets.all(isMobile ? 12 : 16),
+                  padding: EdgeInsets.all(isSmallMobile ? 10 : (isMobile ? 12 : 16)),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [Colors.green, Colors.green.withOpacity(0.8)],
@@ -1067,14 +1283,14 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                   child: Row(
                     children: [
                       Container(
-                        padding: EdgeInsets.all(isMobile ? 6 : 8),
+                        padding: EdgeInsets.all(isSmallMobile ? 4 : (isMobile ? 6 : 8)),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(Icons.payment, color: Colors.white, size: isMobile ? 20 : 24),
+                        child: Icon(Icons.payment, color: Colors.white, size: isSmallMobile ? 18 : (isMobile ? 20 : 24)),
                       ),
-                      SizedBox(width: isMobile ? 8 : 12),
+                      SizedBox(width: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1082,7 +1298,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                             Text(
                               t(context, 'checkout'),
                               style: TextStyle(
-                                fontSize: isMobile ? 18 : 20,
+                                fontSize: isSmallMobile ? 16 : (isMobile ? 18 : 20),
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
@@ -1090,7 +1306,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                             Text(
                               t(context, 'complete_your_sale'),
                               style: TextStyle(
-                                fontSize: isMobile ? 12 : 14,
+                                fontSize: isSmallMobile ? 10 : (isMobile ? 12 : 14),
                                 color: Colors.white,
                               ),
                             ),
@@ -1099,17 +1315,17 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                       ),
                       IconButton(
                         onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-                        icon: Icon(Icons.close, color: Colors.white, size: isMobile ? 20 : 24),
-                        padding: EdgeInsets.all(isMobile ? 4 : 8),
+                        icon: Icon(Icons.close, color: Colors.white, size: isSmallMobile ? 18 : (isMobile ? 20 : 24)),
+                        padding: EdgeInsets.all(isSmallMobile ? 2 : (isMobile ? 4 : 8)),
                         constraints: BoxConstraints(
-                          minWidth: isMobile ? 32 : 40,
-                          minHeight: isMobile ? 32 : 40,
+                          minWidth: isSmallMobile ? 28 : (isMobile ? 32 : 40),
+                          minHeight: isSmallMobile ? 28 : (isMobile ? 32 : 40),
                         ),
                       ),
                     ],
                   ),
                 ),
-                SizedBox(height: isMobile ? 16 : 24),
+                SizedBox(height: isSmallMobile ? 12 : (isMobile ? 16 : 24)),
 
                 // Scrollable Content
                 Expanded(
@@ -1119,7 +1335,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                       children: [
                         // Order Summary
                         Container(
-                          padding: EdgeInsets.all(isMobile ? 12 : 16),
+                          padding: EdgeInsets.all(isSmallMobile ? 8 : (isMobile ? 12 : 16)),
                           decoration: BoxDecoration(
                             color: Colors.grey[50],
                             borderRadius: BorderRadius.circular(12),
@@ -1131,18 +1347,18 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                               Text(
                                 t(context, 'order_summary'),
                                 style: TextStyle(
-                                  fontSize: isMobile ? 18 : 20, 
+                                  fontSize: isSmallMobile ? 16 : (isMobile ? 18 : 20), 
                                   fontWeight: FontWeight.bold,
                                   color: Colors.blue[900],
                                 ),
                               ),
-                              SizedBox(height: isMobile ? 8 : 12),
+                              SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
                               Divider(thickness: 1.2),
                               Text(
                                 t(context, 'enter_custom_prices'),
-                                style: TextStyle(fontSize: isMobile ? 16 : 18, fontWeight: FontWeight.bold, color: Colors.blue[700]),
+                                style: TextStyle(fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18), fontWeight: FontWeight.bold, color: Colors.blue[700]),
                               ),
-                              SizedBox(height: isMobile ? 8 : 12),
+                              SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
                               SingleChildScrollView(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1163,8 +1379,75 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                     return StatefulBuilder(
                                       builder: (context, setItemState) {
                                         return Padding(
-                                          padding: EdgeInsets.only(bottom: isMobile ? 6 : 8),
-                                          child: Row(
+                                          padding: EdgeInsets.only(bottom: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
+                                          child: isSmallMobile 
+                                            ? Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    '${item.product.name} x${item.quantity}',
+                                                    style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+                                                  ),
+                                                  SizedBox(height: 4),
+                                                  Row(
+                                                    children: [
+                                                      Text(
+                                                        '${t(context, 'cost')}: ${item.product.costPrice.toStringAsFixed(2)}',
+                                                        style: TextStyle(
+                                                          fontSize: isSmallMobile ? 10 : 12,
+                                                          color: Colors.grey[700],
+                                                        ),
+                                                      ),
+                                                      Spacer(),
+                                                      Text(
+                                                        '\$${item.total.toStringAsFixed(2)}',
+                                                        style: TextStyle(
+                                                          fontWeight: FontWeight.bold,
+                                                          fontSize: isSmallMobile ? 12 : 14,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  SizedBox(height: 4),
+                                                  SizedBox(
+                                                    width: double.infinity,
+                                                    child: TextFormField(
+                                                      controller: controller,
+                                                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                                                      decoration: InputDecoration(
+                                                        labelText: t(context, 'custom_price'),
+                                                        hintText: t(context, 'enter_custom_price'),
+                                                        prefixIcon: Icon(Icons.attach_money, color: Colors.green[700], size: isSmallMobile ? 16 : 18),
+                                                        border: OutlineInputBorder(
+                                                          borderRadius: BorderRadius.circular(8),
+                                                        ),
+                                                        isDense: true,
+                                                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: isSmallMobile ? 8 : 10),
+                                                        errorText: (controller.text.isEmpty || isInvalid) ? '${t(context, 'required_min_cost_quantity')}: ${(item.product.costPrice * item.quantity).toStringAsFixed(2)}' : null,
+                                                        focusedBorder: OutlineInputBorder(
+                                                          borderSide: BorderSide(
+                                                            color: (controller.text.isEmpty || isInvalid) ? Colors.red : Colors.green,
+                                                            width: 2,
+                                                          ),
+                                                          borderRadius: BorderRadius.circular(8),
+                                                        ),
+                                                        helperText: t(context, 'must_be_min_cost_quantity'),
+                                                      ),
+                                                      style: TextStyle(fontSize: isSmallMobile ? 12 : 14, fontWeight: FontWeight.bold),
+                                                      onChanged: (value) {
+                                                        final price = double.tryParse(value);
+                                                        final minTotal = item.product.costPrice * item.quantity;
+                                                        final valid = price != null && (price * item.quantity) >= minTotal;
+                                                        setItemState(() => isInvalid = !valid);
+                                                        setState(() {
+                                                          widget.cart.updateCustomPrice(item.product, valid ? price! : item.product.costPrice);
+                                                        });
+                                                      },
+                                                    ),
+                                                  ),
+                                                ],
+                                              )
+                                            : Row(
                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             crossAxisAlignment: CrossAxisAlignment.center,
                                             children: [
@@ -1246,14 +1529,14 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                   Text(
                                     t(context, 'total'),
                                     style: TextStyle(
-                                      fontSize: isMobile ? 16 : 18, 
+                                      fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18), 
                                       fontWeight: FontWeight.bold
                                     ),
                                   ),
                                   Text(
                                     '\$${widget.cart.total.toStringAsFixed(2)}',
                                     style: TextStyle(
-                                      fontSize: isMobile ? 18 : 20,
+                                      fontSize: isSmallMobile ? 16 : (isMobile ? 18 : 20),
                                       fontWeight: FontWeight.bold,
                                       color: Colors.green[700],
                                     ),
@@ -1263,19 +1546,19 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                             ],
                           ),
                         ),
-                        SizedBox(height: isMobile ? 16 : 24),
+                        SizedBox(height: isSmallMobile ? 12 : (isMobile ? 16 : 24)),
 
                         // Payment Method
                         Text(
                           t(context, 'payment_method'),
                           style: TextStyle(
-                            fontSize: isMobile ? 14 : 16, 
+                            fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16), 
                             fontWeight: FontWeight.bold
                           ),
                         ),
-                        SizedBox(height: isMobile ? 6 : 8),
+                        SizedBox(height: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 12),
+                          padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
                           decoration: BoxDecoration(
                             border: Border.all(color: Colors.grey[300]!),
                             borderRadius: BorderRadius.circular(8),
@@ -1289,7 +1572,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                 value: method,
                                 child: Text(
                                   method[0].toUpperCase() + method.substring(1),
-                                  style: TextStyle(fontSize: isMobile ? 14 : 16),
+                                  style: TextStyle(fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16)),
                                 ),
                               );
                             }).toList(),
@@ -1300,17 +1583,17 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                             },
                           ),
                         ),
-                        SizedBox(height: isMobile ? 16 : 24),
+                        SizedBox(height: isSmallMobile ? 12 : (isMobile ? 16 : 24)),
 
                         // Customer Name (always visible)
                         Text(
                           t(context, 'customer_name'),
                           style: TextStyle(
-                            fontSize: isMobile ? 14 : 16, 
+                            fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16), 
                             fontWeight: FontWeight.bold
                           ),
                         ),
-                        SizedBox(height: isMobile ? 6 : 8),
+                        SizedBox(height: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
                         _customersLoading
                           ? Center(child: CircularProgressIndicator())
                           : Autocomplete<Customer>(
@@ -1333,8 +1616,8 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                     border: const OutlineInputBorder(),
                                     hintText: t(context, 'select_or_enter_customer_name'),
                                     contentPadding: EdgeInsets.symmetric(
-                                      horizontal: isMobile ? 12 : 16,
-                                      vertical: isMobile ? 12 : 16,
+                                      horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                                      vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
                                     ),
                                   ),
                                   onChanged: (value) {
@@ -1353,19 +1636,19 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                 });
                               },
                             ),
-                        SizedBox(height: isMobile ? 12 : 16),
+                        SizedBox(height: isSmallMobile ? 8 : (isMobile ? 12 : 16)),
 
                         // Customer Phone (only for credit)
                         if (_selectedPaymentMethod == 'credit') ...[
-                          SizedBox(height: isMobile ? 6 : 8),
+                          SizedBox(height: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
                           Text(
                             t(context, 'customer_phone'),
                             style: TextStyle(
-                              fontSize: isMobile ? 14 : 16, 
+                              fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16), 
                               fontWeight: FontWeight.bold
                             ),
                           ),
-                          SizedBox(height: isMobile ? 6 : 8),
+                          SizedBox(height: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
                           TextFormField(
                             controller: _customerPhoneController,
                             decoration: InputDecoration(
@@ -1373,14 +1656,14 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                               border: const OutlineInputBorder(),
                               hintText: t(context, 'required_for_credit_sales'),
                               contentPadding: EdgeInsets.symmetric(
-                                horizontal: isMobile ? 12 : 16,
-                                vertical: isMobile ? 12 : 16,
+                                horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                                vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
                               ),
-                              prefixIcon: Icon(Icons.phone),
+                              prefixIcon: Icon(Icons.phone, size: isSmallMobile ? 18 : 20),
                             ),
                             keyboardType: TextInputType.phone,
                           ),
-                          SizedBox(height: isMobile ? 8 : 12),
+                          SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
                           Row(
                             children: [
                               ElevatedButton(
@@ -1389,12 +1672,21 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                     _showNewCustomerFields = !_showNewCustomerFields;
                                   });
                                 },
-                                child: Text(_showNewCustomerFields ? t(context, 'cancel_new_customer') : t(context, 'new_customer')),
+                                style: ElevatedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isSmallMobile ? 8 : 12,
+                                    vertical: isSmallMobile ? 8 : 10,
+                                  ),
+                                ),
+                                child: Text(
+                                  _showNewCustomerFields ? t(context, 'cancel_new_customer') : t(context, 'new_customer'),
+                                  style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+                                ),
                               ),
                             ],
                           ),
                           if (_showNewCustomerFields) ...[
-                            SizedBox(height: isMobile ? 8 : 12),
+                            SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
                             TextFormField(
                               controller: _newCustomerNameController,
                               decoration: InputDecoration(
@@ -1402,12 +1694,12 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                 border: const OutlineInputBorder(),
                                 hintText: t(context, 'enter_new_customer_name'),
                                 contentPadding: EdgeInsets.symmetric(
-                                  horizontal: isMobile ? 12 : 16,
-                                  vertical: isMobile ? 12 : 16,
+                                  horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                                  vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
                                 ),
                               ),
                             ),
-                            SizedBox(height: isMobile ? 8 : 12),
+                            SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
                             TextFormField(
                               controller: _newCustomerPhoneController,
                               decoration: InputDecoration(
@@ -1415,8 +1707,8 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                 border: const OutlineInputBorder(),
                                 hintText: t(context, 'enter_phone_optional'),
                                 contentPadding: EdgeInsets.symmetric(
-                                  horizontal: isMobile ? 12 : 16,
-                                  vertical: isMobile ? 12 : 16,
+                                  horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                                  vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
                                 ),
                               ),
                               keyboardType: TextInputType.phone,
@@ -1427,10 +1719,14 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                         // Show error message if combined custom total is less than combined cost
                         if (!isCombinedValid)
                           Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            padding: EdgeInsets.symmetric(vertical: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
                             child: Text(
                               '${t(context, 'total_entered_amount_must_be_at_least_combined_cost')}: ${combinedCost.toStringAsFixed(2)}',
-                              style: TextStyle(color: Colors.red[900], fontWeight: FontWeight.bold, fontSize: isMobile ? 14 : 16),
+                              style: TextStyle(
+                                color: Colors.red[900], 
+                                fontWeight: FontWeight.bold, 
+                                fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16)
+                              ),
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -1446,33 +1742,33 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                       child: OutlinedButton(
                         onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(vertical: isMobile ? 12 : 16),
+                          padding: EdgeInsets.symmetric(vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16)),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                         child: Text(
                           t(context, 'cancel'),
-                          style: TextStyle(fontSize: isMobile ? 14 : 16),
+                          style: TextStyle(fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16)),
                         ),
                       ),
                     ),
-                    SizedBox(width: isMobile ? 12 : 16),
+                    SizedBox(width: isSmallMobile ? 8 : (isMobile ? 12 : 16)),
                     Expanded(
                       child: ElevatedButton(
                         onPressed: _isLoading || !isCombinedValid ? null : _processSale,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: isMobile ? 12 : 16),
+                          padding: EdgeInsets.symmetric(vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16)),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                         child: _isLoading
                             ? SizedBox(
-                                height: isMobile ? 16 : 20,
-                                width: isMobile ? 16 : 20,
+                                height: isSmallMobile ? 14 : (isMobile ? 16 : 20),
+                                width: isSmallMobile ? 14 : (isMobile ? 16 : 20),
                                 child: const CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -1480,12 +1776,279 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                               )
                             : Text(
                                 t(context, 'complete_sale'),
-                                style: TextStyle(fontSize: isMobile ? 14 : 16),
+                                style: TextStyle(fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16)),
                               ),
                       ),
                     ),
                   ],
                 ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+} 
+
+class _MobileCartDialog extends StatefulWidget {
+  final CartProvider cart;
+  final VoidCallback onCheckout;
+
+  const _MobileCartDialog({required this.cart, required this.onCheckout});
+
+  @override
+  State<_MobileCartDialog> createState() => _MobileCartDialogState();
+}
+
+class _MobileCartDialogState extends State<_MobileCartDialog> {
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallMobile = constraints.maxWidth <= 480;
+        
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.95,
+            height: MediaQuery.of(context).size.height * 0.8,
+            padding: EdgeInsets.all(isSmallMobile ? 16 : 20),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: EdgeInsets.all(isSmallMobile ? 12 : 16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Theme.of(context).primaryColor, Theme.of(context).primaryColor.withOpacity(0.8)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.shopping_cart,
+                          color: Colors.white,
+                          size: isSmallMobile ? 20 : 24,
+                        ),
+                      ),
+                      SizedBox(width: isSmallMobile ? 8 : 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Shopping Cart',
+                              style: TextStyle(
+                                fontSize: isSmallMobile ? 16 : 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              '${widget.cart.items.length} items',
+                              style: TextStyle(
+                                fontSize: isSmallMobile ? 12 : 14,
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: isSmallMobile ? 20 : 24,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: isSmallMobile ? 16 : 20),
+                
+                // Cart Items
+                Expanded(
+                  child: widget.cart.items.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.shopping_cart_outlined,
+                                size: isSmallMobile ? 48 : 64,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(height: isSmallMobile ? 12 : 16),
+                              Text(
+                                'Cart is empty',
+                                style: TextStyle(
+                                  fontSize: isSmallMobile ? 16 : 18,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              SizedBox(height: isSmallMobile ? 8 : 12),
+                              Text(
+                                'Add products to get started',
+                                style: TextStyle(
+                                  fontSize: isSmallMobile ? 12 : 14,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: widget.cart.items.length,
+                          itemBuilder: (context, index) {
+                            final item = widget.cart.items[index];
+                            return Card(
+                              margin: EdgeInsets.only(bottom: isSmallMobile ? 8 : 12),
+                              child: ListTile(
+                                contentPadding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+                                leading: Container(
+                                  width: isSmallMobile ? 40 : 50,
+                                  height: isSmallMobile ? 40 : 50,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: (item.product.imageUrl != null && item.product.imageUrl!.isNotEmpty)
+                                      ? ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.network(
+                                            Api.getFullImageUrl(item.product.imageUrl),
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return Icon(
+                                                Icons.image,
+                                                size: isSmallMobile ? 16 : 20,
+                                                color: Colors.grey,
+                                              );
+                                            },
+                                          ),
+                                        )
+                                      : Icon(
+                                          Icons.image,
+                                          size: isSmallMobile ? 16 : 20,
+                                          color: Colors.grey,
+                                        ),
+                                ),
+                                title: Text(
+                                  item.product.name,
+                                  style: TextStyle(
+                                    fontSize: isSmallMobile ? 14 : 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                subtitle: Text(
+                                  '${item.product.costPrice.toStringAsFixed(2)} x ${item.quantity}',
+                                  style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(Icons.remove, size: isSmallMobile ? 16 : 18),
+                                      onPressed: () {
+                                        widget.cart.removeItem(item.product);
+                                        setState(() {});
+                                      },
+                                      padding: EdgeInsets.all(isSmallMobile ? 4 : 8),
+                                    ),
+                                    Text(
+                                      '${item.quantity}',
+                                      style: TextStyle(
+                                        fontSize: isSmallMobile ? 14 : 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.add, size: isSmallMobile ? 16 : 18),
+                                      onPressed: () {
+                                        widget.cart.addItem(item.product);
+                                        setState(() {});
+                                      },
+                                      padding: EdgeInsets.all(isSmallMobile ? 4 : 8),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                
+                // Total and Checkout
+                if (widget.cart.items.isNotEmpty) ...[
+                  SizedBox(height: isSmallMobile ? 16 : 20),
+                  Container(
+                    padding: EdgeInsets.all(isSmallMobile ? 12 : 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Total:',
+                              style: TextStyle(
+                                fontSize: isSmallMobile ? 16 : 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '\$${widget.cart.total.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: isSmallMobile ? 18 : 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: isSmallMobile ? 12 : 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: widget.onCheckout,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(vertical: isSmallMobile ? 12 : 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              'Continue to Checkout',
+                              style: TextStyle(
+                                fontSize: isSmallMobile ? 14 : 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

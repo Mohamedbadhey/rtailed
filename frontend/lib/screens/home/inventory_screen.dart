@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:retail_management/models/product.dart';
 import 'package:retail_management/services/api_service.dart';
+import 'package:retail_management/services/offline_data_service.dart';
 import 'package:retail_management/widgets/custom_text_field.dart';
 import 'package:retail_management/providers/branding_provider.dart';
 import 'package:retail_management/widgets/branded_header.dart';
@@ -26,6 +27,7 @@ class InventoryScreen extends StatefulWidget {
 class _InventoryScreenState extends State<InventoryScreen> {
   final _searchController = TextEditingController();
   final ApiService _apiService = ApiService();
+  final OfflineDataService _offlineDataService = OfflineDataService();
   String _selectedCategory = 'All';
   List<String> _categories = ['All'];
   List<Map<String, dynamic>> _categoryList = [];
@@ -102,20 +104,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
       print('=== FRONTEND LOAD DATA DEBUG ===');
       print('Loading products and categories...');
       
-      // Load products and categories in parallel
-      final results = await Future.wait([
-        _apiService.getProducts(),
-        _apiService.getCategories(),
-      ]);
-
-      final products = results[0] as List<Product>;
-      print('Loaded ${products.length} products from API');
+      // ✅ Use offline service instead of direct API calls
+      final products = await _offlineDataService.getProducts();
+      final categories = await _offlineDataService.getCategories();
+      
+      print('Loaded ${products.length} products (offline/online)');
       
       // Debug: Print each product's details
       for (var product in products) {
         print('Product ${product.id}: ${product.name} - Cost: ${product.costPrice}, Stock: ${product.stockQuantity}');
       }
-      final categories = results[1] as List<Map<String, dynamic>>;
 
       setState(() {
         _products = products;
@@ -144,9 +142,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
     });
 
     try {
-      print('📦 Calling API service to get products...');
-      final products = await _apiService.getProducts();
-      print('📦 ✅ API call successful, loaded ${products.length} products');
+      print('📦 Calling offline service to get products...');
+      final products = await _offlineDataService.getProducts();
+      print('📦 ✅ Offline service call successful, loaded ${products.length} products');
       
       // Debug: Print image URLs for products with images
       print('📦 Analyzing product images...');
@@ -155,7 +153,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       
       for (final product in products) {
         print('📦 Product: ${product.name} (ID: ${product.id})');
-        print('📦   - Image URL from API: ${product.imageUrl ?? 'NULL'}');
+        print('📦   - Image URL from offline service: ${product.imageUrl ?? 'NULL'}');
         
         if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
           productsWithImages++;
@@ -416,15 +414,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Branded Header Section
-              Consumer<BrandingProvider>(
-                builder: (context, brandingProvider, child) {
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Branded Header Section
+                Consumer<BrandingProvider>(
+                  builder: (context, brandingProvider, child) {
                   return Container(
-                    decoration: BoxDecoration(
+                          decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -434,29 +432,29 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           Theme.of(context).primaryColor.withOpacity(0.6),
                         ],
                       ),
-                      boxShadow: [
-                        BoxShadow(
+                  boxShadow: [
+                    BoxShadow(
                           color: Colors.black.withOpacity(0.1),
                           blurRadius: 20,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                      offset: const Offset(0, 4),
                     ),
+                  ],
+                ),
                     child: SafeArea(
                       child: Padding(
                         padding: EdgeInsets.all(isSmallMobile ? 8 : (isMobile ? 12 : 20)),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
                                 // Logo and Title
                                 Expanded(
                                   child: Row(
                                     children: [
-                                      Container(
+                      Container(
                                         padding: EdgeInsets.all(isSmallMobile ? 4 : 6),
-                                        decoration: BoxDecoration(
+                        decoration: BoxDecoration(
                                           color: Colors.white.withOpacity(0.2),
                                           borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
                                           border: Border.all(
@@ -474,7 +472,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
+                            children: [
                                             Text(
                                               isSmallMobile ? 'Inventory' : 'Inventory Management',
                                               style: TextStyle(
@@ -486,9 +484,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                             ),
                                             if (!isSmallMobile) ...[
                                               SizedBox(height: isSmallMobile ? 2 : 4),
-                                              Text(
+                              Text(
                                                 t(context, 'Manage your product inventory efficiently'),
-                                                style: TextStyle(
+                                style: TextStyle(
                                                   color: Colors.white.withOpacity(0.9),
                                                   fontSize: isSmallMobile ? 10 : (isMobile ? 12 : 14),
                                                   fontWeight: FontWeight.w400,
@@ -502,11 +500,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                   ),
                                 ),
                                 // Action Buttons
-                                Row(
-                                  children: [
+                      Row(
+                        children: [
                                     // Refresh Button
                                     Container(
-                                      decoration: BoxDecoration(
+                              decoration: BoxDecoration(
                                         color: Colors.white.withOpacity(0.15),
                                         borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
                                         border: Border.all(
@@ -522,25 +520,25 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                         constraints: BoxConstraints(
                                           minWidth: isSmallMobile ? 28 : 36,
                                           minHeight: isSmallMobile ? 28 : 36,
-                                        ),
-                                      ),
-                                    ),
+                              ),
+                            ),
+                          ),
                                     
                                     SizedBox(width: isSmallMobile ? 4 : 6),
                                     
                                     // Add Product Button
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
                                         borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
-                                        boxShadow: [
-                                          BoxShadow(
+                  boxShadow: [
+                    BoxShadow(
                                             color: Colors.black.withOpacity(0.1),
                                             blurRadius: 6,
                                             offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
+                    ),
+                  ],
+                ),
                                       child: isSmallMobile 
                                         ? IconButton(
                                             onPressed: () {
@@ -548,7 +546,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                             },
                                             icon: Icon(
                                               Icons.add_circle_outline,
-                                              color: Theme.of(context).primaryColor,
+                      color: Theme.of(context).primaryColor,
                                               size: 16,
                                             ),
                                             padding: EdgeInsets.all(6),
@@ -579,8 +577,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                             ),
                                             label: Text(
                                               isMobile ? t(context, 'Add') : t(context, 'Add Product'),
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
                                                 fontSize: 10,
                                               ),
                                             ),
@@ -596,9 +594,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               Row(
                                 children: [
                                   Expanded(
-                                    child: Container(
+                                  child: Container(
                                       padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
-                                      decoration: BoxDecoration(
+                                    decoration: BoxDecoration(
                                         color: Colors.white.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
                                         border: Border.all(
@@ -628,7 +626,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                     ),
                                   ),
                                   SizedBox(width: isSmallMobile ? 4 : 6),
-                                  Expanded(
+                                    Expanded(
                                     child: Container(
                                       padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
                                       decoration: BoxDecoration(
@@ -657,14 +655,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                             ),
                                           ),
                                         ],
-                                      ),
                                     ),
                                   ),
+                                ),
                                   SizedBox(width: isSmallMobile ? 4 : 6),
                                   Expanded(
-                                    child: Container(
+                                      child: Container(
                                       padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
-                                      decoration: BoxDecoration(
+                                        decoration: BoxDecoration(
                                         color: Colors.white.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
                                         border: Border.all(
@@ -715,17 +713,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       color: Colors.black.withOpacity(0.06),
                       blurRadius: 12,
                       offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
+                                    ),
+                                  ],
+                                ),
                 child: Padding(
                   padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Header with Icon
-                      Row(
-                        children: [
+                            Row(
+                              children: [
                           Container(
                             padding: EdgeInsets.all(isSmallMobile ? 4 : 6),
                             decoration: BoxDecoration(
@@ -891,10 +889,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         ),
                       ),
                       canTapOnHeader: true,
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
               
               SizedBox(height: isSmallMobile ? 8 : 12),
               
@@ -912,8 +910,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     ),
                   ],
                 ),
-                child: Column(
-                  children: [
+                          child: Column(
+                            children: [
                     // Table Header
                     Container(
                       padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
@@ -925,14 +923,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         ),
                       ),
                       child: Row(
-                        children: [
-                          Container(
+                                children: [
+                                  Container(
                             padding: EdgeInsets.all(isSmallMobile ? 4 : 6),
-                            decoration: BoxDecoration(
+                                    decoration: BoxDecoration(
                               color: Theme.of(context).primaryColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
-                            ),
-                            child: Icon(
+                                    ),
+                                    child: Icon(
                               Icons.inventory_2,
                               color: Theme.of(context).primaryColor,
                               size: isSmallMobile ? 12 : 14,
@@ -943,25 +941,25 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
+                                  Text(
                                   isSmallMobile ? 'Products' : 'Products Inventory',
-                                  style: TextStyle(
+                                    style: TextStyle(
                                     fontSize: isSmallMobile ? 12 : 14,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.grey[800],
                                   ),
                                 ),
                                 SizedBox(height: isSmallMobile ? 1 : 2),
-                                Text(
+                                  Text(
                                   '${_filteredProducts.length} products found',
-                                  style: TextStyle(
+                                    style: TextStyle(
                                     fontSize: isSmallMobile ? 9 : 10,
                                     color: Colors.grey[600],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
                           if (!isMobile) ...[
                             Container(
                               padding: EdgeInsets.symmetric(
@@ -993,18 +991,18 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     _isLoading
                         ? Container(
                             padding: EdgeInsets.all(isSmallMobile ? 20 : 30),
-                            child: Column(
+                    child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
+                      children: [
                                 CircularProgressIndicator(
                                   valueColor: AlwaysStoppedAnimation<Color>(
                                     Theme.of(context).primaryColor,
                                   ),
                                 ),
                                 SizedBox(height: isSmallMobile ? 8 : 12),
-                                Text(
+                            Text(
                                   t(context, 'Loading products...'),
-                                  style: TextStyle(
+                              style: TextStyle(
                                     fontSize: isSmallMobile ? 10 : 12,
                                     color: Colors.grey[600],
                                   ),
@@ -1015,9 +1013,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         : _filteredProducts.isEmpty
                             ? Container(
                                 padding: EdgeInsets.all(isSmallMobile ? 20 : 30),
-                                child: Column(
+                            child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
+                              children: [
                                     Container(
                                       padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
                                       decoration: BoxDecoration(
@@ -1025,41 +1023,41 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                         borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
                                       ),
                                       child: Icon(
-                                        Icons.inventory_2_outlined,
+                                  Icons.inventory_2_outlined,
                                         size: isSmallMobile ? 24 : 32,
-                                        color: Colors.grey[400],
-                                      ),
+                                  color: Colors.grey[400],
+                                ),
                                     ),
                                     SizedBox(height: isSmallMobile ? 8 : 12),
-                                    Text(
-                                      t(context, 'No products found'),
-                                      style: TextStyle(
+                                Text(
+                                  t(context, 'No products found'),
+                                  style: TextStyle(
                                         fontSize: isSmallMobile ? 12 : 14,
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                    SizedBox(height: isSmallMobile ? 4 : 6),
-                                    Text(
-                                      'Try adjusting your search or filters',
-                                      style: TextStyle(
-                                        fontSize: isSmallMobile ? 9 : 10,
-                                        color: Colors.grey[500],
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
+                                    color: Colors.grey[600],
+                                  ),
                                 ),
-                              )
-                            : isMobile
+                                    SizedBox(height: isSmallMobile ? 4 : 6),
+                                Text(
+                                      'Try adjusting your search or filters',
+                                  style: TextStyle(
+                                        fontSize: isSmallMobile ? 9 : 10,
+                                    color: Colors.grey[500],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          )
+                        : isMobile
                                 ? _buildMobileProductList(isSmallMobile)
                                 : Container(
                                     padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
                                     child: SingleChildScrollView(
                                       scrollDirection: Axis.horizontal,
-                                      child: DataTable(
-                                        columns: _buildDataTableColumns(isTablet),
-                                        rows: _buildProductRows(isTablet),
+                                child: DataTable(
+                                  columns: _buildDataTableColumns(isTablet),
+                                  rows: _buildProductRows(isTablet),
                                         headingRowColor: MaterialStateProperty.resolveWith<Color?>(
                                           (Set<MaterialState> states) => Colors.grey[50],
                                         ),
@@ -1073,11 +1071,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                             width: 0.5,
                                           ),
                                         ),
-                                      ),
-                                    ),
-                                  ),
-                  ],
+                    ),
+                  ),
                 ),
+              ],
+            ),
               ),
             ],
           ),
@@ -1125,19 +1123,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
               ),
             ],
           ),
-          child: Column(
-            children: [
+                child: Column(
+                  children: [
               // Compact Header Row
               Expanded(
                 flex: 3,
                 child: Row(
-                  children: [
-                    // Product Image
-                    Container(
+                      children: [
+                        // Product Image
+                        Container(
                       width: isSmallMobile ? 40 : 50,
                       height: isSmallMobile ? 40 : 50,
                       margin: EdgeInsets.all(isSmallMobile ? 4 : 6),
-                      decoration: BoxDecoration(
+                          decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
                         boxShadow: [
@@ -1150,80 +1148,80 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
-                        child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
+                          child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
                             ? Image.network(
-                                Api.getFullImageUrl(product.imageUrl),
-                                fit: BoxFit.cover,
-                                loadingBuilder: (context, child, loadingProgress) {
-                                  if (loadingProgress == null) {
-                                    return child;
-                                  }
-                                  return Center(
-                                    child: CircularProgressIndicator(
+                                    Api.getFullImageUrl(product.imageUrl),
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) {
+                                        return child;
+                                      }
+                                      return Center(
+                                        child: CircularProgressIndicator(
                                       value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null,
                                       strokeWidth: 1.5,
-                                    ),
-                                  );
-                                },
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue[50],
+                                        ),
+                                      );
+                                    },
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue[50],
                                       borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
-                                    ),
-                                    child: Icon(
-                                      Icons.image,
+                                        ),
+                                        child: Icon(
+                                          Icons.image,
                                       color: Colors.blue[600],
                                       size: isSmallMobile ? 16 : 18,
-                                    ),
-                                  );
-                                },
-                              )
-                            : Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.blue[50],
+                                        ),
+                                      );
+                                    },
+                                )
+                              : Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue[50],
                                   borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
-                                ),
-                                child: Icon(
+                                  ),
+                                  child: Icon(
                                   Icons.image,
                                   color: Colors.blue[600],
                                   size: isSmallMobile ? 16 : 18,
+                                  ),
                                 ),
-                              ),
-                      ),
+                        ),
                     ),
-                    
+                        
                     // Product Info
-                    Expanded(
+                        Expanded(
                       child: Padding(
                         padding: EdgeInsets.only(right: isSmallMobile ? 4 : 6),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
+                            children: [
                             // Product Name
-                            Text(
-                              product.name,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
+                              Text(
+                                product.name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
                                 fontSize: isSmallMobile ? 10 : 12,
-                                color: Colors.grey[800],
-                              ),
+                                  color: Colors.grey[800],
+                                ),
                               maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             
                             SizedBox(height: isSmallMobile ? 1 : 2),
                             
                             // SKU
                             Text(
-                              'SKU: ${product.sku}',
-                              style: TextStyle(
-                                color: Colors.grey[600],
+                                  'SKU: ${product.sku}',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
                                 fontSize: isSmallMobile ? 7 : 8,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                             
                             SizedBox(height: isSmallMobile ? 2 : 3),
                             
@@ -1233,49 +1231,49 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 horizontal: isSmallMobile ? 4 : 6,
                                 vertical: isSmallMobile ? 1 : 2,
                               ),
-                              decoration: BoxDecoration(
-                                color: _getCategoryColor(product.categoryName ?? 'Uncategorized').withOpacity(0.1),
+                            decoration: BoxDecoration(
+                              color: _getCategoryColor(product.categoryName ?? 'Uncategorized').withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
-                                border: Border.all(
-                                  color: _getCategoryColor(product.categoryName ?? 'Uncategorized').withOpacity(0.3),
-                                ),
-                              ),
-                              child: Text(
-                                product.categoryName ?? 'Uncategorized',
-                                style: TextStyle(
-                                  color: _getCategoryColor(product.categoryName ?? 'Uncategorized'),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: isSmallMobile ? 6 : 7,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              border: Border.all(
+                                color: _getCategoryColor(product.categoryName ?? 'Uncategorized').withOpacity(0.3),
                               ),
                             ),
-                          ],
+                                  child: Text(
+                                    product.categoryName ?? 'Uncategorized',
+                                    style: TextStyle(
+                                      color: _getCategoryColor(product.categoryName ?? 'Uncategorized'),
+                                      fontWeight: FontWeight.w600,
+                                  fontSize: isSmallMobile ? 6 : 7,
+                                    ),
+                                maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
                   ],
                 ),
               ),
-              
+                        
               // Compact Stats Row
-              Expanded(
+                        Expanded(
                 flex: 2,
-                child: Container(
+                          child: Container(
                   padding: EdgeInsets.symmetric(
                     horizontal: isSmallMobile ? 6 : 8,
                     vertical: isSmallMobile ? 4 : 6,
                   ),
-                  decoration: BoxDecoration(
+                            decoration: BoxDecoration(
                     color: Colors.grey[50],
                     borderRadius: BorderRadius.only(
                       bottomLeft: Radius.circular(isSmallMobile ? 8 : 10),
                       bottomRight: Radius.circular(isSmallMobile ? 8 : 10),
                     ),
-                  ),
-                  child: Row(
-                    children: [
+                            ),
+                            child: Row(
+                              children: [
                       // Cost
                       Expanded(
                         child: Column(
@@ -1291,21 +1289,21 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             ),
                             Text(
                               '\$${product.costPrice.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                color: Colors.green[700],
-                                fontWeight: FontWeight.bold,
+                                    style: TextStyle(
+                                      color: Colors.green[700],
+                                      fontWeight: FontWeight.bold,
                                 fontSize: isSmallMobile ? 8 : 9,
-                              ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                      
+                          ),
+                    
                       // Stock
-                      Expanded(
+                        Expanded(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
+                              children: [
                             Text(
                               'Stock',
                               style: TextStyle(
@@ -1314,23 +1312,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                            Text(
-                              '${product.stockQuantity}',
-                              style: TextStyle(
-                                color: isLowStock ? Colors.red[700] : Colors.blue[700],
-                                fontWeight: FontWeight.bold,
+                                Text(
+                                  '${product.stockQuantity}',
+                                  style: TextStyle(
+                                    color: isLowStock ? Colors.red[700] : Colors.blue[700],
+                                    fontWeight: FontWeight.bold,
                                 fontSize: isSmallMobile ? 8 : 9,
-                              ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                      
+                          ),
+                        
                       // Price
-                      Expanded(
+                        Expanded(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
+                              children: [
                             Text(
                               'Price',
                               style: TextStyle(
@@ -1341,16 +1339,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             ),
                             Text(
                               '\$${product.price.toStringAsFixed(2)}',
-                              style: TextStyle(
+                                    style: TextStyle(
                                 color: Colors.purple[700],
-                                fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.bold,
                                 fontSize: isSmallMobile ? 8 : 9,
-                              ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                      
+                    ),
+                    
                       // Status Indicator
                       Container(
                         padding: EdgeInsets.all(isSmallMobile ? 3 : 4),
@@ -1365,11 +1363,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           isLowStock ? Icons.warning : Icons.check_circle,
                           size: isSmallMobile ? 10 : 12,
                           color: isLowStock ? Colors.red[600] : Colors.green[600],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
               ),
               
               // Action Buttons Row
@@ -1381,90 +1379,90 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     vertical: isSmallMobile ? 2 : 4,
                   ),
                   child: Row(
-                    children: [
-                      // Edit Button
-                      Expanded(
-                        child: Container(
+                      children: [
+                        // Edit Button
+                        Expanded(
+                          child: Container(
                           height: isSmallMobile ? 24 : 28,
-                          decoration: BoxDecoration(
-                            color: Colors.blue[50],
+                            decoration: BoxDecoration(
+                              color: Colors.blue[50],
                             borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
-                            border: Border.all(color: Colors.blue[200]!),
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
+                              border: Border.all(color: Colors.blue[200]!),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
                               borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
                               onTap: () {
                                 _showEditProductDialog(product);
                               },
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.edit,
-                                    color: Colors.blue[600],
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.edit,
+                                      color: Colors.blue[600],
                                     size: isSmallMobile ? 10 : 12,
-                                  ),
-                                  SizedBox(width: isSmallMobile ? 2 : 3),
-                                  Text(
-                                    'Edit',
-                                    style: TextStyle(
-                                      color: Colors.blue[700],
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: isSmallMobile ? 7 : 8,
                                     ),
-                                  ),
-                                ],
+                                  SizedBox(width: isSmallMobile ? 2 : 3),
+                                    Text(
+                                    'Edit',
+                                      style: TextStyle(
+                                        color: Colors.blue[700],
+                                        fontWeight: FontWeight.w600,
+                                      fontSize: isSmallMobile ? 7 : 8,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
                       
                       SizedBox(width: isSmallMobile ? 4 : 6),
-                      
-                      // Delete Button
-                      Expanded(
-                        child: Container(
+                        
+                        // Delete Button
+                        Expanded(
+                          child: Container(
                           height: isSmallMobile ? 24 : 28,
-                          decoration: BoxDecoration(
-                            color: Colors.red[50],
+                            decoration: BoxDecoration(
+                              color: Colors.red[50],
                             borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
-                            border: Border.all(color: Colors.red[200]!),
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
+                              border: Border.all(color: Colors.red[200]!),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
                               borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
                               onTap: () {
                                 _showDeleteProductDialog(product);
                               },
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.delete,
-                                    color: Colors.red[600],
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.delete,
+                                      color: Colors.red[600],
                                     size: isSmallMobile ? 10 : 12,
-                                  ),
-                                  SizedBox(width: isSmallMobile ? 2 : 3),
-                                  Text(
-                                    'Delete',
-                                    style: TextStyle(
-                                      color: Colors.red[700],
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: isSmallMobile ? 7 : 8,
                                     ),
-                                  ),
-                                ],
+                                  SizedBox(width: isSmallMobile ? 2 : 3),
+                                    Text(
+                                    'Delete',
+                                      style: TextStyle(
+                                        color: Colors.red[700],
+                                        fontWeight: FontWeight.w600,
+                                      fontSize: isSmallMobile ? 7 : 8,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                 ),
               ),
             ],
@@ -2103,19 +2101,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   Widget _buildMobileReportFilters() {
     return Column(
-      children: [
+            children: [
         // Horizontal Date Range Row
-        Row(
-          children: [
+              Row(
+                children: [
             // Start Date
             Expanded(
               child: Container(
                 height: 32,
-                decoration: BoxDecoration(
+                    decoration: BoxDecoration(
                   color: Colors.grey[50],
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.grey[200]!),
-                ),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
                 child: InkWell(
                   onTap: () async {
                     final date = await showDatePicker(
@@ -2164,7 +2162,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
             const SizedBox(width: 6),
             
             // End Date
-            Expanded(
+                  Expanded(
               child: Container(
                 height: 32,
                 decoration: BoxDecoration(
@@ -2202,22 +2200,22 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             _endDate != null
                                 ? DateFormat('MMM dd').format(_endDate!)
                                 : 'End',
-                            style: TextStyle(
+                          style: TextStyle(
                               fontSize: 10,
-                              color: Colors.grey[800],
-                            ),
+                            color: Colors.grey[800],
+                          ),
                             maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
         
         const SizedBox(height: 6),
         
@@ -2352,8 +2350,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
             );
             if (picked != null) setState(() { _reportEndDate = picked; });
           },
-        ),
-        ElevatedButton.icon(
+          ),
+          ElevatedButton.icon(
           icon: const Icon(Icons.search),
           label: Text(t(context, 'Filter')),
           onPressed: _fetchInventoryReport,
@@ -2440,9 +2438,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     ),
                   ),
                 ),
-              ),
             ),
-          ],
+          ),
+        ],
         ),
       ],
     );
@@ -2475,8 +2473,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
                 Text(
                   row['product_name'] ?? '',
                   style: const TextStyle(fontWeight: FontWeight.bold),
@@ -2484,10 +2482,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
                           Text('SKU: ${row['sku'] ?? ''}', style: const TextStyle(fontSize: 12)),
                           Text('Category: ${row['category_name'] ?? ''}', style: const TextStyle(fontSize: 12)),
                         ],
@@ -2502,9 +2500,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           Text('Remaining: ${row['quantity_remaining']?.toString() ?? ''}'),
                         ],
                       ),
-                    ),
-                  ],
-                ),
+              ),
+            ],
+          ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -2597,14 +2595,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
     if (isSmallMobile) {
       // Mobile layout - cards
-      return Column(
+    return Column(
         children: transactions.map((tx) => Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
                 Row(
                   children: [
                     Expanded(
@@ -2625,8 +2623,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 8),
+        ),
+        const SizedBox(height: 8),
                 Text('Date: ${tx['created_at']?.toString()?.split('T')?.first ?? ''}', style: const TextStyle(fontSize: 12)),
                 Text('Qty: ${tx['quantity']?.toString() ?? ''}', style: const TextStyle(fontSize: 12)),
                 Text('Amount: \$${_safeToDouble(tx['sale_total_price']).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
@@ -3582,10 +3580,10 @@ class _ProductDialogState extends State<_ProductDialog> {
                             ),
                           ),
                           IconButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            icon: const Icon(Icons.close, color: Colors.white),
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: const Icon(Icons.close, color: Colors.white),
                             padding: EdgeInsets.all(isSmallMobile ? 2 : (isMobile ? 4 : 8)),
-                            constraints: BoxConstraints(
+                              constraints: BoxConstraints(
                               minWidth: isSmallMobile ? 28 : (isMobile ? 32 : 40),
                               minHeight: isSmallMobile ? 28 : (isMobile ? 32 : 40),
                             ),
@@ -3737,184 +3735,184 @@ class _ProductDialogState extends State<_ProductDialog> {
   Widget _buildMobileFormFields(bool isSmallMobile) {
     return Column(
       children: [
-        TextFormField(
-          controller: _nameController,
-          decoration: InputDecoration(
-            labelText: t(context, 'Product Name *'),
-            border: OutlineInputBorder(
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Product Name *'),
+                          border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
-            ),
+                          ),
             prefixIcon: Icon(Icons.inventory_2, size: isSmallMobile ? 18 : 20),
-            filled: true,
-            fillColor: Colors.grey[50],
+                          filled: true,
+                          fillColor: Colors.grey[50],
             contentPadding: EdgeInsets.symmetric(
               horizontal: isSmallMobile ? 12 : 16,
               vertical: isSmallMobile ? 10 : 14,
             ),
-          ),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return t(context, 'Product name is required');
-            }
-            return null;
-          },
-        ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return t(context, 'Product name is required');
+                          }
+                          return null;
+                        },
+                      ),
         SizedBox(height: isSmallMobile ? 12 : 16),
-        TextFormField(
-          controller: _skuController,
-          decoration: InputDecoration(
-            labelText: t(context, 'SKU *'),
-            border: OutlineInputBorder(
+                      TextFormField(
+                        controller: _skuController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'SKU *'),
+                          border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
-            ),
+                          ),
             prefixIcon: Icon(Icons.qr_code, size: isSmallMobile ? 18 : 20),
-            filled: true,
-            fillColor: Colors.grey[50],
+                          filled: true,
+                          fillColor: Colors.grey[50],
             contentPadding: EdgeInsets.symmetric(
               horizontal: isSmallMobile ? 12 : 16,
               vertical: isSmallMobile ? 10 : 14,
             ),
-          ),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return t(context, 'SKU is required');
-            }
-            return null;
-          },
-        ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return t(context, 'SKU is required');
+                          }
+                          return null;
+                        },
+                      ),
         SizedBox(height: isSmallMobile ? 12 : 16),
-        TextFormField(
-          controller: _descriptionController,
-          decoration: InputDecoration(
-            labelText: t(context, 'Description'),
-            border: OutlineInputBorder(
+                      TextFormField(
+                        controller: _descriptionController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Description'),
+                          border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
-            ),
+                          ),
             prefixIcon: Icon(Icons.description, size: isSmallMobile ? 18 : 20),
-            filled: true,
-            fillColor: Colors.grey[50],
+                          filled: true,
+                          fillColor: Colors.grey[50],
             contentPadding: EdgeInsets.symmetric(
               horizontal: isSmallMobile ? 12 : 16,
               vertical: isSmallMobile ? 10 : 14,
             ),
-          ),
-          maxLines: 3,
-        ),
+                        ),
+                        maxLines: 3,
+                      ),
         SizedBox(height: isSmallMobile ? 12 : 16),
-        TextFormField(
-          controller: _priceController,
-          decoration: InputDecoration(
-            labelText: t(context, 'Price *'),
-            border: OutlineInputBorder(
+                      TextFormField(
+                        controller: _priceController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Price *'),
+                          border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
-            ),
+                          ),
             prefixIcon: Icon(Icons.attach_money, size: isSmallMobile ? 18 : 20),
-            filled: true,
-            fillColor: Colors.green[50],
+                          filled: true,
+                          fillColor: Colors.green[50],
             contentPadding: EdgeInsets.symmetric(
               horizontal: isSmallMobile ? 12 : 16,
               vertical: isSmallMobile ? 10 : 14,
             ),
-          ),
-          keyboardType: TextInputType.number,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return t(context, 'Price is required');
-            }
-            if (double.tryParse(value) == null) {
-              return t(context, 'Please enter a valid number');
-            }
-            return null;
-          },
-        ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return t(context, 'Price is required');
+                          }
+                          if (double.tryParse(value) == null) {
+                            return t(context, 'Please enter a valid number');
+                          }
+                          return null;
+                        },
+                      ),
         SizedBox(height: isSmallMobile ? 12 : 16),
-        TextFormField(
-          controller: _costController,
-          decoration: InputDecoration(
-            labelText: t(context, 'Cost *'),
-            border: OutlineInputBorder(
+                      TextFormField(
+                        controller: _costController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Cost *'),
+                          border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
-            ),
+                          ),
             prefixIcon: Icon(Icons.account_balance_wallet, size: isSmallMobile ? 18 : 20),
-            filled: true,
-            fillColor: Colors.orange[50],
+                          filled: true,
+                          fillColor: Colors.orange[50],
             contentPadding: EdgeInsets.symmetric(
               horizontal: isSmallMobile ? 12 : 16,
               vertical: isSmallMobile ? 10 : 14,
             ),
-          ),
-          keyboardType: TextInputType.number,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return t(context, 'Cost is required');
-            }
-            if (double.tryParse(value) == null) {
-              return t(context, 'Please enter a valid number');
-            }
-            return null;
-          },
-        ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return t(context, 'Cost is required');
+                          }
+                          if (double.tryParse(value) == null) {
+                            return t(context, 'Please enter a valid number');
+                          }
+                          return null;
+                        },
+                      ),
         SizedBox(height: isSmallMobile ? 12 : 16),
-        TextFormField(
-          controller: _stockController,
-          decoration: InputDecoration(
-            labelText: t(context, 'Stock Quantity'),
-            border: OutlineInputBorder(
+                      TextFormField(
+                        controller: _stockController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Stock Quantity'),
+                          border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
-            ),
+                          ),
             prefixIcon: Icon(Icons.inventory, size: isSmallMobile ? 18 : 20),
-            filled: true,
-            fillColor: Colors.blue[50],
+                          filled: true,
+                          fillColor: Colors.blue[50],
             contentPadding: EdgeInsets.symmetric(
               horizontal: isSmallMobile ? 12 : 16,
               vertical: isSmallMobile ? 10 : 14,
             ),
-          ),
-          keyboardType: TextInputType.number,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return t(context, 'Stock quantity is required');
-            }
-            if (int.tryParse(value) == null) {
-              return t(context, 'Please enter a valid number');
-            }
-            return null;
-          },
-        ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return t(context, 'Stock quantity is required');
+                          }
+                          if (int.tryParse(value) == null) {
+                            return t(context, 'Please enter a valid number');
+                          }
+                          return null;
+                        },
+                      ),
         SizedBox(height: isSmallMobile ? 12 : 16),
-        DropdownButtonFormField<int>(
-          value: _categories.any((cat) => cat['id'] == _selectedCategoryId) ? _selectedCategoryId : null,
-          decoration: InputDecoration(
-            labelText: t(context, 'Category'),
-            border: OutlineInputBorder(
+                      DropdownButtonFormField<int>(
+                        value: _categories.any((cat) => cat['id'] == _selectedCategoryId) ? _selectedCategoryId : null,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Category'),
+                          border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
-            ),
+                          ),
             prefixIcon: Icon(Icons.category, size: isSmallMobile ? 18 : 20),
-            filled: true,
-            fillColor: Colors.purple[50],
-            helperText: t(context, 'Select a category for this product (optional)'),
+                          filled: true,
+                          fillColor: Colors.purple[50],
+                          helperText: t(context, 'Select a category for this product (optional)'),
             contentPadding: EdgeInsets.symmetric(
               horizontal: isSmallMobile ? 12 : 16,
               vertical: isSmallMobile ? 10 : 14,
             ),
-          ),
-          items: [
-            DropdownMenuItem<int>(
-              value: null,
-              child: Text(t(context, 'Select Category')),
-            ),
-            ..._categories.map((category) {
-              return DropdownMenuItem<int>(
-                value: category['id'] as int,
-                child: Text(category['name'] as String),
-              );
-            }).toList(),
-          ],
-          onChanged: (value) {
-            setState(() {
-              _selectedCategoryId = value;
-            });
-          },
+                        ),
+                        items: [
+                          DropdownMenuItem<int>(
+                            value: null,
+                            child: Text(t(context, 'Select Category')),
+                          ),
+                          ..._categories.map((category) {
+                            return DropdownMenuItem<int>(
+                              value: category['id'] as int,
+                              child: Text(category['name'] as String),
+                            );
+                          }).toList(),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedCategoryId = value;
+                          });
+                        },
         ),
       ],
     );
@@ -3923,181 +3921,181 @@ class _ProductDialogState extends State<_ProductDialog> {
   Widget _buildDesktopFormFields() {
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: t(context, 'Product Name *'),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.inventory_2),
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return t(context, 'Product name is required');
-                  }
-                  return null;
-                },
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: TextFormField(
-                controller: _skuController,
-                decoration: InputDecoration(
-                  labelText: t(context, 'SKU *'),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.qr_code),
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return t(context, 'SKU is required');
-                  }
-                  return null;
-                },
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: _descriptionController,
-          decoration: InputDecoration(
-            labelText: t(context, 'Description'),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            prefixIcon: const Icon(Icons.description),
-            filled: true,
-            fillColor: Colors.grey[50],
-          ),
-          maxLines: 3,
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: _priceController,
-                decoration: InputDecoration(
-                  labelText: t(context, 'Price *'),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.attach_money),
-                  filled: true,
-                  fillColor: Colors.green[50],
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _nameController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'Product Name *'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.inventory_2),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return t(context, 'Product name is required');
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _skuController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'SKU *'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.qr_code),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return t(context, 'SKU is required');
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _descriptionController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Description'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.description),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _priceController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'Price *'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.attach_money),
+                                filled: true,
+                                fillColor: Colors.green[50],
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return t(context, 'Price is required');
+                                }
+                                if (double.tryParse(value) == null) {
+                                  return t(context, 'Please enter a valid number');
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _costController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'Cost *'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.account_balance_wallet),
+                                filled: true,
+                                fillColor: Colors.orange[50],
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
                     return t(context, 'Price is required');
-                  }
-                  if (double.tryParse(value) == null) {
-                    return t(context, 'Please enter a valid number');
-                  }
-                  return null;
-                },
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: TextFormField(
-                controller: _costController,
-                decoration: InputDecoration(
-                  labelText: t(context, 'Cost *'),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.account_balance_wallet),
-                  filled: true,
-                  fillColor: Colors.orange[50],
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return t(context, 'Price is required');
-                  }
-                  if (double.tryParse(value) == null) {
-                    return t(context, 'Please enter a valid number');
-                  }
-                  return null;
-                },
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: _stockController,
-                decoration: InputDecoration(
-                  labelText: t(context, 'Stock Quantity'),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.inventory),
-                  filled: true,
-                  fillColor: Colors.blue[50],
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return t(context, 'Stock quantity is required');
-                  }
-                  if (int.tryParse(value) == null) {
-                    return t(context, 'Please enter a valid number');
-                  }
-                  return null;
-                },
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: DropdownButtonFormField<int>(
-                value: _categories.any((cat) => cat['id'] == _selectedCategoryId) ? _selectedCategoryId : null,
-                decoration: InputDecoration(
-                  labelText: t(context, 'Category'),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.category),
-                  filled: true,
-                  fillColor: Colors.purple[50],
-                ),
-                items: [
-                  DropdownMenuItem<int>(
-                    value: null,
-                    child: Text(t(context, 'Select Category')),
-                  ),
-                  ..._categories.map((category) {
-                    return DropdownMenuItem<int>(
-                      value: category['id'] as int,
-                      child: Text(category['name'] as String),
-                    );
-                  }).toList(),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _selectedCategoryId = value;
-                  });
-                },
-              ),
-            ),
-          ],
-        ),
-      ],
+                                }
+                                if (double.tryParse(value) == null) {
+                                  return t(context, 'Please enter a valid number');
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _stockController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'Stock Quantity'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.inventory),
+                                filled: true,
+                                fillColor: Colors.blue[50],
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return t(context, 'Stock quantity is required');
+                                }
+                                if (int.tryParse(value) == null) {
+                                  return t(context, 'Please enter a valid number');
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              value: _categories.any((cat) => cat['id'] == _selectedCategoryId) ? _selectedCategoryId : null,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'Category'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.category),
+                                filled: true,
+                                fillColor: Colors.purple[50],
+                              ),
+                              items: [
+                                DropdownMenuItem<int>(
+                                  value: null,
+                                  child: Text(t(context, 'Select Category')),
+                                ),
+                                ..._categories.map((category) {
+                                  return DropdownMenuItem<int>(
+                                    value: category['id'] as int,
+                                    child: Text(category['name'] as String),
+                                  );
+                                }).toList(),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedCategoryId = value;
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
     );
   }
 

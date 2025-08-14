@@ -113,8 +113,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
         content: Container(
           width: isSmallMobile ? double.maxFinite : (isMobile ? 300 : 400),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+          mainAxisSize: MainAxisSize.min,
+          children: [
               _buildQuickFilterOption('All Time', selectedQuick == 'All Time', () {
                 setState(() => _quickRangeLabel = 'All Time');
                 Navigator.pop(context);
@@ -158,7 +158,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   _loadAllReports();
                 }
               }, isSmallMobile),
-            ],
+          ],
           ),
         ),
         actions: [
@@ -495,9 +495,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 SizedBox(height: isSmallMobile ? 8 : 12),
                 
                 // Date
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                     Text(
                       'Date:',
                       style: TextStyle(
@@ -815,11 +815,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         color: isDamaged ? Colors.orange[700] : Colors.grey[800],
                       ),
                     ),
-                  ],
-                ),
               ],
             ),
-          ),
+          ],
+        ),
+      ),
         );
       },
     );
@@ -915,22 +915,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
-                                      value: _selectedCashierId ?? 'all',
+                            value: _selectedCashierId ?? 'all',
                                       isExpanded: true,
-                                      items: [
-                                        DropdownMenuItem(value: 'all', child: Text(t(context, 'All Cashiers'))),
-                                        ..._cashiers.map((c) => DropdownMenuItem(
-                                          value: c['id'].toString(),
+                            items: [
+                              DropdownMenuItem(value: 'all', child: Text(t(context, 'All Cashiers'))),
+                              ..._cashiers.map((c) => DropdownMenuItem(
+                                value: c['id'].toString(),
                                           child: Text(
                                             c['username'] ?? '',
                                             style: TextStyle(fontSize: isSmallMobile ? 11 : 13),
                                           ),
-                                        )),
-                                      ],
-                                      onChanged: (val) {
-                                        setState(() { _selectedCashierId = val; });
-                                        _loadAllReports();
-                                      },
+                              )),
+                            ],
+                            onChanged: (val) {
+                              setState(() { _selectedCashierId = val; });
+                              _loadAllReports();
+                            },
                                     ),
                                   ),
                                 ),
@@ -958,15 +958,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           ),
                           SizedBox(width: isSmallMobile ? 6 : 8),
                           Expanded(
-                            child: Text(
-                              'This report shows only your own sales and performance.',
-                              style: TextStyle(
+                      child: Text(
+                        'This report shows only your own sales and performance.',
+                        style: TextStyle(
                                 color: Colors.blue[800],
-                                fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                                 fontSize: isSmallMobile ? 11 : 13,
-                              ),
-                            ),
-                          ),
+                        ),
+                      ),
+                    ),
                         ],
                       ),
                     ),
@@ -999,7 +999,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               ),
                             ),
                             SizedBox(height: isSmallMobile ? 2 : 4),
-                            if (_quickRangeLabel == 'All Time')
+                      if (_quickRangeLabel == 'All Time')
                               Text(
                                 t(context, 'all_history'),
                                 style: TextStyle(
@@ -1008,17 +1008,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                   color: Colors.grey[600],
                                 ),
                               ),
-                            if (_quickRangeLabel != 'All Time' && _filterStartDate != null && _filterEndDate != null)
-                              Text(
-                                '${DateFormat('yyyy-MM-dd').format(_filterStartDate!)} - ${DateFormat('yyyy-MM-dd').format(_filterEndDate!)}',
+                      if (_quickRangeLabel != 'All Time' && _filterStartDate != null && _filterEndDate != null)
+                        Text(
+                          '${DateFormat('yyyy-MM-dd').format(_filterStartDate!)} - ${DateFormat('yyyy-MM-dd').format(_filterEndDate!)}',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w500,
                                   fontSize: isSmallMobile ? 10 : 12,
                                   color: Colors.grey[600],
                                 ),
-                              ),
-                          ],
                         ),
+                    ],
+                  ),
                       ),
                       Container(
                         decoration: BoxDecoration(
@@ -1096,24 +1096,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
-                            child: DataTable(
-                              columns: [
-                                DataColumn(label: Text(t(context, 'method'))),
-                                DataColumn(label: Text(t(context, 'percentage'))),
-                                DataColumn(label: Text(t(context, 'total_amount'))),
-                              ],
-                              rows: paymentMethods.map((pm) {
-                                final total = paymentMethods.fold<double>(0, (sum, m) => sum + (m['total_amount'] is num ? m['total_amount'] : double.tryParse(m['total_amount'].toString()) ?? 0.0));
-                                final amount = pm['total_amount'] is num ? pm['total_amount'] : double.tryParse(pm['total_amount'].toString()) ?? 0.0;
-                                final percent = total > 0 ? (amount / total * 100) : 0.0;
-                                return DataRow(cells: [
-                                  DataCell(Text(pm['payment_method'] ?? '')),
-                                  DataCell(Text('${percent.toStringAsFixed(1)}%')),
-                                  DataCell(Text(amount.toString())),
-                                ]);
-                              }).toList(),
-                            ),
+                          child: DataTable(
+                            columns: [
+                              DataColumn(label: Text(t(context, 'method'))),
+                              DataColumn(label: Text(t(context, 'percentage'))),
+                              DataColumn(label: Text(t(context, 'total_amount'))),
+                            ],
+                            rows: paymentMethods.map((pm) {
+                              final total = paymentMethods.fold<double>(0, (sum, m) => sum + (m['total_amount'] is num ? m['total_amount'] : double.tryParse(m['total_amount'].toString()) ?? 0.0));
+                              final amount = pm['total_amount'] is num ? pm['total_amount'] : double.tryParse(pm['total_amount'].toString()) ?? 0.0;
+                              final percent = total > 0 ? (amount / total * 100) : 0.0;
+                              return DataRow(cells: [
+                                DataCell(Text(pm['payment_method'] ?? '')),
+                                DataCell(Text('${percent.toStringAsFixed(1)}%')),
+                                DataCell(Text(amount.toString())),
+                              ]);
+                            }).toList(),
                           ),
+                        ),
                         ),
                   SizedBox(height: isSmallMobile ? 16 : 32),
                   // Product Transactions
@@ -1134,106 +1134,106 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               ? Text(t(context, 'no_transactions_found_for_product'))
                               : isMobile
                                   ? _buildMobileProductTransactionsCards(_productTransactions, isSmallMobile)
-                                  : SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      child: DataTable(
-                                        columns: [
-                                          DataColumn(label: Text(t(context, 'Product'))),
-                                          DataColumn(label: Text(t(context, 'Date'))),
-                                          DataColumn(label: Text(t(context, 'Type'))),
-                                          DataColumn(label: Text(t(context, 'Quantity'))),
-                                          DataColumn(label: Text(t(context, 'Notes'))),
-                                          DataColumn(label: Text(t(context, 'Unit Price'))),
-                                          DataColumn(label: Text(t(context, 'Total Price'))),
-                                          DataColumn(label: Text(t(context, 'Profit'))),
-                                          DataColumn(label: Text(t(context, 'Customer'))),
-                                          DataColumn(label: Text(t(context, 'Payment Method'))),
-                                          DataColumn(label: Text(t(context, 'Sale ID'))),
-                                          DataColumn(label: Text(t(context, 'Status'))),
-                                          DataColumn(label: Text(t(context, 'Mode'))),
-                                          DataColumn(label: Text(t(context, 'Cashier'))),
+                              : SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: DataTable(
+                                    columns: [
+                                      DataColumn(label: Text(t(context, 'Product'))),
+                                      DataColumn(label: Text(t(context, 'Date'))),
+                                      DataColumn(label: Text(t(context, 'Type'))),
+                                      DataColumn(label: Text(t(context, 'Quantity'))),
+                                      DataColumn(label: Text(t(context, 'Notes'))),
+                                      DataColumn(label: Text(t(context, 'Unit Price'))),
+                                      DataColumn(label: Text(t(context, 'Total Price'))),
+                                      DataColumn(label: Text(t(context, 'Profit'))),
+                                      DataColumn(label: Text(t(context, 'Customer'))),
+                                      DataColumn(label: Text(t(context, 'Payment Method'))),
+                                      DataColumn(label: Text(t(context, 'Sale ID'))),
+                                      DataColumn(label: Text(t(context, 'Status'))),
+                                      DataColumn(label: Text(t(context, 'Mode'))),
+                                      DataColumn(label: Text(t(context, 'Cashier'))),
+                                    ],
+                                    rows: _productTransactions.map((tx) {
+                                      // Check if this is a damaged product transaction
+                                      final isDamaged = tx['transaction_type'] == 'adjustment' && 
+                                                       tx['notes'] != null && 
+                                                       tx['notes'].toString().toLowerCase().contains('damaged');
+                                      final isNegativeQuantity = tx['quantity'] != null && tx['quantity'] < 0;
+                                      
+                                      return DataRow(
+                                        cells: [
+                                          DataCell(
+                                            Text(
+                                              tx['product_name'] ?? '',
+                                              style: isDamaged ? TextStyle(
+                                                color: Colors.orange[700],
+                                                fontWeight: FontWeight.bold,
+                                              ) : null,
+                                            ),
+                                          ),
+                                          DataCell(Text(tx['created_at'] ?? '')),
+                                          DataCell(
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: isDamaged ? Colors.orange[100] : Colors.grey[100],
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: Text(
+                                                isDamaged ? 'DAMAGED' : (tx['transaction_type'] ?? '').toUpperCase(),
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: isDamaged ? Colors.orange[800] : Colors.grey[700],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          DataCell(
+                                            Text(
+                                              '${tx['quantity']}',
+                                              style: isNegativeQuantity ? TextStyle(
+                                                color: Colors.red[700],
+                                                fontWeight: FontWeight.bold,
+                                              ) : null,
+                                            ),
+                                          ),
+                                          DataCell(
+                                            Tooltip(
+                                              message: tx['notes'] ?? '',
+                                              child: Text(
+                                                tx['notes'] ?? '',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: isDamaged ? Colors.orange[700] : Colors.grey[600],
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ),
+                                          DataCell(Text(tx['sale_unit_price'] != null ? tx['sale_unit_price'].toString() : '')),
+                                          DataCell(Text(tx['sale_total_price'] != null ? tx['sale_total_price'].toString() : '')),
+                                          DataCell(Text(tx['profit'] != null ? tx['profit'].toString() : '')),
+                                          DataCell(Text(tx['customer_name'] ?? '')),
+                                          DataCell(Text(tx['payment_method'] ?? '')),
+                                          DataCell(Text(tx['sale_id']?.toString() ?? '')),
+                                          DataCell(Text(tx['status'] ?? '')),
+                                          DataCell(Text((tx['sale_mode'] ?? '').toString().isNotEmpty ? (tx['sale_mode'] == 'wholesale' ? t(context, 'wholesale') : t(context, 'retail')) : '')),
+                                          DataCell(
+                                            Text(
+                                              tx['cashier_name'] ?? '',
+                                              style: isDamaged ? TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.orange[700],
+                                              ) : null,
+                                            ),
+                                          ),
                                         ],
-                                        rows: _productTransactions.map((tx) {
-                                          // Check if this is a damaged product transaction
-                                          final isDamaged = tx['transaction_type'] == 'adjustment' && 
-                                                           tx['notes'] != null && 
-                                                           tx['notes'].toString().toLowerCase().contains('damaged');
-                                          final isNegativeQuantity = tx['quantity'] != null && tx['quantity'] < 0;
-                                          
-                                          return DataRow(
-                                            cells: [
-                                              DataCell(
-                                                Text(
-                                                  tx['product_name'] ?? '',
-                                                  style: isDamaged ? TextStyle(
-                                                    color: Colors.orange[700],
-                                                    fontWeight: FontWeight.bold,
-                                                  ) : null,
-                                                ),
-                                              ),
-                                              DataCell(Text(tx['created_at'] ?? '')),
-                                              DataCell(
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                  decoration: BoxDecoration(
-                                                    color: isDamaged ? Colors.orange[100] : Colors.grey[100],
-                                                    borderRadius: BorderRadius.circular(12),
-                                                  ),
-                                                  child: Text(
-                                                    isDamaged ? 'DAMAGED' : (tx['transaction_type'] ?? '').toUpperCase(),
-                                                    style: TextStyle(
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: isDamaged ? Colors.orange[800] : Colors.grey[700],
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              DataCell(
-                                                Text(
-                                                  '${tx['quantity']}',
-                                                  style: isNegativeQuantity ? TextStyle(
-                                                    color: Colors.red[700],
-                                                    fontWeight: FontWeight.bold,
-                                                  ) : null,
-                                                ),
-                                              ),
-                                              DataCell(
-                                                Tooltip(
-                                                  message: tx['notes'] ?? '',
-                                                  child: Text(
-                                                    tx['notes'] ?? '',
-                                                    style: TextStyle(
-                                                      fontSize: 11,
-                                                      color: isDamaged ? Colors.orange[700] : Colors.grey[600],
-                                                    ),
-                                                    maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ),
-                                              DataCell(Text(tx['sale_unit_price'] != null ? tx['sale_unit_price'].toString() : '')),
-                                              DataCell(Text(tx['sale_total_price'] != null ? tx['sale_total_price'].toString() : '')),
-                                              DataCell(Text(tx['profit'] != null ? tx['profit'].toString() : '')),
-                                              DataCell(Text(tx['customer_name'] ?? '')),
-                                              DataCell(Text(tx['payment_method'] ?? '')),
-                                              DataCell(Text(tx['sale_id']?.toString() ?? '')),
-                                              DataCell(Text(tx['status'] ?? '')),
-                                              DataCell(Text((tx['sale_mode'] ?? '').toString().isNotEmpty ? (tx['sale_mode'] == 'wholesale' ? t(context, 'wholesale') : t(context, 'retail')) : '')),
-                                              DataCell(
-                                                Text(
-                                                  tx['cashier_name'] ?? '',
-                                                  style: isDamaged ? TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.orange[700],
-                                                  ) : null,
-                                                ),
-                                              ),
-                                            ],
-                                          );
-                                        }).toList(),
-                                      ),
-                                    ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
                 ],
               ),
             ),

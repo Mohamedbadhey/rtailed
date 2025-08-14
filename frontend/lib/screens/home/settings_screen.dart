@@ -115,8 +115,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Responsive breakpoints
+    final isSmallMobile = MediaQuery.of(context).size.width <= 360;
+    final isMobile = MediaQuery.of(context).size.width <= 768;
+    
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isSmallMobile ? 8 : (isMobile ? 12 : 16)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -124,17 +128,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Consumer<BrandingProvider>(
             builder: (context, brandingProvider, child) {
               return BrandedHeader(
-                subtitle: 'Manage your account and preferences',
-                logoSize: 60,
+                subtitle: isSmallMobile ? 'Manage your account' : 'Manage your account and preferences',
+                logoSize: isSmallMobile ? 50 : (isMobile ? 55 : 60),
               );
             },
           ),
-          const SizedBox(height: 24),
-          _buildPreferencesSection(),
-          const SizedBox(height: 24),
-          _buildCreditSection(),
-          const SizedBox(height: 24),
-          _buildSystemSection(),
+          SizedBox(height: isSmallMobile ? 16 : (isMobile ? 20 : 24)),
+          _buildPreferencesSection(isSmallMobile, isMobile),
+          SizedBox(height: isSmallMobile ? 16 : (isMobile ? 20 : 24)),
+          _buildCreditSection(isSmallMobile, isMobile),
+          SizedBox(height: isSmallMobile ? 16 : (isMobile ? 20 : 24)),
+          _buildSystemSection(isSmallMobile, isMobile),
         ],
       ),
     );
@@ -142,53 +146,109 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 
 
-  Widget _buildPreferencesSection() {
+  Widget _buildPreferencesSection(bool isSmallMobile, bool isMobile) {
     final settings = Provider.of<SettingsProvider>(context);
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isSmallMobile ? 12 : (isMobile ? 14 : 16)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.settings,
+                  size: isSmallMobile ? 20 : (isMobile ? 22 : 24),
+                  color: Colors.blue,
+                ),
+                SizedBox(width: isSmallMobile ? 6 : 8),
             Text(
               t(context, 'Preferences'),
-              style: const TextStyle(
-                fontSize: 18,
+                  style: TextStyle(
+                    fontSize: isSmallMobile ? 16 : (isMobile ? 17 : 18),
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+              ],
+            ),
+            SizedBox(height: isSmallMobile ? 12 : 16),
             SwitchListTile(
-              title: Text(t(context, 'Dark Mode')),
-              subtitle: Text(t(context, 'Enable dark theme')),
+              title: Text(
+                t(context, 'Dark Mode'),
+                style: TextStyle(fontSize: isSmallMobile ? 14 : 16),
+              ),
+              subtitle: Text(
+                t(context, 'Enable dark theme'),
+                style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
+              ),
               value: settings.themeMode == ThemeMode.dark,
               onChanged: (value) {
                 settings.setThemeMode(value ? ThemeMode.dark : ThemeMode.light);
               },
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: isSmallMobile ? 8 : 16,
+                vertical: isSmallMobile ? 4 : 8,
+              ),
             ),
             SwitchListTile(
-              title: Text(t(context, 'Notifications')),
-              subtitle: Text(t(context, 'Enable push notifications')),
+              title: Text(
+                t(context, 'Notifications'),
+                style: TextStyle(fontSize: isSmallMobile ? 14 : 16),
+              ),
+              subtitle: Text(
+                t(context, 'Enable push notifications'),
+                style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
+              ),
               value: settings.notificationsEnabled,
               onChanged: (value) {
                 settings.setNotificationsEnabled(value);
               },
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: isSmallMobile ? 8 : 16,
+                vertical: isSmallMobile ? 4 : 8,
+              ),
             ),
             ListTile(
-              title: Text(t(context, 'Language')),
-              subtitle: Text(settings.language),
-              trailing: const Icon(Icons.arrow_forward_ios),
+              title: Text(
+                t(context, 'Language'),
+                style: TextStyle(fontSize: isSmallMobile ? 14 : 16),
+              ),
+              subtitle: Text(
+                settings.language,
+                style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
+              ),
+              trailing: Icon(
+                Icons.arrow_forward_ios,
+                size: isSmallMobile ? 16 : 20,
+              ),
               onTap: () {
                 _showLanguageDialog(settings);
               },
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: isSmallMobile ? 8 : 16,
+                vertical: isSmallMobile ? 4 : 8,
+              ),
             ),
             ListTile(
-              title: Text(t(context, 'Currency')),
-              subtitle: Text(settings.currency),
-              trailing: const Icon(Icons.arrow_forward_ios),
+              title: Text(
+                t(context, 'Currency'),
+                style: TextStyle(fontSize: isSmallMobile ? 14 : 16),
+              ),
+              subtitle: Text(
+                settings.currency,
+                style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
+              ),
+              trailing: Icon(
+                Icons.arrow_forward_ios,
+                size: isSmallMobile ? 16 : 20,
+              ),
               onTap: () {
                 _showCurrencyDialog(settings);
               },
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: isSmallMobile ? 8 : 16,
+                vertical: isSmallMobile ? 4 : 8,
+              ),
             ),
           ],
         ),
@@ -196,32 +256,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildCreditSection() {
+  Widget _buildCreditSection(bool isSmallMobile, bool isMobile) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isSmallMobile ? 12 : (isMobile ? 14 : 16)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.credit_card, color: Colors.orange),
-                const SizedBox(width: 8),
-                Text(
+                Icon(
+                  Icons.credit_card, 
+                  color: Colors.orange,
+                  size: isSmallMobile ? 20 : (isMobile ? 22 : 24),
+                ),
+                SizedBox(width: isSmallMobile ? 6 : 8),
+                Expanded(
+                  child: Text(
                   t(context, 'Credit Management'),
-                  style: const TextStyle(
-                    fontSize: 18,
+                    style: TextStyle(
+                      fontSize: isSmallMobile ? 16 : (isMobile ? 17 : 18),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const Spacer(),
+                ),
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.credit_card, color: Colors.orange),
+                    icon: Icon(
+                      Icons.credit_card, 
+                      color: Colors.orange,
+                      size: isSmallMobile ? 18 : 20,
+                    ),
                     onPressed: () {
                       setState(() {
                         _showCreditSection = !_showCreditSection;
@@ -231,18 +300,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       }
                     },
                     tooltip: 'Toggle Credit Section',
+                    padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
+                    constraints: BoxConstraints(
+                      minWidth: isSmallMobile ? 32 : 40,
+                      minHeight: isSmallMobile ? 32 : 40,
+                    ),
                   ),
                 ),
               ],
             ),
             if (_showCreditSection) ...[
-              const SizedBox(height: 16),
+              SizedBox(height: isSmallMobile ? 12 : 16),
               _creditLoading
                   ? Center(child: CircularProgressIndicator())
                   : _creditError != null
-                      ? Text(_creditError!, style: TextStyle(color: Colors.red))
+                      ? Container(
+                          padding: EdgeInsets.all(isSmallMobile ? 12 : 16),
+                          decoration: BoxDecoration(
+                            color: Colors.red[50],
+                            borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                            border: Border.all(color: Colors.red[200]!),
+                          ),
+                          child: Text(
+                            _creditError!,
+                            style: TextStyle(
+                              color: Colors.red[700],
+                              fontSize: isSmallMobile ? 12 : 14,
+                            ),
+                          ),
+                        )
                       : _creditCustomers.isEmpty
-                          ? Text(t(context, 'No credit customers found.'))
+                          ? Container(
+                              padding: EdgeInsets.all(isSmallMobile ? 16 : 20),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[50],
+                                borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                                border: Border.all(color: Colors.grey[200]!),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  t(context, 'No credit customers found.'),
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: isSmallMobile ? 12 : 14,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : isMobile
+                              ? _buildMobileCreditCustomersList(_creditCustomers, isSmallMobile)
                           : SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               child: DataTable(
@@ -280,22 +386,161 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSystemSection() {
+  Widget _buildMobileCreditCustomersList(List<Map<String, dynamic>> customers, bool isSmallMobile) {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: customers.length,
+      itemBuilder: (context, index) {
+        final customer = customers[index];
+        return Card(
+          margin: EdgeInsets.only(bottom: isSmallMobile ? 6 : 8),
+          child: Padding(
+            padding: EdgeInsets.all(isSmallMobile ? 10 : 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            customer['name'] ?? 'Unknown',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: isSmallMobile ? 14 : 16,
+                            ),
+                          ),
+                          SizedBox(height: isSmallMobile ? 2 : 4),
+                          Text(
+                            '📱 ${customer['phone'] ?? 'No phone'}',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 11 : 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          SizedBox(height: isSmallMobile ? 2 : 4),
+                          Text(
+                            '📧 ${customer['email'] ?? 'No email'}',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 11 : 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isSmallMobile ? 6 : 8,
+                            vertical: isSmallMobile ? 2 : 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                            border: Border.all(color: Colors.blue[200]!),
+                          ),
+                          child: Text(
+                            '${customer['credit_sales_count'] ?? 0} sales',
+                            style: TextStyle(
+                              color: Colors.blue[700],
+                              fontSize: isSmallMobile ? 10 : 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: isSmallMobile ? 4 : 6),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isSmallMobile ? 6 : 8,
+                            vertical: isSmallMobile ? 2 : 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange[50],
+                            borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                            border: Border.all(color: Colors.orange[200]!),
+                          ),
+                          child: Text(
+                            '\$${(double.tryParse((customer['outstanding_amount'] ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: Colors.orange[700],
+                              fontSize: isSmallMobile ? 10 : 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: isSmallMobile ? 8 : 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () => _showCustomerTransactions(customer),
+                      icon: Icon(
+                        Icons.visibility,
+                        size: isSmallMobile ? 14 : 16,
+                      ),
+                      label: Text(
+                        'View Details',
+                        style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isSmallMobile ? 8 : 12,
+                          vertical: isSmallMobile ? 6 : 8,
+                        ),
+                        minimumSize: Size(
+                          isSmallMobile ? 80 : 100,
+                          isSmallMobile ? 28 : 32,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSystemSection(bool isSmallMobile, bool isMobile) {
     final user = context.read<AuthProvider>().user;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isSmallMobile ? 12 : (isMobile ? 14 : 16)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.info,
+                  size: isSmallMobile ? 20 : (isMobile ? 22 : 24),
+                  color: Colors.purple,
+                ),
+                SizedBox(width: isSmallMobile ? 6 : 8),
             Text(
               t(context, 'System Information'),
-              style: const TextStyle(
-                fontSize: 18,
+                  style: TextStyle(
+                    fontSize: isSmallMobile ? 16 : (isMobile ? 17 : 18),
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+              ],
+            ),
+            SizedBox(height: isSmallMobile ? 12 : 16),
             if (_isLoading)
               const Center(child: CircularProgressIndicator())
             else
@@ -306,80 +551,131 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _systemInfo['connectionStatus']?['overall'] == true ? 'Connected' : 'Disconnected',
                     Icons.cloud,
                     _systemInfo['connectionStatus']?['overall'] == true ? Colors.green : Colors.red,
+                    isSmallMobile,
                   ),
                   _buildSystemInfoTile(
                     t(context, 'Database Status'),
                     _systemInfo['connectionStatus']?['database']?['success'] == true ? 'Connected' : 'Disconnected',
                     Icons.storage,
                     _systemInfo['connectionStatus']?['database']?['success'] == true ? Colors.green : Colors.red,
+                    isSmallMobile,
                   ),
                   _buildSystemInfoTile(
                     t(context, 'Total Products'),
                     '${_systemInfo['totalProducts'] ?? 0}',
                     Icons.inventory,
                     Colors.blue,
+                    isSmallMobile,
                   ),
                   _buildSystemInfoTile(
                     t(context, 'Total Customers'),
                     '${_systemInfo['totalCustomers'] ?? 0}',
                     Icons.people,
                     Colors.orange,
+                    isSmallMobile,
                   ),
                   _buildSystemInfoTile(
                     t(context, 'Total Sales'),
                     '${_systemInfo['totalSales'] ?? 0}',
                     Icons.point_of_sale,
                     Colors.green,
+                    isSmallMobile,
                   ),
                   _buildSystemInfoTile(
                     t(context, 'Database Size'),
                     _systemInfo['databaseSize'] ?? 'Unknown',
                     Icons.data_usage,
                     Colors.purple,
+                    isSmallMobile,
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: isSmallMobile ? 12 : 16),
                   if (user != null && (user.role == 'admin' || user.role == 'superadmin' || user.role == 'manager')) ...[
                     ListTile(
-                      leading: Icon(Icons.people, color: Colors.indigo),
-                      title: Text(t(context, 'Manage Cashiers')),
-                      subtitle: Text(t(context, 'Create and manage cashier accounts for your business')),
-                      trailing: Icon(Icons.arrow_forward_ios),
+                      leading: Icon(
+                        Icons.people, 
+                        color: Colors.indigo,
+                        size: isSmallMobile ? 20 : 22,
+                      ),
+                      title: Text(
+                        t(context, 'Manage Cashiers'),
+                        style: TextStyle(fontSize: isSmallMobile ? 14 : 16),
+                      ),
+                      subtitle: Text(
+                        t(context, 'Create and manage cashier accounts for your business'),
+                        style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
+                      ),
+                      trailing: Icon(
+                        Icons.arrow_forward_ios,
+                        size: isSmallMobile ? 16 : 20,
+                      ),
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (_) => ManageCashiersScreen()),
                         );
                       },
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: isSmallMobile ? 8 : 16,
+                        vertical: isSmallMobile ? 4 : 8,
                     ),
-                    const SizedBox(height: 16),
+                    ),
+                    SizedBox(height: isSmallMobile ? 12 : 16),
                   ],
                   ListTile(
-                    leading: Icon(Icons.offline_bolt, color: Colors.orange),
-                    title: Text('Offline Settings'),
-                    subtitle: Text('Manage offline functionality and sync settings'),
-                    trailing: Icon(Icons.arrow_forward_ios),
+                    leading: Icon(
+                      Icons.offline_bolt, 
+                      color: Colors.orange,
+                      size: isSmallMobile ? 20 : 22,
+                    ),
+                    title: Text(
+                      'Offline Settings',
+                      style: TextStyle(fontSize: isSmallMobile ? 14 : 16),
+                    ),
+                    subtitle: Text(
+                      'Manage offline functionality and sync settings',
+                      style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
+                    ),
+                    trailing: Icon(
+                      Icons.arrow_forward_ios,
+                      size: isSmallMobile ? 16 : 20,
+                    ),
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const OfflineSettingsScreen()),
                       );
                     },
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: isSmallMobile ? 8 : 16,
+                      vertical: isSmallMobile ? 4 : 8,
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 16),
+                  SizedBox(height: isSmallMobile ? 12 : 16),
+                  Divider(height: isSmallMobile ? 8 : 16),
+                  SizedBox(height: isSmallMobile ? 12 : 16),
                   Text(
                     t(context, 'Connection Details'),
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: TextStyle(
+                      fontSize: isSmallMobile ? 14 : 16,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: isSmallMobile ? 6 : 8),
                   if (_systemInfo['connectionStatus'] != null) ...[
-                    Text('${t(context, 'Backend: ')}${_systemInfo['connectionStatus']['backend']?['message'] ?? t(context, 'Unknown')}'),
-                    Text('${t(context, 'Database: ')}${_systemInfo['connectionStatus']['database']?['message'] ?? t(context, 'Unknown')}'),
-                    Text('${t(context, 'Last Check: ')}${_systemInfo['connectionStatus']['timestamp'] ?? t(context, 'Unknown')}'),
+                    Text(
+                      '${t(context, 'Backend: ')}${_systemInfo['connectionStatus']['backend']?['message'] ?? t(context, 'Unknown')}',
+                      style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
+                    ),
+                    SizedBox(height: isSmallMobile ? 2 : 4),
+                    Text(
+                      '${t(context, 'Database: ')}${_systemInfo['connectionStatus']['database']?['message'] ?? t(context, 'Unknown')}',
+                      style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
+                    ),
+                    SizedBox(height: isSmallMobile ? 2 : 4),
+                    Text(
+                      '${t(context, 'Last Check: ')}${_systemInfo['connectionStatus']['timestamp'] ?? t(context, 'Unknown')}',
+                      style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
+                    ),
                   ],
                 ],
               ),
@@ -389,7 +685,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSystemInfoTile(String title, String value, IconData icon, Color color) {
+  Widget _buildSystemInfoTile(String title, String value, IconData icon, Color color, bool isSmallMobile) {
     return ListTile(
       leading: Icon(icon, color: color),
       title: Text(title),
@@ -402,22 +698,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
           shape: BoxShape.circle,
         ),
       ),
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: isSmallMobile ? 8 : 16,
+        vertical: isSmallMobile ? 4 : 8,
+      ),
     );
   }
 
   void _showLanguageDialog([SettingsProvider? settings]) {
     final currentLanguage = settings?.language ?? 'English';
+    final isSmallMobile = MediaQuery.of(context).size.width <= 360;
+    final isMobile = MediaQuery.of(context).size.width <= 768;
     
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(t(context, 'Select Language')),
-        content: Column(
+        title: Row(
+          children: [
+            Icon(
+              Icons.language,
+              size: isSmallMobile ? 18 : 20,
+              color: Colors.blue,
+            ),
+            SizedBox(width: isSmallMobile ? 6 : 8),
+            Text(
+              t(context, 'Select Language'),
+              style: TextStyle(
+                fontSize: isSmallMobile ? 16 : 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Container(
+          width: isSmallMobile ? double.infinity : (isMobile ? 250 : 300),
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: ['English', 'Somali'].map((language) {
             return ListTile(
-              title: Text(language),
-              trailing: currentLanguage == language ? const Icon(Icons.check) : null,
+                title: Text(
+                  language,
+                  style: TextStyle(fontSize: isSmallMobile ? 14 : 16),
+                ),
+                trailing: currentLanguage == language ? Icon(
+                  Icons.check,
+                  size: isSmallMobile ? 18 : 20,
+                  color: Colors.green,
+                ) : null,
               onTap: () {
                 settings?.setLanguage(language);
                 setState(() {
@@ -425,31 +752,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 });
                 Navigator.pop(context);
               },
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: isSmallMobile ? 8 : 16,
+                  vertical: isSmallMobile ? 4 : 8,
+                ),
             );
           }).toList(),
+          ),
         ),
       ),
     );
   }
 
   void _showCurrencyDialog([SettingsProvider? settings]) {
+    final isSmallMobile = MediaQuery.of(context).size.width <= 360;
+    final isMobile = MediaQuery.of(context).size.width <= 768;
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(t(context, 'Select Currency')),
-        content: Column(
+        title: Row(
+          children: [
+            Icon(
+              Icons.attach_money,
+              size: isSmallMobile ? 18 : 20,
+              color: Colors.green,
+            ),
+            SizedBox(width: isSmallMobile ? 6 : 8),
+            Text(
+              t(context, 'Select Currency'),
+              style: TextStyle(
+                fontSize: isSmallMobile ? 16 : 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Container(
+          width: isSmallMobile ? double.infinity : (isMobile ? 250 : 300),
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: ['USD', 'EUR', 'GBP', 'JPY'].map((currency) {
             return ListTile(
-              title: Text(currency),
-              trailing: (settings?.currency ?? _selectedCurrency) == currency ? const Icon(Icons.check) : null,
+                title: Text(
+                  currency,
+                  style: TextStyle(fontSize: isSmallMobile ? 14 : 16),
+                ),
+                trailing: (settings?.currency ?? _selectedCurrency) == currency ? Icon(
+                  Icons.check,
+                  size: isSmallMobile ? 18 : 20,
+                  color: Colors.green,
+                ) : null,
               onTap: () {
                 if (settings != null) settings.setCurrency(currency);
                 setState(() { _selectedCurrency = currency; });
                 Navigator.of(context).pop();
               },
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: isSmallMobile ? 8 : 16,
+                  vertical: isSmallMobile ? 4 : 8,
+                ),
             );
           }).toList(),
+          ),
         ),
       ),
     );

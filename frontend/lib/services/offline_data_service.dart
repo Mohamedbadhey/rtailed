@@ -451,4 +451,61 @@ class OfflineDataService {
   Future<void> clearLocalData() async {
     await _offlineDb.clearSyncQueue();
   }
+
+  // Get categories
+  Future<List<Map<String, dynamic>>> getCategories() async {
+    try {
+      final isConnected = await isOnline();
+      
+      if (isConnected) {
+        // Try to get from server first
+        try {
+          final response = await http.get(
+            Uri.parse('${ApiService.baseUrl}/api/categories'),
+            headers: _apiService.headers,
+          );
+
+          if (response.statusCode == 200) {
+            final categories = json.decode(response.body);
+            final categoryList = categories.map<Map<String, dynamic>>((json) => json as Map<String, dynamic>).toList();
+            
+            // Cache in local database
+            for (final category in categoryList) {
+              await _cacheCategory(category);
+            }
+            
+            return categoryList;
+          }
+        } catch (e) {
+          print('Failed to fetch categories from server: $e');
+        }
+      }
+
+      // Fallback to local database
+      return await _offlineDb.getCategoriesByBusiness(1);
+    } catch (e) {
+      print('Error getting categories: $e');
+      return [];
+    }
+  }
+
+
+
+  // Cache category
+  Future<void> _cacheCategory(Map<String, dynamic> category) async {
+    final categoryData = Map<String, dynamic>.from(category);
+    categoryData['sync_status'] = 'synced';
+    categoryData['last_sync'] = DateTime.now().toIso8601String();
+    
+    final existing = await _offlineDb.query('categories', 
+      where: 'server_id = ?', 
+      whereArgs: [category['id']]
+    );
+
+    if (existing.isNotEmpty) {
+      await _offlineDb.update('categories', categoryData, existing.first['id']);
+    } else {
+      await _offlineDb.insert('categories', categoryData);
+    }
+  }
 } 

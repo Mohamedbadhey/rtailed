@@ -67,29 +67,54 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     final user = context.watch<AuthProvider>().user;
     final isAdmin = user != null && user.role == 'admin';
 
+    // Responsive breakpoints
+    final isSmallMobile = MediaQuery.of(context).size.width <= 360;
+    final isMobile = MediaQuery.of(context).size.width <= 768;
+    final isTablet = MediaQuery.of(context).size.width > 768 && MediaQuery.of(context).size.width <= 1200;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(t(context, 'Settings')),
+        title: Text(
+          isSmallMobile ? 'Settings' : t(context, 'Settings'),
+          style: TextStyle(fontSize: isSmallMobile ? 16 : 18),
+        ),
         bottom: TabBar(
           controller: _tabController,
-          isScrollable: true,
+          isScrollable: isSmallMobile || isMobile,
+          labelPadding: EdgeInsets.symmetric(
+            horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+            vertical: isSmallMobile ? 4 : (isMobile ? 6 : 8),
+          ),
+          indicatorSize: isSmallMobile || isMobile ? TabBarIndicatorSize.label : TabBarIndicatorSize.tab,
           tabs: [
             Tab(
-              icon: Icon(Icons.settings),
-              text: t(context, 'General'),
+              icon: Icon(
+                Icons.settings,
+                size: isSmallMobile ? 18 : (isMobile ? 20 : 24),
+              ),
+              text: isSmallMobile ? 'General' : t(context, 'General'),
             ),
             Tab(
-              icon: Icon(Icons.warning),
-              text: t(context, 'Damages'),
+              icon: Icon(
+                Icons.warning,
+                size: isSmallMobile ? 18 : (isMobile ? 20 : 24),
+              ),
+              text: isSmallMobile ? 'Damages' : t(context, 'Damages'),
             ),
             Tab(
-              icon: Icon(Icons.credit_card),
-              text: t(context, 'Credit Management'),
+              icon: Icon(
+                Icons.credit_card,
+                size: isSmallMobile ? 18 : (isMobile ? 20 : 24),
+              ),
+              text: isSmallMobile ? 'Credit' : t(context, 'Credit Management'),
             ),
             if (isAdmin)
               Tab(
-                icon: Icon(Icons.account_balance),
-                text: t(context, 'Accounting'),
+                icon: Icon(
+                  Icons.account_balance,
+                  size: isSmallMobile ? 18 : (isMobile ? 20 : 24),
+                ),
+                text: isSmallMobile ? 'Accounting' : t(context, 'Accounting'),
               ),
           ],
         ),
@@ -115,36 +140,49 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
   }
 
   Widget _buildCreditTab() {
+    // Responsive breakpoints
+    final isSmallMobile = MediaQuery.of(context).size.width <= 360;
+    final isMobile = MediaQuery.of(context).size.width <= 768;
+    
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isSmallMobile ? 8 : (isMobile ? 12 : 16)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(isSmallMobile ? 12 : (isMobile ? 14 : 16)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.credit_card, color: Colors.orange),
-                      const SizedBox(width: 8),
-                      Text(
-                        t(context, 'Credit Management'),
-                        style: const TextStyle(
-                          fontSize: 18,
+                      Icon(
+                        Icons.credit_card, 
+                        color: Colors.orange,
+                        size: isSmallMobile ? 20 : (isMobile ? 22 : 24),
+                      ),
+                      SizedBox(width: isSmallMobile ? 6 : 8),
+                      Expanded(
+                        child: Text(
+                          isSmallMobile ? 'Credit Management' : t(context, 'Credit Management'),
+                          style: TextStyle(
+                            fontSize: isSmallMobile ? 16 : (isMobile ? 17 : 18),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const Spacer(),
+                      ),
                       Container(
                         decoration: BoxDecoration(
                           color: Colors.orange.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
                         ),
                         child: IconButton(
-                          icon: const Icon(Icons.credit_card, color: Colors.orange),
+                          icon: Icon(
+                            Icons.credit_card, 
+                            color: Colors.orange,
+                            size: isSmallMobile ? 18 : 20,
+                          ),
                           onPressed: () {
                             setState(() {
                               _showCreditSection = !_showCreditSection;
@@ -154,18 +192,55 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                             }
                           },
                           tooltip: 'Toggle Credit Section',
+                          padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
+                          constraints: BoxConstraints(
+                            minWidth: isSmallMobile ? 32 : 40,
+                            minHeight: isSmallMobile ? 32 : 40,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   if (_showCreditSection) ...[
-                    const SizedBox(height: 16),
+                    SizedBox(height: isSmallMobile ? 12 : 16),
                     _creditLoading
                         ? Center(child: CircularProgressIndicator())
                         : _creditError != null
-                            ? Text(_creditError!, style: TextStyle(color: Colors.red))
+                            ? Container(
+                                padding: EdgeInsets.all(isSmallMobile ? 12 : 16),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[50],
+                                  borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                                  border: Border.all(color: Colors.red[200]!),
+                                ),
+                                child: Text(
+                                  _creditError!,
+                                  style: TextStyle(
+                                    color: Colors.red[700],
+                                    fontSize: isSmallMobile ? 12 : 14,
+                                  ),
+                                ),
+                              )
                             : _creditCustomers.isEmpty
-                                ? Text(t(context, 'No credit customers found.'))
+                                ? Container(
+                                    padding: EdgeInsets.all(isSmallMobile ? 16 : 20),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[50],
+                                      borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                                      border: Border.all(color: Colors.grey[200]!),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        t(context, 'No credit customers found.'),
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: isSmallMobile ? 12 : 14,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : isMobile
+                                    ? _buildMobileCreditCustomersList(_creditCustomers, isSmallMobile)
                                 : SingleChildScrollView(
                                     scrollDirection: Axis.horizontal,
                                     child: DataTable(
@@ -203,6 +278,135 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMobileCreditCustomersList(List<Map<String, dynamic>> customers, bool isSmallMobile) {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: customers.length,
+      itemBuilder: (context, index) {
+        final customer = customers[index];
+        return Card(
+          margin: EdgeInsets.only(bottom: isSmallMobile ? 6 : 8),
+          child: Padding(
+            padding: EdgeInsets.all(isSmallMobile ? 10 : 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            customer['name'] ?? 'Unknown',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: isSmallMobile ? 14 : 16,
+                            ),
+                          ),
+                          SizedBox(height: isSmallMobile ? 2 : 4),
+                          Text(
+                            '📱 ${customer['phone'] ?? 'No phone'}',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 11 : 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          SizedBox(height: isSmallMobile ? 2 : 4),
+                          Text(
+                            '📧 ${customer['email'] ?? 'No email'}',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 11 : 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isSmallMobile ? 6 : 8,
+                            vertical: isSmallMobile ? 2 : 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                            border: Border.all(color: Colors.blue[200]!),
+                          ),
+                          child: Text(
+                            '${customer['credit_sales_count'] ?? 0} sales',
+                            style: TextStyle(
+                              color: Colors.blue[700],
+                              fontSize: isSmallMobile ? 10 : 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: isSmallMobile ? 4 : 6),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isSmallMobile ? 6 : 8,
+                            vertical: isSmallMobile ? 2 : 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange[50],
+                            borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                            border: Border.all(color: Colors.orange[200]!),
+                          ),
+                          child: Text(
+                            '\$${(double.tryParse((customer['outstanding_amount'] ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: Colors.orange[700],
+                              fontSize: isSmallMobile ? 10 : 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: isSmallMobile ? 8 : 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () => _showCustomerTransactions(customer),
+                      icon: Icon(
+                        Icons.visibility,
+                        size: isSmallMobile ? 14 : 16,
+                      ),
+                      label: Text(
+                        'View Details',
+                        style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isSmallMobile ? 8 : 12,
+                          vertical: isSmallMobile ? 6 : 8,
+                        ),
+                        minimumSize: Size(
+                          isSmallMobile ? 80 : 100,
+                          isSmallMobile ? 28 : 32,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -326,33 +530,91 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
     ];
     String _selectedPaymentMethod = 'evc';
 
+    final isSmallMobile = MediaQuery.of(context).size.width <= 360;
+    final isMobile = MediaQuery.of(context).size.width <= 768;
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: const Text('Record Payment'),
-              content: Column(
+              title: Row(
+                children: [
+                  Icon(
+                    Icons.payment,
+                    size: isSmallMobile ? 18 : 20,
+                    color: Colors.green,
+                  ),
+                  SizedBox(width: isSmallMobile ? 6 : 8),
+                  Expanded(
+                    child: Text(
+                      'Record Payment',
+                      style: TextStyle(
+                        fontSize: isSmallMobile ? 16 : 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              content: Container(
+                width: isSmallMobile ? double.infinity : (isMobile ? 300 : 400),
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Original Credit: \$${originalAmount.toStringAsFixed(2)}'),
-                  Text('Outstanding: \$${outstandingAmount.toStringAsFixed(2)}'),
-                  const SizedBox(height: 16),
+                    Container(
+                      padding: EdgeInsets.all(isSmallMobile ? 10 : 12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                        border: Border.all(color: Colors.blue[200]!),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Original Credit: \$${originalAmount.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue[700],
+                            ),
+                          ),
+                          SizedBox(height: isSmallMobile ? 4 : 6),
+                          Text(
+                            'Outstanding: \$${outstandingAmount.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.orange[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: isSmallMobile ? 12 : 16),
                   TextField(
                     controller: _paymentAmountController,
-                    decoration: const InputDecoration(
+                      decoration: InputDecoration(
                       labelText: 'Payment Amount',
                       prefixText: '\$',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: isSmallMobile ? 10 : 12,
+                          vertical: isSmallMobile ? 8 : 10,
+                        ),
                     ),
                     keyboardType: TextInputType.number,
+                      style: TextStyle(fontSize: isSmallMobile ? 14 : 16),
                   ),
-                  const SizedBox(height: 16),
+                    SizedBox(height: isSmallMobile ? 12 : 16),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                      padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 10 : 12),
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
                     ),
                     child: DropdownButton<String>(
                       value: _selectedPaymentMethod,
@@ -363,7 +625,7 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                           value: method,
                           child: Text(
                             method[0].toUpperCase() + method.substring(1),
-                            style: const TextStyle(fontSize: 16),
+                              style: TextStyle(fontSize: isSmallMobile ? 14 : 16),
                           ),
                         );
                       }).toList(),
@@ -375,18 +637,33 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                     ),
                   ),
                 ],
+                ),
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+                  ),
                 ),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).pop();
                     _makePayment(saleId, originalAmount, outstandingAmount, _selectedPaymentMethod);
                   },
-                  child: const Text('Record Payment'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isSmallMobile ? 12 : 16,
+                      vertical: isSmallMobile ? 8 : 10,
+                    ),
+                  ),
+                  child: Text(
+                    'Record Payment',
+                    style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+                  ),
                 ),
               ],
             );
@@ -398,36 +675,49 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
 
   @override
   Widget build(BuildContext context) {
+    final isSmallMobile = MediaQuery.of(context).size.width <= 360;
     final isMobile = MediaQuery.of(context).size.width <= 768;
     
     return Dialog(
       child: Container(
-        width: isMobile ? double.infinity : 800,
-        height: isMobile ? double.infinity : 600,
-        padding: const EdgeInsets.all(16),
+        width: isSmallMobile ? double.infinity : (isMobile ? double.infinity : 800),
+        height: isSmallMobile ? double.infinity : (isMobile ? double.infinity : 600),
+        padding: EdgeInsets.all(isSmallMobile ? 12 : (isMobile ? 16 : 20)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.person, color: Colors.blue),
-                const SizedBox(width: 8),
+                Icon(
+                  Icons.person, 
+                  color: Colors.blue,
+                  size: isSmallMobile ? 20 : (isMobile ? 22 : 24),
+                ),
+                SizedBox(width: isSmallMobile ? 6 : 8),
                 Expanded(
                   child: Text(
                     'Credit Transactions - ${widget.customer['name']}',
-                    style: const TextStyle(
-                      fontSize: 18,
+                    style: TextStyle(
+                      fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18),
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close),
+                  icon: Icon(
+                    Icons.close,
+                    size: isSmallMobile ? 18 : 20,
+                  ),
+                  padding: EdgeInsets.all(isSmallMobile ? 4 : 6),
+                  constraints: BoxConstraints(
+                    minWidth: isSmallMobile ? 28 : 32,
+                    minHeight: isSmallMobile ? 28 : 32,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isSmallMobile ? 12 : 16),
             
             if (_isLoading)
               const Center(child: CircularProgressIndicator())
@@ -478,7 +768,38 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
     final totalPaid = summary['total_paid_amount'] ?? 0.0;
     final totalOutstanding = summary['total_outstanding'] ?? 0.0;
 
-    return Row(
+    final isSmallMobile = MediaQuery.of(context).size.width <= 360;
+    final isMobile = MediaQuery.of(context).size.width <= 768;
+
+    return isMobile
+        ? Column(
+            children: [
+              _buildSummaryCard(
+                'Total Credit',
+                '\$${totalCredit.toStringAsFixed(2)}',
+                Icons.credit_card,
+                Colors.orange,
+                isSmallMobile,
+              ),
+              SizedBox(height: isSmallMobile ? 6 : 8),
+              _buildSummaryCard(
+                'Total Paid',
+                '\$${totalPaid.toStringAsFixed(2)}',
+                Icons.payment,
+                Colors.green,
+                isSmallMobile,
+              ),
+              SizedBox(height: isSmallMobile ? 6 : 8),
+              _buildSummaryCard(
+                'Outstanding',
+                '\$${totalOutstanding.toStringAsFixed(2)}',
+                Icons.warning,
+                Colors.red,
+                isSmallMobile,
+              ),
+            ],
+          )
+        : Row(
       children: [
         Expanded(
           child: _buildSummaryCard(
@@ -486,6 +807,7 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
             '\$${totalCredit.toStringAsFixed(2)}',
             Icons.credit_card,
             Colors.orange,
+                  isSmallMobile,
           ),
         ),
         const SizedBox(width: 8),
@@ -495,6 +817,7 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
             '\$${totalPaid.toStringAsFixed(2)}',
             Icons.payment,
             Colors.green,
+                  isSmallMobile,
           ),
         ),
         const SizedBox(width: 8),
@@ -504,40 +827,47 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
             '\$${totalOutstanding.toStringAsFixed(2)}',
             Icons.warning,
             Colors.red,
+                  isSmallMobile,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
+  Widget _buildSummaryCard(String title, String value, IconData icon, Color color, bool isSmallMobile) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 4),
+          Icon(
+            icon, 
+            color: color, 
+            size: isSmallMobile ? 18 : 24,
+          ),
+          SizedBox(height: isSmallMobile ? 3 : 4),
           Text(
             title,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: isSmallMobile ? 10 : 12,
               color: color,
               fontWeight: FontWeight.bold,
             ),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: isSmallMobile ? 3 : 4),
           Text(
             value,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: isSmallMobile ? 12 : 16,
               fontWeight: FontWeight.bold,
               color: color,
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -546,30 +876,50 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
 
   Widget _buildCreditSalesSection() {
     final creditSales = _transactionsData['credit_sales'] ?? [];
+    final isSmallMobile = MediaQuery.of(context).size.width <= 360;
+    final isMobile = MediaQuery.of(context).size.width <= 768;
     
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isSmallMobile ? 12 : (isMobile ? 14 : 16)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.shopping_cart, color: Colors.blue),
-                const SizedBox(width: 8),
+                Icon(
+                  Icons.shopping_cart, 
+                  color: Colors.blue,
+                  size: isSmallMobile ? 18 : 20,
+                ),
+                SizedBox(width: isSmallMobile ? 6 : 8),
                 Text(
                   'Credit Sales (${creditSales.length})',
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: isSmallMobile ? 14 : 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isSmallMobile ? 12 : 16),
             if (creditSales.isEmpty)
-              const Center(
-                child: Text('No credit sales found'),
+              Container(
+                padding: EdgeInsets.all(isSmallMobile ? 16 : 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Center(
+                  child: Text(
+                    'No credit sales found',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: isSmallMobile ? 12 : 14,
+                    ),
+                  ),
+                ),
               )
             else
               ListView.builder(
@@ -584,9 +934,9 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                   final isFullyPaid = sale['is_fully_paid'] ?? false;
                   
                   return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
+                    margin: EdgeInsets.only(bottom: isSmallMobile ? 6 : 8),
                     child: Padding(
-                      padding: const EdgeInsets.all(12),
+                      padding: EdgeInsets.all(isSmallMobile ? 10 : 12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -598,17 +948,26 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                                   children: [
                                     Text(
                                       'Sale #${sale['id']}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.bold,
+                                        fontSize: isSmallMobile ? 13 : 14,
                                       ),
                                     ),
+                                    SizedBox(height: isSmallMobile ? 2 : 4),
                                     Text(
                                       'Date: ${_formatDate(DateTime.tryParse(sale['created_at'] ?? ''))}',
-                                      style: const TextStyle(fontSize: 12),
+                                      style: TextStyle(
+                                        fontSize: isSmallMobile ? 10 : 12,
+                                        color: Colors.grey[600],
                                     ),
+                                    ),
+                                    SizedBox(height: isSmallMobile ? 2 : 4),
                                     Text(
                                       'Cashier: ${sale['cashier_name'] ?? 'Unknown'}',
-                                      style: const TextStyle(fontSize: 12),
+                                      style: TextStyle(
+                                        fontSize: isSmallMobile ? 10 : 12,
+                                        color: Colors.grey[600],
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -618,33 +977,37 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                                 children: [
                                   Text(
                                     '\$${originalAmount.toStringAsFixed(2)}',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 16,
+                                      fontSize: isSmallMobile ? 14 : 16,
                                     ),
                                   ),
-                                  if (totalPaid > 0)
+                                  if (totalPaid > 0) ...[
+                                    SizedBox(height: isSmallMobile ? 2 : 4),
                                     Text(
                                       'Paid: \$${totalPaid.toStringAsFixed(2)}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         color: Colors.green,
-                                        fontSize: 12,
+                                        fontSize: isSmallMobile ? 10 : 12,
                                       ),
                                     ),
-                                  if (outstanding > 0)
+                                  ],
+                                  if (outstanding > 0) ...[
+                                    SizedBox(height: isSmallMobile ? 2 : 4),
                                     Text(
                                       'Outstanding: \$${outstanding.toStringAsFixed(2)}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         color: Colors.red,
-                                        fontSize: 12,
+                                        fontSize: isSmallMobile ? 10 : 12,
                                       ),
                                     ),
+                                  ],
                                 ],
                               ),
                             ],
                           ),
                           if (!isFullyPaid) ...[
-                            const SizedBox(height: 8),
+                            SizedBox(height: isSmallMobile ? 6 : 8),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
@@ -657,8 +1020,19 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.green,
                                     foregroundColor: Colors.white,
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: isSmallMobile ? 8 : 12,
+                                      vertical: isSmallMobile ? 6 : 8,
+                                    ),
+                                    minimumSize: Size(
+                                      isSmallMobile ? 80 : 100,
+                                      isSmallMobile ? 28 : 32,
+                                    ),
                                   ),
-                                  child: const Text('Record Payment'),
+                                  child: Text(
+                                    'Record Payment',
+                                    style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
+                                  ),
                                 ),
                               ],
                             ),
@@ -677,30 +1051,50 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
 
   Widget _buildPaymentHistorySection() {
     final payments = _transactionsData['payments'] ?? [];
+    final isSmallMobile = MediaQuery.of(context).size.width <= 360;
+    final isMobile = MediaQuery.of(context).size.width <= 768;
     
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isSmallMobile ? 12 : (isMobile ? 14 : 16)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.payment, color: Colors.green),
-                const SizedBox(width: 8),
+                Icon(
+                  Icons.payment, 
+                  color: Colors.green,
+                  size: isSmallMobile ? 18 : 20,
+                ),
+                SizedBox(width: isSmallMobile ? 6 : 8),
                 Text(
                   'Payment History (${payments.length})',
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: isSmallMobile ? 14 : 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isSmallMobile ? 12 : 16),
             if (payments.isEmpty)
-              const Center(
-                child: Text('No payment history found'),
+              Container(
+                padding: EdgeInsets.all(isSmallMobile ? 16 : 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Center(
+                  child: Text(
+                    'No payment history found',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: isSmallMobile ? 12 : 14,
+                    ),
+                  ),
+                ),
               )
             else
               ListView.builder(
@@ -713,36 +1107,92 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                   final originalAmount = double.tryParse(payment['original_credit_amount'].toString()) ?? 0.0;
                   
                   return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.green,
-                        child: Icon(Icons.payment, color: Colors.white),
-                      ),
-                      title: Text('Payment for Sale #${payment['parent_sale_id']}'),
-                      subtitle: Column(
+                    margin: EdgeInsets.only(bottom: isSmallMobile ? 6 : 8),
+                    child: Padding(
+                      padding: EdgeInsets.all(isSmallMobile ? 10 : 12),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Amount: \$${amount.toStringAsFixed(2)}'),
-                          Text('Method: ${payment['payment_method']}'),
-                          Text('Date: ${_formatDate(DateTime.tryParse(payment['created_at'] ?? ''))}'),
-                          Text('Cashier: ${payment['cashier_name'] ?? 'Unknown'}'),
-                        ],
-                      ),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                          Row(
+                            children: [
+                              CircleAvatar(
+                        backgroundColor: Colors.green,
+                                radius: isSmallMobile ? 12 : 16,
+                                child: Icon(
+                                  Icons.payment, 
+                                  color: Colors.white,
+                                  size: isSmallMobile ? 14 : 18,
+                                ),
+                              ),
+                              SizedBox(width: isSmallMobile ? 8 : 12),
+                              Expanded(
+                                child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                                    Text(
+                                      'Payment for Sale #${payment['parent_sale_id']}',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: isSmallMobile ? 13 : 14,
+                                      ),
+                                    ),
+                                    SizedBox(height: isSmallMobile ? 4 : 6),
+                                    Text(
+                                      'Amount: \$${amount.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontSize: isSmallMobile ? 11 : 12,
+                                        color: Colors.grey[700],
+                                      ),
+                                    ),
+                                    SizedBox(height: isSmallMobile ? 2 : 3),
+                                    Text(
+                                      'Method: ${payment['payment_method']}',
+                                      style: TextStyle(
+                                        fontSize: isSmallMobile ? 11 : 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    SizedBox(height: isSmallMobile ? 2 : 3),
+                                    Text(
+                                      'Date: ${_formatDate(DateTime.tryParse(payment['created_at'] ?? ''))}',
+                                      style: TextStyle(
+                                        fontSize: isSmallMobile ? 11 : 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    SizedBox(height: isSmallMobile ? 2 : 3),
+                                    Text(
+                                      'Cashier: ${payment['cashier_name'] ?? 'Unknown'}',
+                                      style: TextStyle(
+                                        fontSize: isSmallMobile ? 11 : 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
                             '\$${amount.toStringAsFixed(2)}',
-                            style: const TextStyle(
+                                    style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.green,
+                                      fontSize: isSmallMobile ? 14 : 16,
                             ),
                           ),
+                                  SizedBox(height: isSmallMobile ? 2 : 4),
                           Text(
                             'Original: \$${originalAmount.toStringAsFixed(2)}',
-                            style: const TextStyle(fontSize: 10),
+                                    style: TextStyle(
+                                      fontSize: isSmallMobile ? 9 : 10,
+                                      color: Colors.grey[500],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ],
                       ),

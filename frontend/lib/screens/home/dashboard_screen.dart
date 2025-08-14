@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:retail_management/services/api_service.dart';
+import 'package:retail_management/services/offline_data_service.dart';
 import 'package:retail_management/models/product.dart';
 import 'package:retail_management/models/customer.dart';
 import 'package:retail_management/models/sale.dart';
@@ -21,6 +22,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final ApiService _apiService = ApiService();
+  final OfflineDataService _offlineDataService = OfflineDataService();
   bool _isLoading = true;
   Map<String, dynamic> _dashboardData = {};
   List<Sale> _recentSales = [];
@@ -118,12 +120,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final totalSales = double.tryParse(summary['total_revenue']?.toString() ?? '') ?? 0.0;
       final totalOrders = summary['total_orders'] ?? 0;
       final averageOrderValue = double.tryParse(summary['average_order_value']?.toString() ?? '') ?? 0.0;
-      // For customers and products, still fetch from API
+      // ✅ Use offline service instead of direct API calls
       print('Dashboard: Loading products...');
-      final products = await _apiService.getProducts();
+      final products = await _offlineDataService.getProducts();
       print('Dashboard: Products loaded: ${products.length}');
       print('Dashboard: Loading customers...');
-      final customers = await _apiService.getCustomers();
+      final customers = await _offlineDataService.getCustomers();
       print('Dashboard: Customers loaded: ${customers.length}');
       final lowStockCount = products.where((p) => p.stockQuantity <= p.lowStockThreshold).length;
 
@@ -186,7 +188,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<List<Sale>> _loadRecentSales() async {
     try {
       print('Dashboard: Loading recent sales...');
-      final sales = await _apiService.getSales();
+      final sales = await _offlineDataService.getSales();
       print('Dashboard: Recent sales loaded: ${sales.length}');
       for (final sale in sales) {
         print('Sale: id=${sale.id}, totalAmount=${sale.totalAmount}, customerName=${sale.customerName}');
@@ -205,7 +207,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<List<Product>> _loadLowStockProducts() async {
     try {
       print('Dashboard: Loading low stock products...');
-      final products = await _apiService.getProducts();
+      final products = await _offlineDataService.getProducts();
       print('Dashboard: Low stock products loaded: ${products.length}');
       final lowStockProducts = products.where((p) => p.stockQuantity <= p.lowStockThreshold).toList();
       print('Dashboard: Low stock products count: ${lowStockProducts.length}');

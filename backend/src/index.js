@@ -452,6 +452,11 @@ app.get('/', (req, res) => {
   });
 });
 
+// Test route to verify routing is working
+app.get('/test', (req, res) => {
+  res.json({ message: 'Test route working!', webAppPath: webAppPath, exists: fs.existsSync(webAppPath) });
+});
+
 // Handle Flutter web app routing (SPA) - serve at /app instead of root
 if (fs.existsSync(webAppPath)) {
   console.log('🌐 Flutter web app routing enabled for:', webAppPath);

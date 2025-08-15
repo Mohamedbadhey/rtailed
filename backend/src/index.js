@@ -105,22 +105,6 @@ const webAppPath = path.join(baseDir, 'web-app');
 if (fs.existsSync(webAppPath)) {
   console.log('🌐 Serving Flutter web app from:', webAppPath);
   app.use(express.static(webAppPath));
-  
-  // Handle Flutter web app routing (SPA)
-  app.get('*', (req, res, next) => {
-    // Don't interfere with API routes
-    if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
-      return next();
-    }
-    
-    // Serve index.html for all other routes (Flutter SPA routing)
-    const indexPath = path.join(webAppPath, 'index.html');
-    if (fs.existsSync(indexPath)) {
-      res.sendFile(indexPath);
-    } else {
-      res.status(404).send('Web app not found. Please build and deploy the Flutter web app.');
-    }
-  });
 } else {
   console.log('⚠️  Flutter web app directory not found at:', webAppPath);
   console.log('📝 To serve the web app, build Flutter web and copy to:', webAppPath);
@@ -460,13 +444,35 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/branding', require('./routes/branding'));
 app.use('/api/business-payments', require('./routes/business_payments'));
 
-// 404 handler
+// 404 handler for API routes
 app.use('/api/*', (req, res) => {
   res.status(404).json({
     status: 'error',
     message: 'API endpoint not found'
   });
 });
+
+// Handle Flutter web app routing (SPA) - must be after API routes
+if (fs.existsSync(webAppPath)) {
+  app.get('*', (req, res) => {
+    // Don't interfere with API routes or uploads
+    if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Route not found'
+      });
+    }
+    
+    // Serve index.html for all other routes (Flutter SPA routing)
+    const indexPath = path.join(webAppPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      console.log('🌐 Serving Flutter web app for route:', req.path);
+      res.sendFile(indexPath);
+    } else {
+      res.status(404).send('Web app not found. Please build and deploy the Flutter web app.');
+    }
+  });
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {

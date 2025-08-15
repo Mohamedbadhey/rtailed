@@ -96,57 +96,9 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Define base directories for Railway
+// Serve static files (for product images) - Updated for Railway volume
 const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
 const uploadsDir = baseDir;
-
-// Try multiple possible paths for the Flutter web app
-let webAppPath = path.join(__dirname, '..', 'web-app'); // Relative to src folder
-if (!fs.existsSync(webAppPath)) {
-  webAppPath = path.join(baseDir, 'web-app'); // Railway volume path
-}
-if (!fs.existsSync(webAppPath)) {
-  webAppPath = path.join(__dirname, '..', '..', 'web-app'); // Go up two levels
-}
-
-console.log('🔧 Base directory:', baseDir);
-console.log('🔧 Uploads directory:', uploadsDir);
-console.log('🔧 Web app path:', webAppPath);
-console.log('🔧 __dirname:', __dirname);
-console.log('🔧 Railway volume path:', process.env.RAILWAY_VOLUME_MOUNT_PATH);
-
-// Log all possible paths being checked
-const possiblePaths = [
-  path.join(__dirname, '..', 'web-app'),
-  path.join(baseDir, 'web-app'),
-  path.join(__dirname, '..', '..', 'web-app')
-];
-
-console.log('🔍 Checking possible web-app paths:');
-possiblePaths.forEach((p, i) => {
-  console.log(`  ${i + 1}. ${p} - ${fs.existsSync(p) ? 'EXISTS' : 'NOT FOUND'}`);
-});
-
-// Serve Flutter web app static files from root (like flutter run -d chrome)
-if (fs.existsSync(webAppPath)) {
-  console.log('🌐 Serving Flutter web app static files from root');
-  app.use('/', express.static(webAppPath, {
-    setHeaders: (res, path) => {
-      // Set proper MIME types for Flutter web assets
-      if (path.endsWith('.js')) {
-        res.setHeader('Content-Type', 'application/javascript');
-      } else if (path.endsWith('.css')) {
-        res.setHeader('Content-Type', 'text/css');
-      } else if (path.endsWith('.json')) {
-        res.setHeader('Content-Type', 'application/json');
-      } else if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg')) {
-        res.setHeader('Content-Type', 'image/png');
-      }
-    }
-  }));
-} else {
-  console.log('⚠️  Flutter web app static files not found at:', webAppPath);
-}
 
 // Custom image serving route with CORS headers for products
 app.get('/uploads/products/:filename', (req, res) => {
@@ -297,7 +249,19 @@ app.get('/test-uploads', (req, res) => {
   });
 });
 
-// Root endpoint removed - Flutter web app will handle root path
+// Root endpoint for Railway health checks
+app.get('/', (req, res) => {
+  console.log('🏥 Root health check requested');
+  res.json({ 
+    status: 'OK', 
+    message: 'Retail Management API is running',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/api/health',
+      api: '/api'
+    }
+  });
+});
 
 // Health check endpoint (keeping for backward compatibility)
 app.get('/api/health', (req, res) => {
@@ -470,88 +434,13 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/branding', require('./routes/branding'));
 app.use('/api/business-payments', require('./routes/business_payments'));
 
-// 404 handler for API routes
+// 404 handler
 app.use('/api/*', (req, res) => {
   res.status(404).json({
     status: 'error',
     message: 'API endpoint not found'
   });
 });
-
-// Railway health check endpoint (moved to /health for Flutter app to use root)
-app.get('/health', (req, res) => {
-  console.log('🏥 Railway health check requested');
-  res.json({ 
-    status: 'OK', 
-    message: 'Retail Management API is running',
-    timestamp: new Date().toISOString(),
-    endpoints: {
-      health: '/api/health',
-      api: '/api'
-    }
-  });
-});
-
-// Test route to verify routing is working
-app.get('/test', (req, res) => {
-  const possiblePaths = [
-    path.join(__dirname, '..', 'web-app'),
-    path.join(baseDir, 'web-app'),
-    path.join(__dirname, '..', '..', 'web-app')
-  ];
-  
-  res.json({ 
-    message: 'Test route working!', 
-    webAppPath: webAppPath, 
-    exists: fs.existsSync(webAppPath),
-    baseDir: baseDir,
-    __dirname: __dirname,
-    railwayVolume: process.env.RAILWAY_VOLUME_MOUNT_PATH,
-    possiblePaths: possiblePaths.map(p => ({ path: p, exists: fs.existsSync(p) }))
-  });
-});
-
-// Handle Flutter web app routing (SPA) - serve from root like flutter run -d chrome
-if (fs.existsSync(webAppPath)) {
-  console.log('🌐 Flutter web app routing enabled for:', webAppPath);
-  
-  // Serve Flutter web app from root (like flutter run -d chrome)
-  app.get('/', (req, res) => {
-    const indexPath = path.join(webAppPath, 'index.html');
-    if (fs.existsSync(indexPath)) {
-      console.log('🌐 Serving Flutter web app from root');
-      res.sendFile(indexPath);
-    } else {
-      console.log('❌ Flutter web app index.html not found at:', indexPath);
-      res.status(404).send('Web app not found. Please build and deploy the Flutter web app.');
-    }
-  });
-  
-  // Handle Flutter web app SPA routing for all other paths (except API)
-  app.get('*', (req, res) => {
-    // Don't interfere with API routes or uploads
-    if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Route not found'
-      });
-    }
-    
-    // Serve index.html for all other routes (Flutter SPA routing)
-    const indexPath = path.join(webAppPath, 'index.html');
-    if (fs.existsSync(indexPath)) {
-      console.log('🌐 Serving Flutter web app SPA route:', req.path);
-      res.sendFile(indexPath);
-    } else {
-      console.log('❌ Flutter web app index.html not found at:', indexPath);
-      res.status(404).send('Web app not found. Please build and deploy the Flutter web app.');
-    }
-  });
-  
-} else {
-  console.log('⚠️  Flutter web app directory not found at:', webAppPath);
-  console.log('📝 To serve the web app, build Flutter web and copy to:', webAppPath);
-}
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -6,10 +6,10 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "build:web": "cd ../frontend && flutter clean && flutter pub get && flutter build web --release --web-renderer canvaskit --dart-define=FLUTTER_WEB_USE_SKIA=true",
+    "build:web": "cd ../frontend && flutter clean && flutter pub get && flutter build web --release --web-renderer canvaskit",
+    "postinstall": "npm run build:web && node setup_uploads_directories.js",
     "test": "jest",
-    "setup": "node setup_uploads_directories.js",
-    "postinstall": "node setup_uploads_directories.js"
+    "setup": "node setup_uploads_directories.js"
   },
   "dependencies": {
     "express": "^4.18.2",

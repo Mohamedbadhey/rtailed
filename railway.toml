@@ -6,14 +6,4 @@ startCommand = "cd backend && npm start"
 healthcheckPath = "/"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 10
-
-[build.environment]
-NODE_VERSION = "18"
-FLUTTER_VERSION = "3.16.0"
-
-[build.hooks]
-preInstall = "curl -L https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.16.0-stable.tar.xz | tar -xJ && export PATH=\"$PATH:$PWD/flutter/bin\" && flutter doctor"
-
-[build.scripts]
-build = "cd frontend && flutter clean && flutter pub get && flutter build web --release --web-renderer canvaskit --dart-define=FLUTTER_WEB_USE_SKIA=true && cd ../backend && npm install" 
+restartPolicyMaxRetries = 10 

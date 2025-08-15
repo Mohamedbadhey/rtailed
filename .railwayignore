@@ -1,20 +1,22 @@
-# Exclude unnecessary files for Flutter web deployment
-backend/
+# Frontend files (not needed for backend deployment)
+frontend/
 *.bat
 *.md
-*.py
-*.html
-*.js
-*.json
-!frontend/build/web/**
-!frontend/build/web/index.html
-!frontend/build/web/main.dart.js
-!frontend/build/web/assets/**
-!frontend/build/web/canvaskit/**
-!frontend/build/web/icons/**
-!frontend/build/web/manifest.json
-!frontend/build/web/favicon.png
-!frontend/build/web/flutter.js
-!frontend/build/web/flutter_bootstrap.js
-!frontend/build/web/flutter_service_worker.js
-!frontend/build/web/version.json 
+.git/
+node_modules/
+uploads/*
+!uploads/.gitkeep
+
+# Documentation files
+*.md
+!README.md
+
+# Backup files
+backups/
+*.sql
+!setup_railway_database.sql
+!retail_management (3).sql
+
+# Temporary files
+*.tmp
+*.temp 

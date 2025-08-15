@@ -1,10 +1,10 @@
 [build]
-builder = "STATIC"
+builder = "nixpacks"
 
 [deploy]
-startCommand = ""
-healthcheckPath = "/"
-healthcheckTimeout = 100
+startCommand = "npm start"
+healthcheckPath = "/health"
+healthcheckTimeout = 600
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 

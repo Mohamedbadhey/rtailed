@@ -101,13 +101,11 @@ const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '.
 const uploadsDir = baseDir;
 
 // Serve Flutter web app static files
-const webAppPath = path.join(baseDir, 'web-app');
-if (fs.existsSync(webAppPath)) {
-  console.log('🌐 Serving Flutter web app from:', webAppPath);
-  app.use(express.static(webAppPath));
+if (fs.existsSync(path.join(baseDir, 'web-app'))) {
+  console.log('🌐 Serving Flutter web app static files from:', path.join(baseDir, 'web-app'));
+  app.use(express.static(path.join(baseDir, 'web-app')));
 } else {
-  console.log('⚠️  Flutter web app directory not found at:', webAppPath);
-  console.log('📝 To serve the web app, build Flutter web and copy to:', webAppPath);
+  console.log('⚠️  Flutter web app directory not found');
 }
 
 // Custom image serving route with CORS headers for products
@@ -441,7 +439,10 @@ app.use('/api/*', (req, res) => {
 });
 
 // Handle Flutter web app routing (SPA) - must be after API routes
+const webAppPath = path.join(baseDir, 'web-app');
 if (fs.existsSync(webAppPath)) {
+  console.log('🌐 Flutter web app found at:', webAppPath);
+  
   app.get('*', (req, res) => {
     // Don't interfere with API routes or uploads
     if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
@@ -457,9 +458,13 @@ if (fs.existsSync(webAppPath)) {
       console.log('🌐 Serving Flutter web app for route:', req.path);
       res.sendFile(indexPath);
     } else {
+      console.log('❌ Flutter web app index.html not found at:', indexPath);
       res.status(404).send('Web app not found. Please build and deploy the Flutter web app.');
     }
   });
+} else {
+  console.log('⚠️  Flutter web app directory not found at:', webAppPath);
+  console.log('📝 To serve the web app, build Flutter web and copy to:', webAppPath);
 }
 
 // Error handling middleware

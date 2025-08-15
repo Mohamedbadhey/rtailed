@@ -259,19 +259,7 @@ app.get('/test-uploads', (req, res) => {
   });
 });
 
-// Root endpoint for Railway health checks
-app.get('/', (req, res) => {
-  console.log('🏥 Root health check requested');
-  res.json({ 
-    status: 'OK', 
-    message: 'Retail Management API is running',
-    timestamp: new Date().toISOString(),
-    endpoints: {
-      health: '/api/health',
-      api: '/api'
-    }
-  });
-});
+// Root endpoint removed - Flutter web app will handle root path
 
 // Health check endpoint (keeping for backward compatibility)
 app.get('/api/health', (req, res) => {

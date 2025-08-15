@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["flutter", "nodejs_22", "npm-9_x"]
+
+[phases.install]
+cmds = ["cd frontend && flutter clean && flutter pub get && flutter build web --release --web-renderer canvaskit --dart-define=FLUTTER_WEB_USE_SKIA=true", "cd ../backend && npm install"]
+
+[phases.build]
+cmds = ["echo 'Flutter web build completed'"]
+
+[start]
+cmd = "cd backend && npm start"

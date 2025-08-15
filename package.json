@@ -4,7 +4,7 @@
   "description": "Complete Retail Management System with Flutter Web Frontend and Node.js Backend",
   "main": "backend/src/index.js",
   "scripts": {
-    "start": "npm run build:web && cd backend && npm start",
+    "start": "cd backend && npm start",
     "dev": "cd backend && npm run dev",
     "build:web": "cd frontend && flutter clean && flutter pub get && flutter build web --release --web-renderer canvaskit --dart-define=FLUTTER_WEB_USE_SKIA=true",
     "build:web:dev": "cd frontend && flutter build web --web-renderer canvaskit",

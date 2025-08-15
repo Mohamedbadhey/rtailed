@@ -26,23 +26,6 @@ class OfflineProvider with ChangeNotifier {
     await _dataService.initialize();
     await _setupConnectivityListener();
     await _updateSyncStatus();
-    
-    // ✅ Ensure we have some data offline
-    await _ensureOfflineDataAvailable();
-  }
-
-  // Ensure offline data is available
-  Future<void> _ensureOfflineDataAvailable() async {
-    try {
-      final hasData = await isDataAvailableOffline();
-      if (!hasData) {
-        print('No offline data available, attempting initial sync...');
-        // Try to get some data from server if possible
-        await _dataService.manualSync();
-      }
-    } catch (e) {
-      print('Warning: Could not ensure offline data availability: $e');
-    }
   }
 
   // Setup connectivity listener

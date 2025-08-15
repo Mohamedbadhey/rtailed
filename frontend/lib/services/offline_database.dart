@@ -275,14 +275,6 @@ class OfflineDatabase {
     );
   }
 
-  Future<List<Map<String, dynamic>>> getCategoriesByBusiness(int businessId) async {
-    return await query('categories',
-      where: 'business_id = ? AND is_deleted = 0',
-      whereArgs: [businessId],
-      orderBy: 'name ASC'
-    );
-  }
-
   // Sync queue operations
   Future<void> addToSyncQueue(String table, String operation, int localId, Map<String, dynamic> data, int businessId) async {
     final db = await database;

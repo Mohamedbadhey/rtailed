@@ -6,7 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:retail_management/models/product.dart';
 import 'package:retail_management/services/api_service.dart';
-import 'package:retail_management/services/offline_data_service.dart';
 import 'package:retail_management/widgets/custom_text_field.dart';
 import 'package:retail_management/providers/branding_provider.dart';
 import 'package:retail_management/widgets/branded_header.dart';
@@ -27,7 +26,6 @@ class InventoryScreen extends StatefulWidget {
 class _InventoryScreenState extends State<InventoryScreen> {
   final _searchController = TextEditingController();
   final ApiService _apiService = ApiService();
-  final OfflineDataService _offlineDataService = OfflineDataService();
   String _selectedCategory = 'All';
   List<String> _categories = ['All'];
   List<Map<String, dynamic>> _categoryList = [];
@@ -104,16 +102,20 @@ class _InventoryScreenState extends State<InventoryScreen> {
       print('=== FRONTEND LOAD DATA DEBUG ===');
       print('Loading products and categories...');
       
-      // ✅ Use offline service instead of direct API calls
-      final products = await _offlineDataService.getProducts();
-      final categories = await _offlineDataService.getCategories();
-      
-      print('Loaded ${products.length} products (offline/online)');
+      // Load products and categories in parallel
+      final results = await Future.wait([
+        _apiService.getProducts(),
+        _apiService.getCategories(),
+      ]);
+
+      final products = results[0] as List<Product>;
+      print('Loaded ${products.length} products from API');
       
       // Debug: Print each product's details
       for (var product in products) {
         print('Product ${product.id}: ${product.name} - Cost: ${product.costPrice}, Stock: ${product.stockQuantity}');
       }
+      final categories = results[1] as List<Map<String, dynamic>>;
 
       setState(() {
         _products = products;
@@ -142,9 +144,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
     });
 
     try {
-      print('📦 Calling offline service to get products...');
-      final products = await _offlineDataService.getProducts();
-      print('📦 ✅ Offline service call successful, loaded ${products.length} products');
+      print('📦 Calling API service to get products...');
+      final products = await _apiService.getProducts();
+      print('📦 ✅ API call successful, loaded ${products.length} products');
       
       // Debug: Print image URLs for products with images
       print('📦 Analyzing product images...');
@@ -153,7 +155,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       
       for (final product in products) {
         print('📦 Product: ${product.name} (ID: ${product.id})');
-        print('📦   - Image URL from offline service: ${product.imageUrl ?? 'NULL'}');
+        print('📦   - Image URL from API: ${product.imageUrl ?? 'NULL'}');
         
         if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
           productsWithImages++;

@@ -100,6 +100,32 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
 const uploadsDir = baseDir;
 
+// Serve Flutter web app static files
+const webAppPath = path.join(baseDir, 'web-app');
+if (fs.existsSync(webAppPath)) {
+  console.log('🌐 Serving Flutter web app from:', webAppPath);
+  app.use(express.static(webAppPath));
+  
+  // Handle Flutter web app routing (SPA)
+  app.get('*', (req, res, next) => {
+    // Don't interfere with API routes
+    if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
+      return next();
+    }
+    
+    // Serve index.html for all other routes (Flutter SPA routing)
+    const indexPath = path.join(webAppPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      res.status(404).send('Web app not found. Please build and deploy the Flutter web app.');
+    }
+  });
+} else {
+  console.log('⚠️  Flutter web app directory not found at:', webAppPath);
+  console.log('📝 To serve the web app, build Flutter web and copy to:', webAppPath);
+}
+
 // Custom image serving route with CORS headers for products
 app.get('/uploads/products/:filename', (req, res) => {
   try {

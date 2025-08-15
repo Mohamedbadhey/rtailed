@@ -127,7 +127,26 @@ possiblePaths.forEach((p, i) => {
   console.log(`  ${i + 1}. ${p} - ${fs.existsSync(p) ? 'EXISTS' : 'NOT FOUND'}`);
 });
 
-// Note: Flutter web app static files are now served under /app route
+// Serve Flutter web app static files BEFORE route handlers
+if (fs.existsSync(webAppPath)) {
+  console.log('🌐 Serving Flutter web app static files from:', webAppPath);
+  app.use('/app', express.static(webAppPath, {
+    setHeaders: (res, path) => {
+      // Set proper MIME types for Flutter web assets
+      if (path.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      } else if (path.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css');
+      } else if (path.endsWith('.json')) {
+        res.setHeader('Content-Type', 'application/json');
+      } else if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg')) {
+        res.setHeader('Content-Type', 'image/png');
+      }
+    }
+  }));
+} else {
+  console.log('⚠️  Flutter web app static files not found at:', webAppPath);
+}
 
 // Custom image serving route with CORS headers for products
 app.get('/uploads/products/:filename', (req, res) => {
@@ -521,8 +540,7 @@ if (fs.existsSync(webAppPath)) {
     }
   });
   
-  // Serve Flutter web app static assets
-  app.use('/app', express.static(webAppPath));
+  // Static file serving is now handled BEFORE route handlers
   
 } else {
   console.log('⚠️  Flutter web app directory not found at:', webAppPath);

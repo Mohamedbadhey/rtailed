@@ -105,13 +105,7 @@ console.log('🔧 Base directory:', baseDir);
 console.log('🔧 Uploads directory:', uploadsDir);
 console.log('🔧 Web app path:', webAppPath);
 
-// Serve Flutter web app static files
-if (fs.existsSync(webAppPath)) {
-  console.log('🌐 Serving Flutter web app static files from:', webAppPath);
-  app.use(express.static(webAppPath));
-} else {
-  console.log('⚠️  Flutter web app directory not found at:', webAppPath);
-}
+// Note: Flutter web app static files are now served under /app route
 
 // Custom image serving route with CORS headers for products
 app.get('/uploads/products/:filename', (req, res) => {
@@ -443,29 +437,52 @@ app.use('/api/*', (req, res) => {
   });
 });
 
-// Handle Flutter web app routing (SPA) - must be after API routes
+// Railway health check endpoint (required for Railway deployment)
+app.get('/', (req, res) => {
+  console.log('🏥 Railway root health check requested');
+  res.json({ 
+    status: 'OK', 
+    message: 'Retail Management API is running',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/api/health',
+      api: '/api',
+      webapp: '/app'
+    }
+  });
+});
+
+// Handle Flutter web app routing (SPA) - serve at /app instead of root
 if (fs.existsSync(webAppPath)) {
   console.log('🌐 Flutter web app routing enabled for:', webAppPath);
   
-  app.get('*', (req, res) => {
-    // Don't interfere with API routes or uploads
-    if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Route not found'
-      });
-    }
-    
-    // Serve index.html for all other routes (Flutter SPA routing)
+  // Serve Flutter web app at /app route
+  app.get('/app', (req, res) => {
     const indexPath = path.join(webAppPath, 'index.html');
     if (fs.existsSync(indexPath)) {
-      console.log('🌐 Serving Flutter web app for route:', req.path);
+      console.log('🌐 Serving Flutter web app at /app');
       res.sendFile(indexPath);
     } else {
       console.log('❌ Flutter web app index.html not found at:', indexPath);
       res.status(404).send('Web app not found. Please build and deploy the Flutter web app.');
     }
   });
+  
+  // Handle Flutter web app SPA routing for /app/* paths
+  app.get('/app/*', (req, res) => {
+    const indexPath = path.join(webAppPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      console.log('🌐 Serving Flutter web app SPA route:', req.path);
+      res.sendFile(indexPath);
+    } else {
+      console.log('❌ Flutter web app index.html not found at:', indexPath);
+      res.status(404).send('Web app not found. Please build and deploy the Flutter web app.');
+    }
+  });
+  
+  // Serve Flutter web app static assets
+  app.use('/app', express.static(webAppPath));
+  
 } else {
   console.log('⚠️  Flutter web app directory not found at:', webAppPath);
   console.log('📝 To serve the web app, build Flutter web and copy to:', webAppPath);

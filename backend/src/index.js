@@ -96,16 +96,21 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Serve static files (for product images) - Updated for Railway volume
+// Define base directories for Railway
 const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
 const uploadsDir = baseDir;
+const webAppPath = path.join(baseDir, 'web-app');
+
+console.log('🔧 Base directory:', baseDir);
+console.log('🔧 Uploads directory:', uploadsDir);
+console.log('🔧 Web app path:', webAppPath);
 
 // Serve Flutter web app static files
-if (fs.existsSync(path.join(baseDir, 'web-app'))) {
-  console.log('🌐 Serving Flutter web app static files from:', path.join(baseDir, 'web-app'));
-  app.use(express.static(path.join(baseDir, 'web-app')));
+if (fs.existsSync(webAppPath)) {
+  console.log('🌐 Serving Flutter web app static files from:', webAppPath);
+  app.use(express.static(webAppPath));
 } else {
-  console.log('⚠️  Flutter web app directory not found');
+  console.log('⚠️  Flutter web app directory not found at:', webAppPath);
 }
 
 // Custom image serving route with CORS headers for products
@@ -439,9 +444,8 @@ app.use('/api/*', (req, res) => {
 });
 
 // Handle Flutter web app routing (SPA) - must be after API routes
-const webAppPath = path.join(baseDir, 'web-app');
 if (fs.existsSync(webAppPath)) {
-  console.log('🌐 Flutter web app found at:', webAppPath);
+  console.log('🌐 Flutter web app routing enabled for:', webAppPath);
   
   app.get('*', (req, res) => {
     // Don't interfere with API routes or uploads

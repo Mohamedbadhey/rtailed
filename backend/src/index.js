@@ -99,11 +99,33 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Define base directories for Railway
 const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
 const uploadsDir = baseDir;
-const webAppPath = path.join(baseDir, 'web-app');
+
+// Try multiple possible paths for the Flutter web app
+let webAppPath = path.join(__dirname, '..', 'web-app'); // Relative to src folder
+if (!fs.existsSync(webAppPath)) {
+  webAppPath = path.join(baseDir, 'web-app'); // Railway volume path
+}
+if (!fs.existsSync(webAppPath)) {
+  webAppPath = path.join(__dirname, '..', '..', 'web-app'); // Go up two levels
+}
 
 console.log('🔧 Base directory:', baseDir);
 console.log('🔧 Uploads directory:', uploadsDir);
 console.log('🔧 Web app path:', webAppPath);
+console.log('🔧 __dirname:', __dirname);
+console.log('🔧 Railway volume path:', process.env.RAILWAY_VOLUME_MOUNT_PATH);
+
+// Log all possible paths being checked
+const possiblePaths = [
+  path.join(__dirname, '..', 'web-app'),
+  path.join(baseDir, 'web-app'),
+  path.join(__dirname, '..', '..', 'web-app')
+];
+
+console.log('🔍 Checking possible web-app paths:');
+possiblePaths.forEach((p, i) => {
+  console.log(`  ${i + 1}. ${p} - ${fs.existsSync(p) ? 'EXISTS' : 'NOT FOUND'}`);
+});
 
 // Note: Flutter web app static files are now served under /app route
 
@@ -454,7 +476,21 @@ app.get('/', (req, res) => {
 
 // Test route to verify routing is working
 app.get('/test', (req, res) => {
-  res.json({ message: 'Test route working!', webAppPath: webAppPath, exists: fs.existsSync(webAppPath) });
+  const possiblePaths = [
+    path.join(__dirname, '..', 'web-app'),
+    path.join(baseDir, 'web-app'),
+    path.join(__dirname, '..', '..', 'web-app')
+  ];
+  
+  res.json({ 
+    message: 'Test route working!', 
+    webAppPath: webAppPath, 
+    exists: fs.existsSync(webAppPath),
+    baseDir: baseDir,
+    __dirname: __dirname,
+    railwayVolume: process.env.RAILWAY_VOLUME_MOUNT_PATH,
+    possiblePaths: possiblePaths.map(p => ({ path: p, exists: fs.existsSync(p) }))
+  });
 });
 
 // Handle Flutter web app routing (SPA) - serve at /app instead of root

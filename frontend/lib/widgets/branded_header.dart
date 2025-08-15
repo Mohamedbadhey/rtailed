@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retail_management/providers/branding_provider.dart';
 import 'package:retail_management/providers/auth_provider.dart';
+import 'package:retail_management/widgets/local_logo.dart';
 
 class BrandedHeader extends StatelessWidget {
   final String? subtitle;
@@ -65,74 +66,74 @@ class BrandedHeader extends StatelessWidget {
                       children: [
                         if (showLogo) ...[
                           // Logo
-                          if (logoUrl != null)
-                            Container(
-                              width: logoSize,
-                              height: logoSize,
-                              margin: const EdgeInsets.only(right: 16),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                color: Colors.white,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.network(
-                                  'https://rtailed-production.up.railway.app$logoUrl',
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (context, error, stackTrace) => Container(
-                                    padding: const EdgeInsets.all(12),
-                                    child: Icon(
-                                      Icons.business,
-                                      color: primaryColor,
-                                      size: logoSize * 0.6,
+                          Container(
+                            width: logoSize,
+                            height: logoSize,
+                            margin: const EdgeInsets.only(right: 16),
+                            child: logoUrl != null
+                                ? Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12),
+                                      color: Colors.white,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.1),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.network(
+                                        'https://rtailed-production.up.railway.app$logoUrl',
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (context, error, stackTrace) => LocalLogo(
+                                          size: logoSize,
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(12),
+                                            color: Colors.white,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.1),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null) return child;
+                                          return Container(
+                                            color: Colors.white,
+                                            child: Center(
+                                              child: CircularProgressIndicator(
+                                                value: loadingProgress.expectedTotalBytes != null
+                                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                                    : null,
+                                                color: primaryColor,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  )
+                                : LocalLogo(
+                                    size: logoSize,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12),
+                                      color: Colors.white,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.1),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  loadingBuilder: (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return Container(
-                                      color: Colors.white,
-                                      child: Center(
-                                        child: CircularProgressIndicator(
-                                          value: loadingProgress.expectedTotalBytes != null
-                                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                              : null,
-                                          color: primaryColor,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            )
-                          else
-                            Container(
-                              width: logoSize,
-                              height: logoSize,
-                              margin: const EdgeInsets.only(right: 16),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                color: Colors.white.withOpacity(0.2),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Icon(
-                                Icons.business,
-                                color: Colors.white,
-                                size: logoSize * 0.6,
-                              ),
-                            ),
+                          ),
                         ],
                         
                         // App Name
@@ -182,74 +183,74 @@ class BrandedHeader extends StatelessWidget {
                   children: [
                     if (showLogo) ...[
                       // Logo
-                      if (logoUrl != null)
-                        Container(
-                          width: logoSize,
-                          height: logoSize,
-                          margin: const EdgeInsets.only(right: 16),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            color: Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              'https://rtailed-production.up.railway.app$logoUrl',
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) => Container(
-                                padding: const EdgeInsets.all(12),
-                                child: Icon(
-                                  Icons.business,
-                                  color: primaryColor,
-                                  size: logoSize * 0.6,
+                      Container(
+                        width: logoSize,
+                        height: logoSize,
+                        margin: const EdgeInsets.only(right: 16),
+                        child: logoUrl != null
+                            ? Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: Colors.white,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    'https://rtailed-production.up.railway.app$logoUrl',
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) => LocalLogo(
+                                      size: logoSize,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(12),
+                                        color: Colors.white,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.1),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Container(
+                                        color: Colors.white,
+                                        child: Center(
+                                          child: CircularProgressIndicator(
+                                            value: loadingProgress.expectedTotalBytes != null
+                                                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                                : null,
+                                            color: primaryColor,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              )
+                            : LocalLogo(
+                                size: logoSize,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: Colors.white,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Container(
-                                  color: Colors.white,
-                                  child: Center(
-                                    child: CircularProgressIndicator(
-                                      value: loadingProgress.expectedTotalBytes != null
-                                          ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                          : null,
-                                      color: primaryColor,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        )
-                      else
-                        Container(
-                          width: logoSize,
-                          height: logoSize,
-                          margin: const EdgeInsets.only(right: 16),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            color: Colors.white.withOpacity(0.2),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            Icons.business,
-                            color: Colors.white,
-                            size: logoSize * 0.6,
-                          ),
-                        ),
+                      ),
                     ],
                     
                     // App Name and Subtitle
@@ -318,42 +319,41 @@ class BrandedLogo extends StatelessWidget {
 
         print('BrandedLogo - businessId: $businessId, logoUrl: $logoUrl');
 
-        return Container(
-          width: size,
-          height: size,
-          decoration: decoration ?? BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
+        // If we have a logo URL, try to load it, otherwise use local logo
+        if (logoUrl != null) {
+          return Container(
+            width: size,
+            height: size,
+            decoration: decoration ?? BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                'https://rtailed-production.up.railway.app$logoUrl',
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => LocalLogo(
+                  size: size,
+                  decoration: decoration,
+                ),
               ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: logoUrl != null
-                ? Image.network(
-                    'https://rtailed-production.up.railway.app$logoUrl',
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      padding: EdgeInsets.all(size * 0.2),
-                      child: Icon(
-                        Icons.business,
-                        color: primaryColor,
-                        size: size * 0.6,
-                      ),
-                    ),
-                  )
-                : Icon(
-                    Icons.business,
-                    color: primaryColor,
-                    size: size * 0.6,
-                  ),
-          ),
-        );
+            ),
+          );
+        } else {
+          // Use local logo as fallback
+          return LocalLogo(
+            size: size,
+            decoration: decoration,
+          );
+        }
       },
     );
   }

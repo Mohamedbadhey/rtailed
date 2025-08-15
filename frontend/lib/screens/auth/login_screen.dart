@@ -3,8 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:retail_management/providers/auth_provider.dart';
 import 'package:retail_management/providers/branding_provider.dart';
 import 'package:retail_management/utils/theme.dart';
+import 'package:retail_management/utils/responsive_utils.dart';
 import 'package:retail_management/widgets/custom_text_field.dart';
-import 'package:retail_management/widgets/branded_header.dart';
+import 'package:retail_management/widgets/local_logo.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -101,6 +102,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final isTablet = ResponsiveUtils.isTablet(context);
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+    
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -116,10 +121,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: ResponsiveUtils.getResponsivePadding(context),
             child: Column(
               children: [
-                const SizedBox(height: 60),
+                SizedBox(height: isMobile ? 40 : (isTablet ? 60 : 80)),
                 
                 // Branded Header Section
                 FadeTransition(
@@ -133,31 +138,31 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       return Column(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(20),
+                            padding: ResponsiveUtils.getResponsiveCardPadding(context),
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [primaryColor, secondaryColor],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               ),
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 10,
+                                  blurRadius: isMobile ? 8 : 10,
                                   offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
-                            child: BrandedLogo(
-                              size: 60,
-                              businessId: null,
+                            child: LocalLogo(
+                              size: ResponsiveUtils.getResponsiveLogoSize(context),
                             ),
                           ),
-                          const SizedBox(height: 24),
+                          SizedBox(height: isMobile ? 16 : (isTablet ? 20 : 24)),
                           Text(
                             appName,
                             style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                              fontSize: isMobile ? 24 : (isTablet ? 28 : 32),
                               background: Paint()
                                 ..shader = LinearGradient(
                                   colors: [primaryColor, secondaryColor],
@@ -165,13 +170,16 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                   const Rect.fromLTWH(0.0, 0.0, 200.0, 70.0),
                                 ),
                             ),
+                            textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: isMobile ? 6 : 8),
                           Text(
                             'Sign in to your account',
                             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               color: textSecondary,
+                              fontSize: isMobile ? 14 : 16,
                             ),
+                            textAlign: TextAlign.center,
                           ),
                         ],
                       );
@@ -179,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   ),
                 ),
                 
-                const SizedBox(height: 60),
+                SizedBox(height: isMobile ? 40 : (isTablet ? 50 : 60)),
                 
                 // Login Form
                 SlideTransition(
@@ -191,7 +199,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     curve: Curves.easeOutBack,
                   )),
                   child: Container(
-                    padding: const EdgeInsets.all(32),
+                    width: isMobile ? double.infinity : (isTablet ? 500 : 600),
+                    padding: ResponsiveUtils.getResponsiveCardPadding(context),
                     decoration: AppStyles.cardDecoration,
                     child: Form(
                       key: _formKey,
@@ -215,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             },
                           ),
                           
-                          const SizedBox(height: 20),
+                          SizedBox(height: isMobile ? 16 : 20),
                           
                           // Password Field
                           CustomTextField(
@@ -246,13 +255,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             },
                           ),
                           
-                          const SizedBox(height: 20),
+                          SizedBox(height: isMobile ? 16 : 20),
                           
                           // Remember Me & Forgot Password
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Row(
+                          if (isMobile) ...[
+                            // Mobile layout - stacked vertically
+                            Column(
+                              children: [
+                                Row(
                                   children: [
                                     Checkbox(
                                       value: _rememberMe,
@@ -268,27 +278,71 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                     ),
                                     Text(
                                       'Remember me',
-                                      style: Theme.of(context).textTheme.bodyMedium,
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        fontSize: 14,
+                                      ),
                                     ),
                                   ],
                                 ),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  // TODO: Implement forgot password
-                                },
-                                child: Text(
-                                  'Forgot Password?',
-                                  style: TextStyle(
-                                    color: primaryGradientStart,
-                                    fontWeight: FontWeight.w600,
+                                const SizedBox(height: 12),
+                                TextButton(
+                                  onPressed: () {
+                                    // TODO: Implement forgot password
+                                  },
+                                  child: Text(
+                                    'Forgot Password?',
+                                    style: TextStyle(
+                                      color: primaryGradientStart,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
+                              ],
+                            ),
+                          ] else ...[
+                            // Desktop/Tablet layout - horizontal
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Checkbox(
+                                        value: _rememberMe,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _rememberMe = value ?? false;
+                                          });
+                                        },
+                                        activeColor: primaryGradientStart,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                      ),
+                                      Text(
+                                        'Remember me',
+                                        style: Theme.of(context).textTheme.bodyMedium,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    // TODO: Implement forgot password
+                                  },
+                                  child: Text(
+                                    'Forgot Password?',
+                                    style: TextStyle(
+                                      color: primaryGradientStart,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                           
-                          const SizedBox(height: 32),
+                          SizedBox(height: isMobile ? 24 : 32),
                           
                           // Login Button
                           Container(
@@ -298,18 +352,20 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.transparent,
                                 shadowColor: Colors.transparent,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: EdgeInsets.symmetric(
+                                  vertical: ResponsiveUtils.getResponsiveButtonHeight(context) * 0.3,
+                                ),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
                                 ),
                               ),
                               child: _isLoading
-                                  ? const SizedBox(
+                                  ? SizedBox(
                                       height: 20,
                                       width: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                                       ),
                                     )
                                   : Text(
@@ -317,19 +373,18 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
+                                        fontSize: isMobile ? 16 : 18,
                                       ),
                                     ),
                             ),
                           ),
-                          
-
                         ],
                       ),
                     ),
                   ),
                 ),
                 
-                const SizedBox(height: 40),
+                SizedBox(height: isMobile ? 30 : 40),
                 
                 // Footer
                 FadeTransition(
@@ -338,6 +393,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     '© 2024 Retail Management System',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: textSecondary.withOpacity(0.7),
+                      fontSize: isMobile ? 11 : 12,
                     ),
                     textAlign: TextAlign.center,
                   ),

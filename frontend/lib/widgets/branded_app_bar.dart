@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retail_management/providers/branding_provider.dart';
 import 'package:retail_management/providers/auth_provider.dart';
+import 'package:retail_management/widgets/local_logo.dart';
 
 class BrandedAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -46,31 +47,39 @@ class BrandedAppBar extends StatelessWidget implements PreferredSizeWidget {
           title: Row(
             children: [
               // Logo
-              if (logoUrl != null)
-                Container(
-                  width: 40,
-                  height: 40,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: Colors.white,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      'https://rtailed-production.up.railway.app$logoUrl',
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        padding: const EdgeInsets.all(8),
-                        child: Icon(
-                          Icons.business,
-                          color: primaryColor,
-                          size: 24,
+              Container(
+                width: 40,
+                height: 40,
+                margin: const EdgeInsets.only(right: 12),
+                child: logoUrl != null
+                    ? Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.white,
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            'https://rtailed-production.up.railway.app$logoUrl',
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => LocalLogo(
+                              size: 40,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : LocalLogo(
+                        size: 40,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.white,
                         ),
                       ),
-                    ),
-                  ),
-                ),
+              ),
               
               // App Name and Title
               Expanded(
@@ -148,35 +157,38 @@ class BrandedLogoAppBar extends StatelessWidget implements PreferredSizeWidget {
         final primaryColor = brandingProvider.getPrimaryColor(businessId);
 
         return AppBar(
-          title: logoUrl != null
-              ? Container(
-                  width: logoSize,
-                  height: logoSize,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: Colors.white,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      'https://rtailed-production.up.railway.app$logoUrl',
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        padding: const EdgeInsets.all(8),
-                        child: Icon(
-                          Icons.business,
-                          color: primaryColor,
-                          size: logoSize * 0.6,
+          title: Container(
+            width: logoSize,
+            height: logoSize,
+            child: logoUrl != null
+                ? Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.white,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        'https://rtailed-production.up.railway.app$logoUrl',
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => LocalLogo(
+                          size: logoSize,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
+                  )
+                : LocalLogo(
+                    size: logoSize,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.white,
+                    ),
                   ),
-                )
-              : Icon(
-                  Icons.business,
-                  color: Colors.white,
-                  size: logoSize * 0.6,
-                ),
+          ),
           backgroundColor: backgroundColor ?? primaryColor,
           foregroundColor: foregroundColor ?? Colors.white,
           elevation: elevation,
@@ -229,30 +241,39 @@ class BrandedTitleAppBar extends StatelessWidget implements PreferredSizeWidget 
         return AppBar(
           title: Row(
             children: [
-              if (showLogo && logoUrl != null) ...[
+              if (showLogo) ...[
                 Container(
                   width: logoSize,
                   height: logoSize,
                   margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6),
-                    color: Colors.white,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: Image.network(
-                      'https://rtailed-production.up.railway.app$logoUrl',
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        padding: const EdgeInsets.all(6),
-                        child: Icon(
-                          Icons.business,
-                          color: primaryColor,
-                          size: logoSize * 0.6,
+                  child: logoUrl != null
+                      ? Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(6),
+                            color: Colors.white,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Image.network(
+                              'https://rtailed-production.up.railway.app$logoUrl',
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => LocalLogo(
+                                size: logoSize,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6),
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      : LocalLogo(
+                          size: logoSize,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(6),
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                    ),
-                  ),
                 ),
               ],
               Expanded(

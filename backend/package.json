@@ -6,9 +6,9 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "build:web": "cd ../frontend && flutter clean && flutter pub get && flutter build web --release --web-renderer canvaskit",
     "test": "jest",
-    "setup": "node setup_uploads_directories.js"
+    "setup": "node setup_uploads_directories.js",
+    "postinstall": "node setup_uploads_directories.js"
   },
   "dependencies": {
     "express": "^4.18.2",

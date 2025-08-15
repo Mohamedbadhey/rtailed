@@ -1,11 +1,11 @@
 {
-    "name": "Retail Management System",
-    "short_name": "Retail Management",
+    "name": "retail_management",
+    "short_name": "retail_management",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#ffffff",
-    "theme_color": "#3498db",
-    "description": "Professional retail management system for businesses",
+    "background_color": "#0175C2",
+    "theme_color": "#0175C2",
+    "description": "A new Flutter project.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

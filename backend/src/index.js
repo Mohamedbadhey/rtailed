@@ -100,39 +100,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
 const uploadsDir = baseDir;
 
-// Serve Flutter web build
-const flutterWebDir = path.join(__dirname, '../../frontend/build/web');
-console.log('🌐 Flutter web build directory:', flutterWebDir);
-
-// Check if Flutter web build exists
-if (fs.existsSync(flutterWebDir)) {
-  console.log('✅ Flutter web build found');
-  
-  // Serve Flutter web assets with proper MIME types and caching
-  app.use(express.static(flutterWebDir, {
-    maxAge: '1y',
-    setHeaders: (res, path) => {
-      // Set proper MIME types for Flutter web assets
-      if (path.endsWith('.js')) {
-        res.setHeader('Content-Type', 'application/javascript');
-        res.setHeader('Cache-Control', 'public, max-age=31536000');
-      } else if (path.endsWith('.wasm')) {
-        res.setHeader('Content-Type', 'application/wasm');
-        res.setHeader('Cache-Control', 'public, max-age=31536000');
-      } else if (path.endsWith('.json')) {
-        res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Cache-Control', 'public, max-age=31536000');
-      } else if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.gif') || path.endsWith('.svg')) {
-        res.setHeader('Cache-Control', 'public, max-age=31536000');
-      }
-    }
-  }));
-  
-  console.log('🌐 Flutter web assets configured with proper MIME types and caching');
-} else {
-  console.log('⚠️ Flutter web build not found, will serve from fallback');
-}
-
 // Custom image serving route with CORS headers for products
 app.get('/uploads/products/:filename', (req, res) => {
   try {
@@ -467,39 +434,12 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/branding', require('./routes/branding'));
 app.use('/api/business-payments', require('./routes/business_payments'));
 
-// 404 handler for API routes
+// 404 handler
 app.use('/api/*', (req, res) => {
   res.status(404).json({
     status: 'error',
     message: 'API endpoint not found'
   });
-});
-
-// Catch-all route for Flutter web app (SPA routing)
-app.get('*', (req, res) => {
-  // Skip API routes
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({
-      status: 'error',
-      message: 'API endpoint not found'
-    });
-  }
-  
-  // Skip upload routes
-  if (req.path.startsWith('/uploads/')) {
-    return res.status(404).json({
-      status: 'error',
-      message: 'File not found'
-    });
-  }
-  
-  // Serve Flutter web app index.html for all other routes
-  const indexPath = path.join(flutterWebDir, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(404).send('Flutter web app not found. Please build the web app first.');
-  }
 });
 
 // Error handling middleware

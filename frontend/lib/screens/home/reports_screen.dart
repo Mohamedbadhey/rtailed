@@ -258,17 +258,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
         }
       }
       print('REPORTS: Date parameters - startDateParam: $startDateParam, endDateParam: $endDateParam');
+      print('REPORTS: Current date filter - start: $_filterStartDate, end: $_filterEndDate, quickRange: $_quickRangeLabel');
       final user = context.read<AuthProvider>().user;
       Map<String, dynamic> salesReport;
       if (user != null && user.role == 'admin' && _selectedCashierId != null && _selectedCashierId != 'all') {
-        print('Sending userId: \'$_selectedCashierId\' to getSalesReport');
+        print('Sending userId: \'$_selectedCashierId\' to getSalesReport with dates: $startDateParam to $endDateParam');
         salesReport = await _apiService.getSalesReport(
           startDate: startDateParam,
           endDate: endDateParam,
           userId: _selectedCashierId,
         );
       } else {
-        print('No cashier filter, loading all or self');
+        print('No cashier filter, loading all or self with dates: $startDateParam to $endDateParam');
         salesReport = await _apiService.getSalesReport(
           startDate: startDateParam,
           endDate: endDateParam,
@@ -929,6 +930,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             ],
                             onChanged: (val) {
                               setState(() { _selectedCashierId = val; });
+                              // If selecting a specific cashier (not "all"), reset to today's date
+                              if (val != null && val != 'all') {
+                                _setQuickRange('Today');
+                              }
                               _loadAllReports();
                             },
                                     ),
@@ -967,6 +972,37 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         ),
                       ),
                     ),
+                        ],
+                      ),
+                    ),
+                  // Show info when specific cashier is selected
+                  if (_selectedCashierId != null && _selectedCashierId != 'all')
+                    Container(
+                      margin: EdgeInsets.only(bottom: isSmallMobile ? 8 : 12),
+                      padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                        border: Border.all(color: Colors.green[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.person,
+                            color: Colors.green[600],
+                            size: isSmallMobile ? 16 : 20,
+                          ),
+                          SizedBox(width: isSmallMobile ? 6 : 8),
+                          Expanded(
+                            child: Text(
+                              'Showing today\'s data for selected cashier. Change date range if needed.',
+                              style: TextStyle(
+                                color: Colors.green[800],
+                                fontWeight: FontWeight.bold,
+                                fontSize: isSmallMobile ? 11 : 13,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),

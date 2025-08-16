@@ -224,7 +224,23 @@ router.get('/report', auth, async (req, res) => {
     // Sales by period
     const dateFormat = group_by === 'day' ? '%Y-%m-%d' : group_by === 'week' ? '%Y-%u' : '%Y-%m';
     const salesByPeriodQuery = `SELECT DATE_FORMAT(s.created_at, ?) as period, COUNT(*) as total_sales, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_sale FROM sales s ${whereClause} GROUP BY DATE_FORMAT(s.created_at, ?) ORDER BY period DESC`;
-    const salesByPeriodParams = [dateFormat, dateFormat, ...params];
+    // Create parameters array with correct order: dateFormat, dateFormat, then the WHERE clause params
+    const salesByPeriodParams = [dateFormat, dateFormat];
+    // Add the WHERE clause parameters in the correct order
+    if (req.user.role !== 'superadmin' && req.user.business_id) {
+      salesByPeriodParams.push(req.user.business_id);
+    }
+    if (isCashier) {
+      salesByPeriodParams.push(req.user.id);
+    } else if (user_id) {
+      salesByPeriodParams.push(user_id);
+    }
+    if (start_date) {
+      salesByPeriodParams.push(start_date);
+    }
+    if (end_date) {
+      salesByPeriodParams.push(end_date);
+    }
     
     console.log('SALES REPORT: Sales by period query:', salesByPeriodQuery);
     console.log('SALES REPORT: Sales by period params:', salesByPeriodParams);
@@ -418,6 +434,7 @@ router.get('/report', auth, async (req, res) => {
       },
       // New fields for dashboard
       totalSales: safeSummary.total_revenue,
+      totalOrders: safeSummary.total_orders,
       cashInHand: safeNetRevenue,
       outstandingCredits: Number(outstandingCredits[0]?.total_outstanding_credit) || 0,
       paymentMethodBreakdown: safePaymentMethods,

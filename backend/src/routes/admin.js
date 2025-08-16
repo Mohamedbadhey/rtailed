@@ -3080,32 +3080,55 @@ router.get('/accounting/profit-loss', [auth, checkRole(['admin', 'manager'])], a
 });
 
 router.get('/accounting/balance-sheet', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
-  let salesQuery = 'SELECT SUM(total_amount) as total_sales FROM sales WHERE (status = "completed" OR payment_method = "credit")';
-  let creditsQuery = 'SELECT SUM(total_amount) as total_credit FROM sales WHERE payment_method = "credit"';
-  let expensesQuery = 'SELECT SUM(amount) as total_expenses FROM expenses';
-  let payablesQuery = 'SELECT SUM(amount) as total_payables FROM accounts_payable WHERE status != "paid"';
-  let salesParams = [];
+  // Calculate cash using cash flows table for accurate cash in hand
+  let cashFlowsQuery = `
+    SELECT 
+      SUM(CASE WHEN type = 'in' THEN amount ELSE 0 END) as total_inflow,
+      SUM(CASE WHEN type = 'out' THEN amount ELSE 0 END) as total_outflow
+    FROM cash_flows 
+    WHERE 1=1
+  `;
+  let cashFlowsParams = [];
+  
+  // Add business_id filter unless superadmin
+  if (req.user.role !== 'superadmin' && req.user.business_id) {
+    cashFlowsQuery += ' AND business_id = ?';
+    cashFlowsParams.push(req.user.business_id);
+  }
+  
+  const [cashFlows] = await pool.query(cashFlowsQuery, cashFlowsParams);
+  const actualCash = (cashFlows[0]?.total_inflow || 0) - (cashFlows[0]?.total_outflow || 0);
+  
+  // Get receivables (outstanding credit)
+  let creditsQuery = 'SELECT SUM(total_amount) as total_credit FROM sales WHERE payment_method = "credit" AND parent_sale_id IS NULL';
   let creditsParams = [];
-  let expensesParams = [];
+  if (req.user.role !== 'superadmin' && req.user.business_id) {
+    creditsQuery += ' AND business_id = ?';
+    creditsParams.push(req.user.business_id);
+  }
+  const [credits] = await pool.query(creditsQuery, creditsParams);
+  
+  // Get payables
+  let payablesQuery = 'SELECT SUM(amount) as total_payables FROM accounts_payable WHERE status != "paid"';
   let payablesParams = [];
   if (req.user.role !== 'superadmin' && req.user.business_id) {
-    salesQuery += ' AND business_id = ?';
-    creditsQuery += ' AND business_id = ?';
-    expensesQuery += ' WHERE business_id = ?';
     payablesQuery += ' AND business_id = ?';
-    salesParams.push(req.user.business_id);
-    creditsParams.push(req.user.business_id);
-    expensesParams.push(req.user.business_id);
     payablesParams.push(req.user.business_id);
   }
-  const [sales] = await pool.query(salesQuery, salesParams);
-  const [credits] = await pool.query(creditsQuery, creditsParams);
-  const [expenses] = await pool.query(expensesQuery, expensesParams);
   const [payables] = await pool.query(payablesQuery, payablesParams);
-  const cash = (sales[0].total_sales || 0) - (credits[0].total_credit || 0) - (expenses[0].total_expenses || 0);
-  const receivables = credits[0].total_credit || 0;
-  const liabilities = payables[0].total_payables || 0;
-  res.json({ cash, receivables, liabilities });
+  
+  const receivables = credits[0]?.total_credit || 0;
+  const liabilities = payables[0]?.total_payables || 0;
+  
+  res.json({ 
+    cash: actualCash, 
+    receivables, 
+    liabilities,
+    cashBreakdown: {
+      totalInflow: cashFlows[0]?.total_inflow || 0,
+      totalOutflow: cashFlows[0]?.total_outflow || 0
+    }
+  });
 });
 
 router.get('/accounting/general-ledger', [auth, checkRole(['admin', 'manager'])], async (req, res) => {

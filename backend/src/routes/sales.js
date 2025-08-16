@@ -383,6 +383,57 @@ router.get('/report', auth, async (req, res) => {
       params
     );
     
+    // Calculate outstanding credits more accurately
+    let outstandingCreditsQuery = `
+      SELECT 
+        SUM(orig.total_amount) as total_original_credit,
+        SUM(IFNULL(pay.total_paid, 0)) as total_paid_amount,
+        SUM(orig.total_amount - IFNULL(pay.total_paid, 0)) as total_outstanding_credit
+      FROM sales orig 
+      LEFT JOIN (
+        SELECT parent_sale_id, SUM(total_amount) as total_paid 
+        FROM sales 
+        WHERE parent_sale_id IS NOT NULL 
+        GROUP BY parent_sale_id
+      ) pay ON pay.parent_sale_id = orig.id 
+      WHERE orig.payment_method = 'credit' 
+        AND orig.parent_sale_id IS NULL 
+        AND (orig.status != 'paid' OR orig.status IS NULL)
+    `;
+    let outstandingCreditsParams = [];
+    
+    // Add business_id filter unless superadmin
+    if (req.user.role !== 'superadmin') {
+      if (!req.user.business_id) {
+        return res.status(400).json({ message: 'Business ID is required for this report.' });
+      }
+      outstandingCreditsQuery += ' AND orig.business_id = ?';
+      outstandingCreditsParams.push(req.user.business_id);
+    }
+    
+    // Add user filter for cashiers
+    if (isCashier || user_id) {
+      outstandingCreditsQuery += ' AND orig.user_id = ?';
+      outstandingCreditsParams.push(isCashier ? req.user.id : user_id);
+    }
+    
+    // Add date filters
+    if (start_date) {
+      outstandingCreditsQuery += ' AND orig.created_at >= ?';
+      outstandingCreditsParams.push(start_date);
+    }
+    if (end_date) {
+      outstandingCreditsQuery += ' AND orig.created_at <= ?';
+      outstandingCreditsParams.push(end_date);
+    }
+    
+    const [outstandingCredits] = await pool.query(outstandingCreditsQuery, outstandingCreditsParams);
+    
+    console.log('SALES REPORT: Credit calculations:');
+    console.log('  - Total Original Credit Amount:', outstandingCredits[0]?.total_original_credit || 0);
+    console.log('  - Total Paid Amount:', outstandingCredits[0]?.total_paid_amount || 0);
+    console.log('  - Total Outstanding Credit:', outstandingCredits[0]?.total_outstanding_credit || 0);
+    
     // Product breakdown - exclude credit payments
     console.log('SALES REPORT: Running product breakdown query with whereClause =', whereClause, 'params =', params);
     const [productBreakdown] = await pool.query(
@@ -435,41 +486,49 @@ router.get('/report', auth, async (req, res) => {
     const totalRevenue = summary[0]?.total_revenue || 0;
     const totalProfit = totalRevenue - total_cost;
     
-    console.log('SALES REPORT: Profit calculation:');
-    console.log('  - Total Revenue:', totalRevenue);
-    console.log('  - Total COGS:', total_cost);
-    console.log('  - Calculated totalProfit:', totalProfit);
-    
-    // Outstanding credits - this query is already correct as it only looks at original credit sales
-    let outstandingCreditsQuery = `SELECT SUM(orig.total_amount - IFNULL(pay.paid,0)) as total_outstanding_credit FROM sales orig LEFT JOIN (SELECT parent_sale_id, SUM(total_amount) as paid FROM sales WHERE parent_sale_id IS NOT NULL GROUP BY parent_sale_id) pay ON pay.parent_sale_id = orig.id WHERE orig.payment_method = 'credit' AND orig.parent_sale_id IS NULL AND (orig.status != 'paid' OR orig.status IS NULL)`;
-    let outstandingCreditsParams = [];
+    // Calculate actual cash in hand using cash flows table
+    let cashInHandQuery = `
+      SELECT 
+        SUM(CASE WHEN type = 'in' THEN amount ELSE 0 END) as total_inflow,
+        SUM(CASE WHEN type = 'out' THEN amount ELSE 0 END) as total_outflow
+      FROM cash_flows 
+      WHERE 1=1
+    `;
+    let cashInHandParams = [];
     
     // Add business_id filter unless superadmin
     if (req.user.role !== 'superadmin') {
       if (!req.user.business_id) {
         return res.status(400).json({ message: 'Business ID is required for this report.' });
       }
-      outstandingCreditsQuery += ' AND orig.business_id = ?';
-      outstandingCreditsParams.push(req.user.business_id);
+      cashInHandQuery += ' AND business_id = ?';
+      cashInHandParams.push(req.user.business_id);
     }
     
-    // Add user filter for cashiers
-    if (isCashier || user_id) {
-      outstandingCreditsQuery += ' AND orig.user_id = ?';
-      outstandingCreditsParams.push(isCashier ? req.user.id : user_id);
-    }
-    
-    // Add date filters
+    // Add date filters if specified
     if (start_date) {
-      outstandingCreditsQuery += ' AND orig.created_at >= ?';
-      outstandingCreditsParams.push(start_date);
+      cashInHandQuery += ' AND date >= ?';
+      cashInHandParams.push(start_date);
     }
     if (end_date) {
-      outstandingCreditsQuery += ' AND orig.created_at <= ?';
-      outstandingCreditsParams.push(end_date);
+      cashInHandQuery += ' AND date <= ?';
+      cashInHandParams.push(end_date);
     }
     
-    const [outstandingCredits] = await pool.query(outstandingCreditsQuery, outstandingCreditsParams);
+    const [cashFlows] = await pool.query(cashInHandQuery, cashInHandParams);
+    const totalInflow = Number(cashFlows[0]?.total_inflow) || 0;
+    const totalOutflow = Number(cashFlows[0]?.total_outflow) || 0;
+    const actualCashInHand = totalInflow - totalOutflow;
+    
+    console.log('SALES REPORT: Cash in hand calculation:');
+    console.log('  - Total Inflow (sales + credit payments):', totalInflow);
+    console.log('  - Total Outflow (expenses):', totalOutflow);
+    console.log('  - Actual Cash in Hand:', actualCashInHand);
+    
+    console.log('SALES REPORT: Profit calculation:');
+    console.log('  - Total Revenue:', totalRevenue);
+    console.log('  - Total COGS:', total_cost);
+    console.log('  - Calculated totalProfit:', totalProfit);
     
     // Prepare safe response data
     const safeSummary = {
@@ -538,12 +597,22 @@ router.get('/report', auth, async (req, res) => {
       // New fields for dashboard
       totalSales: safeSummary.total_revenue,
       totalOrders: safeSummary.total_orders,
-      cashInHand: safeNetRevenue,
+      cashInHand: actualCashInHand,
       outstandingCredits: Number(outstandingCredits[0]?.total_outstanding_credit) || 0,
       paymentMethodBreakdown: safePaymentMethods,
+      // Enhanced credit information
+      creditBreakdown: {
+        totalOriginalCredit: Number(outstandingCredits[0]?.total_original_credit) || 0,
+        totalPaidAmount: Number(outstandingCredits[0]?.total_paid_amount) || 0,
+        totalOutstanding: Number(outstandingCredits[0]?.total_outstanding_credit) || 0
+      }
     };
     
     console.log('🔍 SALES REPORT: Final response object:', response);
+    console.log('🔍 SALES REPORT: Cash in hand breakdown:');
+    console.log('  - Total Inflow (sales + credit payments):', totalInflow);
+    console.log('  - Total Outflow (expenses):', totalOutflow);
+    console.log('  - Final Cash in Hand:', actualCashInHand);
     console.log('🔍 SALES REPORT: ===== SUCCESS - END =====');
     
     res.json(response);

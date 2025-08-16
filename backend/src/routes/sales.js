@@ -221,42 +221,37 @@ router.get('/report', auth, async (req, res) => {
       params
     );
     
-    // Sales by period - build query and params explicitly to avoid confusion
+    // Sales by period - use a completely different approach to avoid parameter confusion
     const dateFormat = group_by === 'day' ? '%Y-%m-%d' : group_by === 'week' ? '%Y-%u' : '%Y-%m';
     
-    // Build the WHERE clause explicitly for this query
-    let salesByPeriodWhereClause = 'WHERE (s.status = "completed" OR s.payment_method = "credit") AND s.parent_sale_id IS NULL';
-    const salesByPeriodParams = [dateFormat, dateFormat];
+    // Build the query string directly with values instead of parameters to avoid confusion
+    let salesByPeriodQuery = `SELECT DATE_FORMAT(s.created_at, '${dateFormat}') as period, COUNT(*) as total_sales, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_sale FROM sales s WHERE (s.status = "completed" OR s.payment_method = "credit") AND s.parent_sale_id IS NULL`;
+    const salesByPeriodParams = [];
     
     // Add business_id filter unless superadmin
     if (req.user.role !== 'superadmin') {
       if (!req.user.business_id) {
         return res.status(400).json({ message: 'Business ID is required for this report.' });
       }
-      salesByPeriodWhereClause += ' AND s.business_id = ?';
-      salesByPeriodParams.push(req.user.business_id);
+      salesByPeriodQuery += ` AND s.business_id = ${req.user.business_id}`;
     }
     
     // Add user_id filter
     if (isCashier) {
-      salesByPeriodWhereClause += ' AND s.user_id = ?';
-      salesByPeriodParams.push(req.user.id);
+      salesByPeriodQuery += ` AND s.user_id = ${req.user.id}`;
     } else if (user_id) {
-      salesByPeriodWhereClause += ' AND s.user_id = ?';
-      salesByPeriodParams.push(user_id);
+      salesByPeriodQuery += ` AND s.user_id = ${user_id}`;
     }
     
     // Add date filters
     if (start_date) {
-      salesByPeriodWhereClause += ' AND DATE(s.created_at) >= ?';
-      salesByPeriodParams.push(start_date);
+      salesByPeriodQuery += ` AND DATE(s.created_at) >= '${start_date}'`;
     }
     if (end_date) {
-      salesByPeriodWhereClause += ' AND DATE(s.created_at) <= ?';
-      salesByPeriodParams.push(end_date);
+      salesByPeriodQuery += ` AND DATE(s.created_at) <= '${end_date}'`;
     }
     
-    const salesByPeriodQuery = `SELECT DATE_FORMAT(s.created_at, ?) as period, COUNT(*) as total_sales, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_sale FROM sales s ${salesByPeriodWhereClause} GROUP BY DATE_FORMAT(s.created_at, ?) ORDER BY period DESC`;
+    salesByPeriodQuery += ` GROUP BY DATE_FORMAT(s.created_at, '${dateFormat}') ORDER BY period DESC`;
     
     console.log('SALES REPORT: Sales by period query:', salesByPeriodQuery);
     console.log('SALES REPORT: Sales by period params:', salesByPeriodParams);
@@ -268,9 +263,9 @@ router.get('/report', auth, async (req, res) => {
     
     let salesByPeriod;
     try {
-      // Try the normal query first
-      console.log('SALES REPORT: Executing query with params:', salesByPeriodParams);
-      [salesByPeriod] = await pool.query(salesByPeriodQuery, salesByPeriodParams);
+      // Try the normal query first - no parameters needed now
+      console.log('SALES REPORT: Executing query without params:', salesByPeriodQuery);
+      [salesByPeriod] = await pool.query(salesByPeriodQuery);
       console.log('SALES REPORT: Query executed successfully, result:', salesByPeriod);
     } catch (error) {
       console.log('SALES REPORT: Query failed with error:', error.message);
@@ -278,7 +273,7 @@ router.get('/report', auth, async (req, res) => {
       if (error.code === 'ER_WRONG_FIELD_WITH_GROUP') {
         console.log('⚠️  GROUP BY error detected, using relaxed mode...');
         // Fallback to relaxed GROUP BY mode
-        salesByPeriod = await executeQueryWithRelaxedGroupBy(salesByPeriodQuery, salesByPeriodParams);
+        salesByPeriod = await executeQueryWithRelaxedGroupBy(salesByPeriodQuery, []);
       } else {
         throw error;
       }

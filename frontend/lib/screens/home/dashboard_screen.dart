@@ -1399,11 +1399,39 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
   Widget _buildAllTransactionsSection() {
     final allTransactions = _transactionsData['all_transactions'] ?? [];
     
-    // Sort transactions by date (oldest first for chronological order)
+    // Sort transactions by priority: unpaid first, then partially paid, then fully paid, then by date
     allTransactions.sort((a, b) {
-      final dateA = DateTime.tryParse(a['created_at'] ?? '') ?? DateTime.now();
-      final dateB = DateTime.tryParse(b['created_at'] ?? '') ?? DateTime.now();
-      return dateA.compareTo(dateB);
+      final aIsCreditSale = a['transaction_type'] == 'credit_sale';
+      final bIsCreditSale = b['transaction_type'] == 'credit_sale';
+      
+      if (aIsCreditSale && bIsCreditSale) {
+        // Both are credit sales - sort by payment status priority
+        final aOutstanding = double.tryParse(a['outstanding_amount']?.toString() ?? '0') ?? 0;
+        final bOutstanding = double.tryParse(b['outstanding_amount']?.toString() ?? '0') ?? 0;
+        
+        if (aOutstanding > 0 && bOutstanding > 0) {
+          // Both have outstanding amounts - sort by amount (highest first)
+          return bOutstanding.compareTo(aOutstanding);
+        } else if (aOutstanding > 0) {
+          return -1; // A has outstanding, B doesn't - A comes first
+        } else if (bOutstanding > 0) {
+          return 1; // B has outstanding, A doesn't - B comes first
+        } else {
+          // Both fully paid - sort by date (newest first)
+          final dateA = DateTime.tryParse(a['created_at'] ?? '') ?? DateTime.now();
+          final dateB = DateTime.tryParse(b['created_at'] ?? '') ?? DateTime.now();
+          return dateB.compareTo(dateA);
+        }
+      } else if (aIsCreditSale) {
+        return -1; // Credit sales come before payments
+      } else if (bIsCreditSale) {
+        return 1; // Credit sales come before payments
+      } else {
+        // Both are payments - sort by date (newest first)
+        final dateA = DateTime.tryParse(a['created_at'] ?? '') ?? DateTime.now();
+        final dateB = DateTime.tryParse(b['created_at'] ?? '') ?? DateTime.now();
+        return dateB.compareTo(dateA);
+      }
     });
 
     return Card(
@@ -1425,6 +1453,30 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info, color: Colors.blue[600], size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Transactions are ordered by priority: Unpaid credits first, then partially paid, then fully paid. Payments are shown below their corresponding credit sales.',
+                      style: TextStyle(
+                        color: Colors.blue[700],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 16),
             if (allTransactions.isEmpty)
               const Center(
@@ -1443,92 +1495,638 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
 
                   if (isCreditSale) {
                     final sale = transaction;
-                    final originalAmount = double.tryParse(sale['total_amount'].toString()) ?? 0.0;
-                    final totalPaid = double.tryParse(sale['total_paid'].toString()) ?? 0.0;
-                    final outstanding = double.tryParse(sale['outstanding_amount'].toString()) ?? 0.0;
-                    final isFullyPaid = sale['is_fully_paid'] ?? false;
+                    final originalAmount = double.tryParse(sale['total_amount']?.toString() ?? '0') ?? 0.0;
+                    final totalPaid = double.tryParse(sale['total_paid']?.toString() ?? '0') ?? 0.0;
+                    // Use backend calculated outstanding amount, fallback to manual calculation
+                    final outstanding = double.tryParse(sale['outstanding_amount']?.toString() ?? '0') ?? (originalAmount - totalPaid);
+                    final isFullyPaid = sale['is_fully_paid'] ?? (outstanding <= 0);
+                    final hasOutstanding = outstanding > 0;
+                    
+                    // Get partial payments for this credit sale
+                    final saleId = sale['id'];
+                    final partialPayments = allTransactions.where((t) => 
+                      t['transaction_type'] == 'payment' && 
+                      t['parent_sale_id'] == saleId
+                    ).toList();
+                    
+                    // Sort partial payments by date (newest first)
+                    partialPayments.sort((a, b) {
+                      final dateA = DateTime.tryParse(a['created_at'] ?? '') ?? DateTime.now();
+                      final dateB = DateTime.tryParse(b['created_at'] ?? '') ?? DateTime.now();
+                      return dateB.compareTo(dateA);
+                    });
 
                     return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      elevation: 3,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: hasOutstanding 
+                              ? [Colors.red[50]!, Colors.red[100]!]
+                              : [Colors.green[50]!, Colors.green[100]!],
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Header Row with Status
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: hasOutstanding ? Colors.red : Colors.green,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Icon(
+                                      hasOutstanding ? Icons.warning : Icons.check_circle,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Credit Sale #${sale['id']}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 18,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Date: ${_formatDate(DateTime.tryParse(sale['created_at'] ?? ''))}',
+                                          style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                                        ),
+                                        Text(
+                                          'Cashier: ${sale['cashier_name'] ?? 'Unknown'}',
+                                          style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: hasOutstanding ? Colors.red : Colors.green,
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: (hasOutstanding ? Colors.red : Colors.green).withOpacity(0.3),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      hasOutstanding ? 'UNPAID' : 'PAID',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              
+                              const SizedBox(height: 16),
+                              
+                              // Product Details Section
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.blue[200]!),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.shopping_cart, color: Colors.blue[600], size: 18),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Products Sold on Credit',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.blue[700],
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    
+                                    // Display actual product details
+                                    if (sale['products'] != null && (sale['products'] as List).isNotEmpty) ...[
+                                      ...(sale['products'] as List).map((product) {
+                                        final productName = product['product_name'] ?? 'Unknown Product';
+                                        final quantity = int.tryParse(product['quantity'].toString()) ?? 0;
+                                        final unitPrice = double.tryParse(product['unit_price'].toString()) ?? 0.0;
+                                        final totalPrice = double.tryParse(product['total_price'].toString()) ?? 0.0;
+                                        final productImage = product['product_image'];
+                                        
+                                        return Container(
+                                          margin: const EdgeInsets.only(bottom: 8),
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue[50],
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: Colors.blue[100]!),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              // Product Image (if available)
+                                              if (productImage != null && productImage.isNotEmpty)
+                                                Container(
+                                                  width: 40,
+                                                  height: 40,
+                                                  decoration: BoxDecoration(
+                                                    borderRadius: BorderRadius.circular(8),
+                                                    image: DecorationImage(
+                                                      image: NetworkImage(productImage),
+                                                      fit: BoxFit.cover,
+                                                    ),
+                                                  ),
+                                                )
+                                              else
+                                                Container(
+                                                  width: 40,
+                                                  height: 40,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.blue[200],
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.image,
+                                                    color: Colors.blue[600],
+                                                    size: 20,
+                                                  ),
+                                                ),
+                                              
+                                              const SizedBox(width: 12),
+                                              
+                                              // Product Details
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      productName,
+                                                      style: TextStyle(
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 13,
+                                                        color: Colors.blue[700],
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      'Qty: $quantity × \$${unitPrice.toStringAsFixed(2)}',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        color: Colors.blue[600],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              
+                                              // Total Price
+                                              Column(
+                                                crossAxisAlignment: CrossAxisAlignment.end,
+                                                children: [
+                                                  Text(
+                                                    '\$${totalPrice.toStringAsFixed(2)}',
+                                                    style: TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 14,
+                                                      color: Colors.blue[700],
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    'Total',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: Colors.blue[600],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList(),
+                                      
+                                      const SizedBox(height: 8),
+                                      
+                                      // Credit Sale Total Summary
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue[100],
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: Colors.blue[200]!),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              'Credit Sale Total:',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.blue[700],
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                            Text(
+                                              '\$${originalAmount.toStringAsFixed(2)}',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                color: Colors.blue[700],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      // Fallback if no products found
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey[100],
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: Colors.grey[300]!),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.info_outline, color: Colors.grey[600], size: 16),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                'Credit Sale Total: \$${originalAmount.toStringAsFixed(2)}',
+                                                style: TextStyle(
+                                                  color: Colors.grey[700],
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Product details not available',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey[600],
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              
+                              const SizedBox(height: 16),
+                              
+                              // Amount Summary Row
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: hasOutstanding ? Colors.red[200]! : Colors.green[200]!,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Original Amount',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[600],
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '\$${originalAmount.toStringAsFixed(2)}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 20,
+                                              color: hasOutstanding ? Colors.red[700] : Colors.green[700],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      width: 1,
+                                      height: 50,
+                                      color: Colors.grey[300],
+                                    ),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            'Total Paid',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[600],
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '\$${totalPaid.toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 18,
+                                              color: Colors.green,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      width: 1,
+                                      height: 50,
+                                      color: Colors.grey[300],
+                                    ),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            'Outstanding',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[600],
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '\$${outstanding.toStringAsFixed(2)}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 18,
+                                              color: hasOutstanding ? Colors.red[600] : Colors.green[600],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              
+                              // Debug Information (can be removed later)
+                              if (true) ...[ // Set to false to hide debug info
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.grey[300]!),
+                                  ),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Sale #${sale['id']}',
-                                        style: const TextStyle(
+                                        'Debug Info:',
+                                        style: TextStyle(
                                           fontWeight: FontWeight.bold,
+                                          fontSize: 11,
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Raw: original=${sale['total_amount']}, paid=${sale['total_paid']}, outstanding=${sale['outstanding_amount']}, isFullyPaid=${sale['is_fully_paid']}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[600],
                                         ),
                                       ),
                                       Text(
-                                        'Date: ${_formatDate(DateTime.tryParse(sale['created_at'] ?? ''))}',
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                      Text(
-                                        'Cashier: ${sale['cashier_name'] ?? 'Unknown'}',
-                                        style: const TextStyle(fontSize: 12),
+                                        'Calculated: outstanding=${(originalAmount - totalPaid).toStringAsFixed(2)}, hasOutstanding=$hasOutstanding',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[600],
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      '\$${originalAmount.toStringAsFixed(2)}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    if (totalPaid > 0)
-                                      Text(
-                                        'Paid: \$${totalPaid.toStringAsFixed(2)}',
-                                        style: const TextStyle(
-                                          color: Colors.green,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    if (outstanding > 0)
-                                      Text(
-                                        'Outstanding: \$${outstanding.toStringAsFixed(2)}',
-                                        style: const TextStyle(
-                                          color: Colors.red,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                  ],
-                                ),
                               ],
-                            ),
-                            if (!isFullyPaid) ...[
-                              const SizedBox(height: 8),
+                              
+                              const SizedBox(height: 16),
+                              
+                              // Partial Payments Section
+                              if (partialPayments.isNotEmpty) ...[
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue[50],
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.blue[200]!),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.history, color: Colors.blue[600], size: 18),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Payment History (${partialPayments.length} payments)',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.blue[700],
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      ...partialPayments.map((payment) {
+                                        final amount = double.tryParse(payment['total_amount'].toString()) ?? 0.0;
+                                        final paymentMethod = payment['payment_method'] ?? 'Unknown';
+                                        final paymentDate = _formatDate(DateTime.tryParse(payment['created_at'] ?? ''));
+                                        final paymentCashier = payment['cashier_name'] ?? 'Unknown';
+                                        
+                                        return Container(
+                                          margin: const EdgeInsets.only(bottom: 6),
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: Colors.blue[100]!),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                width: 8,
+                                                height: 8,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.blue[400],
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      '\$${amount.toStringAsFixed(2)} via ${paymentMethod.toUpperCase()}',
+                                                      style: TextStyle(
+                                                        fontSize: 13,
+                                                        color: Colors.blue[700],
+                                                        fontWeight: FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      'Date: $paymentDate | Cashier: $paymentCashier',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        color: Colors.blue[600],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Icon(
+                                                Icons.check_circle,
+                                                color: Colors.green[600],
+                                                size: 16,
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                              
+                              // Outstanding Balance Warning (if any)
+                              if (hasOutstanding) ...[
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red[100],
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.red[300]!),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.info_outline, color: Colors.red[600], size: 20),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          'Outstanding Balance: \$${outstanding.toStringAsFixed(2)}',
+                                          style: TextStyle(
+                                            color: Colors.red[700],
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                              
+                              // Action Buttons Row - ALWAYS SHOW RECORD PAYMENT
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
-                                  ElevatedButton(
-                                    onPressed: () => _showPaymentDialog(
-                                      sale['id'],
-                                      originalAmount,
-                                      outstanding,
+                                  // Record Payment Button - Always Visible
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => _showPaymentDialog(
+                                        sale['id'],
+                                        originalAmount,
+                                        outstanding,
+                                      ),
+                                      icon: const Icon(Icons.payment, size: 20),
+                                      label: Text(
+                                        hasOutstanding ? 'Record Payment' : 'Add Another Payment',
+                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: hasOutstanding ? Colors.green[600] : Colors.blue[600],
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        elevation: 3,
+                                      ),
                                     ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      foregroundColor: Colors.white,
+                                  ),
+                                  
+                                  const SizedBox(width: 12),
+                                  
+                                  // Status Display
+                                  Expanded(
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: hasOutstanding ? Colors.red[100] : Colors.green[100],
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: hasOutstanding ? Colors.red[300]! : Colors.green[300]!,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            hasOutstanding ? Icons.warning : Icons.check_circle,
+                                            color: hasOutstanding ? Colors.red[600] : Colors.green[600],
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            hasOutstanding ? 'Payment Required' : 'Credit Fully Paid',
+                                            style: TextStyle(
+                                              color: hasOutstanding ? Colors.red[700] : Colors.green[700],
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                    child: const Text('Record Payment'),
                                   ),
                                 ],
                               ),
                             ],
-                          ],
+                          ),
                         ),
                       ),
                     );
@@ -1539,19 +2137,68 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                     
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
+                      color: Colors.green[50],
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: Colors.green,
-                          child: Icon(Icons.payment, color: Colors.white),
+                          backgroundColor: Colors.green[600],
+                          child: Icon(Icons.payment, color: Colors.white, size: 20),
                         ),
-                        title: Text('Payment for Sale #${payment['parent_sale_id']}'),
+                        title: Row(
+                          children: [
+                            Text(
+                              'Payment Received',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green[700],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.green[600],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'PAID',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Amount: \$${amount.toStringAsFixed(2)}'),
-                            Text('Method: ${payment['payment_method']}'),
-                            Text('Date: ${_formatDate(DateTime.tryParse(payment['created_at'] ?? ''))}'),
-                            Text('Cashier: ${payment['cashier_name'] ?? 'Unknown'}'),
+                            Text(
+                              'For Credit Sale #${payment['parent_sale_id']}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                            Text(
+                              'Amount: \$${amount.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: Colors.green[600],
+                              ),
+                            ),
+                            Text(
+                              'Method: ${payment['payment_method'].toString().toUpperCase()}',
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            ),
+                            Text(
+                              'Date: ${_formatDate(DateTime.tryParse(payment['created_at'] ?? ''))}',
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            ),
+                            Text(
+                              'Cashier: ${payment['cashier_name'] ?? 'Unknown'}',
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            ),
                           ],
                         ),
                         trailing: Column(
@@ -1560,14 +2207,18 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                           children: [
                             Text(
                               '\$${amount.toStringAsFixed(2)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.green,
+                                fontSize: 18,
+                                color: Colors.green[700],
                               ),
                             ),
                             Text(
                               'Original: \$${originalAmount.toStringAsFixed(2)}',
-                              style: const TextStyle(fontSize: 10),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey[600],
+                              ),
                             ),
                           ],
                         ),

@@ -796,7 +796,7 @@ router.get('/customer/:customerId/credit-transactions', [auth, checkRole(['admin
       params.push(req.user.business_id);
     }
     
-    // Get all credit sales for this customer (original credit sales only)
+    // Get all credit sales for this customer
     const [creditSales] = await pool.query(
       `SELECT 
         s.id,
@@ -813,6 +813,28 @@ router.get('/customer/:customerId/credit-transactions', [auth, checkRole(['admin
       ORDER BY s.created_at DESC`,
       params
     );
+    
+    // Get product details for each credit sale
+    const creditSalesWithProducts = await Promise.all(creditSales.map(async (sale) => {
+      const [products] = await pool.query(
+        `SELECT 
+          si.quantity,
+          si.unit_price,
+          si.total_price,
+          p.name as product_name,
+          p.description as product_description,
+          p.image_url as product_image
+        FROM sale_items si
+        JOIN products p ON si.product_id = p.id
+        WHERE si.sale_id = ?`,
+        [sale.id]
+      );
+      
+      return {
+        ...sale,
+        products: products
+      };
+    }));
     
     // Get all payment history for this customer's credit sales
     const [payments] = await pool.query(
@@ -836,13 +858,21 @@ router.get('/customer/:customerId/credit-transactions', [auth, checkRole(['admin
     );
     
     // Calculate outstanding amounts for each credit sale
-    const creditSalesWithOutstanding = await Promise.all(creditSales.map(async (sale) => {
+    const creditSalesWithOutstanding = await Promise.all(creditSalesWithProducts.map(async (sale) => {
       const [paymentSum] = await pool.query(
         'SELECT IFNULL(SUM(total_amount), 0) as total_paid FROM sales WHERE parent_sale_id = ?',
         [sale.id]
       );
       const totalPaid = Number(paymentSum[0].total_paid) || 0;
       const outstanding = Math.max(0, Number(sale.total_amount) - totalPaid);
+      
+      // Debug logging
+      console.log(`🔍 Credit Sale #${sale.id} Calculation:`, {
+        originalAmount: sale.total_amount,
+        totalPaid: totalPaid,
+        outstanding: outstanding,
+        isFullyPaid: outstanding <= 0
+      });
       
       return {
         ...sale,
@@ -871,7 +901,8 @@ router.get('/customer/:customerId/credit-transactions', [auth, checkRole(['admin
       allTransactions.push({
         id: creditSale.id,
         transaction_type: 'credit_sale',
-        amount: creditSale.total_amount,
+        total_amount: creditSale.total_amount, // Keep consistent with frontend expectation
+        amount: creditSale.total_amount, // Also include amount for compatibility
         created_at: creditSale.created_at,
         status: creditSale.status,
         payment_method: creditSale.payment_method,
@@ -880,7 +911,8 @@ router.get('/customer/:customerId/credit-transactions', [auth, checkRole(['admin
         outstanding_amount: creditSale.outstanding_amount,
         is_fully_paid: creditSale.is_fully_paid,
         description: `Credit sale of $${creditSale.total_amount}`,
-        parent_sale_id: null
+        parent_sale_id: null,
+        products: creditSale.products // Include product details
       });
       
       // Add all payments for this credit sale
@@ -889,7 +921,8 @@ router.get('/customer/:customerId/credit-transactions', [auth, checkRole(['admin
         allTransactions.push({
           id: payment.id,
           transaction_type: 'payment',
-          amount: payment.total_amount,
+          total_amount: payment.total_amount, // Keep consistent
+          amount: payment.total_amount, // Also include amount for compatibility
           created_at: payment.created_at,
           status: payment.status,
           payment_method: payment.payment_method,
@@ -904,8 +937,36 @@ router.get('/customer/:customerId/credit-transactions', [auth, checkRole(['admin
       });
     });
     
-    // Sort all transactions by date (newest first)
-    allTransactions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    // Sort all transactions by priority: unpaid first, then partially paid, then fully paid, then by date
+    allTransactions.sort((a, b) => {
+      const aIsCreditSale = a.transaction_type === 'credit_sale';
+      const bIsCreditSale = b.transaction_type === 'credit_sale';
+      
+      if (aIsCreditSale && bIsCreditSale) {
+        // Both are credit sales - sort by payment status priority
+        const aOutstanding = Number(a.outstanding_amount) || 0;
+        const bOutstanding = Number(b.outstanding_amount) || 0;
+        
+        if (aOutstanding > 0 && bOutstanding > 0) {
+          // Both have outstanding amounts - sort by amount (highest first)
+          return bOutstanding - aOutstanding;
+        } else if (aOutstanding > 0) {
+          return -1; // A has outstanding, B doesn't - A comes first
+        } else if (bOutstanding > 0) {
+          return 1; // B has outstanding, A doesn't - B comes first
+        } else {
+          // Both fully paid - sort by date (newest first)
+          return new Date(b.created_at) - new Date(a.created_at);
+        }
+      } else if (aIsCreditSale) {
+        return -1; // Credit sales come before payments
+      } else if (bIsCreditSale) {
+        return 1; // Credit sales come before payments
+      } else {
+        // Both are payments - sort by date (newest first)
+        return new Date(b.created_at) - new Date(a.created_at);
+      }
+    });
     
     // Create detailed summary with payment breakdown
     const summary = {

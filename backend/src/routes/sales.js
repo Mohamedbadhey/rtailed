@@ -170,6 +170,26 @@ router.get('/report', auth, async (req, res) => {
     const isCashier = req.user.role === 'cashier';
     console.log('SALES REPORT: user_id param =', user_id, 'isCashier =', isCashier, 'req.user.id =', req.user.id);
     
+    // Validate and sanitize date parameters
+    let validatedStartDate = null;
+    let validatedEndDate = null;
+    
+    if (start_date) {
+      const startDate = new Date(start_date);
+      if (isNaN(startDate.getTime())) {
+        return res.status(400).json({ message: 'Invalid start_date format. Use YYYY-MM-DD or ISO date format.' });
+      }
+      validatedStartDate = startDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+    }
+    
+    if (end_date) {
+      const endDate = new Date(end_date);
+      if (isNaN(endDate.getTime())) {
+        return res.status(400).json({ message: 'Invalid end_date format. Use YYYY-MM-DD or ISO date format.' });
+      }
+      validatedEndDate = endDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+    }
+    
     // Build the WHERE clause - include both completed sales and credit sales (unpaid) but EXCLUDE credit payments
     // Credit payments have parent_sale_id IS NOT NULL and should not be counted as revenue
     let whereClause = 'WHERE (s.status = "completed" OR s.payment_method = "credit") AND s.parent_sale_id IS NULL';
@@ -192,18 +212,18 @@ router.get('/report', auth, async (req, res) => {
       params.push(user_id);
     }
     
-    // Add date filters
-    if (start_date) {
+    // Add date filters using validated dates
+    if (validatedStartDate) {
       whereClause += ' AND DATE(s.created_at) >= ?';
-      params.push(start_date);
+      params.push(validatedStartDate);
     }
-    if (end_date) {
+    if (validatedEndDate) {
       whereClause += ' AND DATE(s.created_at) <= ?';
-      params.push(end_date);
+      params.push(validatedEndDate);
     }
     
     console.log('SALES REPORT: whereClause =', whereClause, 'params =', params);
-    console.log('SALES REPORT: Date filters - start_date:', start_date, 'end_date:', end_date);
+    console.log('SALES REPORT: Date filters - start_date:', validatedStartDate, 'end_date:', validatedEndDate);
     
     // Debug: Check what sales exist for this business
     if (req.user.role !== 'superadmin' && req.user.business_id) {
@@ -224,7 +244,24 @@ router.get('/report', auth, async (req, res) => {
     // Sales by period
     const dateFormat = group_by === 'day' ? '%Y-%m-%d' : group_by === 'week' ? '%Y-%u' : '%Y-%m';
     const salesByPeriodQuery = `SELECT DATE_FORMAT(s.created_at, ?) as period, COUNT(*) as total_sales, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_sale FROM sales s ${whereClause} GROUP BY DATE_FORMAT(s.created_at, ?) ORDER BY period DESC`;
-    const salesByPeriodParams = [dateFormat, dateFormat, ...params];
+    
+    // Fix: Create a clean params array for this specific query
+    const salesByPeriodParams = [dateFormat, dateFormat];
+    // Add the business_id, user_id, and date filters in the correct order
+    if (req.user.role !== 'superadmin') {
+      salesByPeriodParams.push(req.user.business_id);
+    }
+    if (isCashier) {
+      salesByPeriodParams.push(req.user.id);
+    } else if (user_id) {
+      salesByPeriodParams.push(user_id);
+    }
+    if (validatedStartDate) {
+      salesByPeriodParams.push(validatedStartDate);
+    }
+    if (validatedEndDate) {
+      salesByPeriodParams.push(validatedEndDate);
+    }
     
     console.log('SALES REPORT: Sales by period query:', salesByPeriodQuery);
     console.log('SALES REPORT: Sales by period params:', salesByPeriodParams);
@@ -302,13 +339,13 @@ router.get('/report', auth, async (req, res) => {
     }
     
     // Add date filters to COGS query
-    if (start_date) {
+    if (validatedStartDate) {
       cogsQuery += ' AND DATE(s.created_at) >= ?';
-      cogsParams.push(start_date);
+      cogsParams.push(validatedStartDate);
     }
-    if (end_date) {
+    if (validatedEndDate) {
       cogsQuery += ' AND DATE(s.created_at) <= ?';
-      cogsParams.push(end_date);
+      cogsParams.push(validatedEndDate);
     }
     const [cogs] = await pool.query(cogsQuery, cogsParams);
     const total_cost = cogs[0]?.total_cost || 0;
@@ -346,13 +383,13 @@ router.get('/report', auth, async (req, res) => {
     }
     
     // Add date filters
-    if (start_date) {
+    if (validatedStartDate) {
       outstandingCreditsQuery += ' AND orig.created_at >= ?';
-      outstandingCreditsParams.push(start_date);
+      outstandingCreditsParams.push(validatedStartDate);
     }
-    if (end_date) {
+    if (validatedEndDate) {
       outstandingCreditsQuery += ' AND orig.created_at <= ?';
-      outstandingCreditsParams.push(end_date);
+      outstandingCreditsParams.push(validatedEndDate);
     }
     
     const [outstandingCredits] = await pool.query(outstandingCreditsQuery, outstandingCreditsParams);
@@ -412,8 +449,8 @@ router.get('/report', auth, async (req, res) => {
       totalProductsSold: safeTotalProductsSold,
       totalProfit: safeTotalProfit,
       period: {
-        start_date,
-        end_date,
+        start_date: validatedStartDate,
+        end_date: validatedEndDate,
         group_by
       },
       // New fields for dashboard
@@ -428,10 +465,30 @@ router.get('/report', auth, async (req, res) => {
   }
 });
 
-// Get top selling products
-router.get('/top-products', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
+// Get top products by sales
+router.get('/top-products', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
     const { start_date, end_date, limit = 10 } = req.query;
+
+    // Validate and sanitize date parameters
+    let validatedStartDate = null;
+    let validatedEndDate = null;
+    
+    if (start_date) {
+      const startDate = new Date(start_date);
+      if (isNaN(startDate.getTime())) {
+        return res.status(400).json({ message: 'Invalid start_date format. Use YYYY-MM-DD or ISO date format.' });
+      }
+      validatedStartDate = startDate.toISOString().split('T')[0];
+    }
+    
+    if (end_date) {
+      const endDate = new Date(end_date);
+      if (isNaN(endDate.getTime())) {
+        return res.status(400).json({ message: 'Invalid end_date format. Use YYYY-MM-DD or ISO date format.' });
+      }
+      validatedEndDate = endDate.toISOString().split('T')[0];
+    }
 
     const [products] = await pool.query(
       `SELECT 
@@ -443,14 +500,14 @@ router.get('/top-products', [auth, checkRole(['admin', 'manager'])], async (req,
       JOIN products p ON si.product_id = p.id
       JOIN sales s ON si.sale_id = s.id
       WHERE s.status = 'completed' AND s.parent_sale_id IS NULL
-      ${start_date ? 'AND s.created_at >= ?' : ''}
-      ${end_date ? 'AND s.created_at <= ?' : ''}
+      ${validatedStartDate ? 'AND s.created_at >= ?' : ''}
+      ${validatedEndDate ? 'AND s.created_at <= ?' : ''}
       GROUP BY p.id, p.name
       ORDER BY total_quantity DESC
       LIMIT ?`,
       [
-        ...(start_date ? [start_date] : []),
-        ...(end_date ? [end_date] : []),
+        ...(validatedStartDate ? [validatedStartDate] : []),
+        ...(validatedEndDate ? [validatedEndDate] : []),
         parseInt(limit)
       ]
     );
@@ -466,6 +523,27 @@ router.get('/top-products', [auth, checkRole(['admin', 'manager'])], async (req,
 router.get('/credit-report', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
     const { start_date, end_date } = req.query;
+    
+    // Validate and sanitize date parameters
+    let validatedStartDate = null;
+    let validatedEndDate = null;
+    
+    if (start_date) {
+      const startDate = new Date(start_date);
+      if (isNaN(startDate.getTime())) {
+        return res.status(400).json({ message: 'Invalid start_date format. Use YYYY-MM-DD or ISO date format.' });
+      }
+      validatedStartDate = startDate.toISOString().split('T')[0];
+    }
+    
+    if (end_date) {
+      const endDate = new Date(end_date);
+      if (isNaN(endDate.getTime())) {
+        return res.status(400).json({ message: 'Invalid end_date format. Use YYYY-MM-DD or ISO date format.' });
+      }
+      validatedEndDate = endDate.toISOString().split('T')[0];
+    }
+    
     // Only include original credit sales, exclude credit payments (parent_sale_id IS NOT NULL)
     let whereClause = 'WHERE s.payment_method = "credit" AND s.parent_sale_id IS NULL';
     const params = [];
@@ -479,14 +557,14 @@ router.get('/credit-report', [auth, checkRole(['admin', 'manager', 'cashier'])],
       params.push(req.user.business_id);
     }
     
-    // Add date filters
-    if (start_date) {
+    // Add date filters using validated dates
+    if (validatedStartDate) {
       whereClause += ' AND DATE(s.created_at) >= ?';
-      params.push(start_date);
+      params.push(validatedStartDate);
     }
-    if (end_date) {
+    if (validatedEndDate) {
       whereClause += ' AND DATE(s.created_at) <= ?';
-      params.push(end_date);
+      params.push(validatedEndDate);
     }
     
     // Credit sales by customer, now include cashier info

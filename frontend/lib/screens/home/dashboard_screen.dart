@@ -328,129 +328,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _buildLowStockAlert(isSmallMobile, isMobile),
               if (_showCreditSection) ...[
                 const SizedBox(height: 24),
-                Container(
-                  padding: EdgeInsets.all(isSmallMobile ? 10 : (isMobile ? 12 : 16)),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: isSmallMobile ? 6 : 10,
-                        offset: Offset(0, isSmallMobile ? 1 : 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.credit_card, color: Colors.orange, size: isSmallMobile ? 20 : 24),
-                          SizedBox(width: isSmallMobile ? 6 : 8),
-                          Text(
-                            t(context, 'Credit Customers'),
-                            style: TextStyle(
-                              fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: isSmallMobile ? 12 : 16),
-                      _creditLoading
-                          ? Center(child: CircularProgressIndicator())
-                          : _creditError != null
-                              ? Text(_creditError!, style: TextStyle(color: Colors.red))
-                              : _creditCustomers.isEmpty
-                                  ? Text(t(context, 'No credit customers found.'))
-                                  : SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      child: DataTable(
-                                        columnSpacing: isSmallMobile ? 8 : 16,
-                                        columns: [
-                                          DataColumn(
-                                            label: Text(
-                                              'Customer',
-                                              style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
-                                            ),
-                                          ),
-                                          DataColumn(
-                                            label: Text(
-                                              'Phone',
-                                              style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
-                                            ),
-                                          ),
-                                          DataColumn(
-                                            label: Text(
-                                              'Credit Sales',
-                                              style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
-                                            ),
-                                          ),
-                                          DataColumn(
-                                            label: Text(
-                                              'Outstanding',
-                                              style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
-                                            ),
-                                          ),
-                                          DataColumn(
-                                            label: Text(
-                                              'Email',
-                                              style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
-                                            ),
-                                          ),
-                                          DataColumn(
-                                            label: Text(
-                                              'Actions',
-                                              style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
-                                            ),
-                                          ),
-                                        ],
-                                        rows: _creditCustomers.map((customer) {
-                                          return DataRow(
-                                            cells: [
-                                              DataCell(Text(
-                                                customer['name'] ?? '',
-                                                style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
-                                              )),
-                                              DataCell(Text(
-                                                customer['phone'] ?? '',
-                                                style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
-                                              )),
-                                              DataCell(Text(
-                                                '${customer['credit_sales_count'] ?? 0}',
-                                                style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
-                                              )),
-                                              DataCell(Text(
-                                                '\$${(double.tryParse((customer['outstanding_amount'] ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}',
-                                                style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
-                                              )),
-                                              DataCell(Text(
-                                                customer['email'] ?? '',
-                                                style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
-                                              )),
-                                              DataCell(
-                                                IconButton(
-                                                  icon: Icon(
-                                                    Icons.visibility,
-                                                    size: isSmallMobile ? 18 : 20,
-                                                  ),
-                                                  onPressed: () => _showCustomerTransactions(customer),
-                                                  padding: EdgeInsets.all(isSmallMobile ? 4 : 8),
-                                                  constraints: BoxConstraints(
-                                                    minWidth: isSmallMobile ? 32 : 40,
-                                                    minHeight: isSmallMobile ? 32 : 40,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          );
-                                        }).toList(),
-                                      ),
-                                    ),
-                    ],
-                  ),
-                ),
+                _buildCreditSection(isSmallMobile, isMobile),
               ],
             ],
           ),
@@ -854,7 +732,87 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildLowStockAlert(bool isSmallMobile, bool isMobile) {
     if (_lowStockProducts.isEmpty) return const SizedBox.shrink();
+    
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(isSmallMobile ? 10 : (isMobile ? 12 : 16)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.warning, color: Colors.orange, size: isSmallMobile ? 20 : 24),
+                SizedBox(width: isSmallMobile ? 6 : 8),
+                Text(
+                  t(context, 'Low Stock Alert'),
+                  style: TextStyle(
+                    fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: isSmallMobile ? 8 : 12),
+            Text(
+              t(context, '${_lowStockProducts.length} products are running low on stock'),
+              style: TextStyle(
+                fontSize: isSmallMobile ? 12 : 14,
+                color: Colors.grey[600],
+              ),
+            ),
+            SizedBox(height: isSmallMobile ? 8 : 12),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _lowStockProducts.length > 3 ? 3 : _lowStockProducts.length,
+              itemBuilder: (context, index) {
+                final product = _lowStockProducts[index];
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.orange[100],
+                    child: Icon(Icons.inventory, color: Colors.orange),
+                  ),
+                  title: Text(
+                    product['name'] ?? '',
+                    style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+                  ),
+                  subtitle: Text(
+                    'Stock: ${product['stock_quantity'] ?? 0}',
+                    style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                  ),
+                  trailing: Text(
+                    '\$${(double.tryParse((product['price'] ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange[700],
+                      fontSize: isSmallMobile ? 12 : 14,
+                    ),
+                  ),
+                );
+              },
+            ),
+            if (_lowStockProducts.length > 3)
+              Padding(
+                padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+                child: Center(
+                  child: Text(
+                    t(context, 'And ${_lowStockProducts.length - 3} more...'),
+                    style: TextStyle(
+                      fontSize: isSmallMobile ? 10 : 12,
+                      color: Colors.grey[500],
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
+  // Reusable Credit Section Method
+  Widget _buildCreditSection(bool isSmallMobile, bool isMobile) {
     return Container(
       padding: EdgeInsets.all(isSmallMobile ? 10 : (isMobile ? 12 : 16)),
       decoration: BoxDecoration(
@@ -873,44 +831,108 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.warning, color: Colors.orange, size: isSmallMobile ? 20 : 24),
-              const SizedBox(width: 8),
-                Text(
-                  t(context, 'Low Stock Alert'),
-                  style: TextStyle(
-                    fontSize: isMobile ? 16 : 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+              Icon(Icons.credit_card, color: Colors.orange, size: isSmallMobile ? 20 : 24),
+              SizedBox(width: isSmallMobile ? 6 : 8),
+              Text(
+                t(context, 'Credit Customers'),
+                style: TextStyle(
+                  fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18),
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _lowStockProducts.length,
-              itemBuilder: (context, index) {
-                final product = _lowStockProducts[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.orange,
-                    child: Icon(Icons.inventory, color: Colors.white),
-                  ),
-                  title: Text(product.name),
-                  subtitle: Text('Stock: ${product.stockQuantity} (Threshold: ${product.lowStockThreshold})'),
-                  trailing: Text(
-                    'Low Stock',
-                    style: TextStyle(
-                      color: Colors.orange,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              );
-            },
+              ),
+            ],
           ),
+          SizedBox(height: isSmallMobile ? 12 : 16),
+          _creditLoading
+              ? Center(child: CircularProgressIndicator())
+              : _creditError != null
+                  ? Text(_creditError!, style: TextStyle(color: Colors.red))
+                  : _creditCustomers.isEmpty
+                      ? Text(t(context, 'No credit customers found.'))
+                      : SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
+                            columnSpacing: isSmallMobile ? 8 : 16,
+                            columns: [
+                              DataColumn(
+                                label: Text(
+                                  'Customer',
+                                  style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                ),
+                              ),
+                              DataColumn(
+                                label: Text(
+                                  'Phone',
+                                  style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                ),
+                              ),
+                              DataColumn(
+                                label: Text(
+                                  'Credit Sales',
+                                  style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                ),
+                              ),
+                              DataColumn(
+                                label: Text(
+                                  'Outstanding',
+                                  style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                ),
+                              ),
+                              DataColumn(
+                                label: Text(
+                                  'Email',
+                                  style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                ),
+                              ),
+                              DataColumn(
+                                label: Text(
+                                  'Actions',
+                                  style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                ),
+                              ),
+                            ],
+                            rows: _creditCustomers.map((customer) {
+                              return DataRow(
+                                cells: [
+                                  DataCell(Text(
+                                    customer['name'] ?? '',
+                                    style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
+                                  )),
+                                  DataCell(Text(
+                                    customer['phone'] ?? '',
+                                    style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
+                                  )),
+                                  DataCell(Text(
+                                    '${customer['credit_sales_count'] ?? 0}',
+                                    style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
+                                  )),
+                                  DataCell(Text(
+                                    '\$${(double.tryParse((customer['outstanding_amount'] ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}',
+                                    style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
+                                  )),
+                                  DataCell(Text(
+                                    customer['email'] ?? '',
+                                    style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
+                                  )),
+                                  DataCell(
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.visibility,
+                                        size: isSmallMobile ? 18 : 20,
+                                      ),
+                                      onPressed: () => _showCustomerTransactions(customer),
+                                      padding: EdgeInsets.all(isSmallMobile ? 4 : 8),
+                                      constraints: BoxConstraints(
+                                        minWidth: isSmallMobile ? 32 : 40,
+                                        minHeight: isSmallMobile ? 32 : 40,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
         ],
       ),
     );
@@ -1901,7 +1923,7 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                               ),
                               
                               // Debug Information (can be removed later)
-                              if (true) ...[ // Set to false to hide debug info
+                              if (false) ...[ // Set to false to hide debug info
                                 const SizedBox(height: 8),
                                 Container(
                                   padding: const EdgeInsets.all(8),
@@ -2061,33 +2083,66 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                                 const SizedBox(height: 16),
                               ],
                               
-                              // Action Buttons Row - ALWAYS SHOW RECORD PAYMENT
+                              // Action Buttons Row - Smart Payment Handling
                               Row(
                                 children: [
-                                  // Record Payment Button - Always Visible
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: () => _showPaymentDialog(
-                                        sale['id'],
-                                        originalAmount,
-                                        outstanding,
-                                      ),
-                                      icon: const Icon(Icons.payment, size: 20),
-                                      label: Text(
-                                        hasOutstanding ? 'Record Payment' : 'Add Another Payment',
-                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                                      ),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: hasOutstanding ? Colors.green[600] : Colors.blue[600],
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(vertical: 16),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
+                                  if (hasOutstanding) ...[
+                                    // Record Payment Button - Only for unpaid/partially paid credits
+                                    Expanded(
+                                      child: ElevatedButton.icon(
+                                        onPressed: () => _showPaymentDialog(
+                                          sale['id'],
+                                          originalAmount,
+                                          outstanding,
                                         ),
-                                        elevation: 3,
+                                        icon: const Icon(Icons.payment, size: 20),
+                                        label: const Text(
+                                          'Record Payment',
+                                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.green[600],
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(vertical: 16),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          elevation: 3,
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                  ] else ...[
+                                    // Credit Fully Paid - Show completion status
+                                    Expanded(
+                                      child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green[100],
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: Colors.green[300]!),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.check_circle,
+                                              color: Colors.green[600],
+                                              size: 20,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Credit Fully Paid',
+                                              style: TextStyle(
+                                                color: Colors.green[700],
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                   
                                   const SizedBox(width: 12),
                                   
@@ -2112,7 +2167,7 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
-                                            hasOutstanding ? 'Payment Required' : 'Credit Fully Paid',
+                                            hasOutstanding ? 'Payment Required' : 'Completed',
                                             style: TextStyle(
                                               color: hasOutstanding ? Colors.red[700] : Colors.green[700],
                                               fontSize: 14,

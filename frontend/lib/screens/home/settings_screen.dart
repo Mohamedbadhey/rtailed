@@ -311,77 +311,296 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             if (_showCreditSection) ...[
               SizedBox(height: isSmallMobile ? 12 : 16),
-              _creditLoading
-                  ? Center(child: CircularProgressIndicator())
-                  : _creditError != null
-                      ? Container(
-                          padding: EdgeInsets.all(isSmallMobile ? 12 : 16),
-                          decoration: BoxDecoration(
-                            color: Colors.red[50],
-                            borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
-                            border: Border.all(color: Colors.red[200]!),
+              
+              // Credit Summary Cards
+              _buildCreditSummaryCards(isSmallMobile, isMobile),
+              
+              SizedBox(height: isSmallMobile ? 12 : 16),
+              
+              // Credit Section Content (same as dashboard)
+              Container(
+                padding: EdgeInsets.all(isSmallMobile ? 10 : (isMobile ? 12 : 16)),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: isSmallMobile ? 6 : 10,
+                      offset: Offset(0, isSmallMobile ? 1 : 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.credit_card, color: Colors.orange, size: isSmallMobile ? 20 : 24),
+                        SizedBox(width: isSmallMobile ? 6 : 8),
+                        Text(
+                          t(context, 'Credit Customers'),
+                          style: TextStyle(
+                            fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18),
+                            fontWeight: FontWeight.bold,
                           ),
-                          child: Text(
-                            _creditError!,
-                            style: TextStyle(
-                              color: Colors.red[700],
-                              fontSize: isSmallMobile ? 12 : 14,
-                            ),
-                          ),
-                        )
-                      : _creditCustomers.isEmpty
-                          ? Container(
-                              padding: EdgeInsets.all(isSmallMobile ? 16 : 20),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[50],
-                                borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
-                                border: Border.all(color: Colors.grey[200]!),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  t(context, 'No credit customers found.'),
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: isSmallMobile ? 12 : 14,
-                                  ),
-                                ),
-                              ),
-                            )
-                          : isMobile
-                              ? _buildMobileCreditCustomersList(_creditCustomers, isSmallMobile)
-                          : SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: DataTable(
-                                columns: const [
-                                  DataColumn(label: Text('Customer')),
-                                  DataColumn(label: Text('Phone')),
-                                  DataColumn(label: Text('Credit Sales')),
-                                  DataColumn(label: Text('Outstanding')),
-                                  DataColumn(label: Text('Email')),
-                                  DataColumn(label: Text('Actions')),
-                                ],
-                                rows: _creditCustomers.map((customer) {
-                                  return DataRow(
-                                    cells: [
-                                      DataCell(Text(customer['name'] ?? '')),
-                                      DataCell(Text(customer['phone'] ?? '')),
-                                      DataCell(Text('${customer['credit_sales_count'] ?? 0}')),
-                                      DataCell(Text('\$${(double.tryParse((customer['outstanding_amount'] ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}')),
-                                      DataCell(Text(customer['email'] ?? '')),
-                                      DataCell(
-                                        IconButton(
-                                          icon: Icon(Icons.visibility),
-                                          onPressed: () => _showCustomerTransactions(customer),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: isSmallMobile ? 12 : 16),
+                    _creditLoading
+                        ? Center(child: CircularProgressIndicator())
+                        : _creditError != null
+                            ? Text(_creditError!, style: TextStyle(color: Colors.red))
+                            : _creditCustomers.isEmpty
+                                ? Text(t(context, 'No credit customers found.'))
+                                : SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: DataTable(
+                                      columnSpacing: isSmallMobile ? 8 : 16,
+                                      columns: [
+                                        DataColumn(
+                                          label: Text(
+                                            'Customer',
+                                            style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  );
-                                }).toList(),
-                              ),
-                            ),
+                                        DataColumn(
+                                          label: Text(
+                                            'Phone',
+                                            style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                          ),
+                                        ),
+                                        DataColumn(
+                                          label: Text(
+                                            'Credit Sales',
+                                            style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                          ),
+                                        ),
+                                        DataColumn(
+                                          label: Text(
+                                            'Outstanding',
+                                            style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                          ),
+                                        ),
+                                        DataColumn(
+                                          label: Text(
+                                            'Email',
+                                            style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                          ),
+                                        ),
+                                        DataColumn(
+                                          label: Text(
+                                            'Actions',
+                                            style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                          ),
+                                        ),
+                                      ],
+                                      rows: _creditCustomers.map((customer) {
+                                        return DataRow(
+                                          cells: [
+                                            DataCell(Text(
+                                              customer['name'] ?? '',
+                                              style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
+                                            )),
+                                            DataCell(Text(
+                                              customer['phone'] ?? '',
+                                              style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
+                                            )),
+                                            DataCell(Text(
+                                              '${customer['credit_sales_count'] ?? 0}',
+                                              style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
+                                            )),
+                                            DataCell(Text(
+                                              '\$${(double.tryParse((customer['outstanding_amount'] ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}',
+                                              style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
+                                            )),
+                                            DataCell(Text(
+                                              customer['email'] ?? '',
+                                              style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
+                                            )),
+                                            DataCell(
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.visibility,
+                                                  size: isSmallMobile ? 18 : 20,
+                                                ),
+                                                onPressed: () => _showCustomerTransactions(customer),
+                                                padding: EdgeInsets.all(isSmallMobile ? 4 : 8),
+                                                constraints: BoxConstraints(
+                                                  minWidth: isSmallMobile ? 32 : 40,
+                                                  minHeight: isSmallMobile ? 32 : 40,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                  ],
+                ),
+              ),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  // Credit Summary Cards
+  Widget _buildCreditSummaryCards(bool isSmallMobile, bool isMobile) {
+    // Calculate summary from credit customers data
+    double totalCredit = 0;
+    double totalPaid = 0;
+    double totalOutstanding = 0;
+    int fullyPaidCredits = 0;
+    int partiallyPaidCredits = 0;
+    int unpaidCredits = 0;
+
+    for (var customer in _creditCustomers) {
+      totalCredit += double.tryParse((customer['total_credit_amount'] ?? 0).toString()) ?? 0.0;
+      totalPaid += double.tryParse((customer['total_paid_amount'] ?? 0).toString()) ?? 0.0;
+      totalOutstanding += double.tryParse((customer['outstanding_amount'] ?? 0).toString()) ?? 0.0;
+      
+      final outstanding = double.tryParse((customer['outstanding_amount'] ?? 0).toString()) ?? 0.0;
+      final totalPaidAmount = double.tryParse((customer['total_paid_amount'] ?? 0).toString()) ?? 0.0;
+      
+      if (outstanding <= 0) {
+        fullyPaidCredits++;
+      } else if (totalPaidAmount > 0) {
+        partiallyPaidCredits++;
+      } else {
+        unpaidCredits++;
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Credit Overview',
+          style: TextStyle(
+            fontSize: isSmallMobile ? 14 : 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[700],
+          ),
+        ),
+        SizedBox(height: isSmallMobile ? 8 : 12),
+        
+        // First row of summary cards
+        Row(
+          children: [
+            Expanded(
+              child: _buildSummaryCard(
+                'Total Credit',
+                '\$${totalCredit.toStringAsFixed(2)}',
+                Icons.credit_card,
+                Colors.orange,
+                isSmallMobile,
+                isMobile,
+              ),
+            ),
+            SizedBox(width: isSmallMobile ? 8 : 16),
+            Expanded(
+              child: _buildSummaryCard(
+                'Total Paid',
+                '\$${totalPaid.toStringAsFixed(2)}',
+                Icons.payment,
+                Colors.green,
+                isSmallMobile,
+                isMobile,
+              ),
+            ),
+            SizedBox(width: isSmallMobile ? 8 : 16),
+            Expanded(
+              child: _buildSummaryCard(
+                'Outstanding',
+                '\$${totalOutstanding.toStringAsFixed(2)}',
+                Icons.warning,
+                Colors.red,
+                isSmallMobile,
+                isMobile,
+              ),
+            ),
+          ],
+        ),
+        
+        SizedBox(height: isSmallMobile ? 8 : 12),
+        
+        // Second row of summary cards
+        Row(
+          children: [
+            Expanded(
+              child: _buildSummaryCard(
+                'Fully Paid',
+                '$fullyPaidCredits',
+                Icons.check_circle,
+                Colors.green,
+                isSmallMobile,
+                isMobile,
+              ),
+            ),
+            SizedBox(width: isSmallMobile ? 8 : 16),
+            Expanded(
+              child: _buildSummaryCard(
+                'Partially Paid',
+                '$partiallyPaidCredits',
+                Icons.pending,
+                Colors.orange,
+                isSmallMobile,
+                isMobile,
+              ),
+            ),
+            SizedBox(width: isSmallMobile ? 8 : 16),
+            Expanded(
+              child: _buildSummaryCard(
+                'Unpaid',
+                '$unpaidCredits',
+                Icons.error,
+                Colors.red,
+                isSmallMobile,
+                isMobile,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryCard(String title, String value, IconData icon, Color color, bool isSmallMobile, bool isMobile) {
+    return Container(
+      padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: isSmallMobile ? 20 : 24),
+          SizedBox(height: isSmallMobile ? 2 : 4),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: isSmallMobile ? 10 : 12,
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: isSmallMobile ? 2 : 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: isSmallMobile ? 12 : 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
@@ -393,121 +612,276 @@ class _SettingsScreenState extends State<SettingsScreen> {
       itemCount: customers.length,
       itemBuilder: (context, index) {
         final customer = customers[index];
+        
+        // Calculate customer credit status
+        final outstanding = double.tryParse((customer['outstanding_amount'] ?? 0).toString()) ?? 0.0;
+        final totalPaid = double.tryParse((customer['total_paid_amount'] ?? 0).toString()) ?? 0.0;
+        final totalCredit = double.tryParse((customer['total_credit_amount'] ?? 0).toString()) ?? 0.0;
+        
+        final isFullyPaid = outstanding <= 0;
+        final hasOutstanding = outstanding > 0;
+        final isPartiallyPaid = totalPaid > 0 && outstanding > 0;
+        
+        // Determine status color and icon
+        Color statusColor;
+        IconData statusIcon;
+        String statusText;
+        
+        if (isFullyPaid) {
+          statusColor = Colors.green;
+          statusIcon = Icons.check_circle;
+          statusText = 'PAID';
+        } else if (isPartiallyPaid) {
+          statusColor = Colors.orange;
+          statusIcon = Icons.pending;
+          statusText = 'PARTIAL';
+        } else {
+          statusColor = Colors.red;
+          statusIcon = Icons.warning;
+          statusText = 'UNPAID';
+        }
+        
         return Card(
           margin: EdgeInsets.only(bottom: isSmallMobile ? 6 : 8),
-          child: Padding(
-            padding: EdgeInsets.all(isSmallMobile ? 10 : 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            customer['name'] ?? 'Unknown',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: isSmallMobile ? 14 : 16,
+          elevation: 2,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: statusColor.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(isSmallMobile ? 10 : 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Customer Info Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              customer['name'] ?? 'Unknown',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: isSmallMobile ? 14 : 16,
+                              ),
                             ),
-                          ),
-                          SizedBox(height: isSmallMobile ? 2 : 4),
-                          Text(
-                            '📱 ${customer['phone'] ?? 'No phone'}',
-                            style: TextStyle(
-                              fontSize: isSmallMobile ? 11 : 12,
-                              color: Colors.grey[600],
+                            SizedBox(height: isSmallMobile ? 2 : 4),
+                            Text(
+                              '📱 ${customer['phone'] ?? 'No phone'}',
+                              style: TextStyle(
+                                fontSize: isSmallMobile ? 11 : 12,
+                                color: Colors.grey[600],
+                              ),
                             ),
-                          ),
-                          SizedBox(height: isSmallMobile ? 2 : 4),
-                          Text(
-                            '📧 ${customer['email'] ?? 'No email'}',
-                            style: TextStyle(
-                              fontSize: isSmallMobile ? 11 : 12,
-                              color: Colors.grey[600],
+                            SizedBox(height: isSmallMobile ? 2 : 4),
+                            Text(
+                              '📧 ${customer['email'] ?? 'No email'}',
+                              style: TextStyle(
+                                fontSize: isSmallMobile ? 11 : 12,
+                                color: Colors.grey[600],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isSmallMobile ? 6 : 8,
-                            vertical: isSmallMobile ? 2 : 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.blue[50],
-                            borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
-                            border: Border.all(color: Colors.blue[200]!),
-                          ),
-                          child: Text(
-                            '${customer['credit_sales_count'] ?? 0} sales',
-                            style: TextStyle(
-                              color: Colors.blue[700],
-                              fontSize: isSmallMobile ? 10 : 11,
-                              fontWeight: FontWeight.w600,
+                      
+                      // Status Badge
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isSmallMobile ? 6 : 8,
+                          vertical: isSmallMobile ? 4 : 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: statusColor),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              statusIcon,
+                              color: statusColor,
+                              size: isSmallMobile ? 12 : 14,
                             ),
+                            SizedBox(width: isSmallMobile ? 2 : 4),
+                            Text(
+                              statusText,
+                              style: TextStyle(
+                                color: statusColor,
+                                fontSize: isSmallMobile ? 9 : 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  SizedBox(height: isSmallMobile ? 8 : 10),
+                  
+                  // Credit Summary Row
+                  Container(
+                    padding: EdgeInsets.all(isSmallMobile ? 8 : 10),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(
+                                'Credit Sales',
+                                style: TextStyle(
+                                  fontSize: isSmallMobile ? 9 : 10,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                '${customer['credit_sales_count'] ?? 0}',
+                                style: TextStyle(
+                                  fontSize: isSmallMobile ? 12 : 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue[700],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        SizedBox(height: isSmallMobile ? 4 : 6),
                         Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isSmallMobile ? 6 : 8,
-                            vertical: isSmallMobile ? 2 : 4,
+                          width: 1,
+                          height: 30,
+                          color: Colors.grey[300],
+                        ),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(
+                                'Total Credit',
+                                style: TextStyle(
+                                  fontSize: isSmallMobile ? 9 : 10,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                '\$${totalCredit.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: isSmallMobile ? 12 : 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange[700],
+                                ),
+                              ),
+                            ],
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.orange[50],
-                            borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
-                            border: Border.all(color: Colors.orange[200]!),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 30,
+                          color: Colors.grey[300],
+                        ),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(
+                                'Total Paid',
+                                style: TextStyle(
+                                  fontSize: isSmallMobile ? 9 : 10,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                '\$${totalPaid.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: isSmallMobile ? 12 : 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green[700],
+                                ),
+                              ),
+                            ],
                           ),
-                          child: Text(
-                            '\$${(double.tryParse((customer['outstanding_amount'] ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}',
-                            style: TextStyle(
-                              color: Colors.orange[700],
-                              fontSize: isSmallMobile ? 10 : 11,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 30,
+                          color: Colors.grey[300],
+                        ),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(
+                                'Outstanding',
+                                style: TextStyle(
+                                  fontSize: isSmallMobile ? 9 : 10,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                '\$${outstanding.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: isSmallMobile ? 12 : 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: hasOutstanding ? Colors.red[700] : Colors.green[700],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
-                SizedBox(height: isSmallMobile ? 8 : 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () => _showCustomerTransactions(customer),
-                      icon: Icon(
-                        Icons.visibility,
-                        size: isSmallMobile ? 14 : 16,
-                      ),
-                      label: Text(
-                        'View Details',
-                        style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isSmallMobile ? 8 : 12,
-                          vertical: isSmallMobile ? 6 : 8,
+                  ),
+                  
+                  SizedBox(height: isSmallMobile ? 8 : 10),
+                  
+                  // Action Button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () => _showCustomerTransactions(customer),
+                        icon: Icon(
+                          Icons.visibility,
+                          size: isSmallMobile ? 14 : 16,
                         ),
-                        minimumSize: Size(
-                          isSmallMobile ? 80 : 100,
-                          isSmallMobile ? 28 : 32,
+                        label: Text(
+                          'View Transactions',
+                          style: TextStyle(
+                            fontSize: isSmallMobile ? 11 : 12,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue[600],
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isSmallMobile ? 12 : 16,
+                            vertical: isSmallMobile ? 6 : 8,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         );

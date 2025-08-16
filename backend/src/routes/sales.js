@@ -241,33 +241,44 @@ router.get('/report', auth, async (req, res) => {
       params
     );
     
-    // Sales by period
+    // Sales by period - Create a separate query to avoid parameter conflicts
     const dateFormat = group_by === 'day' ? '%Y-%m-%d' : group_by === 'week' ? '%Y-%u' : '%Y-%m';
-    const salesByPeriodQuery = `SELECT DATE_FORMAT(s.created_at, ?) as period, COUNT(*) as total_sales, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_sale FROM sales s ${whereClause} GROUP BY DATE_FORMAT(s.created_at, ?) ORDER BY period DESC`;
     
-    // Fix: Create a clean params array for this specific query that matches whereClause exactly
+    // Build the WHERE clause specifically for this query
+    let salesByPeriodWhereClause = 'WHERE (s.status = "completed" OR s.payment_method = "credit") AND s.parent_sale_id IS NULL';
     const salesByPeriodParams = [dateFormat, dateFormat];
     
-    // Add parameters in the exact same order as they appear in whereClause
-    // whereClause order: business_id (if not superadmin), user_id (if cashier or specific user), start_date, end_date
+    // Add business_id filter unless superadmin
     if (req.user.role !== 'superadmin') {
+      salesByPeriodWhereClause += ' AND s.business_id = ?';
       salesByPeriodParams.push(req.user.business_id);
     }
+    
+    // Add user_id filter
     if (isCashier) {
+      salesByPeriodWhereClause += ' AND s.user_id = ?';
       salesByPeriodParams.push(req.user.id);
     } else if (user_id) {
+      salesByPeriodWhereClause += ' AND s.user_id = ?';
       salesByPeriodParams.push(user_id);
     }
+    
+    // Add date filters
     if (validatedStartDate) {
+      salesByPeriodWhereClause += ' AND DATE(s.created_at) >= ?';
       salesByPeriodParams.push(validatedStartDate);
     }
     if (validatedEndDate) {
+      salesByPeriodWhereClause += ' AND DATE(s.created_at) <= ?';
       salesByPeriodParams.push(validatedEndDate);
     }
+    
+    const salesByPeriodQuery = `SELECT DATE_FORMAT(s.created_at, ?) as period, COUNT(*) as total_sales, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_sale FROM sales s ${salesByPeriodWhereClause} GROUP BY DATE_FORMAT(s.created_at, ?) ORDER BY period DESC`;
     
     // Debug: Log the exact parameter construction
     console.log('SALES REPORT: whereClause =', whereClause);
     console.log('SALES REPORT: params array =', params);
+    console.log('SALES REPORT: salesByPeriodWhereClause =', salesByPeriodWhereClause);
     console.log('SALES REPORT: salesByPeriodParams =', salesByPeriodParams);
     console.log('SALES REPORT: Sales by period query:', salesByPeriodQuery);
     

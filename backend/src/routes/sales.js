@@ -147,6 +147,15 @@ router.post('/', auth, async (req, res) => {
       );
     }
 
+    // Create cash flow entry for non-credit sales to track cash in hand
+    if (payment_method !== 'credit') {
+      await connection.query(
+        `INSERT INTO cash_flows (type, amount, date, reference, notes, business_id) 
+         VALUES (?, ?, CURDATE(), ?, ?, ?)`,
+        ['in', totalAmount, `Sale #${sale_id}`, `Sale completed via ${payment_method}`, businessId]
+      );
+    }
+
     await connection.commit();
 
     res.status(201).json({
@@ -804,7 +813,10 @@ router.get('/customer/:customerId/credit-transactions', [auth, checkRole(['admin
 
 // Mark a credit sale as paid (partial payments supported, single sales table)
 router.put('/:id/pay', auth, async (req, res) => {
+  const connection = await pool.getConnection();
   try {
+    await connection.beginTransaction();
+    
     const saleId = req.params.id;
     const { amount, payment_method } = req.body;
     if (!amount || isNaN(amount) || amount <= 0) {
@@ -814,7 +826,7 @@ router.put('/:id/pay', auth, async (req, res) => {
       return res.status(400).json({ message: 'A valid payment method is required' });
     }
     // Get the original credit sale
-    const [sales] = await pool.query('SELECT * FROM sales WHERE id = ?', [saleId]);
+    const [sales] = await connection.query('SELECT * FROM sales WHERE id = ?', [saleId]);
     if (sales.length === 0) {
       return res.status(404).json({ message: 'Sale not found' });
     }
@@ -826,27 +838,41 @@ router.put('/:id/pay', auth, async (req, res) => {
       return res.status(400).json({ message: 'Sale is already paid' });
     }
     // Get total paid so far
-    const [payments] = await pool.query('SELECT IFNULL(SUM(total_amount),0) as total_paid FROM sales WHERE parent_sale_id = ?', [saleId]);
+    const [payments] = await connection.query('SELECT IFNULL(SUM(total_amount),0) as total_paid FROM sales WHERE parent_sale_id = ?', [saleId]);
     const totalPaid = Number(payments[0].total_paid) || 0;
     const remaining = Number(sale.total_amount) - totalPaid;
     if (amount > remaining) {
       return res.status(400).json({ message: 'Payment exceeds amount owed' });
     }
+    
     // Insert payment as a new sale row with parent_sale_id set
-    await pool.query(
+    await connection.query(
       `INSERT INTO sales (parent_sale_id, customer_id, user_id, total_amount, tax_amount, payment_method, status, business_id)
        VALUES (?, ?, ?, ?, ?, ?, 'completed', ?)`,
       [saleId, sale.customer_id, req.user.id, amount, 0.00, payment_method, sale.business_id]
     );
+    
+    // Create cash flow entry to increase cash in hand
+    await connection.query(
+      `INSERT INTO cash_flows (type, amount, date, reference, notes, business_id) 
+       VALUES (?, ?, CURDATE(), ?, ?, ?)`,
+      ['in', amount, `Credit Payment - Sale #${saleId}`, `Payment received for credit sale #${saleId} via ${payment_method}`, sale.business_id]
+    );
+    
     // If fully paid, update sale status
     const newTotalPaid = totalPaid + Number(amount);
     if (newTotalPaid >= Number(sale.total_amount)) {
-      await pool.query('UPDATE sales SET status = ? WHERE id = ?', ['paid', saleId]);
+      await connection.query('UPDATE sales SET status = ? WHERE id = ?', ['paid', saleId]);
     }
+    
+    await connection.commit();
     res.json({ message: 'Payment recorded', remaining: Math.max(0, Number(sale.total_amount) - newTotalPaid) });
   } catch (error) {
+    await connection.rollback();
     console.error('Error marking credit sale as paid:', error);
     res.status(500).json({ message: 'Server error' });
+  } finally {
+    connection.release();
   }
 });
 

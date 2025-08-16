@@ -2929,10 +2929,35 @@ router.get('/accounting/expenses', [auth, checkRole(['admin', 'manager'])], asyn
   res.json(expenses);
 });
 router.post('/accounting/expenses', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
-  const { date, amount, category, vendor_id, notes } = req.body;
-  const businessId = req.user.business_id;
-  await pool.query('INSERT INTO expenses (date, amount, category, vendor_id, notes, business_id) VALUES (?, ?, ?, ?, ?, ?)', [date, amount, category, vendor_id, notes, businessId]);
-  res.json({ message: 'Expense added' });
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    
+    const { date, amount, category, vendor_id, notes } = req.body;
+    const businessId = req.user.business_id;
+    
+    // Insert the expense
+    await connection.query(
+      'INSERT INTO expenses (date, amount, category, vendor_id, notes, business_id) VALUES (?, ?, ?, ?, ?, ?)', 
+      [date, amount, category, vendor_id, notes, businessId]
+    );
+    
+    // Create cash flow entry to decrease cash in hand
+    await connection.query(
+      `INSERT INTO cash_flows (type, amount, date, reference, notes, business_id) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      ['out', amount, date, `Expense - ${category}`, notes || `Expense for ${category}`, businessId]
+    );
+    
+    await connection.commit();
+    res.json({ message: 'Expense added' });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error adding expense:', error);
+    res.status(500).json({ message: 'Server error' });
+  } finally {
+    connection.release();
+  }
 });
 router.put('/accounting/expenses/:id', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
   const { date, amount, category, vendor_id, notes } = req.body;

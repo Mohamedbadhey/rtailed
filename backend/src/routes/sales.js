@@ -119,11 +119,8 @@ router.post('/', auth, async (req, res) => {
         ]
       );
 
-      // Update product stock
-      await connection.query(
-        'UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?',
-        [item.quantity, item.product_id]
-      );
+      // NOTE: Stock quantity is automatically updated by database trigger after_sale_item_insert
+      // No need for manual UPDATE here to avoid double deduction
 
       // Add inventory transaction
       await connection.query(

@@ -275,18 +275,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         );
       }
       setState(() => _reportData = salesReport);
-      
-      // Debug: Log the received sales report data
-      print('REPORTS: Received sales report data:');
-      print('REPORTS: - salesByPeriod: ${salesReport['salesByPeriod']}');
-      print('REPORTS: - productBreakdown: ${salesReport['productBreakdown']}');
-      print('REPORTS: - customerInsights: ${salesReport['customerInsights']}');
-      print('REPORTS: - creditSummary: ${salesReport['creditSummary']}');
-      print('REPORTS: - totalSales: ${salesReport['totalSales']}');
-      print('REPORTS: - totalProfit: ${salesReport['totalProfit']}');
-      print('REPORTS: - outstandingCredits: ${salesReport['outstandingCredits']}');
     } catch (e) {
-      print('REPORTS: Error loading sales report: $e');
       setState(() => _reportData = {});
     } finally {
       setState(() => _isLoading = false);
@@ -357,42 +346,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     if (v is num) return v.toDouble();
     if (v is String) return double.tryParse(v) ?? 0.0;
     return 0.0;
-  }
-
-  Widget _insightCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color.withOpacity(0.7), size: 24),
-          SizedBox(height: 8),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[700],
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
   }
 
   String _formatMetricValue(dynamic value) {
@@ -872,40 +825,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  Widget _insightCard(String title, String value, IconData icon, Color color) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      color: color,
-      child: Padding(
-        padding: EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Icon(icon, color: color.shade900, size: 24),
-            SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: color.shade900,
-              ),
-            ),
-            SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color.shade900,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final salesReport = _reportData.isNotEmpty ? _reportData : null;
@@ -1179,240 +1098,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             scrollDirection: Axis.horizontal,
                           child: DataTable(
                             columns: [
-                              DataColumn(label: Text(t(context, 'Method'))),
-                              DataColumn(label: Text(t(context, 'Count'))),
-                              DataColumn(label: Text(t(context, 'Total'))),
+                              DataColumn(label: Text(t(context, 'method'))),
+                              DataColumn(label: Text(t(context, 'percentage'))),
+                              DataColumn(label: Text(t(context, 'total_amount'))),
                             ],
-                            rows: paymentMethods.map((method) => DataRow(
-                              cells: [
-                                DataCell(Text(method['payment_method'] ?? '')),
-                                DataCell(Text('${method['count'] ?? 0}')),
-                                DataCell(Text('\$${(method['total_amount'] ?? 0).toStringAsFixed(2)}')),
-                              ],
-                            )).toList(),
+                            rows: paymentMethods.map((pm) {
+                              final total = paymentMethods.fold<double>(0, (sum, m) => sum + (m['total_amount'] is num ? m['total_amount'] : double.tryParse(m['total_amount'].toString()) ?? 0.0));
+                              final amount = pm['total_amount'] is num ? pm['total_amount'] : double.tryParse(pm['total_amount'].toString()) ?? 0.0;
+                              final percent = total > 0 ? (amount / total * 100) : 0.0;
+                              return DataRow(cells: [
+                                DataCell(Text(pm['payment_method'] ?? '')),
+                                DataCell(Text('${percent.toStringAsFixed(1)}%')),
+                                DataCell(Text(amount.toString())),
+                              ]);
+                            }).toList(),
                           ),
                         ),
-                      ),
-                  ),
-                  
-                  // Sales by Period Chart
-                  if (salesReport?['salesByPeriod'] != null && (salesReport['salesByPeriod'] as List).isNotEmpty) ...[
-                    SizedBox(height: isSmallMobile ? 16 : 32),
-                    Text(
-                      'Sales by Period',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: isSmallMobile ? 14 : 16,
-                      ),
-                    ),
-                    SizedBox(height: isSmallMobile ? 6 : 10),
-                    Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      child: Container(
-                        height: isSmallMobile ? 200 : 300,
-                        padding: EdgeInsets.all(isSmallMobile ? 8 : 16),
-                        child: LineChart(
-                          LineChartData(
-                            gridData: FlGridData(show: true),
-                            titlesData: FlTitlesData(
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: isSmallMobile ? 40 : 60,
-                                  getTitlesWidget: (value, meta) {
-                                    return Text(
-                                      '\$${value.toInt()}',
-                                      style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
-                                    );
-                                  },
-                                ),
-                              ),
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: isSmallMobile ? 30 : 40,
-                                  getTitlesWidget: (value, meta) {
-                                    final periods = salesReport['salesByPeriod'] as List;
-                                    if (value.toInt() >= 0 && value.toInt() < periods.length) {
-                                      return Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 4),
-                                        child: Text(
-                                          periods[value.toInt()]['period'] ?? '',
-                                          style: TextStyle(fontSize: isSmallMobile ? 8 : 10),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      );
-                                    }
-                                    return Text('');
-                                  },
-                                ),
-                              ),
-                              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                            ),
-                            borderData: FlBorderData(show: true),
-                            lineBarsData: [
-                              LineChartBarData(
-                                spots: (salesReport['salesByPeriod'] as List).asMap().entries.map((entry) {
-                                  final index = entry.key;
-                                  final data = entry.value;
-                                  return FlSpot(index.toDouble(), parseNum(data['total_revenue']));
-                                }).toList(),
-                                isCurved: true,
-                                color: Colors.blue,
-                                barWidth: 3,
-                                dotData: FlDotData(show: true),
-                              ),
-                            ],
-                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                  
-                  // Product Breakdown
-                  if (salesReport?['productBreakdown'] != null && (salesReport['productBreakdown'] as List).isNotEmpty) ...[
-                    SizedBox(height: isSmallMobile ? 16 : 32),
-                    Text(
-                      'Top Products by Revenue',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: isSmallMobile ? 14 : 16,
-                      ),
-                    ),
-                    SizedBox(height: isSmallMobile ? 6 : 10),
-                    Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: DataTable(
-                          columns: [
-                            DataColumn(label: Text('Product')),
-                            DataColumn(label: Text('Quantity Sold')),
-                            DataColumn(label: Text('Revenue')),
-                          ],
-                          rows: (salesReport['productBreakdown'] as List).take(10).map((product) => DataRow(
-                            cells: [
-                              DataCell(Text(product['name'] ?? '')),
-                              DataCell(Text('${product['quantity_sold'] ?? 0}')),
-                              DataCell(Text('\$${(product['revenue'] ?? 0).toStringAsFixed(2)}')),
-                            ],
-                          )).toList(),
-                        ),
-                      ),
-                    ),
-                  ],
-                  
-                  // Customer Insights
-                  if (salesReport?['customerInsights'] != null) ...[
-                    SizedBox(height: isSmallMobile ? 16 : 32),
-                    Text(
-                      'Customer Insights',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: isSmallMobile ? 14 : 16,
-                      ),
-                    ),
-                    SizedBox(height: isSmallMobile ? 6 : 10),
-                    Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      child: Padding(
-                        padding: EdgeInsets.all(isSmallMobile ? 12 : 16),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _insightCard(
-                                    'Unique Customers',
-                                    '${salesReport['customerInsights']['unique_customers'] ?? 0}',
-                                    Icons.people,
-                                    Colors.blue[50]!,
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: _insightCard(
-                                    'Total Transactions',
-                                    '${salesReport['customerInsights']['total_transactions'] ?? 0}',
-                                    Icons.receipt,
-                                    Colors.green[50]!,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _insightCard(
-                                    'Avg Customer Spend',
-                                    '\$${(salesReport['customerInsights']['average_customer_spend'] ?? 0).toStringAsFixed(2)}',
-                                    Icons.attach_money,
-                                    Colors.orange[50]!,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                  
-                  // Credit Summary
-                  if (salesReport?['creditSummary'] != null) ...[
-                    SizedBox(height: isSmallMobile ? 16 : 32),
-                    Text(
-                      'Credit Sales Summary',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: isSmallMobile ? 14 : 16,
-                      ),
-                    ),
-                    SizedBox(height: isSmallMobile ? 6 : 10),
-                    Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      child: Padding(
-                        padding: EdgeInsets.all(isSmallMobile ? 12 : 16),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _insightCard(
-                                'Credit Sales',
-                                '${salesReport['creditSummary']['total_credit_sales'] ?? 0}',
-                                Icons.credit_card,
-                                Colors.orange[50]!,
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: _insightCard(
-                                'Credit Amount',
-                                '\$${(salesReport['creditSummary']['total_credit_amount'] ?? 0).toStringAsFixed(2)}',
-                                Icons.account_balance,
-                                Colors.red[50]!,
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: _insightCard(
-                                'Credit Customers',
-                                '${salesReport['creditSummary']['unique_credit_customers'] ?? 0}',
-                                Icons.person,
-                                Colors.purple[50]!,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                  
                   SizedBox(height: isSmallMobile ? 16 : 32),
                   // Product Transactions
                   Text(

@@ -825,7 +825,8 @@ router.get('/customer/:customerId/credit-transactions', [auth, checkRole(['admin
         u.username as cashier_name,
         'payment' as transaction_type,
         s.parent_sale_id,
-        orig.total_amount as original_credit_amount
+        orig.total_amount as original_credit_amount,
+        orig.id as original_sale_id
       FROM sales s
       LEFT JOIN users u ON s.user_id = u.id
       LEFT JOIN sales orig ON s.parent_sale_id = orig.id
@@ -861,18 +862,70 @@ router.get('/customer/:customerId/credit-transactions', [auth, checkRole(['admin
       paymentsByParent[parentId].push(payment);
     });
     
+    // Create comprehensive transaction history combining credit sales and payments
+    const allTransactions = [];
+    
+    // Add credit sales with their payment details
+    creditSalesWithOutstanding.forEach(creditSale => {
+      // Add the credit sale
+      allTransactions.push({
+        id: creditSale.id,
+        transaction_type: 'credit_sale',
+        amount: creditSale.total_amount,
+        created_at: creditSale.created_at,
+        status: creditSale.status,
+        payment_method: creditSale.payment_method,
+        cashier_name: creditSale.cashier_name,
+        total_paid: creditSale.total_paid,
+        outstanding_amount: creditSale.outstanding_amount,
+        is_fully_paid: creditSale.is_fully_paid,
+        description: `Credit sale of $${creditSale.total_amount}`,
+        parent_sale_id: null
+      });
+      
+      // Add all payments for this credit sale
+      const salePayments = paymentsByParent[creditSale.id] || [];
+      salePayments.forEach(payment => {
+        allTransactions.push({
+          id: payment.id,
+          transaction_type: 'payment',
+          amount: payment.total_amount,
+          created_at: payment.created_at,
+          status: payment.status,
+          payment_method: payment.payment_method,
+          cashier_name: payment.cashier_name,
+          total_paid: null, // Not applicable for payments
+          outstanding_amount: null, // Not applicable for payments
+          is_fully_paid: null, // Not applicable for payments
+          description: `Payment of $${payment.total_amount} for credit sale #${payment.parent_sale_id}`,
+          parent_sale_id: payment.parent_sale_id,
+          original_credit_amount: payment.original_credit_amount
+        });
+      });
+    });
+    
+    // Sort all transactions by date (newest first)
+    allTransactions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    
+    // Create detailed summary with payment breakdown
+    const summary = {
+      total_credit_amount: creditSalesWithOutstanding.reduce((sum, sale) => sum + Number(sale.total_amount), 0),
+      total_paid_amount: payments.reduce((sum, payment) => sum + Number(payment.total_amount), 0),
+      total_outstanding: creditSalesWithOutstanding.reduce((sum, sale) => sum + sale.outstanding_amount, 0),
+      credit_sales_count: creditSalesWithOutstanding.length,
+      payments_count: payments.length,
+      fully_paid_credits: creditSalesWithOutstanding.filter(sale => sale.is_fully_paid).length,
+      partially_paid_credits: creditSalesWithOutstanding.filter(sale => !sale.is_fully_paid && sale.total_paid > 0).length,
+      unpaid_credits: creditSalesWithOutstanding.filter(sale => sale.total_paid === 0).length
+    };
+    
     res.json({
       customer_id: customerId,
       credit_sales: creditSalesWithOutstanding,
       payments: payments,
       payments_by_parent: paymentsByParent,
-      summary: {
-        total_credit_amount: creditSalesWithOutstanding.reduce((sum, sale) => sum + Number(sale.total_amount), 0),
-        total_paid_amount: payments.reduce((sum, payment) => sum + Number(payment.total_amount), 0),
-        total_outstanding: creditSalesWithOutstanding.reduce((sum, sale) => sum + sale.outstanding_amount, 0),
-        credit_sales_count: creditSalesWithOutstanding.length,
-        payments_count: payments.length
-      }
+      all_transactions: allTransactions, // New comprehensive transaction list
+      summary: summary
     });
   } catch (error) {
     console.error('Error getting customer credit transactions:', error);

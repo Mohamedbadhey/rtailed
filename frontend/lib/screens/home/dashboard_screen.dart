@@ -1266,6 +1266,10 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                       _buildSummaryCards(),
                       const SizedBox(height: 16),
                       
+                      // All Transactions (Credit Sales + Payments in chronological order)
+                      _buildAllTransactionsSection(),
+                      const SizedBox(height: 16),
+                      
                       // Credit Sales
                       _buildCreditSalesSection(),
                       const SizedBox(height: 16),
@@ -1287,34 +1291,72 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
     final totalCredit = summary['total_credit_amount'] ?? 0.0;
     final totalPaid = summary['total_paid_amount'] ?? 0.0;
     final totalOutstanding = summary['total_outstanding'] ?? 0.0;
+    final fullyPaidCredits = summary['fully_paid_credits'] ?? 0;
+    final partiallyPaidCredits = summary['partially_paid_credits'] ?? 0;
+    final unpaidCredits = summary['unpaid_credits'] ?? 0;
 
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _buildSummaryCard(
-            'Total Credit',
-            '\$${totalCredit.toStringAsFixed(2)}',
-            Icons.credit_card,
-            Colors.orange,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _buildSummaryCard(
+                'Total Credit',
+                '\$${totalCredit.toStringAsFixed(2)}',
+                Icons.credit_card,
+                Colors.orange,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildSummaryCard(
+                'Total Paid',
+                '\$${totalPaid.toStringAsFixed(2)}',
+                Icons.payment,
+                Colors.green,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildSummaryCard(
+                'Outstanding',
+                '\$${totalOutstanding.toStringAsFixed(2)}',
+                Icons.warning,
+                Colors.red,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _buildSummaryCard(
-            'Total Paid',
-            '\$${totalPaid.toStringAsFixed(2)}',
-            Icons.payment,
-            Colors.green,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _buildSummaryCard(
-            'Outstanding',
-            '\$${totalOutstanding.toStringAsFixed(2)}',
-            Icons.warning,
-            Colors.red,
-          ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildSummaryCard(
+                'Fully Paid Credits',
+                '$fullyPaidCredits',
+                Icons.check_circle,
+                Colors.green,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildSummaryCard(
+                'Partially Paid',
+                '$partiallyPaidCredits',
+                Icons.pending,
+                Colors.orange,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildSummaryCard(
+                'Unpaid Credits',
+                '$unpaidCredits',
+                Icons.error,
+                Colors.red,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -1350,6 +1392,234 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAllTransactionsSection() {
+    final allTransactions = _transactionsData['all_transactions'] ?? [];
+    
+    // Sort transactions by date (oldest first for chronological order)
+    allTransactions.sort((a, b) {
+      final dateA = DateTime.tryParse(a['created_at'] ?? '') ?? DateTime.now();
+      final dateB = DateTime.tryParse(b['created_at'] ?? '') ?? DateTime.now();
+      return dateA.compareTo(dateB);
+    });
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.history, color: Colors.purple),
+                const SizedBox(width: 8),
+                Text(
+                  'All Transactions (${allTransactions.length})',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (allTransactions.isEmpty)
+              const Center(
+                child: Text('No transactions found'),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: allTransactions.length,
+                itemBuilder: (context, index) {
+                  final transaction = allTransactions[index];
+                  final isCreditSale = transaction['transaction_type'] == 'credit_sale';
+                  final isPayment = transaction['transaction_type'] == 'payment';
+                  final isCreditPayment = transaction['transaction_type'] == 'credit_payment';
+
+                  if (isCreditSale) {
+                    final sale = transaction;
+                    final originalAmount = double.tryParse(sale['total_amount'].toString()) ?? 0.0;
+                    final totalPaid = double.tryParse(sale['total_paid'].toString()) ?? 0.0;
+                    final outstanding = double.tryParse(sale['outstanding_amount'].toString()) ?? 0.0;
+                    final isFullyPaid = sale['is_fully_paid'] ?? false;
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Sale #${sale['id']}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Date: ${_formatDate(DateTime.tryParse(sale['created_at'] ?? ''))}',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                      Text(
+                                        'Cashier: ${sale['cashier_name'] ?? 'Unknown'}',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      '\$${originalAmount.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    if (totalPaid > 0)
+                                      Text(
+                                        'Paid: \$${totalPaid.toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                          color: Colors.green,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    if (outstanding > 0)
+                                      Text(
+                                        'Outstanding: \$${outstanding.toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                          color: Colors.red,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            if (!isFullyPaid) ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  ElevatedButton(
+                                    onPressed: () => _showPaymentDialog(
+                                      sale['id'],
+                                      originalAmount,
+                                      outstanding,
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    child: const Text('Record Payment'),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  } else if (isPayment) {
+                    final payment = transaction;
+                    final amount = double.tryParse(payment['total_amount'].toString()) ?? 0.0;
+                    final originalAmount = double.tryParse(payment['original_credit_amount'].toString()) ?? 0.0;
+                    
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.green,
+                          child: Icon(Icons.payment, color: Colors.white),
+                        ),
+                        title: Text('Payment for Sale #${payment['parent_sale_id']}'),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Amount: \$${amount.toStringAsFixed(2)}'),
+                            Text('Method: ${payment['payment_method']}'),
+                            Text('Date: ${_formatDate(DateTime.tryParse(payment['created_at'] ?? ''))}'),
+                            Text('Cashier: ${payment['cashier_name'] ?? 'Unknown'}'),
+                          ],
+                        ),
+                        trailing: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '\$${amount.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                            Text(
+                              'Original: \$${originalAmount.toStringAsFixed(2)}',
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  } else if (isCreditPayment) {
+                    final creditPayment = transaction;
+                    final amount = double.tryParse(creditPayment['total_amount'].toString()) ?? 0.0;
+                    final originalAmount = double.tryParse(creditPayment['original_credit_amount'].toString()) ?? 0.0;
+                    
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.red,
+                          child: Icon(Icons.payment, color: Colors.white),
+                        ),
+                        title: Text('Credit Payment for Sale #${creditPayment['parent_sale_id']}'),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Amount: \$${amount.toStringAsFixed(2)}'),
+                            Text('Method: ${creditPayment['payment_method']}'),
+                            Text('Date: ${_formatDate(DateTime.tryParse(creditPayment['created_at'] ?? ''))}'),
+                            Text('Cashier: ${creditPayment['cashier_name'] ?? 'Unknown'}'),
+                          ],
+                        ),
+                        trailing: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '\$${amount.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red,
+                              ),
+                            ),
+                            Text(
+                              'Original: \$${originalAmount.toStringAsFixed(2)}',
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink(); // Should not happen for valid data
+                },
+              ),
+          ],
+        ),
       ),
     );
   }

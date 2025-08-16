@@ -245,9 +245,11 @@ router.get('/report', auth, async (req, res) => {
     const dateFormat = group_by === 'day' ? '%Y-%m-%d' : group_by === 'week' ? '%Y-%u' : '%Y-%m';
     const salesByPeriodQuery = `SELECT DATE_FORMAT(s.created_at, ?) as period, COUNT(*) as total_sales, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_sale FROM sales s ${whereClause} GROUP BY DATE_FORMAT(s.created_at, ?) ORDER BY period DESC`;
     
-    // Fix: Create a clean params array for this specific query
+    // Fix: Create a clean params array for this specific query that matches whereClause exactly
     const salesByPeriodParams = [dateFormat, dateFormat];
-    // Add the business_id, user_id, and date filters in the correct order
+    
+    // Add parameters in the exact same order as they appear in whereClause
+    // whereClause order: business_id (if not superadmin), user_id (if cashier or specific user), start_date, end_date
     if (req.user.role !== 'superadmin') {
       salesByPeriodParams.push(req.user.business_id);
     }
@@ -263,8 +265,40 @@ router.get('/report', auth, async (req, res) => {
       salesByPeriodParams.push(validatedEndDate);
     }
     
+    // Debug: Log the exact parameter construction
+    console.log('SALES REPORT: whereClause =', whereClause);
+    console.log('SALES REPORT: params array =', params);
+    console.log('SALES REPORT: salesByPeriodParams =', salesByPeriodParams);
     console.log('SALES REPORT: Sales by period query:', salesByPeriodQuery);
-    console.log('SALES REPORT: Sales by period params:', salesByPeriodParams);
+    
+    // Verify parameter count matches
+    const expectedParams = salesByPeriodParams.length;
+    const actualPlaceholders = (salesByPeriodQuery.match(/\?/g) || []).length;
+    console.log('SALES REPORT: Parameter count check - Expected:', expectedParams, 'Actual placeholders:', actualPlaceholders);
+    
+    if (expectedParams !== actualPlaceholders) {
+      console.error('SALES REPORT: ❌ PARAMETER COUNT MISMATCH!');
+      console.error('Expected params:', expectedParams);
+      console.error('Actual placeholders:', actualPlaceholders);
+      console.error('Query:', salesByPeriodQuery);
+      console.error('Params:', salesByPeriodParams);
+      throw new Error(`Parameter count mismatch: expected ${expectedParams}, got ${actualPlaceholders}`);
+    }
+    
+    // Additional debug: Log each parameter with its position
+    console.log('SALES REPORT: Parameter mapping:');
+    salesByPeriodParams.forEach((param, index) => {
+      console.log(`  [${index}]: ${param} (${typeof param})`);
+    });
+    
+    // Additional debug: Log the final query with actual values for debugging
+    let debugQuery = salesByPeriodQuery;
+    salesByPeriodParams.forEach((param, index) => {
+      const placeholder = '?';
+      const value = typeof param === 'string' ? `'${param}'` : param;
+      debugQuery = debugQuery.replace(placeholder, value);
+    });
+    console.log('SALES REPORT: Debug query (with actual values):', debugQuery);
     
     let salesByPeriod;
     try {

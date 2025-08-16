@@ -260,12 +260,21 @@ router.get('/report', auth, async (req, res) => {
     
     console.log('SALES REPORT: Sales by period query:', salesByPeriodQuery);
     console.log('SALES REPORT: Sales by period params:', salesByPeriodParams);
+    console.log('SALES REPORT: salesByPeriodWhereClause:', salesByPeriodWhereClause);
+    console.log('SALES REPORT: req.user.business_id:', req.user.business_id);
+    console.log('SALES REPORT: user_id param:', user_id);
+    console.log('SALES REPORT: start_date:', start_date);
+    console.log('SALES REPORT: end_date:', end_date);
     
     let salesByPeriod;
     try {
       // Try the normal query first
+      console.log('SALES REPORT: Executing query with params:', salesByPeriodParams);
       [salesByPeriod] = await pool.query(salesByPeriodQuery, salesByPeriodParams);
+      console.log('SALES REPORT: Query executed successfully, result:', salesByPeriod);
     } catch (error) {
+      console.log('SALES REPORT: Query failed with error:', error.message);
+      console.log('SALES REPORT: Error code:', error.code);
       if (error.code === 'ER_WRONG_FIELD_WITH_GROUP') {
         console.log('⚠️  GROUP BY error detected, using relaxed mode...');
         // Fallback to relaxed GROUP BY mode
@@ -532,12 +541,12 @@ router.get('/credit-report', [auth, checkRole(['admin', 'manager', 'cashier'])],
         COUNT(s.id) as credit_sales_count,
         SUM(s.total_amount) as total_credit_amount,
         MAX(s.created_at) as last_credit_sale,
-        u.name as cashier_name
+        u.username as cashier_name
       FROM sales s
       LEFT JOIN customers c ON s.customer_id = c.id
       LEFT JOIN users u ON s.user_id = u.id
       ${whereClause}
-      GROUP BY c.id, c.name, c.email, c.phone, u.name
+      GROUP BY c.id, c.name, c.email, c.phone, u.username
       ORDER BY total_credit_amount DESC`,
       params
     );

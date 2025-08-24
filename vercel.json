@@ -1,4 +1,6 @@
 {
+  "buildCommand": "cd frontend && flutter build web --release --web-renderer canvaskit",
+  "outputDirectory": "frontend/build/web",
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -46,7 +48,7 @@
           "key": "Access-Control-Allow-Headers",
           "value": "Content-Type, Authorization, X-Requested-With, Accept, Origin, Range"
         }
-      ]
-    }
-  ]
-}
+        ]
+      }
+    ]
+  }

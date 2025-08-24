@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:retail_management/providers/auth_provider.dart';
 import 'package:retail_management/screens/home/settings_screen.dart';
 import 'package:retail_management/screens/home/damaged_products_screen.dart';
+import 'package:retail_management/screens/home/sales_management_screen.dart';
 import 'package:retail_management/screens/accounting/accounting_dashboard_screen.dart';
 
 
@@ -30,8 +31,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     final user = context.read<AuthProvider>().user;
     final isAdmin = user != null && user.role == 'admin';
     
-    // Number of tabs: General Settings, Damages, Credit, and optionally Accounting for admins
-    final tabCount = isAdmin ? 4 : 3;
+    // Number of tabs: General Settings, Damages, Credit, Sales Management, and optionally Accounting for admins
+    final tabCount = isAdmin ? 5 : 4;
     _tabController = TabController(length: tabCount, vsync: this);
     _loadCreditCustomers();
   }
@@ -108,6 +109,13 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
               ),
               text: isSmallMobile ? 'Credit' : t(context, 'Credit Management'),
             ),
+            Tab(
+              icon: Icon(
+                Icons.receipt,
+                size: isSmallMobile ? 18 : (isMobile ? 20 : 24),
+              ),
+              text: isSmallMobile ? 'Sales' : t(context, 'Sales Management'),
+            ),
             if (isAdmin)
               Tab(
                 icon: Icon(
@@ -130,6 +138,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
           
           // Credit
           _buildCreditTab(),
+          
+          // Sales Management
+          const SalesManagementScreen(),
           
           // Accounting (only for admins)
           if (isAdmin)

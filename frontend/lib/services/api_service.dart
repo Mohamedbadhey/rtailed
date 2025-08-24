@@ -811,6 +811,23 @@ class ApiService {
     return TypeConverter.safeToMap(json.decode(response.body));
   }
 
+  // Cancel/Refund a sale transaction
+  Future<Map<String, dynamic>> cancelSale(int saleId, String reason, {String? refundMethod}) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/sales/$saleId/cancel'),
+      headers: _headers,
+      body: json.encode({
+        'reason': reason,
+        if (refundMethod != null) 'refund_method': refundMethod,
+      }),
+    );
+    if (response.statusCode != 200) {
+      final errorData = json.decode(response.body);
+      throw Exception(errorData['message'] ?? 'Failed to cancel sale');
+    }
+    return TypeConverter.safeToMap(json.decode(response.body));
+  }
+
   // --- ACCOUNTING: EXPENSES ---
   Future<List<Map<String, dynamic>>> getExpenses() async {
     final response = await http.get(Uri.parse('$baseUrl/api/admin/accounting/expenses'), headers: _headers);

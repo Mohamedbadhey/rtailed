@@ -7,12 +7,27 @@ const { executeQueryWithRelaxedGroupBy } = require('../utils/databaseUtils');
 // Get all sales
 router.get('/', auth, async (req, res) => {
   try {
-    let query = 'SELECT * FROM sales WHERE business_id = ? ORDER BY created_at DESC';
+    let query = `
+      SELECT s.*, 
+             u.username as cancelled_by_name
+      FROM sales s
+      LEFT JOIN users u ON s.cancelled_by = u.id
+      WHERE s.business_id = ? 
+      ORDER BY s.created_at DESC
+    `;
     let params = [req.user.business_id];
+    
     if (req.user.role === 'superadmin') {
-      query = 'SELECT * FROM sales ORDER BY created_at DESC';
+      query = `
+        SELECT s.*, 
+               u.username as cancelled_by_name
+        FROM sales s
+        LEFT JOIN users u ON s.cancelled_by = u.id
+        ORDER BY s.created_at DESC
+      `;
       params = [];
     }
+    
     const [sales] = await pool.query(query, params);
     res.json(sales);
   } catch (error) {
@@ -1111,6 +1126,168 @@ router.get('/:id', auth, async (req, res) => {
   } catch (error) {
     console.error('Get sale details error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Cancel/Refund Sale Transaction
+router.post('/:id/cancel', auth, checkRole(['admin', 'manager', 'cashier']), async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    
+    const saleId = req.params.id;
+    const { reason = 'Sale cancelled by user', refund_method } = req.body;
+    
+    console.log('🔍 SALE CANCELLATION: Starting cancellation for sale ID:', saleId);
+    
+    // Get sale details
+    const [sales] = await connection.query(
+      'SELECT * FROM sales WHERE id = ? AND business_id = ? AND parent_sale_id IS NULL',
+      [saleId, req.user.business_id]
+    );
+    
+    if (sales.length === 0) {
+      throw new Error('Sale not found or access denied');
+    }
+    
+    const sale = sales[0];
+    
+    // Check if sale can be cancelled
+    if (sale.status === 'cancelled') {
+      throw new Error('Sale is already cancelled');
+    }
+    
+    if (sale.status === 'refunded') {
+      throw new Error('Sale has already been refunded');
+    }
+    
+    // Check if there are any payments made (for credit sales)
+    const [payments] = await connection.query(
+      'SELECT IFNULL(SUM(total_amount), 0) as total_paid FROM sales WHERE parent_sale_id = ?',
+      [saleId]
+    );
+    
+    const totalPaid = Number(payments[0].total_paid) || 0;
+    
+    // Get sale items to restore stock
+    const [saleItems] = await connection.query(
+      'SELECT * FROM sale_items WHERE sale_id = ?',
+      [saleId]
+    );
+    
+    console.log('🔍 SALE CANCELLATION: Found', saleItems.length, 'items to restore');
+    
+    // Restore product stock for each item
+    for (const item of saleItems) {
+      console.log('🔍 SALE CANCELLATION: Restoring stock for product ID:', item.product_id, 'Quantity:', item.quantity);
+      
+      // Update product stock
+      await connection.query(
+        'UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?',
+        [item.quantity, item.product_id]
+      );
+      
+      // Add inventory transaction for stock restoration
+      await connection.query(
+        `INSERT INTO inventory_transactions (
+          product_id, quantity, transaction_type, reference_id, notes, business_id
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          item.product_id,
+          item.quantity,
+          'cancellation',
+          saleId,
+          `Sale cancelled - Stock restored: ${reason}`,
+          req.user.business_id
+        ]
+      );
+    }
+    
+    // Handle payment refunds
+    if (totalPaid > 0) {
+      console.log('🔍 SALE CANCELLATION: Processing refund for amount:', totalPaid);
+      
+      // Create refund record
+      await connection.query(
+        `INSERT INTO sales (
+          parent_sale_id, customer_id, user_id, total_amount, tax_amount, 
+          payment_method, status, business_id, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, 'completed', ?, ?)`,
+        [
+          saleId, 
+          sale.customer_id, 
+          req.user.id, 
+          -totalPaid, // Negative amount for refund
+          0.00, 
+          refund_method || 'refund', 
+          req.user.business_id,
+          `Refund for cancelled sale #${saleId}: ${reason}`
+        ]
+      );
+      
+      // Update cash flow to decrease cash in hand
+      await connection.query(
+        `INSERT INTO cash_flows (type, amount, date, reference, notes, business_id) 
+         VALUES (?, ?, CURDATE(), ?, ?, ?)`,
+        ['out', totalPaid, `Sale Cancellation #${saleId}`, `Refund processed for cancelled sale: ${reason}`, req.user.business_id]
+      );
+    }
+    
+    // Reverse customer loyalty points if they were awarded
+    if (sale.customer_id) {
+      const pointsToRemove = Math.floor(sale.total_amount);
+      await connection.query(
+        'UPDATE customers SET loyalty_points = GREATEST(0, loyalty_points - ?) WHERE id = ?',
+        [pointsToRemove, sale.customer_id]
+      );
+      
+      console.log('🔍 SALE CANCELLATION: Removed', pointsToRemove, 'loyalty points from customer ID:', sale.customer_id);
+    }
+    
+    // Update sale status to cancelled
+    await connection.query(
+      'UPDATE sales SET status = ?, cancelled_at = NOW(), cancelled_by = ?, cancellation_reason = ? WHERE id = ?',
+      ['cancelled', req.user.id, reason, saleId]
+    );
+    
+    // Log the cancellation action
+    await connection.query(
+      `INSERT INTO system_logs (user_id, action, table_name, record_id, new_values, business_id) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        req.user.id, 
+        'CANCEL_SALE', 
+        'sales', 
+        saleId, 
+        JSON.stringify({ 
+          reason, 
+          refund_amount: totalPaid,
+          items_restored: saleItems.length,
+          original_amount: sale.total_amount
+        }), 
+        req.user.business_id
+      ]
+    );
+    
+    await connection.commit();
+    
+    console.log('🔍 SALE CANCELLATION: Successfully cancelled sale ID:', saleId);
+    
+    res.json({
+      message: 'Sale cancelled successfully',
+      sale_id: saleId,
+      status: 'cancelled',
+      stock_restored: saleItems.length,
+      refund_amount: totalPaid,
+      cancellation_reason: reason
+    });
+    
+  } catch (error) {
+    await connection.rollback();
+    console.error('🔍 SALE CANCELLATION ERROR:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  } finally {
+    connection.release();
   }
 });
 

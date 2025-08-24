@@ -304,23 +304,42 @@ class _ReportsScreenState extends State<ReportsScreen> {
       final params = <String, dynamic>{};
       if (_filterStartDate != null && _filterEndDate != null &&
           DateFormat('yyyy-MM-dd').format(_filterStartDate!) == DateFormat('yyyy-MM-dd').format(_filterEndDate!)) {
+        // Same day - use full day range
         final day = DateFormat('yyyy-MM-dd').format(_filterStartDate!);
         params['start_date'] = '$day 00:00:00';
         params['end_date'] = '$day 23:59:59';
       } else {
-        if (_filterStartDate != null) params['start_date'] = DateFormat('yyyy-MM-dd').format(_filterStartDate!);
-        if (_filterEndDate != null) params['end_date'] = DateFormat('yyyy-MM-dd').format(_filterEndDate!);
+        // Different days or single day - ensure proper time boundaries
+        if (_filterStartDate != null) {
+          final startDay = DateFormat('yyyy-MM-dd').format(_filterStartDate!);
+          params['start_date'] = '$startDay 00:00:00';
+        }
+        if (_filterEndDate != null) {
+          final endDay = DateFormat('yyyy-MM-dd').format(_filterEndDate!);
+          params['end_date'] = '$endDay 23:59:59';
+        }
       }
+      
+      print('🔍 REPORTS: Product Transactions Date Filters:');
+      print('  - Filter Start Date: $_filterStartDate');
+      print('  - Filter End Date: $_filterEndDate');
+      print('  - Params being sent: $params');
+      
       final user = context.read<AuthProvider>().user;
       if (user != null && user.role == 'admin' && _selectedCashierId != null && _selectedCashierId != 'all') {
-        print('Sending user_id: \'$_selectedCashierId\' to getInventoryTransactions');
+        print('🔍 REPORTS: Sending user_id: \'$_selectedCashierId\' to getInventoryTransactions');
         params['user_id'] = _selectedCashierId;
       } else {
-        print('No cashier filter for inventory transactions');
+        print('🔍 REPORTS: No cashier filter for inventory transactions');
       }
+      
+      print('🔍 REPORTS: Final params for getInventoryTransactions: $params');
+      
       final data = await _apiService.getInventoryTransactions(params);
+      print('🔍 REPORTS: Received ${data.length} product transactions');
       setState(() => _productTransactions = List<Map<String, dynamic>>.from(data));
     } catch (e) {
+      print('🔍 REPORTS: Error loading product transactions: $e');
       setState(() => _productTxError = e.toString());
     } finally {
       setState(() => _isProductTxLoading = false);
@@ -330,9 +349,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Future<void> _loadDamagedProductsReport() async {
     setState(() => _isDamagedProductsLoading = true);
     try {
+      final user = context.read<AuthProvider>().user;
+      String? cashierId;
+      if (user != null && user.role == 'admin' && _selectedCashierId != null && _selectedCashierId != 'all') {
+        cashierId = _selectedCashierId;
+      }
+      
       final report = await _apiService.getDamagedProductsReport(
         startDate: _filterStartDate?.toIso8601String().split('T')[0],
         endDate: _filterEndDate?.toIso8601String().split('T')[0],
+        cashierId: cashierId,
       );
       setState(() => _damagedProductsReport = report);
     } catch (e) {

@@ -120,6 +120,11 @@ router.put('/:id/stock', [auth, checkRole(['admin', 'manager'])], async (req, re
 // Get inventory transactions
 router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
+    const { start_date, end_date, user_id } = req.query;
+    
+    console.log('🔍 INVENTORY TRANSACTIONS: Request params:', { start_date, end_date, user_id });
+    console.log('🔍 INVENTORY TRANSACTIONS: User:', req.user.id, req.user.role, req.user.business_id);
+    
     let query = `
       SELECT 
         it.id,
@@ -148,17 +153,49 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
       LEFT JOIN damaged_products dp ON it.notes LIKE CONCAT('%Damaged:%') AND dp.product_id = it.product_id AND dp.created_at = it.created_at
       LEFT JOIN users dp_reporter ON dp.reported_by = dp_reporter.id
       WHERE it.business_id = ?
-      ORDER BY it.created_at DESC
     `;
     let params = [req.user.business_id];
+    
+    // Add date filters if provided
+    if (start_date) {
+      // Convert start_date to start of day for proper comparison
+      const startDateTime = start_date.includes(' ') ? start_date : start_date + ' 00:00:00';
+      query += ' AND it.created_at >= ?';
+      params.push(startDateTime);
+      console.log('🔍 INVENTORY TRANSACTIONS: Added start_date filter:', startDateTime);
+    }
+    if (end_date) {
+      // Convert end_date to end of day for proper comparison
+      const endDateTime = end_date.includes(' ') ? end_date : end_date + ' 23:59:59';
+      query += ' AND it.created_at <= ?';
+      params.push(endDateTime);
+      console.log('🔍 INVENTORY TRANSACTIONS: Added end_date filter:', endDateTime);
+    }
+    
+    // Add cashier filter if provided
+    if (user_id && user_id !== 'all') {
+      query += ' AND (s.user_id = ? OR dp.reported_by = ?)';
+      params.push(user_id, user_id);
+      console.log('🔍 INVENTORY TRANSACTIONS: Added cashier filter:', user_id);
+    }
+    
+    query += ' ORDER BY it.created_at DESC';
+    
     if (req.user.role === 'superadmin') {
       query = query.replace('WHERE it.business_id = ?', '');
-      params = [];
+      params = params.slice(1); // Remove business_id from params
+      console.log('🔍 INVENTORY TRANSACTIONS: Superadmin - removed business_id filter');
     }
+    
+    console.log('🔍 INVENTORY TRANSACTIONS: Final query:', query);
+    console.log('🔍 INVENTORY TRANSACTIONS: Final params:', params);
+    
     const [transactions] = await pool.query(query, params);
+    console.log('🔍 INVENTORY TRANSACTIONS: Found', transactions.length, 'transactions');
+    
     res.json(transactions);
   } catch (error) {
-    console.error(error);
+    console.error('🔍 INVENTORY TRANSACTIONS ERROR:', error);
     res.status(500).json({ message: error.message || 'Server error' });
   }
 });

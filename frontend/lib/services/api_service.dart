@@ -1126,11 +1126,12 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> getDamagedProductsReport({String? startDate, String? endDate, String? damageType}) async {
+  Future<Map<String, dynamic>> getDamagedProductsReport({String? startDate, String? endDate, String? damageType, String? cashierId}) async {
     final params = <String, String>{};
     if (startDate != null) params['start_date'] = startDate;
     if (endDate != null) params['end_date'] = endDate;
     if (damageType != null) params['damage_type'] = damageType;
+    if (cashierId != null) params['user_id'] = cashierId;
     
     final uri = Uri.parse('$baseUrl/api/damaged-products/reports/summary').replace(queryParameters: params);
     final response = await http.get(uri, headers: _headers);

@@ -360,7 +360,7 @@ router.delete('/:id', [auth, checkRole(['admin'])], async (req, res) => {
 // Get damaged products report
 router.get('/reports/summary', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
   try {
-    const { start_date, end_date, damage_type } = req.query;
+    const { start_date, end_date, damage_type, user_id } = req.query;
     
     let whereClause = 'WHERE dp.business_id = ?';
     let params = [req.user.business_id];
@@ -371,18 +371,28 @@ router.get('/reports/summary', [auth, checkRole(['admin', 'manager'])], async (r
     }
     
     if (start_date) {
+      // Convert start_date to start of day for proper comparison
+      const startDateTime = start_date.includes(' ') ? start_date : start_date + ' 00:00:00';
       whereClause += whereClause ? ' AND dp.damage_date >= ?' : 'WHERE dp.damage_date >= ?';
-      params.push(start_date);
+      params.push(startDateTime);
     }
     
     if (end_date) {
+      // Convert end_date to end of day for proper comparison
+      const endDateTime = end_date.includes(' ') ? end_date : end_date + ' 23:59:59';
       whereClause += whereClause ? ' AND dp.damage_date <= ?' : 'WHERE dp.damage_date <= ?';
-      params.push(end_date);
+      params.push(endDateTime);
     }
     
     if (damage_type) {
       whereClause += whereClause ? ' AND dp.damage_type = ?' : 'WHERE dp.damage_type = ?';
       params.push(damage_type);
+    }
+    
+    // Add cashier filter if provided
+    if (user_id && user_id !== 'all') {
+      whereClause += whereClause ? ' AND dp.reported_by = ?' : 'WHERE dp.reported_by = ?';
+      params.push(user_id);
     }
 
     // Get summary statistics

@@ -1792,6 +1792,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     showDialog(
       context: context,
       builder: (context) => _ProductDialog(
+        apiService: _apiService,
         onSave: (productData, imageFile, {webImageBytes, webImageName}) async {
           try {
             await _apiService.createProduct(productData, imageFile: imageFile, webImageBytes: webImageBytes, webImageName: webImageName);
@@ -1840,6 +1841,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     showDialog(
       context: context,
       builder: (context) => _CategoryManagementDialog(
+        apiService: _apiService,
         onCategoryChanged: () {
           _loadData();
         },
@@ -1851,6 +1853,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     showDialog(
       context: context,
       builder: (context) => _ProductDialog(
+        apiService: _apiService,
         product: product,
         onSave: (productData, imageFile, {webImageBytes, webImageName}) async {
           try {
@@ -3249,10 +3252,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
 }
 
 class _ProductDialog extends StatefulWidget {
+  final ApiService apiService;
   final Product? product;
   final Function(Map<String, dynamic>, File?, {Uint8List? webImageBytes, String? webImageName}) onSave;
 
   const _ProductDialog({
+    required this.apiService,
     this.product,
     required this.onSave,
   });
@@ -3307,7 +3312,7 @@ class _ProductDialogState extends State<_ProductDialog> {
 
   Future<void> _loadCategories() async {
     try {
-      final categories = await ApiService().getCategories();
+      final categories = await widget.apiService.getCategories();
       setState(() {
         _categories = categories;
       });
@@ -4222,9 +4227,11 @@ class _ProductDialogState extends State<_ProductDialog> {
 }
 
 class _CategoryManagementDialog extends StatefulWidget {
+  final ApiService apiService;
   final VoidCallback onCategoryChanged;
 
   const _CategoryManagementDialog({
+    required this.apiService,
     required this.onCategoryChanged,
   });
 
@@ -4256,7 +4263,7 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
 
   Future<void> _loadCategories() async {
     try {
-      final categories = await ApiService().getCategories();
+      final categories = await widget.apiService.getCategories();
       setState(() {
         _categories = categories;
       });
@@ -4300,7 +4307,7 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
 
     try {
       if (_isAddingNew) {
-        await ApiService().createCategory({
+        await widget.apiService.createCategory({
           'name': _nameController.text.trim(),
           'description': _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
         });
@@ -4319,7 +4326,7 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
           );
         }
       } else {
-        await ApiService().updateCategory(
+        await widget.apiService.updateCategory(
           _editingCategory!['id'],
           {
             'name': _nameController.text.trim(),
@@ -4392,7 +4399,7 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
 
     if (confirmed == true) {
       try {
-        await ApiService().deleteCategory(category['id']);
+        await widget.apiService.deleteCategory(category['id']);
         await _loadCategories();
         widget.onCategoryChanged();
         
@@ -4425,61 +4432,82 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 768;
-    final isSmallMobile = MediaQuery.of(context).size.width < 480;
+    final size = MediaQuery.of(context).size;
+    final isMobile = size.width < 768;
+    final isSmallMobile = size.width < 480;
+    final isTiny = size.width < 360;
 
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
-        width: isMobile ? double.infinity : 600,
+        width: isMobile ? double.infinity : (isSmallMobile ? double.infinity : 700),
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.8,
+          maxHeight: size.height * (isMobile ? 0.9 : 0.85),
+          maxWidth: isMobile ? double.infinity : 700,
         ),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              Colors.purple[600]!,
-              Colors.purple[800]!,
+              Colors.indigo[600]!,
+              Colors.purple[700]!,
+              Colors.blue[800]!,
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(isMobile ? 16 : 24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
+              color: Colors.black.withOpacity(0.4),
+              blurRadius: 25,
+              offset: const Offset(0, 15),
             ),
           ],
         ),
         child: Column(
           children: [
-            // Header
+            // Modern Header
             Container(
-              padding: EdgeInsets.all(isMobile ? 16 : 20),
+              padding: EdgeInsets.all(isMobile ? (isSmallMobile ? 12 : 16) : 24),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(isMobile ? 16 : 24),
+                  topRight: Radius.circular(isMobile ? 16 : 24),
+                ),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.2),
+                  width: 1,
                 ),
               ),
               child: Row(
                 children: [
+                  // Icon Container
                   Container(
-                    padding: EdgeInsets.all(isMobile ? 8 : 12),
+                    padding: EdgeInsets.all(isMobile ? (isSmallMobile ? 8 : 10) : 16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withOpacity(0.3),
+                          Colors.white.withOpacity(0.1),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 16),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1,
+                      ),
                     ),
                     child: Icon(
-                      Icons.category,
+                      Icons.category_rounded,
                       color: Colors.white,
-                      size: isMobile ? 24 : 28,
+                      size: isMobile ? (isSmallMobile ? 20 : 24) : 32,
                     ),
                   ),
                   const SizedBox(width: 16),
+                  // Title and Description
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -4487,88 +4515,155 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
                         Text(
                           'Category Management',
                           style: TextStyle(
-                            fontSize: isMobile ? 20 : 24,
-                            fontWeight: FontWeight.bold,
+                            fontSize: isMobile ? (isSmallMobile ? 18 : 20) : 28,
+                            fontWeight: FontWeight.w800,
                             color: Colors.white,
+                            letterSpacing: -0.5,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Add, edit, and manage product categories',
+                          'Organize your products with smart categories',
                           style: TextStyle(
-                            fontSize: isMobile ? 12 : 14,
+                            fontSize: isMobile ? (isSmallMobile ? 11 : 12) : 16,
                             color: Colors.white.withOpacity(0.9),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    padding: EdgeInsets.all(isMobile ? 8 : 12),
-                    constraints: BoxConstraints(
-                      minWidth: isMobile ? 40 : 48,
-                      minHeight: isMobile ? 40 : 48,
+                  // Close Button
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: Icon(
+                        Icons.close_rounded,
+                        color: Colors.white,
+                        size: isMobile ? (isSmallMobile ? 18 : 20) : 24,
+                      ),
+                      padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
+                      constraints: BoxConstraints(
+                        minWidth: isMobile ? (isSmallMobile ? 32 : 40) : 48,
+                        minHeight: isMobile ? (isSmallMobile ? 32 : 40) : 48,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
             
-            // Content
+            // Content Area
             Expanded(
               child: Container(
-                padding: EdgeInsets.all(isMobile ? 16 : 20),
+                padding: EdgeInsets.all(isMobile ? (isSmallMobile ? 12 : 16) : 20),
                 child: Column(
                   children: [
-                    // Add/Edit Form
+                    // Modern Add/Edit Form
                     if (_isAddingNew || _editingCategory != null) ...[
                       Container(
-                        padding: EdgeInsets.all(isMobile ? 16 : 20),
+                        padding: EdgeInsets.all(isMobile ? (isSmallMobile ? 16 : 20) : 24),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.white.withOpacity(0.15),
+                              Colors.white.withOpacity(0.08),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
+                          borderRadius: BorderRadius.circular(isSmallMobile ? 12 : 20),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.25),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
                         ),
                         child: Form(
                           key: _formKey,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                _isAddingNew ? 'Add New Category' : 'Edit Category',
-                                style: TextStyle(
-                                  fontSize: isMobile ? 16 : 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
+                              // Form Header
+                              Row(
+                                children: [
+                                  Icon(
+                                    _isAddingNew ? Icons.add_circle_outline : Icons.edit_note,
+                                    color: Colors.white,
+                                    size: isMobile ? (isSmallMobile ? 18 : 20) : 24,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    _isAddingNew ? 'Create New Category' : 'Edit Category',
+                                    style: TextStyle(
+                                      fontSize: isMobile ? (isSmallMobile ? 16 : 18) : 22,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 16),
+                              
+                              const SizedBox(height: 20),
+                              
+                              // Category Name Field
                               TextFormField(
                                 controller: _nameController,
                                 decoration: InputDecoration(
                                   labelText: 'Category Name',
-                                  labelStyle: TextStyle(color: Colors.white70),
+                                  labelStyle: TextStyle(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  hintText: 'Enter category name...',
+                                  hintStyle: TextStyle(
+                                    color: Colors.white.withOpacity(0.4),
+                                  ),
                                   border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(color: Colors.white30),
+                                    borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 16),
+                                    borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
                                   ),
                                   enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(color: Colors.white30),
+                                    borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 16),
+                                    borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
                                   ),
                                   focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(color: Colors.white70),
+                                    borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 16),
+                                    borderSide: BorderSide(
+                                      color: Colors.white.withOpacity(0.8),
+                                      width: 2,
+                                    ),
                                   ),
                                   filled: true,
                                   fillColor: Colors.white.withOpacity(0.1),
-                                  prefixIcon: Icon(Icons.category, color: Colors.white70),
+                                  prefixIcon: Icon(
+                                    Icons.category_outlined,
+                                    color: Colors.white.withOpacity(0.7),
+                                    size: isMobile ? (isSmallMobile ? 18 : 20) : 22,
+                                  ),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: isMobile ? (isSmallMobile ? 12 : 16) : 20,
+                                    vertical: isMobile ? (isSmallMobile ? 14 : 16) : 18,
+                                  ),
                                 ),
-                                style: TextStyle(color: Colors.white),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: isMobile ? (isSmallMobile ? 14 : 16) : 18,
+                                ),
                                 validator: (value) {
                                   if (value == null || value.trim().isEmpty) {
                                     return 'Category name is required';
@@ -4576,79 +4671,174 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
                                   return null;
                                 },
                               ),
+                              
                               const SizedBox(height: 16),
+                              
+                              // Description Field
                               TextFormField(
                                 controller: _descriptionController,
                                 decoration: InputDecoration(
                                   labelText: 'Description (Optional)',
-                                  labelStyle: TextStyle(color: Colors.white70),
+                                  labelStyle: TextStyle(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  hintText: 'Describe this category...',
+                                  hintStyle: TextStyle(
+                                    color: Colors.white.withOpacity(0.4),
+                                  ),
                                   border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(color: Colors.white30),
+                                    borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 16),
+                                    borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
                                   ),
                                   enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(color: Colors.white30),
+                                    borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 16),
+                                    borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
                                   ),
                                   focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(color: Colors.white70),
+                                    borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 16),
+                                    borderSide: BorderSide(
+                                      color: Colors.white.withOpacity(0.8),
+                                      width: 2,
+                                    ),
                                   ),
                                   filled: true,
                                   fillColor: Colors.white.withOpacity(0.1),
-                                  prefixIcon: Icon(Icons.description, color: Colors.white70),
+                                  prefixIcon: Icon(
+                                    Icons.description_outlined,
+                                    color: Colors.white.withOpacity(0.7),
+                                    size: isMobile ? (isSmallMobile ? 18 : 20) : 22,
+                                  ),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: isMobile ? (isSmallMobile ? 12 : 16) : 20,
+                                    vertical: isMobile ? (isSmallMobile ? 14 : 16) : 18,
+                                  ),
                                 ),
-                                style: TextStyle(color: Colors.white),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: isMobile ? (isSmallMobile ? 14 : 16) : 18,
+                                ),
                                 maxLines: 3,
                               ),
-                              const SizedBox(height: 20),
+                              
+                              const SizedBox(height: 24),
+                              
+                              // Action Buttons
                               Row(
                                 children: [
                                   Expanded(
-                                    child: ElevatedButton(
-                                      onPressed: _isLoading ? null : _saveCategory,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white,
-                                        foregroundColor: Colors.purple[700],
-                                        padding: EdgeInsets.symmetric(vertical: isMobile ? 12 : 16),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      height: isMobile ? (isSmallMobile ? 44 : 48) : 56,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Colors.white,
+                                            Colors.white.withOpacity(0.95),
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
                                         ),
-                                        elevation: 2,
+                                        borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.2),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
                                       ),
-                                      child: _isLoading
-                                          ? SizedBox(
-                                              height: isMobile ? 16 : 20,
-                                              width: isMobile ? 16 : 20,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.purple[700]!),
+                                      child: ElevatedButton(
+                                        onPressed: _isLoading ? null : _saveCategory,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.transparent,
+                                          foregroundColor: Colors.indigo[700],
+                                          elevation: 0,
+                                          padding: EdgeInsets.zero,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 16),
+                                          ),
+                                        ),
+                                        child: _isLoading
+                                            ? Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  SizedBox(
+                                                    height: isMobile ? (isSmallMobile ? 16 : 18) : 20,
+                                                    width: isMobile ? (isSmallMobile ? 16 : 18) : 20,
+                                                    child: CircularProgressIndicator(
+                                                      strokeWidth: 2.5,
+                                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.indigo[700]!),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    'Saving...',
+                                                    style: TextStyle(
+                                                      fontSize: isMobile ? (isSmallMobile ? 14 : 16) : 18,
+                                                      fontWeight: FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ],
+                                              )
+                                            : Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(
+                                                    _isAddingNew ? Icons.add_circle : Icons.save,
+                                                    size: isMobile ? (isSmallMobile ? 18 : 20) : 22,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    _isAddingNew ? 'Create Category' : 'Update Category',
+                                                    style: TextStyle(
+                                                      fontSize: isMobile ? (isSmallMobile ? 14 : 16) : 18,
+                                                      fontWeight: FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                            )
-                                          : Text(
-                                              _isAddingNew ? 'Add Category' : 'Update Category',
-                                              style: TextStyle(
-                                                fontSize: isMobile ? 14 : 16,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
-                                  TextButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        _isAddingNew = true;
-                                        _editingCategory = null;
-                                        _nameController.clear();
-                                        _descriptionController.clear();
-                                      });
-                                    },
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: Colors.white70,
-                                      padding: EdgeInsets.symmetric(vertical: isMobile ? 12 : 16),
+                                  
+                                  // Cancel Button
+                                  Container(
+                                    height: isMobile ? (isSmallMobile ? 44 : 48) : 56,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 16),
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.3),
+                                        width: 1,
+                                      ),
                                     ),
-                                    child: Text('Cancel'),
+                                    child: TextButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          _isAddingNew = true;
+                                          _editingCategory = null;
+                                          _nameController.clear();
+                                          _descriptionController.clear();
+                                        });
+                                      },
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: Colors.white,
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: isMobile ? (isSmallMobile ? 16 : 20) : 24,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 16),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        'Cancel',
+                                        style: TextStyle(
+                                          fontSize: isMobile ? (isSmallMobile ? 14 : 16) : 18,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -4659,59 +4849,136 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
                       const SizedBox(height: 20),
                     ],
                     
-                    // Categories List
+                    // Modern Categories List
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(16),
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.white.withOpacity(0.12),
+                              Colors.white.withOpacity(0.08),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(isSmallMobile ? 12 : 20),
                           border: Border.all(
                             color: Colors.white.withOpacity(0.2),
+                            width: 1,
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
                         ),
                         child: Column(
                           children: [
-                            // List Header
+                            // List Header with Stats
                             Container(
-                              padding: EdgeInsets.all(isMobile ? 12 : 16),
+                              padding: EdgeInsets.all(isMobile ? (isSmallMobile ? 12 : 16) : 20),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.1),
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(16),
-                                  topRight: Radius.circular(16),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.white.withOpacity(0.15),
+                                    Colors.white.withOpacity(0.1),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.only(
+                                  topLeft: Radius.circular(isSmallMobile ? 12 : 20),
+                                  topRight: Radius.circular(isSmallMobile ? 12 : 20),
+                                ),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.2),
+                                  width: 1,
                                 ),
                               ),
                               child: Row(
                                 children: [
-                                  Expanded(
-                                    child: Text(
-                                      'Categories (${_categories.length})',
-                                      style: TextStyle(
-                                        fontSize: isMobile ? 16 : 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                  // Categories Count
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: isMobile ? (isSmallMobile ? 8 : 12) : 16,
+                                      vertical: isMobile ? (isSmallMobile ? 6 : 8) : 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.3),
+                                        width: 1,
                                       ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.inventory_2,
+                                          color: Colors.white,
+                                          size: isMobile ? (isSmallMobile ? 16 : 18) : 20,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          '${_categories.length} Categories',
+                                          style: TextStyle(
+                                            fontSize: isMobile ? (isSmallMobile ? 12 : 14) : 16,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  ElevatedButton.icon(
-                                    onPressed: _showAddForm,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.white,
-                                      foregroundColor: Colors.purple[700]!,
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: isMobile ? 12 : 16,
-                                        vertical: isMobile ? 8 : 12,
+                                  
+                                  const Spacer(),
+                                  // Add Button
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Colors.white,
+                                          Colors.white.withOpacity(0.95),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
                                       ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
+                                      borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.2),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
                                     ),
-                                    icon: Icon(Icons.add, size: isMobile ? 16 : 18),
-                                    label: Text(
-                                      isMobile ? 'Add' : 'Add Category',
-                                      style: TextStyle(
-                                        fontSize: isMobile ? 12 : 14,
-                                        fontWeight: FontWeight.bold,
+                                    child: ElevatedButton.icon(
+                                      onPressed: _showAddForm,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.transparent,
+                                        foregroundColor: Colors.indigo[700],
+                                        elevation: 0,
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: isMobile ? (isSmallMobile ? 12 : 16) : 20,
+                                          vertical: isMobile ? (isSmallMobile ? 8 : 10) : 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                                        ),
+                                      ),
+                                      icon: Icon(
+                                        Icons.add_rounded,
+                                        size: isMobile ? (isSmallMobile ? 18 : 20) : 22,
+                                      ),
+                                      label: Text(
+                                        isMobile ? (isSmallMobile ? 'Add' : 'Add New') : 'Add Category',
+                                        style: TextStyle(
+                                          fontSize: isMobile ? (isSmallMobile ? 12 : 14) : 16,
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -4723,31 +4990,95 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
                             Expanded(
                               child: _categories.isEmpty
                                   ? Center(
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.category_outlined,
-                                            size: 48,
-                                            color: Colors.white.withOpacity(0.5),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          Text(
-                                            'No categories yet',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              color: Colors.white.withOpacity(0.7),
+                                      child: Padding(
+                                        padding: EdgeInsets.all(isMobile ? (isSmallMobile ? 20 : 32) : 48),
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Container(
+                                              padding: EdgeInsets.all(isMobile ? (isSmallMobile ? 16 : 24) : 32),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(isMobile ? (isSmallMobile ? 20 : 32) : 40),
+                                                border: Border.all(
+                                                  color: Colors.white.withOpacity(0.2),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Icon(
+                                                Icons.category_outlined,
+                                                size: isMobile ? (isSmallMobile ? 48 : 64) : 80,
+                                                color: Colors.white.withOpacity(0.6),
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Create your first category to organize products',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.white.withOpacity(0.5),
+                                            const SizedBox(height: 24),
+                                            Text(
+                                              'No Categories Yet',
+                                              style: TextStyle(
+                                                fontSize: isMobile ? (isSmallMobile ? 18 : 22) : 28,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              'Create your first category to organize products',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                fontSize: isMobile ? (isSmallMobile ? 12 : 14) : 16,
+                                                color: Colors.white.withOpacity(0.7),
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 20),
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  colors: [
+                                                    Colors.white,
+                                                    Colors.white.withOpacity(0.95),
+                                                  ],
+                                                  begin: Alignment.topLeft,
+                                                  end: Alignment.bottomRight,
+                                                ),
+                                                borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 16),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.black.withOpacity(0.2),
+                                                    blurRadius: 8,
+                                                    offset: const Offset(0, 4),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: ElevatedButton.icon(
+                                                onPressed: _showAddForm,
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.transparent,
+                                                  foregroundColor: Colors.indigo[700],
+                                                  elevation: 0,
+                                                  padding: EdgeInsets.symmetric(
+                                                    horizontal: isMobile ? (isSmallMobile ? 20 : 24) : 32,
+                                                    vertical: isMobile ? (isSmallMobile ? 12 : 14) : 16,
+                                                  ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 16),
+                                                  ),
+                                                ),
+                                                icon: Icon(
+                                                  Icons.add_circle_outline,
+                                                  size: isMobile ? (isSmallMobile ? 18 : 20) : 22,
+                                                ),
+                                                label: Text(
+                                                  'Create First Category',
+                                                  style: TextStyle(
+                                                    fontSize: isMobile ? (isSmallMobile ? 14 : 16) : 18,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     )
                                   : ListView.builder(
@@ -4755,85 +5086,160 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
                                       itemBuilder: (context, index) {
                                         final category = _categories[index];
                                         return Container(
-                                          margin: EdgeInsets.symmetric(
-                                            horizontal: isMobile ? 8 : 12,
-                                            vertical: 4,
+                                          margin: EdgeInsets.only(
+                                            bottom: isMobile ? (isSmallMobile ? 8 : 12) : 16,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: Colors.white.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(12),
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                Colors.white.withOpacity(0.15),
+                                                Colors.white.withOpacity(0.08),
+                                              ],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                            borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 16),
                                             border: Border.all(
                                               color: Colors.white.withOpacity(0.2),
+                                              width: 1,
                                             ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.1),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ],
                                           ),
-                                          child: ListTile(
-                                            contentPadding: EdgeInsets.symmetric(
-                                              horizontal: isMobile ? 12 : 16,
-                                              vertical: isMobile ? 8 : 12,
-                                            ),
-                                            leading: Container(
-                                              padding: EdgeInsets.all(8),
-                                              decoration: BoxDecoration(
-                                                color: Colors.white.withOpacity(0.2),
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: Icon(
-                                                Icons.category,
-                                                color: Colors.white,
-                                                size: isMobile ? 20 : 24,
-                                              ),
-                                            ),
-                                            title: Text(
-                                              category['name'] ?? '',
-                                              style: TextStyle(
-                                                fontSize: isMobile ? 14 : 16,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                            subtitle: category['description'] != null && category['description'].toString().isNotEmpty
-                                                ? Text(
-                                                    category['description'],
-                                                    style: TextStyle(
-                                                      fontSize: isMobile ? 11 : 12,
-                                                      color: Colors.white.withOpacity(0.8),
+                                          child: Material(
+                                            color: Colors.transparent,
+                                            child: InkWell(
+                                              borderRadius: BorderRadius.circular(isSmallMobile ? 10 : 16),
+                                              onTap: () => _showEditForm(category),
+                                              child: Padding(
+                                                padding: EdgeInsets.all(isMobile ? (isSmallMobile ? 12 : 16) : 20),
+                                                child: Row(
+                                                  children: [
+                                                    // Category Icon
+                                                    Container(
+                                                      padding: EdgeInsets.all(isMobile ? (isSmallMobile ? 8 : 10) : 14),
+                                                      decoration: BoxDecoration(
+                                                        gradient: LinearGradient(
+                                                          colors: [
+                                                            Colors.white.withOpacity(0.3),
+                                                            Colors.white.withOpacity(0.1),
+                                                          ],
+                                                          begin: Alignment.topLeft,
+                                                          end: Alignment.bottomRight,
+                                                        ),
+                                                        borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                                                        border: Border.all(
+                                                          color: Colors.white.withOpacity(0.2),
+                                                          width: 1,
+                                                        ),
+                                                      ),
+                                                      child: Icon(
+                                                        Icons.category_rounded,
+                                                        color: Colors.white,
+                                                        size: isMobile ? (isSmallMobile ? 20 : 24) : 28,
+                                                      ),
                                                     ),
-                                                    maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
-                                                  )
-                                                : null,
-                                            trailing: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                IconButton(
-                                                  onPressed: () => _showEditForm(category),
-                                                  icon: Icon(
-                                                    Icons.edit,
-                                                    color: Colors.blue[300],
-                                                    size: isMobile ? 18 : 20,
-                                                  ),
-                                                  tooltip: 'Edit',
-                                                  padding: EdgeInsets.all(4),
-                                                  constraints: BoxConstraints(
-                                                    minWidth: isMobile ? 32 : 36,
-                                                    minHeight: isMobile ? 32 : 36,
-                                                  ),
+                                                    
+                                                    const SizedBox(width: 16),
+                                                    
+                                                    // Category Info
+                                                    Expanded(
+                                                      child: Column(
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        children: [
+                                                          Text(
+                                                            category['name'] ?? '',
+                                                            style: TextStyle(
+                                                              fontSize: isMobile ? (isSmallMobile ? 16 : 18) : 22,
+                                                              fontWeight: FontWeight.w700,
+                                                              color: Colors.white,
+                                                            ),
+                                                          ),
+                                                          if (category['description'] != null && 
+                                                              category['description'].toString().isNotEmpty) ...[
+                                                            const SizedBox(height: 4),
+                                                            Text(
+                                                              category['description'],
+                                                              style: TextStyle(
+                                                                fontSize: isMobile ? (isSmallMobile ? 11 : 12) : 14,
+                                                                color: Colors.white.withOpacity(0.8),
+                                                                fontWeight: FontWeight.w500,
+                                                              ),
+                                                              maxLines: 2,
+                                                              overflow: TextOverflow.ellipsis,
+                                                            ),
+                                                          ],
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    
+                                                    // Action Buttons
+                                                    Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        // Edit Button
+                                                        Container(
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.blue.withOpacity(0.2),
+                                                            borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                                                            border: Border.all(
+                                                              color: Colors.blue.withOpacity(0.4),
+                                                              width: 1,
+                                                            ),
+                                                          ),
+                                                          child: IconButton(
+                                                            onPressed: () => _showEditForm(category),
+                                                            icon: Icon(
+                                                              Icons.edit_rounded,
+                                                              color: Colors.blue[300],
+                                                              size: isMobile ? (isSmallMobile ? 16 : 18) : 20,
+                                                            ),
+                                                            tooltip: 'Edit Category',
+                                                            padding: EdgeInsets.all(isSmallMobile ? 4 : 6),
+                                                            constraints: BoxConstraints(
+                                                              minWidth: isMobile ? (isSmallMobile ? 32 : 36) : 40,
+                                                              minHeight: isMobile ? (isSmallMobile ? 32 : 36) : 40,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        
+                                                        const SizedBox(width: 8),
+                                                        
+                                                        // Delete Button
+                                                        Container(
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.red.withOpacity(0.2),
+                                                            borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                                                            border: Border.all(
+                                                              color: Colors.red.withOpacity(0.4),
+                                                              width: 1,
+                                                            ),
+                                                          ),
+                                                          child: IconButton(
+                                                            onPressed: () => _deleteCategory(category),
+                                                            icon: Icon(
+                                                              Icons.delete_rounded,
+                                                              color: Colors.red[300],
+                                                              size: isMobile ? (isSmallMobile ? 16 : 18) : 20,
+                                                            ),
+                                                            tooltip: 'Delete Category',
+                                                            padding: EdgeInsets.all(isSmallMobile ? 4 : 6),
+                                                            constraints: BoxConstraints(
+                                                              minWidth: isMobile ? (isSmallMobile ? 32 : 36) : 40,
+                                                              minHeight: isMobile ? (isSmallMobile ? 32 : 36) : 40,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
                                                 ),
-                                                IconButton(
-                                                  onPressed: () => _deleteCategory(category),
-                                                  icon: Icon(
-                                                    Icons.delete,
-                                                    color: Colors.red[300],
-                                                    size: isMobile ? 18 : 20,
-                                                  ),
-                                                  tooltip: 'Delete',
-                                                  padding: EdgeInsets.all(4),
-                                                  constraints: BoxConstraints(
-                                                    minWidth: isMobile ? 32 : 36,
-                                                    minHeight: 36,
-                                                  ),
-                                                ),
-                                              ],
+                                              ),
                                             ),
                                           ),
                                         );

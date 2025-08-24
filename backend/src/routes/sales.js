@@ -33,11 +33,13 @@ router.post('/', auth, async (req, res) => {
       payment_method,
       tax_rate = 0.1, // Default 10% tax rate
       customer_phone, // Optionally sent from frontend
-      sale_mode // 'retail' or 'wholesale'
+      sale_mode, // 'retail' or 'wholesale'
+      partial_payment_amount, // New field for partial credit sales
+      remaining_credit_amount // New field for remaining credit amount
     } = req.body;
 
     // Validate credit sales
-    if (payment_method === 'credit') {
+    if (payment_method === 'credit' || payment_method === 'partial_credit') {
       if (!customer_id) {
         throw new Error('Customer must be selected for credit sales');
       }
@@ -53,6 +55,21 @@ router.post('/', auth, async (req, res) => {
       // Optionally update phone if provided
       if (customerRows.length > 0 && customer_phone && customerRows[0].phone !== customer_phone) {
         await connection.query('UPDATE customers SET phone = ? WHERE id = ?', [customer_phone, customer_id]);
+      }
+    }
+
+    // Validate partial credit payment
+    if (payment_method === 'partial_credit') {
+      if (!partial_payment_amount || partial_payment_amount <= 0) {
+        throw new Error('Partial payment amount must be greater than 0');
+      }
+      if (!remaining_credit_amount || remaining_credit_amount <= 0) {
+        throw new Error('Remaining credit amount must be greater than 0');
+      }
+      const totalAmount = items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
+      const calculatedRemaining = totalAmount - partial_payment_amount;
+      if (Math.abs(calculatedRemaining - remaining_credit_amount) > 0.01) {
+        throw new Error(`Credit amount mismatch. Total: ${totalAmount}, Partial: ${partial_payment_amount}, Remaining: ${remaining_credit_amount}`);
       }
     }
 
@@ -84,6 +101,8 @@ router.post('/', auth, async (req, res) => {
     let saleStatus = 'completed';
     if (payment_method === 'credit') {
       saleStatus = 'unpaid';
+    } else if (payment_method === 'partial_credit') {
+      saleStatus = 'partially_paid';
     }
     const businessId = req.user.business_id;
     const [saleResult] = await connection.query(
@@ -148,11 +167,18 @@ router.post('/', auth, async (req, res) => {
     }
 
     // Create cash flow entry for non-credit sales to track cash in hand
-    if (payment_method !== 'credit') {
+    if (payment_method !== 'credit' && payment_method !== 'partial_credit') {
       await connection.query(
         `INSERT INTO cash_flows (type, amount, date, reference, notes, business_id) 
          VALUES (?, ?, CURDATE(), ?, ?, ?)`,
         ['in', totalAmount, `Sale #${sale_id}`, `Sale completed via ${payment_method}`, businessId]
+      );
+    } else if (payment_method === 'partial_credit') {
+      // For partial credit, only record the partial payment amount in cash flow
+      await connection.query(
+        `INSERT INTO cash_flows (type, amount, date, reference, notes, business_id) 
+         VALUES (?, ?, CURDATE(), ?, ?, ?)`,
+        ['in', partial_payment_amount, `Sale #${sale_id}`, `Partial payment via ${payment_method}`, businessId]
       );
     }
 
@@ -1111,6 +1137,83 @@ router.get('/:id', auth, async (req, res) => {
   } catch (error) {
     console.error('Get sale details error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Record partial credit payment
+router.post('/:id/partial-credit-payment', auth, async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    
+    const { amount, payment_method } = req.body;
+    const saleId = req.params.id;
+    
+    // Get the sale
+    const [sales] = await connection.query(
+      'SELECT * FROM sales WHERE id = ? AND business_id = ?',
+      [saleId, req.user.business_id]
+    );
+    
+    if (sales.length === 0) {
+      return res.status(404).json({ message: 'Sale not found' });
+    }
+    
+    const sale = sales[0];
+    
+    // Validate this is a partial credit sale
+    if (sale.payment_method !== 'partial_credit') {
+      return res.status(400).json({ message: 'This sale is not a partial credit sale' });
+    }
+    
+    if (sale.status === 'paid') {
+      return res.status(400).json({ message: 'Sale is already fully paid' });
+    }
+    
+    // Get total paid so far
+    const [payments] = await connection.query(
+      'SELECT IFNULL(SUM(total_amount),0) as total_paid FROM sales WHERE parent_sale_id = ?', 
+      [saleId]
+    );
+    const totalPaid = Number(payments[0].total_paid) || 0;
+    const remaining = Number(sale.total_amount) - totalPaid;
+    
+    if (amount > remaining) {
+      return res.status(400).json({ message: 'Payment exceeds amount owed' });
+    }
+    
+    // Insert payment as a new sale row with parent_sale_id set
+    await connection.query(
+      `INSERT INTO sales (parent_sale_id, customer_id, user_id, total_amount, tax_amount, payment_method, status, business_id)
+       VALUES (?, ?, ?, ?, ?, ?, 'completed', ?)`,
+      [saleId, sale.customer_id, req.user.id, amount, 0.00, payment_method, sale.business_id]
+    );
+    
+    // Create cash flow entry to increase cash in hand
+    await connection.query(
+      `INSERT INTO cash_flows (type, amount, date, reference, notes, business_id) 
+       VALUES (?, ?, CURDATE(), ?, ?, ?)`,
+      ['in', amount, `Partial Credit Payment - Sale #${saleId}`, `Payment received for partial credit sale #${saleId} via ${payment_method}`, sale.business_id]
+    );
+    
+    // If fully paid, update sale status
+    const newTotalPaid = totalPaid + Number(amount);
+    if (newTotalPaid >= Number(sale.total_amount)) {
+      await connection.query('UPDATE sales SET status = ? WHERE id = ?', ['paid', saleId]);
+    }
+    
+    await connection.commit();
+    res.json({ 
+      message: 'Partial credit payment recorded', 
+      remaining: Math.max(0, Number(sale.total_amount) - newTotalPaid),
+      total_paid: newTotalPaid
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error recording partial credit payment:', error);
+    res.status(500).json({ message: 'Server error' });
+  } finally {
+    connection.release();
   }
 });
 

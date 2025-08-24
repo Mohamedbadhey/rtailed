@@ -1125,7 +1125,9 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
   final TextEditingController _customerPhoneController = TextEditingController();
   final TextEditingController _newCustomerNameController = TextEditingController();
   final TextEditingController _newCustomerPhoneController = TextEditingController();
+  final TextEditingController _partialPaymentController = TextEditingController();
   bool _showNewCustomerFields = false;
+  double _remainingCreditAmount = 0.0;
   bool _isLoading = false;
   final ApiService _apiService = ApiService();
   final Map<int, TextEditingController> _customPriceControllers = {};
@@ -1134,6 +1136,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
     'edahab',
     'merchant',
     'credit',
+    'partial_credit',
   ];
   List<Customer> _customers = [];
   Customer? _selectedCustomer;
@@ -1143,6 +1146,23 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
   void initState() {
     super.initState();
     _fetchCustomers();
+    _updatePartialCreditAmounts();
+    
+    // Add listener to partial payment controller
+    _partialPaymentController.addListener(_updatePartialCreditAmounts);
+  }
+
+  void _updatePartialCreditAmounts() {
+    final totalAmount = widget.cart.items.fold(0.0, (sum, item) {
+      final controller = _customPriceControllers[item.product.id];
+      final totalPrice = double.tryParse(controller?.text ?? '') ?? 0.0;
+      return sum + (totalPrice > 0 ? totalPrice : (item.product.costPrice * item.quantity));
+    });
+    
+    final partialPayment = double.tryParse(_partialPaymentController.text) ?? 0.0;
+    setState(() {
+      _remainingCreditAmount = totalAmount - partialPayment;
+    });
   }
 
   Future<void> _fetchCustomers() async {
@@ -1165,6 +1185,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
     _customerPhoneController.dispose();
     _newCustomerNameController.dispose();
     _newCustomerPhoneController.dispose();
+    _partialPaymentController.dispose();
     super.dispose();
   }
 
@@ -1173,6 +1194,28 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       _isLoading = true;
     });
     try {
+      // Validate partial credit payment
+      if (_selectedPaymentMethod == 'partial_credit') {
+        final partialPayment = double.tryParse(_partialPaymentController.text);
+        if (partialPayment == null || partialPayment <= 0) {
+          throw Exception('Please enter a valid partial payment amount');
+        }
+        
+        final totalAmount = widget.cart.items.fold(0.0, (sum, item) {
+          final controller = _customPriceControllers[item.product.id];
+          final totalPrice = double.tryParse(controller?.text ?? '') ?? 0.0;
+          return sum + (totalPrice > 0 ? totalPrice : (item.product.costPrice * item.quantity));
+        });
+        
+        if (partialPayment >= totalAmount) {
+          throw Exception('Partial payment must be less than total amount');
+        }
+        
+        if (_customerPhoneController.text.trim().isEmpty && _newCustomerPhoneController.text.trim().isEmpty) {
+          throw Exception('Customer phone number is required for partial credit sales');
+        }
+      }
+      
       Customer? customer;
       // If new customer fields are shown and name is filled, create new customer
       if (_showNewCustomerFields && _newCustomerNameController.text.trim().isNotEmpty) {
@@ -1226,8 +1269,12 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
             'mode': item.mode,
           };
         }).toList(),
-        if (_selectedPaymentMethod == 'credit' || (customer != null && (_customerPhoneController.text.trim().isNotEmpty || _newCustomerPhoneController.text.trim().isNotEmpty)))
+        if (_selectedPaymentMethod == 'credit' || _selectedPaymentMethod == 'partial_credit' || (customer != null && (_customerPhoneController.text.trim().isNotEmpty || _newCustomerPhoneController.text.trim().isNotEmpty)))
           'customer_phone': customer == null ? '' : (_newCustomerPhoneController.text.trim().isNotEmpty ? _newCustomerPhoneController.text.trim() : _customerPhoneController.text.trim()),
+        if (_selectedPaymentMethod == 'partial_credit') ...[
+          'partial_payment_amount': double.tryParse(_partialPaymentController.text) ?? 0.0,
+          'remaining_credit_amount': _remainingCreditAmount,
+        ],
       };
       final sale = await _apiService.createSale(saleData);
       widget.cart.clearCart();
@@ -1604,7 +1651,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                               return DropdownMenuItem<String>(
                                 value: method,
                                 child: Text(
-                                  method[0].toUpperCase() + method.substring(1),
+                                  method == 'partial_credit' ? t(context, 'partial_credit') : method[0].toUpperCase() + method.substring(1),
                                   style: TextStyle(fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16)),
                                 ),
                               );
@@ -1613,6 +1660,9 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                               setState(() {
                                 _selectedPaymentMethod = value!;
                               });
+                              if (value == 'partial_credit') {
+                                _updatePartialCreditAmounts();
+                              }
                             },
                           ),
                         ),
@@ -1733,6 +1783,160 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                               ),
                             ),
                             SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
+                            TextFormField(
+                              controller: _newCustomerPhoneController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'new_customer_phone'),
+                                border: const OutlineInputBorder(),
+                                hintText: t(context, 'enter_phone_optional'),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                                  vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
+                                ),
+                              ),
+                              keyboardType: TextInputType.phone,
+                            ),
+                          ],
+                        ],
+
+                        // Partial Credit Fields (only for partial_credit)
+                        if (_selectedPaymentMethod == 'partial_credit') ...[
+                          SizedBox(height: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
+                          Text(
+                            'Partial Credit Details',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16), 
+                              fontWeight: FontWeight.bold
+                            ),
+                          ),
+                          SizedBox(height: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
+                          
+                          // Customer Phone (required for partial credit)
+                          Text(
+                            t(context, 'customer_phone'),
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16), 
+                              fontWeight: FontWeight.bold
+                            ),
+                          ),
+                          SizedBox(height: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
+                          TextFormField(
+                            controller: _customerPhoneController,
+                            decoration: InputDecoration(
+                              labelText: t(context, 'customer_phone'),
+                              border: const OutlineInputBorder(),
+                              hintText: t(context, 'required_for_credit_sales'),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                                vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
+                              ),
+                              prefixIcon: Icon(Icons.phone, size: isSmallMobile ? 18 : 20),
+                            ),
+                            keyboardType: TextInputType.phone,
+                          ),
+                          SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
+                          
+                          // Partial Payment Amount
+                          Text(
+                            'Partial Payment Amount',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16), 
+                              fontWeight: FontWeight.bold
+                            ),
+                          ),
+                          SizedBox(height: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
+                          TextFormField(
+                            controller: _partialPaymentController,
+                            decoration: InputDecoration(
+                              labelText: 'Partial Payment Amount',
+                              border: const OutlineInputBorder(),
+                              hintText: 'Enter amount customer will pay now',
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                                vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
+                              ),
+                              prefixIcon: Icon(Icons.attach_money, size: isSmallMobile ? 18 : 20),
+                            ),
+                            keyboardType: TextInputType.number,
+                            onChanged: (value) {
+                              _updatePartialCreditAmounts();
+                            },
+                          ),
+                          SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
+                          
+                          // Remaining Credit Amount (read-only)
+                          Text(
+                            'Remaining Credit Amount',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16), 
+                              fontWeight: FontWeight.bold
+                            ),
+                          ),
+                          SizedBox(height: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                              vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[400]!),
+                              borderRadius: BorderRadius.circular(4),
+                              color: Colors.grey[100],
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.credit_card, size: isSmallMobile ? 18 : 20, color: Colors.orange),
+                                SizedBox(width: 8),
+                                Text(
+                                  _remainingCreditAmount.toStringAsFixed(2),
+                                  style: TextStyle(
+                                    fontSize: isSmallMobile ? 14 : 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange[800],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
+                          
+                          // New Customer Fields for Partial Credit
+                          Row(
+                            children: [
+                              ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _showNewCustomerFields = !_showNewCustomerFields;
+                                  });
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isSmallMobile ? 8 : 12,
+                                    vertical: isSmallMobile ? 8 : 10,
+                                  ),
+                                ),
+                                child: Text(
+                                  _showNewCustomerFields ? t(context, 'cancel_new_customer') : t(context, 'new_customer'),
+                                  style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_showNewCustomerFields) ...[
+                            SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
+                            TextFormField(
+                              controller: _newCustomerNameController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'new_customer_name'),
+                                border: const OutlineInputBorder(),
+                                hintText: t(context, 'enter_new_customer_name'),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                                  vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: isMobile ? 6 : 8),
                             TextFormField(
                               controller: _newCustomerPhoneController,
                               decoration: InputDecoration(

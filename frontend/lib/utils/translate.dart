@@ -483,6 +483,7 @@ final Map<String, Map<String, String>> translations = {
     'required_min_cost_quantity': 'Lagu baahan yahay, ≥',
     'must_be_min_cost_quantity': 'Waa in ay noqotaa ugu yaraan qiimaha × tirada',
     'payment_method': 'Habka Bixinta',
+    'partial_credit': 'Deyn Qayb ah',
     'customer_name': 'Magaca Macmiilka',
     'customer_name_optional': 'Magaca Macmiilka (Ikhtiyaari)',
     'select_or_enter_customer_name': 'Dooro ama geli magaca macmiilka',

@@ -2,7 +2,7 @@ name: Deploy Flutter Web to GitHub Pages
 
 on:
   push:
-    branches: ["master"]   # or "main" if your branch is named main
+    branches: ["master"]   # or "main" if that’s your default branch
   workflow_dispatch:
 
 permissions:
@@ -17,6 +17,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend   # 👈 tells Actions to run inside /frontend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,7 +27,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.24.0" # change to your Flutter version
+          flutter-version: "3.24.0"   # use your Flutter version
 
       - name: Install dependencies
         run: flutter pub get
@@ -35,8 +38,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: build/web
-
+          path: frontend/build/web   # 👈 path updated for your project
+          
   deploy:
     environment:
       name: github-pages

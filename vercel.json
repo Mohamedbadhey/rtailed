@@ -6,18 +6,18 @@
       "use": "@vercel/static"
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "https://rtailed-production.up.railway.app/api/$1"
+      "source": "/api/(.*)",
+      "destination": "https://rtailed-production.up.railway.app/api/$1"
     },
     {
-      "src": "/uploads/(.*)",
-      "dest": "https://rtailed-production.up.railway.app/uploads/$1"
+      "source": "/uploads/(.*)",
+      "destination": "https://rtailed-production.up.railway.app/uploads/$1"
     },
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [

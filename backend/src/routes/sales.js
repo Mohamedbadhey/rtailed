@@ -71,32 +71,98 @@ router.post('/', auth, async (req, res) => {
     // Calculate totals
     let totalAmount = items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
 
+    // Handle partial payments logic
+    let cashAmount = 0;
+    let creditAmount = 0;
+    let hasCredit = false;
+    
+    if (partial_payments && Array.isArray(partial_payments) && partial_payments.length > 0) {
+      for (const payment of partial_payments) {
+        if (payment.payment_method === 'credit') {
+          hasCredit = true;
+          creditAmount += parseFloat(payment.amount);
+        } else {
+          cashAmount += parseFloat(payment.amount);
+        }
+      }
+    } else {
+      // Single payment method
+      if (payment_method === 'credit') {
+        hasCredit = true;
+        creditAmount = totalAmount;
+      } else {
+        cashAmount = totalAmount;
+      }
+    }
+
     // Debug log for sale insert
     console.log('Creating sale with:', {
       customer_id,
       user_id: req.user.id,
       total_amount: totalAmount,
       payment_method,
-      status: 'completed'
+      hasCredit,
+      cashAmount,
+      creditAmount,
+      status: hasCredit ? 'unpaid' : 'completed'
     });
 
-    // Create sale record
-    let saleStatus = 'completed';
-    if (payment_method === 'credit') {
-      saleStatus = 'unpaid';
-    }
+    // Create main sale record (for cash portion)
+    let saleStatus = hasCredit ? 'unpaid' : 'completed';
+    let mainPaymentMethod = hasCredit ? (cashAmount > 0 ? 'mixed' : 'credit') : payment_method;
+    
     const businessId = req.user.business_id;
     const [saleResult] = await connection.query(
       `INSERT INTO sales (
         customer_id, user_id, total_amount, tax_amount,
         payment_method, status, sale_mode, business_id
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [customer_id, req.user.id, totalAmount, 0.00, payment_method, saleStatus, sale_mode || 'retail', businessId]
+      [customer_id, req.user.id, totalAmount, 0.00, mainPaymentMethod, saleStatus, sale_mode || 'retail', businessId]
     );
 
     const sale_id = saleResult.insertId;
 
-    // Create sale items and update inventory
+    // Create separate credit sale if there's a credit portion
+    let creditSaleId = null;
+    if (hasCredit && creditAmount > 0) {
+      const [creditSaleResult] = await connection.query(
+        `INSERT INTO sales (
+          customer_id, user_id, total_amount, tax_amount,
+          payment_method, status, sale_mode, business_id, parent_sale_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [customer_id, req.user.id, creditAmount, 0.00, 'credit', 'unpaid', sale_mode || 'retail', businessId, sale_id]
+      );
+      creditSaleId = creditSaleResult.insertId;
+      
+      // Create sale items for credit sale (same items, but with credit amount)
+      for (const item of items) {
+        const [product] = await connection.query(
+          'SELECT cost_price FROM products WHERE id = ?',
+          [item.product_id]
+        );
+
+        // Calculate proportional credit amount for this item
+        const itemTotal = item.unit_price * item.quantity;
+        const proportionalCreditAmount = (itemTotal / totalAmount) * creditAmount;
+
+        await connection.query(
+          `INSERT INTO sale_items (
+            sale_id, product_id, quantity, unit_price, total_price, mode, business_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            creditSaleId,
+            item.product_id,
+            item.quantity,
+            item.unit_price,
+            proportionalCreditAmount,
+            item.mode || 'retail',
+            businessId
+          ]
+        );
+      }
+    }
+
+    // Create sale items and update inventory for main sale
     for (const item of items) {
       const [product] = await connection.query(
         'SELECT cost_price FROM products WHERE id = ?',
@@ -104,38 +170,28 @@ router.post('/', auth, async (req, res) => {
       );
 
       // Add sale item
-      await connection.query(
-        `INSERT INTO sale_items (
-          sale_id, product_id, quantity, unit_price, total_price, mode, business_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
-          sale_id,
-          item.product_id,
-          item.quantity,
-          item.unit_price,
-          item.unit_price * item.quantity,
-          item.mode || 'retail',
-          businessId
-        ]
-      );
+              // Calculate proportional cash amount for this item
+        const itemTotal = item.unit_price * item.quantity;
+        const proportionalCashAmount = hasCredit ? (itemTotal / totalAmount) * cashAmount : itemTotal;
+
+        await connection.query(
+          `INSERT INTO sale_items (
+            sale_id, product_id, quantity, unit_price, total_price, mode, business_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            sale_id,
+            item.product_id,
+            item.quantity,
+            item.unit_price,
+            proportionalCashAmount,
+            item.mode || 'retail',
+            businessId
+          ]
+        );
 
       // NOTE: Stock quantity is automatically updated by database trigger after_sale_item_insert
       // No need for manual UPDATE here to avoid double deduction
-
-      // Add inventory transaction
-      await connection.query(
-        `INSERT INTO inventory_transactions (
-          product_id, quantity, transaction_type, reference_id, notes, business_id
-        ) VALUES (?, ?, ?, ?, ?, ?)`,
-        [
-          item.product_id,
-          -item.quantity,
-          'sale',
-          sale_id,
-          'Sale transaction',
-          businessId
-        ]
-      );
+      // Inventory is only deducted once from the main sale, not from the credit sale
     }
 
     // Update customer loyalty points if customer exists
@@ -147,21 +203,41 @@ router.post('/', auth, async (req, res) => {
       );
     }
 
-    // Create cash flow entry for non-credit sales to track cash in hand
-    if (payment_method !== 'credit') {
-      await connection.query(
-        `INSERT INTO cash_flows (type, amount, date, reference, notes, business_id) 
-         VALUES (?, ?, CURDATE(), ?, ?, ?)`,
-        ['in', totalAmount, `Sale #${sale_id}`, `Sale completed via ${payment_method}`, businessId]
-      );
+    // Handle cash flow entries
+    if (hasCredit) {
+      // Partial payment scenario
+      if (partial_payments && Array.isArray(partial_payments) && partial_payments.length > 0) {
+        for (const payment of partial_payments) {
+          if (payment.payment_method !== 'credit') {
+            await connection.query(
+              `INSERT INTO cash_flows (type, amount, date, reference, notes, business_id) 
+               VALUES (?, ?, CURDATE(), ?, ?, ?)`,
+              ['in', payment.amount, `Sale #${sale_id} - ${payment.payment_method}`, `Partial payment via ${payment.payment_method}`, businessId]
+            );
+          }
+        }
+      }
+    } else {
+      // Single payment method (existing logic)
+      if (payment_method !== 'credit') {
+        await connection.query(
+          `INSERT INTO cash_flows (type, amount, date, reference, notes, business_id) 
+           VALUES (?, ?, CURDATE(), ?, ?, ?)`,
+          ['in', totalAmount, `Sale #${sale_id}`, `Sale completed via ${payment_method}`, businessId]
+        );
+      }
     }
 
     await connection.commit();
 
     res.status(201).json({
-      message: 'Sale completed successfully',
+      message: hasCredit ? 'Partial payment sale completed successfully' : 'Sale completed successfully',
       sale_id,
-      total_amount: totalAmount
+      credit_sale_id: creditSaleId,
+      total_amount: totalAmount,
+      cash_amount: cashAmount,
+      credit_amount: creditAmount,
+      has_credit: hasCredit
     });
   } catch (error) {
     await connection.rollback();

@@ -4,18 +4,18 @@ import 'package:retail_management/models/product.dart';
 class CartItem {
   final Product product;
   int quantity;
-  double? customPrice; // nullable, if not set use product.costPrice
+  double? customTotalPrice; // nullable, if not set use product.costPrice * quantity (total cost)
   String mode; // 'retail' or 'wholesale'
 
   CartItem({
     required this.product,
     this.quantity = 1,
-    this.customPrice,
+    this.customTotalPrice,
     this.mode = 'retail',
   });
 
-  double get unitPrice => customPrice ?? product.costPrice;
-  double get total => unitPrice * quantity;
+  double get unitPrice => customTotalPrice != null ? (customTotalPrice! / quantity) : product.costPrice;
+  double get total => customTotalPrice ?? (product.costPrice * quantity);
 }
 
 class CartProvider with ChangeNotifier {
@@ -61,6 +61,17 @@ class CartProvider with ChangeNotifier {
     }
   }
 
+  void removeItemCompletely(Product product) {
+    final existingIndex = _items.indexWhere(
+      (item) => item.product.id == product.id,
+    );
+
+    if (existingIndex >= 0) {
+      _items.removeAt(existingIndex);
+      notifyListeners();
+    }
+  }
+
   void clearCart() {
     _items.clear();
     notifyListeners();
@@ -93,12 +104,12 @@ class CartProvider with ChangeNotifier {
     return item.quantity;
   }
 
-  void updateCustomPrice(Product product, double price) {
+  void updateCustomTotalPrice(Product product, double totalPrice) {
     final existingIndex = _items.indexWhere(
       (item) => item.product.id == product.id,
     );
     if (existingIndex >= 0) {
-      _items[existingIndex].customPrice = price;
+      _items[existingIndex].customTotalPrice = totalPrice;
       notifyListeners();
     }
   }

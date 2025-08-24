@@ -876,8 +876,8 @@ class _POSScreenState extends State<POSScreen> {
                       itemBuilder: (context, index) {
                         final item = cart.items[index];
                         final customPriceController = TextEditingController(
-                          text: item.customPrice != null && item.customPrice != item.product.costPrice
-                            ? item.customPrice!.toStringAsFixed(2)
+                          text: item.customTotalPrice != null && item.customTotalPrice != (item.product.costPrice * item.quantity)
+                            ? item.customTotalPrice!.toStringAsFixed(2)
                             : '',
                         );
                         bool isInvalid = false;
@@ -1000,6 +1000,19 @@ class _POSScreenState extends State<POSScreen> {
                                         minWidth: isSmallMobile ? 24 : (isMobile ? 28 : 32),
                                         minHeight: isSmallMobile ? 24 : (isMobile ? 28 : 32),
                                       ),
+                                    ),
+                                    SizedBox(width: isSmallMobile ? 2 : 4),
+                                    IconButton(
+                                      icon: Icon(Icons.delete, size: isSmallMobile ? 14 : 18, color: Colors.red),
+                                      onPressed: () {
+                                        cart.removeItemCompletely(item.product);
+                                      },
+                                      padding: EdgeInsets.all(isSmallMobile ? 2 : (isMobile ? 4 : 8)),
+                                      constraints: BoxConstraints(
+                                        minWidth: isSmallMobile ? 24 : (isMobile ? 28 : 32),
+                                        minHeight: isSmallMobile ? 24 : (isMobile ? 28 : 32),
+                                      ),
+                                      tooltip: t(context, 'remove_item'),
                                     ),
                                   ],
                                 ),
@@ -1155,6 +1168,12 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
     super.dispose();
   }
 
+  List<Map<String, dynamic>> _buildPartialPayments() {
+    // For now, return empty list - we'll implement partial payment UI later
+    // This method will be enhanced to collect partial payment amounts from the UI
+    return [];
+  }
+
   Future<void> _processSale() async {
     setState(() {
       _isLoading = true;
@@ -1196,17 +1215,22 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
         'payment_method': _selectedPaymentMethod,
         'total_amount': widget.cart.items.fold(0.0, (sum, item) {
           final controller = _customPriceControllers[item.product.id];
-          final price = double.tryParse(controller?.text ?? '') ?? 0.0;
-          return sum + ((price) * item.quantity);
+          final totalPrice = double.tryParse(controller?.text ?? '') ?? 0.0;
+          // Use total price directly, don't multiply by quantity again
+          return sum + (totalPrice > 0 ? totalPrice : (item.product.costPrice * item.quantity));
         }),
         'sale_mode': widget.saleMode,
+        // Add partial payments support
+        'partial_payments': _buildPartialPayments(),
         'items': widget.cart.items.map((item) {
           final controller = _customPriceControllers[item.product.id];
-          final price = double.tryParse(controller?.text ?? '') ?? 0.0;
+          final totalPrice = double.tryParse(controller?.text ?? '') ?? 0.0;
+          // Calculate unit price from total price
+          final unitPrice = totalPrice > 0 ? totalPrice / item.quantity : item.product.costPrice;
           return {
             'product_id': item.product.id,
             'quantity': item.quantity,
-            'unit_price': price,
+            'unit_price': unitPrice,
             'mode': item.mode,
           };
         }).toList(),
@@ -1247,8 +1271,9 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
         final combinedCost = widget.cart.items.fold(0.0, (sum, item) => sum + (item.product.costPrice * item.quantity));
         final combinedCustomTotal = widget.cart.items.fold(0.0, (sum, item) {
           final controller = _customPriceControllers[item.product.id];
-          final price = double.tryParse(controller?.text ?? '');
-          return sum + ((price ?? 0.0) * item.quantity);
+          final totalPrice = double.tryParse(controller?.text ?? '');
+          // Use total price directly, don't multiply by quantity
+          return sum + (totalPrice ?? (item.product.costPrice * item.quantity));
         });
         final isCombinedValid = combinedCustomTotal >= combinedCost && widget.cart.items.every((item) {
           final controller = _customPriceControllers[item.product.id];
@@ -1314,6 +1339,20 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                         ),
                       ),
                       IconButton(
+                        onPressed: _isLoading ? null : () {
+                          widget.cart.clearCart();
+                          Navigator.of(context).pop();
+                        },
+                        icon: Icon(Icons.clear_all, color: Colors.white, size: isSmallMobile ? 18 : (isMobile ? 20 : 24)),
+                        padding: EdgeInsets.all(isSmallMobile ? 2 : (isMobile ? 4 : 8)),
+                        constraints: BoxConstraints(
+                          minWidth: isSmallMobile ? 28 : (isMobile ? 32 : 40),
+                          minHeight: isSmallMobile ? 28 : (isMobile ? 32 : 40),
+                        ),
+                        tooltip: 'Clear all items',
+                      ),
+                      SizedBox(width: 8),
+                      IconButton(
                         onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
                         icon: Icon(Icons.close, color: Colors.white, size: isSmallMobile ? 18 : (isMobile ? 20 : 24)),
                         padding: EdgeInsets.all(isSmallMobile ? 2 : (isMobile ? 4 : 8)),
@@ -1369,9 +1408,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                       : item.product.price;
                                     if (!_customPriceControllers.containsKey(id)) {
                                       _customPriceControllers[id] = TextEditingController(
-                                        text: item.customPrice != null && item.customPrice != item.product.costPrice
-                                          ? item.customPrice!.toStringAsFixed(2)
-                                          : defaultPrice.toStringAsFixed(2),
+                                        text: '', // Start with blank field instead of pre-filled price
                                       );
                                     }
                                     final controller = _customPriceControllers[id]!;
@@ -1415,15 +1452,15 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                                       controller: controller,
                                                       keyboardType: TextInputType.numberWithOptions(decimal: true),
                                                       decoration: InputDecoration(
-                                                        labelText: t(context, 'custom_price'),
-                                                        hintText: t(context, 'enter_custom_price'),
+                                                        labelText: 'Total Price',
+                                                        hintText: 'Enter total price for all quantities',
                                                         prefixIcon: Icon(Icons.attach_money, color: Colors.green[700], size: isSmallMobile ? 16 : 18),
                                                         border: OutlineInputBorder(
                                                           borderRadius: BorderRadius.circular(8),
                                                         ),
                                                         isDense: true,
                                                         contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: isSmallMobile ? 8 : 10),
-                                                        errorText: (controller.text.isEmpty || isInvalid) ? '${t(context, 'required_min_cost_quantity')}: ${(item.product.costPrice * item.quantity).toStringAsFixed(2)}' : null,
+                                                        errorText: (controller.text.isEmpty || isInvalid) ? 'Required minimum total: ${(item.product.costPrice * item.quantity).toStringAsFixed(2)}' : null,
                                                         focusedBorder: OutlineInputBorder(
                                                           borderSide: BorderSide(
                                                             color: (controller.text.isEmpty || isInvalid) ? Colors.red : Colors.green,
@@ -1431,17 +1468,19 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                                           ),
                                                           borderRadius: BorderRadius.circular(8),
                                                         ),
-                                                        helperText: t(context, 'must_be_min_cost_quantity'),
+                                                        helperText: 'Must be at least the total cost for all quantities',
                                                       ),
                                                       style: TextStyle(fontSize: isSmallMobile ? 12 : 14, fontWeight: FontWeight.bold),
                                                       onChanged: (value) {
-                                                        final price = double.tryParse(value);
+                                                        final totalPrice = double.tryParse(value);
                                                         final minTotal = item.product.costPrice * item.quantity;
-                                                        final valid = price != null && (price * item.quantity) >= minTotal;
+                                                        final valid = totalPrice != null && totalPrice >= minTotal;
                                                         setItemState(() => isInvalid = !valid);
-                                                        setState(() {
-                                                          widget.cart.updateCustomPrice(item.product, valid ? price! : item.product.costPrice);
-                                                        });
+                                                        if (valid && totalPrice != null) {
+                                                          setState(() {
+                                                            widget.cart.updateCustomTotalPrice(item.product, totalPrice);
+                                                          });
+                                                        }
                                                       },
                                                     ),
                                                   ),
@@ -1474,15 +1513,15 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                                       controller: controller,
                                                       keyboardType: TextInputType.numberWithOptions(decimal: true),
                                                       decoration: InputDecoration(
-                                                        labelText: t(context, 'custom_price'),
-                                                        hintText: t(context, 'enter_custom_price'),
+                                                        labelText: 'Total Price',
+                                                        hintText: 'Enter total price for all quantities',
                                                         prefixIcon: Icon(Icons.attach_money, color: Colors.green[700]),
                                                         border: OutlineInputBorder(
                                                           borderRadius: BorderRadius.circular(8),
                                                         ),
                                                         isDense: true,
                                                         contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                                                        errorText: (controller.text.isEmpty || isInvalid) ? '${t(context, 'required_min_cost_quantity')}: ${(item.product.costPrice * item.quantity).toStringAsFixed(2)}' : null,
+                                                        errorText: (controller.text.isEmpty || isInvalid) ? 'Required minimum total: ${(item.product.costPrice * item.quantity).toStringAsFixed(2)}' : null,
                                                         focusedBorder: OutlineInputBorder(
                                                           borderSide: BorderSide(
                                                             color: (controller.text.isEmpty || isInvalid) ? Colors.red : Colors.green,
@@ -1490,17 +1529,19 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                                           ),
                                                           borderRadius: BorderRadius.circular(8),
                                                         ),
-                                                        helperText: t(context, 'must_be_min_cost_quantity'),
+                                                        helperText: 'Must be at least the total cost for all quantities',
                                                       ),
                                                       style: TextStyle(fontSize: isMobile ? 14 : 16, fontWeight: FontWeight.bold),
                                                       onChanged: (value) {
-                                                        final price = double.tryParse(value);
+                                                        final totalPrice = double.tryParse(value);
                                                         final minTotal = item.product.costPrice * item.quantity;
-                                                        final valid = price != null && (price * item.quantity) >= minTotal;
-                                                        setItemState(() => isInvalid = !valid);
-                                                        setState(() {
-                                                          widget.cart.updateCustomPrice(item.product, valid ? price! : item.product.costPrice);
-                                                        });
+                                                        final valid = totalPrice != null && totalPrice >= minTotal;
+                                                        setState(() => isInvalid = !valid);
+                                                        if (valid && totalPrice != null) {
+                                                          setState(() {
+                                                            widget.cart.updateCustomTotalPrice(item.product, totalPrice);
+                                                          });
+                                                        }
                                                       },
                                                     ),
                                                   ),
@@ -1865,6 +1906,19 @@ class _MobileCartDialogState extends State<_MobileCartDialog> {
                         ),
                       ),
                       IconButton(
+                        onPressed: () {
+                          widget.cart.clearCart();
+                          Navigator.of(context).pop();
+                        },
+                        icon: Icon(
+                          Icons.clear_all,
+                          color: Colors.white,
+                          size: isSmallMobile ? 20 : 24,
+                        ),
+                        tooltip: 'Clear all items',
+                      ),
+                      SizedBox(width: 8),
+                      IconButton(
                         onPressed: () => Navigator.of(context).pop(),
                         icon: Icon(
                           Icons.close,
@@ -1982,6 +2036,16 @@ class _MobileCartDialogState extends State<_MobileCartDialog> {
                                         setState(() {});
                                       },
                                       padding: EdgeInsets.all(isSmallMobile ? 4 : 8),
+                                    ),
+                                    SizedBox(width: 8),
+                                    IconButton(
+                                      icon: Icon(Icons.delete, size: isSmallMobile ? 16 : 18, color: Colors.red),
+                                      onPressed: () {
+                                        widget.cart.removeItemCompletely(item.product);
+                                        setState(() {});
+                                      },
+                                      padding: EdgeInsets.all(isSmallMobile ? 4 : 8),
+                                      tooltip: 'Remove item',
                                     ),
                                   ],
                                 ),

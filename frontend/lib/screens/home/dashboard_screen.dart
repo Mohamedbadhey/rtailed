@@ -773,15 +773,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Icon(Icons.inventory, color: Colors.orange),
                   ),
                   title: Text(
-                    product['name'] ?? '',
+                    product.name ?? '',
                     style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
                   ),
                   subtitle: Text(
-                    'Stock: ${product['stock_quantity'] ?? 0}',
+                    'Stock: ${product.stockQuantity ?? 0}',
                     style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
                   ),
                   trailing: Text(
-                    '\$${(double.tryParse((product['price'] ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}',
+                    '\$${(double.tryParse((product.price ?? 0).toString()) ?? 0.0).toStringAsFixed(2)}',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.orange[700],

@@ -12,10 +12,23 @@ yarn-error.log*
 .env.production.local
 
 # Build outputs
-build/
 dist/
 *.tgz
 *.tar.gz
+
+# Allow only essential Flutter web files for Vercel (minimal)
+!frontend/build/web/index.html
+!frontend/build/web/main.dart.js
+!frontend/build/web/flutter.js
+!frontend/build/web/manifest.json
+!frontend/build/web/favicon.png
+!frontend/build/web/icons/Icon-192.png
+!frontend/build/web/icons/Icon-512.png
+!frontend/build/web/icons/Icon-maskable-192.png
+!frontend/build/web/icons/Icon-maskable-512.png
+
+# Exclude everything else in build/web
+frontend/build/web/*
 
 # Logs
 logs
@@ -58,7 +71,6 @@ jspm_packages/
 .packages
 .pub-cache/
 .pub/
-build/
 *.iml
 
 # Android Studio

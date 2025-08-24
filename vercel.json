@@ -1,6 +1,6 @@
 {
   "buildCommand": "chmod +x vercel-build.sh && ./vercel-build.sh",
-  "outputDirectory": "frontend/build/web",
+  "outputDirectory": "build/web",
   "rewrites": [
     {
       "source": "/api/(.*)",

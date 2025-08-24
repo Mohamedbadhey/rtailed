@@ -11,36 +11,33 @@ export PATH="$PWD/flutter/bin:$PATH"
 
 # Fix Flutter git ownership issues
 echo "🔧 Fixing Flutter git configuration..."
-cd flutter
+cd ../flutter
 git config --global --add safe.directory /vercel/path0/flutter
 git config --global --add safe.directory /vercel/path0/flutter/.git
-cd ..
+cd ../frontend
 
 # Verify Flutter installation
 echo "📱 Flutter version:"
-flutter --version
+../flutter/bin/flutter --version
 
 # Check Flutter doctor
 echo "🔍 Flutter doctor:"
-flutter doctor
-
-# Navigate to frontend directory
-cd frontend
+../flutter/bin/flutter doctor
 
 # Clean any existing build
 echo "🧹 Cleaning previous build..."
-flutter clean
+../flutter/bin/flutter clean
 
 # Get dependencies
 echo "📦 Getting Flutter dependencies..."
-flutter pub get
+../flutter/bin/flutter pub get
 
 # Verify dependencies resolved
 echo "✅ Dependencies resolved successfully"
 
 # Build Flutter web app
 echo "🏗️ Building Flutter web app..."
-flutter build web --release --web-renderer canvaskit
+../flutter/bin/flutter build web --release --web-renderer canvaskit
 
 echo "✅ Build completed successfully!"
 echo "📁 Build output:"

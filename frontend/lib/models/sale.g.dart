@@ -41,6 +41,13 @@ _$SaleImpl _$$SaleImplFromJson(Map<String, dynamic> json) => _$SaleImpl(
       parentSaleId: _stringToIntNullable(json['parent_sale_id']),
       saleMode: json['sale_mode'] as String?,
       businessId: (json['businessId'] as num?)?.toInt() ?? 1,
+      cancelledAt: json['cancelled_at'] == null
+          ? null
+          : DateTime.parse(json['cancelled_at'] as String),
+      cancelledBy: _stringToIntNullable(json['cancelled_by']),
+      cancellationReason: json['cancellation_reason'] as String?,
+      cancelledByName: json['cancelled_by_name'] as String?,
+      notes: json['notes'] as String?,
     );
 
 Map<String, dynamic> _$$SaleImplToJson(_$SaleImpl instance) =>
@@ -57,4 +64,9 @@ Map<String, dynamic> _$$SaleImplToJson(_$SaleImpl instance) =>
       'parent_sale_id': _intToStringNullable(instance.parentSaleId),
       'sale_mode': instance.saleMode,
       'businessId': instance.businessId,
+      'cancelled_at': instance.cancelledAt?.toIso8601String(),
+      'cancelled_by': _intToStringNullable(instance.cancelledBy),
+      'cancellation_reason': instance.cancellationReason,
+      'cancelled_by_name': instance.cancelledByName,
+      'notes': instance.notes,
     };

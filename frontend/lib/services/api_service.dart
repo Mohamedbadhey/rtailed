@@ -828,6 +828,27 @@ class ApiService {
     return TypeConverter.safeToMap(json.decode(response.body));
   }
 
+  // Get sale items for a specific sale
+  Future<List<Map<String, dynamic>>> getSaleItems(int saleId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/sales/$saleId'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final items = data['items'] as List<dynamic>? ?? [];
+        return items.map((item) => Map<String, dynamic>.from(item)).toList();
+      } else {
+        throw Exception('Failed to get sale items: ${response.body}');
+      }
+    } catch (e) {
+      print('Get Sale Items Error: $e');
+      rethrow;
+    }
+  }
+
   // --- ACCOUNTING: EXPENSES ---
   Future<List<Map<String, dynamic>>> getExpenses() async {
     final response = await http.get(Uri.parse('$baseUrl/api/admin/accounting/expenses'), headers: _headers);

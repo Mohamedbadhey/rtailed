@@ -56,6 +56,17 @@ class Sale with _$Sale {
     @JsonKey(name: 'sale_mode')
     String? saleMode,
     @Default(1) int businessId,
+    // Cancellation fields
+    @JsonKey(name: 'cancelled_at')
+    DateTime? cancelledAt,
+    @JsonKey(fromJson: _stringToIntNullable, toJson: _intToStringNullable, name: 'cancelled_by')
+    int? cancelledBy,
+    @JsonKey(name: 'cancellation_reason')
+    String? cancellationReason,
+    @JsonKey(name: 'cancelled_by_name')
+    String? cancelledByName,
+    @JsonKey(name: 'notes')
+    String? notes,
   }) = _Sale;
 
   factory Sale.fromJson(Map<String, dynamic> json) => _$SaleFromJson(json);

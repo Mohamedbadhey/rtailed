@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:retail_management/providers/auth_provider.dart';
 import 'package:retail_management/services/api_service.dart';
+import 'package:retail_management/models/sale.dart';
 import 'package:retail_management/utils/translate.dart';
 import 'package:retail_management/widgets/branded_header.dart';
 
@@ -15,13 +16,14 @@ class SalesManagementScreen extends StatefulWidget {
 class _SalesManagementScreenState extends State<SalesManagementScreen> {
   final ApiService _apiService = ApiService();
   
-  List<Map<String, dynamic>> _sales = [];
+  List<Sale> _sales = [];
+  Map<int, List<Map<String, dynamic>>> _saleItems = {}; // Store sale items for each sale
   bool _isLoading = true;
   String? _error;
   DateTime? _filterStartDate;
   DateTime? _filterEndDate;
-  String? _selectedStatus;
-  String? _selectedPaymentMethod;
+  String? _selectedStatus = 'all';
+  String? _selectedPaymentMethod = 'all';
 
   @override
   void initState() {
@@ -37,8 +39,30 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
 
     try {
       final sales = await _apiService.getSales();
+      // Sort sales by most recent first
+      sales.sort((a, b) {
+        final aDate = a.createdAt ?? DateTime(1900);
+        final bDate = b.createdAt ?? DateTime(1900);
+        return bDate.compareTo(aDate); // Most recent first
+      });
+      
+      // Load sale items for each sale
+      final saleItemsMap = <int, List<Map<String, dynamic>>>{};
+      for (final sale in sales) {
+        if (sale.id != null) {
+          try {
+            final items = await _apiService.getSaleItems(sale.id!);
+            saleItemsMap[sale.id!] = items;
+          } catch (e) {
+            print('Error loading items for sale ${sale.id}: $e');
+            saleItemsMap[sale.id!] = [];
+          }
+        }
+      }
+      
       setState(() {
         _sales = sales;
+        _saleItems = saleItemsMap;
         _isLoading = false;
       });
     } catch (e) {
@@ -49,12 +73,23 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
     }
   }
 
-  Future<void> _cancelSale(Map<String, dynamic> sale) async {
-    final reason = await _showCancellationDialog();
+  Future<void> _cancelSale(Sale sale) async {
+    final reason = await _showCancellationDialog(sale);
     if (reason == null) return;
 
+    // Check if sale ID exists
+    if (sale.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: Sale ID is missing'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     try {
-      await _apiService.cancelSale(sale['id'], reason);
+      await _apiService.cancelSale(sale.id!, reason);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(t(context, 'Sale cancelled successfully')),
@@ -72,17 +107,69 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
     }
   }
 
-  Future<String?> _showCancellationDialog() async {
+  Future<String?> _showCancellationDialog(Sale sale) async {
     final reasonController = TextEditingController();
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(t(context, 'Cancel Sale')),
+        title: Row(
+          children: [
+            Icon(Icons.cancel, color: Colors.red, size: 24),
+            const SizedBox(width: 8),
+            Text('Cancel Sale #${sale.id ?? 'Unknown'}'),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(t(context, 'Please provide a reason for cancelling this sale:')),
-            const SizedBox(height: 8),
+            // Sale details being cancelled
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Sale Details:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red[700],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Amount: \$${(sale.totalAmount ?? 0.0).toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.red[600],
+                    ),
+                  ),
+                  Text(
+                    'Payment: ${_formatPaymentMethod(sale.paymentMethod)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.red[600],
+                    ),
+                  ),
+                  Text(
+                    'Date: ${_formatDate(sale.createdAt)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.red[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Info about what will happen
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -107,12 +194,21 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            Text(
+              'Please provide a reason for cancelling this sale:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
             TextField(
               controller: reasonController,
               decoration: InputDecoration(
-                labelText: t(context, 'Reason'),
-                hintText: t(context, 'e.g., Customer request, Wrong item, etc.'),
+                labelText: 'Cancellation Reason',
+                hintText: 'e.g., Customer request, Wrong item, etc.',
                 border: const OutlineInputBorder(),
+                prefixIcon: Icon(Icons.edit, color: Colors.grey[600]),
               ),
               maxLines: 3,
             ),
@@ -132,21 +228,21 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
     );
   }
 
-  List<Map<String, dynamic>> get _filteredSales {
+  List<Sale> get _filteredSales {
     return _sales.where((sale) {
       // Status filter
       if (_selectedStatus != null && _selectedStatus != 'all') {
-        if (sale['status'] != _selectedStatus) return false;
+        if (sale.status != _selectedStatus) return false;
       }
       
       // Payment method filter
       if (_selectedPaymentMethod != null && _selectedPaymentMethod != 'all') {
-        if (sale['payment_method'] != _selectedPaymentMethod) return false;
+        if (sale.paymentMethod != _selectedPaymentMethod) return false;
       }
       
       // Date filter
       if (_filterStartDate != null || _filterEndDate != null) {
-        final saleDate = DateTime.tryParse(sale['created_at'] ?? '');
+        final saleDate = sale.createdAt;
         if (saleDate == null) return false;
         
         if (_filterStartDate != null && saleDate.isBefore(_filterStartDate!)) {
@@ -233,9 +329,9 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
 
   Widget _buildSummaryCards(bool isSmallMobile, bool isMobile) {
     final totalSales = _sales.length;
-    final completedSales = _sales.where((s) => s['status'] == 'completed').length;
-    final cancelledSales = _sales.where((s) => s['status'] == 'cancelled').length;
-    final creditSales = _sales.where((s) => s['status'] == 'unpaid').length;
+    final completedSales = _sales.where((s) => s.status == 'completed').length;
+    final cancelledSales = _sales.where((s) => s.status == 'cancelled').length;
+    final creditSales = _sales.where((s) => s.status == 'unpaid').length;
     
     return Card(
       margin: EdgeInsets.all(isSmallMobile ? 8 : 16),
@@ -389,12 +485,13 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
                         vertical: isSmallMobile ? 8 : 12,
                       ),
                     ),
-                    items: [
-                      DropdownMenuItem(value: 'all', child: Text(t(context, 'All Methods'))),
-                      DropdownMenuItem(value: 'cash', child: Text(t(context, 'Cash'))),
-                      DropdownMenuItem(value: 'card', child: Text(t(context, 'Card'))),
-                      DropdownMenuItem(value: 'credit', child: Text(t(context, 'Credit'))),
-                    ],
+                                         items: [
+                       DropdownMenuItem(value: 'all', child: Text(t(context, 'All Methods'))),
+                       DropdownMenuItem(value: 'evc', child: Text(t(context, 'EVC'))),
+                       DropdownMenuItem(value: 'edahab', child: Text(t(context, 'Edahab'))),
+                       DropdownMenuItem(value: 'merchant', child: Text(t(context, 'Merchant'))),
+                       DropdownMenuItem(value: 'credit', child: Text(t(context, 'Credit'))),
+                     ],
                     onChanged: (value) {
                       setState(() {
                         _selectedPaymentMethod = value;
@@ -442,53 +539,127 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
     return ListView.builder(
       padding: EdgeInsets.all(isSmallMobile ? 8 : 16),
       itemCount: _filteredSales.length,
-      itemBuilder: (context, index) {
-        final sale = _filteredSales[index];
-        final canCancel = sale['status'] == 'completed' || sale['status'] == 'unpaid';
+             itemBuilder: (context, index) {
+         final sale = _filteredSales[index];
+         final canCancel = sale.status == 'completed' || sale.status == 'unpaid';
         
         return Card(
           margin: EdgeInsets.only(bottom: isSmallMobile ? 8 : 12),
           child: ListTile(
-            title: Text(
-              'Sale #${sale['id']}',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: isSmallMobile ? 14 : 16,
-              ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Amount: \$${double.tryParse(sale['total_amount'].toString())?.toStringAsFixed(2) ?? '0.00'}',
-                  style: TextStyle(
-                    fontSize: isSmallMobile ? 12 : 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  'Status: ${sale['status']?.toString().toUpperCase() ?? 'UNKNOWN'}',
-                  style: TextStyle(
-                    fontSize: isSmallMobile ? 11 : 12,
-                    color: _getStatusColor(sale['status']),
-                  ),
-                ),
-                Text(
-                  'Payment: ${sale['payment_method']?.toString().toUpperCase() ?? 'UNKNOWN'}',
-                  style: TextStyle(
-                    fontSize: isSmallMobile ? 11 : 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                Text(
-                  'Date: ${_formatDate(DateTime.tryParse(sale['created_at'] ?? ''))}',
-                  style: TextStyle(
-                    fontSize: isSmallMobile ? 11 : 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                // Show cancellation details if sale was cancelled
-                if (sale['status'] == 'cancelled') ...[
+                         title: Text(
+               'Sale #${sale.id ?? 'Unknown'}',
+               style: TextStyle(
+                 fontWeight: FontWeight.bold,
+                 fontSize: isSmallMobile ? 14 : 16,
+               ),
+             ),
+             subtitle: Column(
+               crossAxisAlignment: CrossAxisAlignment.start,
+               children: [
+                 // Sale Amount - Make it prominent
+                 Container(
+                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                   decoration: BoxDecoration(
+                     color: Colors.blue[50],
+                     borderRadius: BorderRadius.circular(4),
+                     border: Border.all(color: Colors.blue[200]!),
+                   ),
+                   child: Text(
+                     'Total Amount: \$${(sale.totalAmount ?? 0.0).toStringAsFixed(2)}',
+                     style: TextStyle(
+                       fontSize: isSmallMobile ? 13 : 15,
+                       fontWeight: FontWeight.bold,
+                       color: Colors.blue[700],
+                     ),
+                   ),
+                 ),
+                 const SizedBox(height: 6),
+                 // Status with color coding
+                 Row(
+                   children: [
+                     Container(
+                       width: 8,
+                       height: 8,
+                       decoration: BoxDecoration(
+                         color: _getStatusColor(sale.status),
+                         shape: BoxShape.circle,
+                       ),
+                     ),
+                     const SizedBox(width: 6),
+                     Text(
+                       'Status: ${sale.status?.toString().toUpperCase() ?? 'UNKNOWN'}',
+                       style: TextStyle(
+                         fontSize: isSmallMobile ? 11 : 12,
+                         color: _getStatusColor(sale.status),
+                         fontWeight: FontWeight.w600,
+                       ),
+                     ),
+                   ],
+                 ),
+                 const SizedBox(height: 2),
+                 // Payment method
+                 Text(
+                   'Payment: ${_formatPaymentMethod(sale.paymentMethod)}',
+                   style: TextStyle(
+                     fontSize: isSmallMobile ? 11 : 12,
+                     color: Colors.grey[600],
+                   ),
+                 ),
+                 const SizedBox(height: 2),
+                 // Date and time
+                 Text(
+                   'Date: ${_formatDate(sale.createdAt)}',
+                   style: TextStyle(
+                     fontSize: isSmallMobile ? 11 : 12,
+                     color: Colors.grey[600],
+                   ),
+                 ),
+                 const SizedBox(height: 4),
+                 // Product details
+                 if (_saleItems[sale.id] != null && _saleItems[sale.id]!.isNotEmpty) ...[
+                   const SizedBox(height: 4),
+                   Container(
+                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                     decoration: BoxDecoration(
+                       color: Colors.green[50],
+                       borderRadius: BorderRadius.circular(4),
+                       border: Border.all(color: Colors.green[200]!),
+                     ),
+                     child: Column(
+                       crossAxisAlignment: CrossAxisAlignment.start,
+                       children: [
+                         Text(
+                           'Products Sold:',
+                           style: TextStyle(
+                             fontSize: 10,
+                             fontWeight: FontWeight.bold,
+                             color: Colors.green[700],
+                           ),
+                         ),
+                         const SizedBox(height: 4),
+                                                   ...(_saleItems[sale.id]!.take(3).map((item) => Text(
+                            '• ${item['product_name'] ?? 'Unknown Product'} x${_safeInt(item['quantity'])} @\$${_safeDouble(item['unit_price']).toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.green[600],
+                            ),
+                          ))),
+                         if (_saleItems[sale.id]!.length > 3) ...[
+                           Text(
+                             '... and ${_saleItems[sale.id]!.length - 3} more items',
+                             style: TextStyle(
+                               fontSize: 8,
+                               color: Colors.green[500],
+                               fontStyle: FontStyle.italic,
+                             ),
+                           ),
+                         ],
+                       ],
+                     ),
+                   ),
+                 ],
+                 // Show cancellation details if sale was cancelled
+                 if (sale.status == 'cancelled') ...[
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -497,48 +668,48 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(color: Colors.red[200]!),
                     ),
-                    child: Text(
-                      'Cancelled by: ${sale['cancelled_by_name'] ?? 'Unknown'}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.red[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  if (sale['cancellation_reason'] != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      'Reason: ${sale['cancellation_reason']}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.red[600],
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
-                  if (sale['cancelled_at'] != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      'Cancelled: ${_formatDate(DateTime.tryParse(sale['cancelled_at'] ?? ''))}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.red[600],
-                      ),
-                    ),
-                  ],
+                                         child: Text(
+                       'Cancelled by: ${sale.cancelledByName ?? 'Unknown'}',
+                       style: TextStyle(
+                         fontSize: 10,
+                         color: Colors.red[700],
+                         fontWeight: FontWeight.w500,
+                       ),
+                     ),
+                   ),
+                   if (sale.cancellationReason != null) ...[
+                     const SizedBox(height: 2),
+                     Text(
+                       'Reason: ${sale.cancellationReason}',
+                       style: TextStyle(
+                         fontSize: 10,
+                         color: Colors.red[600],
+                         fontStyle: FontStyle.italic,
+                       ),
+                     ),
+                   ],
+                   if (sale.cancelledAt != null) ...[
+                     const SizedBox(height: 2),
+                     Text(
+                       'Cancelled: ${_formatDate(sale.cancelledAt)}',
+                       style: TextStyle(
+                         fontSize: 10,
+                         color: Colors.red[600],
+                       ),
+                     ),
+                   ],
                 ],
               ],
             ),
-            trailing: canCancel
-                ? IconButton(
-                    icon: const Icon(Icons.cancel, color: Colors.red),
-                    onPressed: () => _cancelSale(sale),
-                    tooltip: t(context, 'Cancel Sale'),
-                  )
-                : sale['status'] == 'cancelled'
-                    ? const Icon(Icons.cancel, color: Colors.grey)
-                    : null,
+                         trailing: canCancel
+                 ? IconButton(
+                     icon: const Icon(Icons.cancel, color: Colors.red),
+                     onPressed: () => _cancelSale(sale),
+                     tooltip: t(context, 'Cancel Sale'),
+                   )
+                 : sale.status == 'cancelled'
+                     ? const Icon(Icons.cancel, color: Colors.grey)
+                     : null,
           ),
         );
       },
@@ -561,5 +732,38 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
   String _formatDate(DateTime? date) {
     if (date == null) return 'Unknown';
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _formatPaymentMethod(String? method) {
+    if (method == null) return 'UNKNOWN';
+    switch (method.toLowerCase()) {
+      case 'evc':
+        return 'EVC (Electronic Voucher)';
+      case 'edahab':
+        return 'Edahab (Mobile Money)';
+      case 'merchant':
+        return 'Merchant Services';
+      case 'credit':
+        return 'Credit (Unpaid)';
+      default:
+        return method.toUpperCase();
+    }
+  }
+
+  // Safe type conversion helpers
+  int _safeInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  double _safeDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
   }
 }

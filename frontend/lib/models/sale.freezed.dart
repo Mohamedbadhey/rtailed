@@ -322,7 +322,21 @@ mixin _$Sale {
   int? get parentSaleId => throw _privateConstructorUsedError;
   @JsonKey(name: 'sale_mode')
   String? get saleMode => throw _privateConstructorUsedError;
-  int get businessId => throw _privateConstructorUsedError;
+  int get businessId =>
+      throw _privateConstructorUsedError; // Cancellation fields
+  @JsonKey(name: 'cancelled_at')
+  DateTime? get cancelledAt => throw _privateConstructorUsedError;
+  @JsonKey(
+      fromJson: _stringToIntNullable,
+      toJson: _intToStringNullable,
+      name: 'cancelled_by')
+  int? get cancelledBy => throw _privateConstructorUsedError;
+  @JsonKey(name: 'cancellation_reason')
+  String? get cancellationReason => throw _privateConstructorUsedError;
+  @JsonKey(name: 'cancelled_by_name')
+  String? get cancelledByName => throw _privateConstructorUsedError;
+  @JsonKey(name: 'notes')
+  String? get notes => throw _privateConstructorUsedError;
 
   /// Serializes this Sale to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -364,7 +378,16 @@ abstract class $SaleCopyWith<$Res> {
           name: 'parent_sale_id')
       int? parentSaleId,
       @JsonKey(name: 'sale_mode') String? saleMode,
-      int businessId});
+      int businessId,
+      @JsonKey(name: 'cancelled_at') DateTime? cancelledAt,
+      @JsonKey(
+          fromJson: _stringToIntNullable,
+          toJson: _intToStringNullable,
+          name: 'cancelled_by')
+      int? cancelledBy,
+      @JsonKey(name: 'cancellation_reason') String? cancellationReason,
+      @JsonKey(name: 'cancelled_by_name') String? cancelledByName,
+      @JsonKey(name: 'notes') String? notes});
 }
 
 /// @nodoc
@@ -394,6 +417,11 @@ class _$SaleCopyWithImpl<$Res, $Val extends Sale>
     Object? parentSaleId = freezed,
     Object? saleMode = freezed,
     Object? businessId = null,
+    Object? cancelledAt = freezed,
+    Object? cancelledBy = freezed,
+    Object? cancellationReason = freezed,
+    Object? cancelledByName = freezed,
+    Object? notes = freezed,
   }) {
     return _then(_value.copyWith(
       id: freezed == id
@@ -444,6 +472,26 @@ class _$SaleCopyWithImpl<$Res, $Val extends Sale>
           ? _value.businessId
           : businessId // ignore: cast_nullable_to_non_nullable
               as int,
+      cancelledAt: freezed == cancelledAt
+          ? _value.cancelledAt
+          : cancelledAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      cancelledBy: freezed == cancelledBy
+          ? _value.cancelledBy
+          : cancelledBy // ignore: cast_nullable_to_non_nullable
+              as int?,
+      cancellationReason: freezed == cancellationReason
+          ? _value.cancellationReason
+          : cancellationReason // ignore: cast_nullable_to_non_nullable
+              as String?,
+      cancelledByName: freezed == cancelledByName
+          ? _value.cancelledByName
+          : cancelledByName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      notes: freezed == notes
+          ? _value.notes
+          : notes // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -481,7 +529,16 @@ abstract class _$$SaleImplCopyWith<$Res> implements $SaleCopyWith<$Res> {
           name: 'parent_sale_id')
       int? parentSaleId,
       @JsonKey(name: 'sale_mode') String? saleMode,
-      int businessId});
+      int businessId,
+      @JsonKey(name: 'cancelled_at') DateTime? cancelledAt,
+      @JsonKey(
+          fromJson: _stringToIntNullable,
+          toJson: _intToStringNullable,
+          name: 'cancelled_by')
+      int? cancelledBy,
+      @JsonKey(name: 'cancellation_reason') String? cancellationReason,
+      @JsonKey(name: 'cancelled_by_name') String? cancelledByName,
+      @JsonKey(name: 'notes') String? notes});
 }
 
 /// @nodoc
@@ -508,6 +565,11 @@ class __$$SaleImplCopyWithImpl<$Res>
     Object? parentSaleId = freezed,
     Object? saleMode = freezed,
     Object? businessId = null,
+    Object? cancelledAt = freezed,
+    Object? cancelledBy = freezed,
+    Object? cancellationReason = freezed,
+    Object? cancelledByName = freezed,
+    Object? notes = freezed,
   }) {
     return _then(_$SaleImpl(
       id: freezed == id
@@ -558,6 +620,26 @@ class __$$SaleImplCopyWithImpl<$Res>
           ? _value.businessId
           : businessId // ignore: cast_nullable_to_non_nullable
               as int,
+      cancelledAt: freezed == cancelledAt
+          ? _value.cancelledAt
+          : cancelledAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      cancelledBy: freezed == cancelledBy
+          ? _value.cancelledBy
+          : cancelledBy // ignore: cast_nullable_to_non_nullable
+              as int?,
+      cancellationReason: freezed == cancellationReason
+          ? _value.cancellationReason
+          : cancellationReason // ignore: cast_nullable_to_non_nullable
+              as String?,
+      cancelledByName: freezed == cancelledByName
+          ? _value.cancelledByName
+          : cancelledByName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      notes: freezed == notes
+          ? _value.notes
+          : notes // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -591,7 +673,16 @@ class _$SaleImpl implements _Sale {
           name: 'parent_sale_id')
       this.parentSaleId,
       @JsonKey(name: 'sale_mode') this.saleMode,
-      this.businessId = 1});
+      this.businessId = 1,
+      @JsonKey(name: 'cancelled_at') this.cancelledAt,
+      @JsonKey(
+          fromJson: _stringToIntNullable,
+          toJson: _intToStringNullable,
+          name: 'cancelled_by')
+      this.cancelledBy,
+      @JsonKey(name: 'cancellation_reason') this.cancellationReason,
+      @JsonKey(name: 'cancelled_by_name') this.cancelledByName,
+      @JsonKey(name: 'notes') this.notes});
 
   factory _$SaleImpl.fromJson(Map<String, dynamic> json) =>
       _$$SaleImplFromJson(json);
@@ -636,10 +727,29 @@ class _$SaleImpl implements _Sale {
   @override
   @JsonKey()
   final int businessId;
+// Cancellation fields
+  @override
+  @JsonKey(name: 'cancelled_at')
+  final DateTime? cancelledAt;
+  @override
+  @JsonKey(
+      fromJson: _stringToIntNullable,
+      toJson: _intToStringNullable,
+      name: 'cancelled_by')
+  final int? cancelledBy;
+  @override
+  @JsonKey(name: 'cancellation_reason')
+  final String? cancellationReason;
+  @override
+  @JsonKey(name: 'cancelled_by_name')
+  final String? cancelledByName;
+  @override
+  @JsonKey(name: 'notes')
+  final String? notes;
 
   @override
   String toString() {
-    return 'Sale(id: $id, customerId: $customerId, userId: $userId, totalAmount: $totalAmount, paymentMethod: $paymentMethod, status: $status, customerName: $customerName, cashierName: $cashierName, createdAt: $createdAt, parentSaleId: $parentSaleId, saleMode: $saleMode, businessId: $businessId)';
+    return 'Sale(id: $id, customerId: $customerId, userId: $userId, totalAmount: $totalAmount, paymentMethod: $paymentMethod, status: $status, customerName: $customerName, cashierName: $cashierName, createdAt: $createdAt, parentSaleId: $parentSaleId, saleMode: $saleMode, businessId: $businessId, cancelledAt: $cancelledAt, cancelledBy: $cancelledBy, cancellationReason: $cancellationReason, cancelledByName: $cancelledByName, notes: $notes)';
   }
 
   @override
@@ -667,7 +777,16 @@ class _$SaleImpl implements _Sale {
             (identical(other.saleMode, saleMode) ||
                 other.saleMode == saleMode) &&
             (identical(other.businessId, businessId) ||
-                other.businessId == businessId));
+                other.businessId == businessId) &&
+            (identical(other.cancelledAt, cancelledAt) ||
+                other.cancelledAt == cancelledAt) &&
+            (identical(other.cancelledBy, cancelledBy) ||
+                other.cancelledBy == cancelledBy) &&
+            (identical(other.cancellationReason, cancellationReason) ||
+                other.cancellationReason == cancellationReason) &&
+            (identical(other.cancelledByName, cancelledByName) ||
+                other.cancelledByName == cancelledByName) &&
+            (identical(other.notes, notes) || other.notes == notes));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -685,7 +804,12 @@ class _$SaleImpl implements _Sale {
       createdAt,
       parentSaleId,
       saleMode,
-      businessId);
+      businessId,
+      cancelledAt,
+      cancelledBy,
+      cancellationReason,
+      cancelledByName,
+      notes);
 
   /// Create a copy of Sale
   /// with the given fields replaced by the non-null parameter values.
@@ -730,7 +854,16 @@ abstract class _Sale implements Sale {
           name: 'parent_sale_id')
       final int? parentSaleId,
       @JsonKey(name: 'sale_mode') final String? saleMode,
-      final int businessId}) = _$SaleImpl;
+      final int businessId,
+      @JsonKey(name: 'cancelled_at') final DateTime? cancelledAt,
+      @JsonKey(
+          fromJson: _stringToIntNullable,
+          toJson: _intToStringNullable,
+          name: 'cancelled_by')
+      final int? cancelledBy,
+      @JsonKey(name: 'cancellation_reason') final String? cancellationReason,
+      @JsonKey(name: 'cancelled_by_name') final String? cancelledByName,
+      @JsonKey(name: 'notes') final String? notes}) = _$SaleImpl;
 
   factory _Sale.fromJson(Map<String, dynamic> json) = _$SaleImpl.fromJson;
 
@@ -772,7 +905,25 @@ abstract class _Sale implements Sale {
   @JsonKey(name: 'sale_mode')
   String? get saleMode;
   @override
-  int get businessId;
+  int get businessId; // Cancellation fields
+  @override
+  @JsonKey(name: 'cancelled_at')
+  DateTime? get cancelledAt;
+  @override
+  @JsonKey(
+      fromJson: _stringToIntNullable,
+      toJson: _intToStringNullable,
+      name: 'cancelled_by')
+  int? get cancelledBy;
+  @override
+  @JsonKey(name: 'cancellation_reason')
+  String? get cancellationReason;
+  @override
+  @JsonKey(name: 'cancelled_by_name')
+  String? get cancelledByName;
+  @override
+  @JsonKey(name: 'notes')
+  String? get notes;
 
   /// Create a copy of Sale
   /// with the given fields replaced by the non-null parameter values.

@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd frontend && flutter build web --release --web-renderer canvaskit",
+  "buildCommand": "chmod +x vercel-build.sh && ./vercel-build.sh",
   "outputDirectory": "frontend/build/web",
   "rewrites": [
     {

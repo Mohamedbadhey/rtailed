@@ -1,5 +1,4 @@
 {
-  "buildCommand": "chmod +x vercel-build.sh && ./vercel-build.sh",
   "outputDirectory": "build/web",
   "rewrites": [
     {

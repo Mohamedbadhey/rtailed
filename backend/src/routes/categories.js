@@ -50,8 +50,8 @@ router.post('/', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
     }
 
     const [result] = await pool.query(
-      'INSERT INTO categories (name, description) VALUES (?, ?)',
-      [name, description || null]
+      'INSERT INTO categories (name, description, business_id) VALUES (?, ?, ?)',
+      [name, description || null, req.user.business_id]
     );
 
     res.status(201).json({
@@ -73,6 +73,18 @@ router.put('/:id', [auth, checkRole(['admin', 'manager'])], async (req, res) => 
       return res.status(400).json({ message: 'Category name is required' });
     }
 
+    // Check if category belongs to user's business (unless superadmin)
+    if (req.user.role !== 'superadmin') {
+      const [existingCategory] = await pool.query(
+        'SELECT id FROM categories WHERE id = ? AND business_id = ?',
+        [req.params.id, req.user.business_id]
+      );
+      
+      if (existingCategory.length === 0) {
+        return res.status(404).json({ message: 'Category not found' });
+      }
+    }
+
     const [result] = await pool.query(
       'UPDATE categories SET name = ?, description = ? WHERE id = ?',
       [name, description || null, req.params.id]
@@ -92,6 +104,18 @@ router.put('/:id', [auth, checkRole(['admin', 'manager'])], async (req, res) => 
 // Delete category
 router.delete('/:id', [auth, checkRole(['admin'])], async (req, res) => {
   try {
+    // Check if category belongs to user's business (unless superadmin)
+    if (req.user.role !== 'superadmin') {
+      const [existingCategory] = await pool.query(
+        'SELECT id FROM categories WHERE id = ? AND business_id = ?',
+        [req.params.id, req.user.business_id]
+      );
+      
+      if (existingCategory.length === 0) {
+        return res.status(404).json({ message: 'Category not found' });
+      }
+    }
+
     // Check if category is being used by any products
     const [products] = await pool.query(
       'SELECT COUNT(*) as count FROM products WHERE category_id = ?',

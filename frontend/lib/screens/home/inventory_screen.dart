@@ -586,6 +586,67 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                             ),
                                           ),
                                     ),
+                                    
+                                    SizedBox(width: isSmallMobile ? 4 : 6),
+                                    
+                                    // Add Category Button
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.purple[100]!,
+                                        borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.1),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: isSmallMobile 
+                                        ? IconButton(
+                                            onPressed: () {
+                                              _showCategoryManagementDialog();
+                                            },
+                                            icon: Icon(
+                                              Icons.category,
+                                              color: Colors.purple[700]!,
+                                              size: 16,
+                                            ),
+                                            padding: EdgeInsets.all(6),
+                                            constraints: const BoxConstraints(
+                                              minWidth: 28,
+                                              minHeight: 28,
+                                            ),
+                                          )
+                                        : ElevatedButton.icon(
+                                            onPressed: () {
+                                              _showCategoryManagementDialog();
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.transparent,
+                                              foregroundColor: Colors.purple[700]!,
+                                              elevation: 0,
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 6,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                            icon: Icon(
+                                              Icons.category,
+                                              size: 14,
+                                            ),
+                                            label: Text(
+                                              isMobile ? t(context, 'Categories') : t(context, 'Manage Categories'),
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                          ),
+                                    ),
                                   ],
                                 ),
                               ],
@@ -1342,7 +1403,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             Text(
                               '\$${product.price.toStringAsFixed(2)}',
                                     style: TextStyle(
-                                color: Colors.purple[700],
+                                color: Colors.purple[700]!,
                                       fontWeight: FontWeight.bold,
                                 fontSize: isSmallMobile ? 8 : 9,
                                   ),
@@ -1770,6 +1831,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
               );
             }
           }
+        },
+      ),
+    );
+  }
+
+  void _showCategoryManagementDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => _CategoryManagementDialog(
+        onCategoryChanged: () {
+          _loadData();
         },
       ),
     );
@@ -4147,4 +4219,638 @@ class _ProductDialogState extends State<_ProductDialog> {
       ],
     );
   }
-} 
+}
+
+class _CategoryManagementDialog extends StatefulWidget {
+  final VoidCallback onCategoryChanged;
+
+  const _CategoryManagementDialog({
+    required this.onCategoryChanged,
+  });
+
+  @override
+  State<_CategoryManagementDialog> createState() => _CategoryManagementDialogState();
+}
+
+class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  bool _isLoading = false;
+  List<Map<String, dynamic>> _categories = [];
+  Map<String, dynamic>? _editingCategory;
+  bool _isAddingNew = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await ApiService().getCategories();
+      setState(() {
+        _categories = categories;
+      });
+    } catch (e) {
+      print('Error loading categories: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load categories: $e'),
+            backgroundColor: Colors.red[600],
+          ),
+        );
+      }
+    }
+  }
+
+  void _showAddForm() {
+    setState(() {
+      _isAddingNew = true;
+      _editingCategory = null;
+      _nameController.clear();
+      _descriptionController.clear();
+    });
+  }
+
+  void _showEditForm(Map<String, dynamic> category) {
+    setState(() {
+      _isAddingNew = false;
+      _editingCategory = category;
+      _nameController.text = category['name'] ?? '';
+      _descriptionController.text = category['description'] ?? '';
+    });
+  }
+
+  Future<void> _saveCategory() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      if (_isAddingNew) {
+        await ApiService().createCategory({
+          'name': _nameController.text.trim(),
+          'description': _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text('Category added successfully'),
+                ],
+              ),
+              backgroundColor: Colors.green[600],
+            ),
+          );
+        }
+      } else {
+        await ApiService().updateCategory(
+          _editingCategory!['id'],
+          {
+            'name': _nameController.text.trim(),
+            'description': _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+          },
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text('Category updated successfully'),
+                ],
+              ),
+              backgroundColor: Colors.green[600],
+            ),
+          );
+        }
+      }
+
+      await _loadCategories();
+      widget.onCategoryChanged();
+      
+      // Reset form
+      setState(() {
+        _isAddingNew = true;
+        _editingCategory = null;
+        _nameController.clear();
+        _descriptionController.clear();
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to ${_isAddingNew ? 'add' : 'update'} category: $e'),
+            backgroundColor: Colors.red[600],
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _deleteCategory(Map<String, dynamic> category) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Category'),
+        content: Text('Are you sure you want to delete "${category['name']}"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ApiService().deleteCategory(category['id']);
+        await _loadCategories();
+        widget.onCategoryChanged();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text('Category deleted successfully'),
+                ],
+              ),
+              backgroundColor: Colors.green[600],
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete category: $e'),
+              backgroundColor: Colors.red[600],
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+    final isSmallMobile = MediaQuery.of(context).size.width < 480;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        width: isMobile ? double.infinity : 600,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Colors.purple[600]!,
+              Colors.purple[800]!,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: EdgeInsets.all(isMobile ? 16 : 20),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(isMobile ? 8 : 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.category,
+                      color: Colors.white,
+                      size: isMobile ? 24 : 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Category Management',
+                          style: TextStyle(
+                            fontSize: isMobile ? 20 : 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Add, edit, and manage product categories',
+                          style: TextStyle(
+                            fontSize: isMobile ? 12 : 14,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    padding: EdgeInsets.all(isMobile ? 8 : 12),
+                    constraints: BoxConstraints(
+                      minWidth: isMobile ? 40 : 48,
+                      minHeight: isMobile ? 40 : 48,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Content
+            Expanded(
+              child: Container(
+                padding: EdgeInsets.all(isMobile ? 16 : 20),
+                child: Column(
+                  children: [
+                    // Add/Edit Form
+                    if (_isAddingNew || _editingCategory != null) ...[
+                      Container(
+                        padding: EdgeInsets.all(isMobile ? 16 : 20),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.2),
+                          ),
+                        ),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _isAddingNew ? 'Add New Category' : 'Edit Category',
+                                style: TextStyle(
+                                  fontSize: isMobile ? 16 : 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _nameController,
+                                decoration: InputDecoration(
+                                  labelText: 'Category Name',
+                                  labelStyle: TextStyle(color: Colors.white70),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(color: Colors.white30),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(color: Colors.white30),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(color: Colors.white70),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white.withOpacity(0.1),
+                                  prefixIcon: Icon(Icons.category, color: Colors.white70),
+                                ),
+                                style: TextStyle(color: Colors.white),
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Category name is required';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _descriptionController,
+                                decoration: InputDecoration(
+                                  labelText: 'Description (Optional)',
+                                  labelStyle: TextStyle(color: Colors.white70),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(color: Colors.white30),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(color: Colors.white30),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(color: Colors.white70),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white.withOpacity(0.1),
+                                  prefixIcon: Icon(Icons.description, color: Colors.white70),
+                                ),
+                                style: TextStyle(color: Colors.white),
+                                maxLines: 3,
+                              ),
+                              const SizedBox(height: 20),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed: _isLoading ? null : _saveCategory,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.white,
+                                        foregroundColor: Colors.purple[700],
+                                        padding: EdgeInsets.symmetric(vertical: isMobile ? 12 : 16),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        elevation: 2,
+                                      ),
+                                      child: _isLoading
+                                          ? SizedBox(
+                                              height: isMobile ? 16 : 20,
+                                              width: isMobile ? 16 : 20,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.purple[700]!),
+                                              ),
+                                            )
+                                          : Text(
+                                              _isAddingNew ? 'Add Category' : 'Update Category',
+                                              style: TextStyle(
+                                                fontSize: isMobile ? 14 : 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  TextButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _isAddingNew = true;
+                                        _editingCategory = null;
+                                        _nameController.clear();
+                                        _descriptionController.clear();
+                                      });
+                                    },
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Colors.white70,
+                                      padding: EdgeInsets.symmetric(vertical: isMobile ? 12 : 16),
+                                    ),
+                                    child: Text('Cancel'),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                    
+                    // Categories List
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.2),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            // List Header
+                            Container(
+                              padding: EdgeInsets.all(isMobile ? 12 : 16),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.1),
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(16),
+                                  topRight: Radius.circular(16),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Categories (${_categories.length})',
+                                      style: TextStyle(
+                                        fontSize: isMobile ? 16 : 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  ElevatedButton.icon(
+                                    onPressed: _showAddForm,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: Colors.purple[700]!,
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: isMobile ? 12 : 16,
+                                        vertical: isMobile ? 8 : 12,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    icon: Icon(Icons.add, size: isMobile ? 16 : 18),
+                                    label: Text(
+                                      isMobile ? 'Add' : 'Add Category',
+                                      style: TextStyle(
+                                        fontSize: isMobile ? 12 : 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            
+                            // Categories List
+                            Expanded(
+                              child: _categories.isEmpty
+                                  ? Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.category_outlined,
+                                            size: 48,
+                                            color: Colors.white.withOpacity(0.5),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            'No categories yet',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              color: Colors.white.withOpacity(0.7),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Create your first category to organize products',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.white.withOpacity(0.5),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      itemCount: _categories.length,
+                                      itemBuilder: (context, index) {
+                                        final category = _categories[index];
+                                        return Container(
+                                          margin: EdgeInsets.symmetric(
+                                            horizontal: isMobile ? 8 : 12,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(
+                                              color: Colors.white.withOpacity(0.2),
+                                            ),
+                                          ),
+                                          child: ListTile(
+                                            contentPadding: EdgeInsets.symmetric(
+                                              horizontal: isMobile ? 12 : 16,
+                                              vertical: isMobile ? 8 : 12,
+                                            ),
+                                            leading: Container(
+                                              padding: EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withOpacity(0.2),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Icon(
+                                                Icons.category,
+                                                color: Colors.white,
+                                                size: isMobile ? 20 : 24,
+                                              ),
+                                            ),
+                                            title: Text(
+                                              category['name'] ?? '',
+                                              style: TextStyle(
+                                                fontSize: isMobile ? 14 : 16,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            subtitle: category['description'] != null && category['description'].toString().isNotEmpty
+                                                ? Text(
+                                                    category['description'],
+                                                    style: TextStyle(
+                                                      fontSize: isMobile ? 11 : 12,
+                                                      color: Colors.white.withOpacity(0.8),
+                                                    ),
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  )
+                                                : null,
+                                            trailing: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                IconButton(
+                                                  onPressed: () => _showEditForm(category),
+                                                  icon: Icon(
+                                                    Icons.edit,
+                                                    color: Colors.blue[300],
+                                                    size: isMobile ? 18 : 20,
+                                                  ),
+                                                  tooltip: 'Edit',
+                                                  padding: EdgeInsets.all(4),
+                                                  constraints: BoxConstraints(
+                                                    minWidth: isMobile ? 32 : 36,
+                                                    minHeight: isMobile ? 32 : 36,
+                                                  ),
+                                                ),
+                                                IconButton(
+                                                  onPressed: () => _deleteCategory(category),
+                                                  icon: Icon(
+                                                    Icons.delete,
+                                                    color: Colors.red[300],
+                                                    size: isMobile ? 18 : 20,
+                                                  ),
+                                                  tooltip: 'Delete',
+                                                  padding: EdgeInsets.all(4),
+                                                  constraints: BoxConstraints(
+                                                    minWidth: isMobile ? 32 : 36,
+                                                    minHeight: 36,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

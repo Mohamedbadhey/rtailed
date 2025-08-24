@@ -1168,12 +1168,6 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
     super.dispose();
   }
 
-  List<Map<String, dynamic>> _buildPartialPayments() {
-    // For now, return empty list - we'll implement partial payment UI later
-    // This method will be enhanced to collect partial payment amounts from the UI
-    return [];
-  }
-
   Future<void> _processSale() async {
     setState(() {
       _isLoading = true;
@@ -1220,8 +1214,6 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
           return sum + (totalPrice > 0 ? totalPrice : (item.product.costPrice * item.quantity));
         }),
         'sale_mode': widget.saleMode,
-        // Add partial payments support
-        'partial_payments': _buildPartialPayments(),
         'items': widget.cart.items.map((item) {
           final controller = _customPriceControllers[item.product.id];
           final totalPrice = double.tryParse(controller?.text ?? '') ?? 0.0;

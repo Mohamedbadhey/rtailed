@@ -355,13 +355,42 @@ class _ReportsScreenState extends State<ReportsScreen> {
         cashierId = _selectedCashierId;
       }
       
+      // Use the same date formatting logic as other reports
+      String? startDateParam;
+      String? endDateParam;
+      if (_filterStartDate != null && _filterEndDate != null &&
+          DateFormat('yyyy-MM-dd').format(_filterStartDate!) == DateFormat('yyyy-MM-dd').format(_filterEndDate!)) {
+        // Same day - use full day range
+        final day = DateFormat('yyyy-MM-dd').format(_filterStartDate!);
+        startDateParam = '$day 00:00:00';
+        endDateParam = '$day 23:59:59';
+      } else {
+        // Different days or single day - ensure proper time boundaries
+        if (_filterStartDate != null) {
+          final startDay = DateFormat('yyyy-MM-dd').format(_filterStartDate!);
+          startDateParam = '$startDay 00:00:00';
+        }
+        if (_filterEndDate != null) {
+          final endDay = DateFormat('yyyy-MM-dd').format(_filterEndDate!);
+          endDateParam = '$endDay 23:59:59';
+        }
+      }
+      
+      print('🔍 REPORTS: Damaged Products Date Filters:');
+      print('  - Filter Start Date: $_filterStartDate');
+      print('  - Filter End Date: $_filterEndDate');
+      print('  - Start Date Param: $startDateParam');
+      print('  - End Date Param: $endDateParam');
+      print('  - Cashier ID: $cashierId');
+      
       final report = await _apiService.getDamagedProductsReport(
-        startDate: _filterStartDate?.toIso8601String().split('T')[0],
-        endDate: _filterEndDate?.toIso8601String().split('T')[0],
+        startDate: startDateParam,
+        endDate: endDateParam,
         cashierId: cashierId,
       );
       setState(() => _damagedProductsReport = report);
     } catch (e) {
+      print('🔍 REPORTS: Error loading damaged products report: $e');
       setState(() => _damagedProductsReport = null);
     } finally {
       setState(() => _isDamagedProductsLoading = false);

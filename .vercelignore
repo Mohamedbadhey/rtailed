@@ -1,0 +1,7 @@
+# Ignore everything except the web build
+*
+!frontend/
+frontend/*
+!frontend/build/
+frontend/build/*
+!frontend/build/web/

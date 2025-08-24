@@ -768,6 +768,53 @@ router.post('/:businessId/users', auth, checkRole(['admin', 'manager', 'superadm
   }
 });
 
+// Check username availability for a specific business
+router.post('/:businessId/users/check-username', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
+  try {
+    const { businessId } = req.params;
+    const { username, exclude_id } = req.body;
+    
+    // Check if user has access to this business
+    const user = req.user;
+    if (user.role !== 'superadmin' && user.business_id != businessId) {
+      return res.status(403).json({ message: 'Access denied: insufficient permissions' });
+    }
+    
+    if (!username) {
+      return res.status(400).json({ message: 'Username is required' });
+    }
+    
+    // Validate username format
+    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+    if (!usernameRegex.test(username)) {
+      return res.status(400).json({ 
+        available: false, 
+        message: 'Username format is invalid' 
+      });
+    }
+    
+    let query = 'SELECT id FROM users WHERE username = ? AND business_id = ? AND is_deleted = 0';
+    let params = [username, businessId];
+    
+    // Exclude current user if editing
+    if (exclude_id) {
+      query += ' AND id != ?';
+      params.push(exclude_id);
+    }
+    
+    const [existingUsers] = await pool.query(query, params);
+    const available = existingUsers.length === 0;
+    
+    res.json({ 
+      available,
+      message: available ? 'Username is available' : 'Username is already taken'
+    });
+  } catch (error) {
+    console.error('Username availability check error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Update user for a specific business
 router.put('/:businessId/users/:userId', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
   try {

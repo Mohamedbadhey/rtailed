@@ -1095,6 +1095,52 @@ router.post('/users', auth, adminOrSuperadminForCashier, async (req, res) => {
   }
 });
 
+// Check username availability
+router.post('/users/check-username', auth, adminOrSuperadminForCashier, async (req, res) => {
+  try {
+    const { username, exclude_id } = req.body;
+    
+    if (!username) {
+      return res.status(400).json({ message: 'Username is required' });
+    }
+    
+    // Validate username format
+    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+    if (!usernameRegex.test(username)) {
+      return res.status(400).json({ 
+        available: false, 
+        message: 'Username format is invalid' 
+      });
+    }
+    
+    let query = 'SELECT id FROM users WHERE username = ? AND is_deleted = 0';
+    let params = [username];
+    
+    // Exclude current user if editing
+    if (exclude_id) {
+      query += ' AND id != ?';
+      params.push(exclude_id);
+    }
+    
+    // For non-superadmin users, only check within their business
+    if (req.user.role !== 'superadmin') {
+      query += ' AND business_id = ?';
+      params.push(req.user.business_id);
+    }
+    
+    const [existingUsers] = await pool.query(query, params);
+    const available = existingUsers.length === 0;
+    
+    res.json({ 
+      available,
+      message: available ? 'Username is available' : 'Username is already taken'
+    });
+  } catch (error) {
+    console.error('Username availability check error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Update user (username, email, role, is_active)
 router.put('/users/:id', auth, adminOrSuperadminForCashier, async (req, res) => {
   try {

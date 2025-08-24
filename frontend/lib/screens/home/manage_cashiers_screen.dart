@@ -63,6 +63,11 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
     final confirmPasswordController = TextEditingController();
     bool isEdit = cashier != null;
     bool isCreating = false;
+    bool isCheckingUsername = false;
+    bool isUsernameAvailable = true;
+    bool isUsernameTaken = false;
+    bool showPassword = false;
+    bool showConfirmPassword = false;
 
     showDialog(
       context: context,
@@ -85,9 +90,56 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                       labelText: t(context, 'Username'),
                       hintText: t(context, 'Enter username (3-20 characters)'),
                       prefixIcon: const Icon(Icons.person_outline),
+                      suffixIcon: usernameController.text.isNotEmpty ? 
+                        (isCheckingUsername ? 
+                          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) :
+                          (isUsernameTaken ? 
+                            Icon(Icons.error, color: Colors.red) : 
+                            Icon(Icons.check_circle, color: Colors.green)
+                          )
+                        ) : null,
                     ),
                     onChanged: (value) {
-                      setState(() {});
+                      setState(() {
+                        isUsernameAvailable = true;
+                        isUsernameTaken = false;
+                      });
+                      
+                      // Check username availability after user stops typing
+                      if (value.length >= 3 && !isEdit) {
+                        Future.delayed(const Duration(milliseconds: 500), () async {
+                          if (usernameController.text == value) {
+                            setState(() {
+                              isCheckingUsername = true;
+                            });
+                            
+                            try {
+                              final user = context.read<AuthProvider>().user;
+                              String endpoint;
+                              if (user?.role == 'superadmin') {
+                                endpoint = '/api/admin/users/check-username';
+                              } else {
+                                endpoint = '/api/businesses/${user!.businessId}/users/check-username';
+                              }
+                              
+                              final response = await ApiService.postStatic(endpoint, {
+                                'username': value,
+                                'exclude_id': cashier?['id']
+                              });
+                              
+                              setState(() {
+                                isUsernameAvailable = response['available'] ?? true;
+                                isUsernameTaken = !(response['available'] ?? true);
+                                isCheckingUsername = false;
+                              });
+                            } catch (e) {
+                              setState(() {
+                                isCheckingUsername = false;
+                              });
+                            }
+                          }
+                        });
+                      }
                     },
                   ),
                   if (usernameController.text.isNotEmpty && (usernameController.text.length < 3 || usernameController.text.length > 20))
@@ -96,6 +148,22 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                       child: Text(
                         t(context, 'Username must be 3-20 characters long'),
                         style: const TextStyle(color: Colors.red, fontSize: 12),
+                      ),
+                    ),
+                  if (isUsernameTaken)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        t(context, 'Username is already taken'),
+                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                      ),
+                    ),
+                  if (isUsernameAvailable && usernameController.text.length >= 3 && !isEdit)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        t(context, 'Username is available'),
+                        style: const TextStyle(color: Colors.green, fontSize: 12),
                       ),
                     ),
                   const SizedBox(height: 16),
@@ -116,12 +184,23 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                         labelText: t(context, 'Password'),
                         hintText: t(context, 'Enter password (min 6 characters)'),
                         prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            showPassword ? Icons.visibility : Icons.visibility_off,
+                            color: Colors.grey,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              showPassword = !showPassword;
+                            });
+                          },
+                        ),
                       ),
-                      obscureText: true,
+                      obscureText: !showPassword,
                       onChanged: (value) {
                         setState(() {});
                       },
-              ),
+                    ),
                     if (passwordController.text.isNotEmpty && passwordController.text.length < 6)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
@@ -137,8 +216,19 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                         labelText: t(context, 'Confirm Password'),
                         hintText: t(context, 'Confirm your password'),
                         prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            showConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                            color: Colors.grey,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              showConfirmPassword = !showConfirmPassword;
+                            });
+                          },
+                        ),
                       ),
-                  obscureText: true,
+                      obscureText: !showConfirmPassword,
                       onChanged: (value) {
                         setState(() {});
                       },
@@ -179,6 +269,17 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(t(context, 'Username must be 3-20 characters long')),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+              
+              // Check if username is taken (only for new cashiers)
+              if (!isEdit && isUsernameTaken) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(t(context, 'Username is already taken. Please choose a different one.')),
                     backgroundColor: Colors.red,
                   ),
                 );

@@ -434,7 +434,32 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/branding', require('./routes/branding'));
 app.use('/api/business-payments', require('./routes/business_payments'));
 
-// 404 handler
+// Serve Flutter web app
+app.use(express.static(path.join(__dirname, '../web-app')));
+
+// Handle Flutter web routing - serve index.html for all non-API routes
+app.get('*', (req, res) => {
+  // Skip API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({
+      status: 'error',
+      message: 'API endpoint not found'
+    });
+  }
+  
+  // Skip uploads routes
+  if (req.path.startsWith('/uploads/')) {
+    return res.status(404).json({
+      status: 'error',
+      message: 'File not found'
+    });
+  }
+  
+  // Serve Flutter web app
+  res.sendFile(path.join(__dirname, '../web-app/index.html'));
+});
+
+// 404 handler for API routes only
 app.use('/api/*', (req, res) => {
   res.status(404).json({
     status: 'error',

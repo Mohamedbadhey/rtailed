@@ -20,6 +20,7 @@ async function testPartialCredit() {
       ],
       payment_method: 'partial_credit',
       partial_payment_amount: 150.00,
+      partial_payment_method: 'evc',
       remaining_credit_amount: 50.00,
       sale_mode: 'retail',
       customer_phone: '1234567890'

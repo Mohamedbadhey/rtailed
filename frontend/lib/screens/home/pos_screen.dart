@@ -1128,6 +1128,15 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
   final TextEditingController _partialPaymentController = TextEditingController();
   bool _showNewCustomerFields = false;
   double _remainingCreditAmount = 0.0;
+  String _partialPaymentMethod = 'evc';
+  final List<String> _partialPaymentMethods = [
+    'evc',
+    'edahab',
+    'merchant',
+    'cash',
+    'card',
+    'mobile_payment'
+  ];
   bool _isLoading = false;
   final ApiService _apiService = ApiService();
   final Map<int, TextEditingController> _customPriceControllers = {};
@@ -1271,10 +1280,9 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
         }).toList(),
         if (_selectedPaymentMethod == 'credit' || _selectedPaymentMethod == 'partial_credit' || (customer != null && (_customerPhoneController.text.trim().isNotEmpty || _newCustomerPhoneController.text.trim().isNotEmpty)))
           'customer_phone': customer == null ? '' : (_newCustomerPhoneController.text.trim().isNotEmpty ? _newCustomerPhoneController.text.trim() : _customerPhoneController.text.trim()),
-        if (_selectedPaymentMethod == 'partial_credit') ...[
-          'partial_payment_amount': double.tryParse(_partialPaymentController.text) ?? 0.0,
-          'remaining_credit_amount': _remainingCreditAmount,
-        ],
+        if (_selectedPaymentMethod == 'partial_credit') 'partial_payment_amount': double.tryParse(_partialPaymentController.text) ?? 0.0,
+        if (_selectedPaymentMethod == 'partial_credit') 'partial_payment_method': _partialPaymentMethod,
+        if (_selectedPaymentMethod == 'partial_credit') 'remaining_credit_amount': _remainingCreditAmount,
       };
       final sale = await _apiService.createSale(saleData);
       widget.cart.clearCart();
@@ -1803,7 +1811,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                         if (_selectedPaymentMethod == 'partial_credit') ...[
                           SizedBox(height: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
                           Text(
-                            'Partial Credit Details',
+                            t(context, 'partial_credit_details'),
                             style: TextStyle(
                               fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16), 
                               fontWeight: FontWeight.bold
@@ -1838,7 +1846,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                           
                           // Partial Payment Amount
                           Text(
-                            'Partial Payment Amount',
+                            t(context, 'partial_payment_amount'),
                             style: TextStyle(
                               fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16), 
                               fontWeight: FontWeight.bold
@@ -1848,9 +1856,9 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                           TextFormField(
                             controller: _partialPaymentController,
                             decoration: InputDecoration(
-                              labelText: 'Partial Payment Amount',
+                              labelText: t(context, 'partial_payment_amount'),
                               border: const OutlineInputBorder(),
-                              hintText: 'Enter amount customer will pay now',
+                              hintText: t(context, 'customer_pays_now'),
                               contentPadding: EdgeInsets.symmetric(
                                 horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
                                 vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
@@ -1864,9 +1872,46 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                           ),
                           SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
                           
+                          // Partial Payment Method
+                          Text(
+                            t(context, 'partial_payment_method'),
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16), 
+                              fontWeight: FontWeight.bold
+                            ),
+                          ),
+                          SizedBox(height: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: DropdownButton<String>(
+                              value: _partialPaymentMethod,
+                              underline: const SizedBox(),
+                              isExpanded: true,
+                              items: _partialPaymentMethods.map((method) {
+                                return DropdownMenuItem<String>(
+                                  value: method,
+                                  child: Text(
+                                    method[0].toUpperCase() + method.substring(1),
+                                    style: TextStyle(fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16)),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _partialPaymentMethod = value!;
+                                });
+                              },
+                            ),
+                          ),
+                          SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
+                          
                           // Remaining Credit Amount (read-only)
                           Text(
-                            'Remaining Credit Amount',
+                            t(context, 'remaining_credit_amount'),
                             style: TextStyle(
                               fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16), 
                               fontWeight: FontWeight.bold

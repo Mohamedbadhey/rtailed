@@ -35,6 +35,7 @@ router.post('/', auth, async (req, res) => {
       customer_phone, // Optionally sent from frontend
       sale_mode, // 'retail' or 'wholesale'
       partial_payment_amount, // New field for partial credit sales
+      partial_payment_method, // New field for partial payment method
       remaining_credit_amount // New field for remaining credit amount
     } = req.body;
 
@@ -178,7 +179,7 @@ router.post('/', auth, async (req, res) => {
       await connection.query(
         `INSERT INTO cash_flows (type, amount, date, reference, notes, business_id) 
          VALUES (?, ?, CURDATE(), ?, ?, ?)`,
-        ['in', partial_payment_amount, `Sale #${sale_id}`, `Partial payment via ${payment_method}`, businessId]
+        ['in', partial_payment_amount, `Sale #${sale_id}`, `Partial payment via ${partial_payment_method}`, businessId]
       );
     }
 

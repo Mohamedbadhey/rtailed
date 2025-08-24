@@ -63,6 +63,7 @@ When "Partial Credit" is selected, the following fields appear:
 {
   "payment_method": "partial_credit",
   "partial_payment_amount": 150.00,
+  "partial_payment_method": "evc",
   "remaining_credit_amount": 50.00,
   "customer_phone": "1234567890"
 }
@@ -91,7 +92,7 @@ New Sale → partially_paid → paid (when fully paid)
 
 ### Example 1: Basic Partial Credit Sale
 - **Total Amount**: $200.00
-- **Partial Payment**: $150.00 (customer pays now)
+- **Partial Payment**: $150.00 via EVC (customer pays now)
 - **Remaining Credit**: $50.00 (customer owes later)
 - **Sale Status**: "partially_paid"
 

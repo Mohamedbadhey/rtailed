@@ -373,6 +373,12 @@ router.get('/report', auth, async (req, res) => {
     }
     
     // Payment methods - show only actual payment methods (completed sales + credit payments, exclude original credits)
+    console.log('🔍 PAYMENT METHODS: ===== START =====');
+    console.log('🔍 PAYMENT METHODS: Building query with filters:');
+    console.log('  - business_id filter:', req.user.role !== 'superadmin' ? req.user.business_id : 'superadmin');
+    console.log('  - user_id filter:', isCashier ? req.user.id : (user_id || 'none'));
+    console.log('  - date filters:', { start_date, end_date });
+    
     const [paymentMethods] = await pool.query(
       `SELECT s.payment_method, COUNT(*) as count, SUM(s.total_amount) as total_amount 
        FROM sales s 
@@ -395,6 +401,14 @@ router.get('/report', auth, async (req, res) => {
         ...(end_date ? [end_date] : [])
       ]
     );
+    
+    console.log('🔍 PAYMENT METHODS: Query executed successfully!');
+    console.log('🔍 PAYMENT METHODS: Raw results:', paymentMethods);
+    console.log('🔍 PAYMENT METHODS: Processed results:');
+    paymentMethods.forEach((pm, index) => {
+      console.log(`  [${index}] ${pm.payment_method}: ${pm.count} transactions, $${pm.total_amount}`);
+    });
+    console.log('🔍 PAYMENT METHODS: ===== END =====');
     
     // Customer insights - exclude credit payments
     const [customerInsights] = await pool.query(
@@ -520,6 +534,12 @@ router.get('/report', auth, async (req, res) => {
     const totalProfit = totalRevenue - total_cost;
     
     // Calculate cash in hand from completed non-credit sales + credit payments
+    console.log('🔍 CASH IN HAND: ===== START =====');
+    console.log('🔍 CASH IN HAND: Building query with filters:');
+    console.log('  - business_id filter:', req.user.role !== 'superadmin' ? req.user.business_id : 'superadmin');
+    console.log('  - user_id filter:', isCashier ? req.user.id : (user_id || 'none'));
+    console.log('  - date filters:', { start_date, end_date });
+    
     let cashInHandQuery = `
       SELECT 
         SUM(s.total_amount) as total_cash_in_hand
@@ -557,8 +577,62 @@ router.get('/report', auth, async (req, res) => {
       cashInHandParams.push(end_date);
     }
     
+    console.log('🔍 CASH IN HAND: Final query:', cashInHandQuery);
+    console.log('🔍 CASH IN HAND: Query parameters:', cashInHandParams);
+    
     const [cashInHandResult] = await pool.query(cashInHandQuery, cashInHandParams);
     const actualCashInHand = Number(cashInHandResult[0]?.total_cash_in_hand) || 0;
+    
+    console.log('🔍 CASH IN HAND: Query executed successfully!');
+    console.log('🔍 CASH IN HAND: Raw result:', cashInHandResult[0]);
+    console.log('🔍 CASH IN HAND: Calculated cash in hand:', actualCashInHand);
+    console.log('🔍 CASH IN HAND: ===== END =====');
+    
+    // Debug: Show the actual sales data being processed
+    console.log('🔍 DEBUG SALES DATA: ===== START =====');
+    let debugQuery = `
+      SELECT id, total_amount, payment_method, status, parent_sale_id, business_id, user_id, created_at
+      FROM sales s 
+      WHERE s.status = "completed" 
+        AND s.payment_method != "credit"
+    `;
+    let debugParams = [];
+    
+    if (req.user.role !== 'superadmin') {
+      debugQuery += ' AND s.business_id = ?';
+      debugParams.push(req.user.business_id);
+    }
+    if (isCashier) {
+      debugQuery += ' AND s.user_id = ?';
+      debugParams.push(req.user.id);
+    } else if (user_id) {
+      debugQuery += ' AND s.user_id = ?';
+      debugParams.push(user_id);
+    }
+    if (start_date) {
+      debugQuery += ' AND DATE(s.created_at) >= ?';
+      debugParams.push(start_date);
+    }
+    if (end_date) {
+      debugQuery += ' AND DATE(s.created_at) <= ?';
+      debugParams.push(end_date);
+    }
+    
+    debugQuery += ' ORDER BY s.created_at DESC';
+    
+    console.log('🔍 DEBUG SALES DATA: Query:', debugQuery);
+    console.log('🔍 DEBUG SALES DATA: Parameters:', debugParams);
+    
+    try {
+      const [debugSales] = await pool.query(debugQuery, debugParams);
+      console.log('🔍 DEBUG SALES DATA: Found', debugSales.length, 'sales rows:');
+      debugSales.forEach((sale, index) => {
+        console.log(`  [${index}] ID:${sale.id}, Amount:$${sale.total_amount}, Method:${sale.payment_method}, Status:${sale.status}, Parent:${sale.parent_sale_id}, Business:${sale.business_id}, User:${sale.user_id}, Date:${sale.created_at}`);
+      });
+    } catch (error) {
+      console.log('🔍 DEBUG SALES DATA: Error querying sales:', error.message);
+    }
+    console.log('🔍 DEBUG SALES DATA: ===== END =====');
     
     console.log('SALES REPORT: Cash in hand calculation from sales:');
     console.log('  - Total Cash In Hand (completed non-credit sales):', actualCashInHand);

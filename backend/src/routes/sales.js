@@ -519,12 +519,15 @@ router.get('/report', auth, async (req, res) => {
     const totalRevenue = summary[0]?.total_revenue || 0;
     const totalProfit = totalRevenue - total_cost;
     
-    // Calculate actual cash in hand using cash flows table
+    // Calculate cash in hand directly from sales data (more accurate)
     let cashInHandQuery = `
       SELECT 
-        SUM(CASE WHEN type = 'in' THEN amount ELSE 0 END) as total_inflow,
-        SUM(CASE WHEN type = 'out' THEN amount ELSE 0 END) as total_outflow
-      FROM cash_flows 
+        SUM(CASE 
+          WHEN s.status = "completed" AND s.parent_sale_id IS NULL THEN s.total_amount
+          WHEN s.parent_sale_id IS NOT NULL THEN s.total_amount
+          ELSE 0 
+        END) as total_inflow
+      FROM sales s 
       WHERE 1=1
     `;
     let cashInHandParams = [];
@@ -534,29 +537,34 @@ router.get('/report', auth, async (req, res) => {
       if (!req.user.business_id) {
         return res.status(400).json({ message: 'Business ID is required for this report.' });
       }
-      cashInHandQuery += ' AND business_id = ?';
+      cashInHandQuery += ' AND s.business_id = ?';
       cashInHandParams.push(req.user.business_id);
+    }
+    
+    // Add user filter for cashiers
+    if (isCashier) {
+      cashInHandQuery += ' AND s.user_id = ?';
+      cashInHandParams.push(req.user.id);
+    } else if (user_id) {
+      cashInHandQuery += ' AND s.user_id = ?';
+      cashInHandParams.push(user_id);
     }
     
     // Add date filters if specified
     if (start_date) {
-      cashInHandQuery += ' AND date >= ?';
+      cashInHandQuery += ' AND DATE(s.created_at) >= ?';
       cashInHandParams.push(start_date);
     }
     if (end_date) {
-      cashInHandQuery += ' AND date <= ?';
+      cashInHandQuery += ' AND DATE(s.created_at) <= ?';
       cashInHandParams.push(end_date);
     }
     
-    const [cashFlows] = await pool.query(cashInHandQuery, cashInHandParams);
-    const totalInflow = Number(cashFlows[0]?.total_inflow) || 0;
-    const totalOutflow = Number(cashFlows[0]?.total_outflow) || 0;
-    const actualCashInHand = totalInflow - totalOutflow;
+    const [cashInHandResult] = await pool.query(cashInHandQuery, cashInHandParams);
+    const actualCashInHand = Number(cashInHandResult[0]?.total_inflow) || 0;
     
-    console.log('SALES REPORT: Cash in hand calculation:');
-    console.log('  - Total Inflow (sales + credit payments):', totalInflow);
-    console.log('  - Total Outflow (expenses):', totalOutflow);
-    console.log('  - Actual Cash in Hand:', actualCashInHand);
+    console.log('SALES REPORT: Cash in hand calculation from sales:');
+    console.log('  - Total Cash In (completed sales + credit payments):', actualCashInHand);
     
     console.log('SALES REPORT: Profit calculation:');
     console.log('  - Total Revenue:', totalRevenue);

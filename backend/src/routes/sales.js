@@ -205,6 +205,15 @@ router.get('/report', auth, async (req, res) => {
     console.log('  - isCashier:', isCashier);
     console.log('  - req.user.id:', req.user.id);
     console.log('  - req.user.business_id:', req.user.business_id);
+    console.log('  - req.user.role:', req.user.role);
+    
+    // Debug: Show all filter combinations that will be applied
+    console.log('🔍 SALES REPORT: Filter combinations:');
+    console.log('  - Business filter:', req.user.role !== 'superadmin' ? `business_id = ${req.user.business_id}` : 'superadmin (no business filter)');
+    console.log('  - User filter:', isCashier ? `user_id = ${req.user.id}` : (user_id ? `user_id = ${user_id}` : 'no user filter'));
+    console.log('  - Date filter:', start_date && end_date ? `${start_date} to ${end_date}` : 'no date filter');
+    console.log('  - Date filter type:', typeof start_date, typeof end_date);
+    console.log('  - Date filter parsed:', start_date ? new Date(start_date) : 'null', end_date ? new Date(end_date) : 'null');
     
     // Build the WHERE clause - include both completed sales and credit sales (unpaid) but EXCLUDE credit payments
     // Credit payments have parent_sale_id IS NOT NULL and should not be counted as revenue
@@ -379,6 +388,31 @@ router.get('/report', auth, async (req, res) => {
     console.log('  - user_id filter:', isCashier ? req.user.id : (user_id || 'none'));
     console.log('  - date filters:', { start_date, end_date });
     
+    // Debug: Show the exact WHERE clause being built
+    let paymentMethodsWhereClause = `(
+      (s.status = "completed" AND s.parent_sale_id IS NULL) OR 
+      (s.parent_sale_id IS NOT NULL)
+    )`;
+    
+    if (req.user.role !== 'superadmin') {
+      paymentMethodsWhereClause += ` AND s.business_id = ${req.user.business_id}`;
+    }
+    if (isCashier) {
+      paymentMethodsWhereClause += ` AND s.user_id = ${req.user.id}`;
+    } else if (user_id) {
+      paymentMethodsWhereClause += ` AND s.user_id = ${user_id}`;
+    }
+    if (start_date) {
+      paymentMethodsWhereClause += ` AND DATE(s.created_at) >= '${start_date}'`;
+    }
+    if (end_date) {
+      paymentMethodsWhereClause += ` AND DATE(s.created_at) <= '${end_date}'`;
+    }
+    
+    console.log('🔍 PAYMENT METHODS: WHERE clause being built:');
+    console.log('  - Base clause:', paymentMethodsWhereClause);
+    console.log('  - Final WHERE:', paymentMethodsWhereClause);
+    
     const [paymentMethods] = await pool.query(
       `SELECT s.payment_method, COUNT(*) as count, SUM(s.total_amount) as total_amount 
        FROM sales s 
@@ -540,6 +574,62 @@ router.get('/report', auth, async (req, res) => {
     console.log('  - user_id filter:', isCashier ? req.user.id : (user_id || 'none'));
     console.log('  - date filters:', { start_date, end_date });
     
+    // Debug: Show the exact WHERE clause being built for cash in hand
+    let cashInHandWhereClause = `s.status = "completed" AND s.payment_method != "credit"`;
+    
+    if (req.user.role !== 'superadmin') {
+      cashInHandWhereClause += ` AND s.business_id = ${req.user.business_id}`;
+    }
+    if (isCashier) {
+      cashInHandWhereClause += ` AND s.user_id = ${req.user.id}`;
+    } else if (user_id) {
+      cashInHandWhereClause += ` AND s.user_id = ${user_id}`;
+    }
+    if (start_date) {
+      cashInHandWhereClause += ` AND DATE(s.created_at) >= '${start_date}'`;
+    }
+    if (end_date) {
+      cashInHandWhereClause += ` AND DATE(s.created_at) <= '${end_date}'`;
+    }
+    
+    console.log('🔍 CASH IN HAND: WHERE clause being built:');
+    console.log('  - Base clause: s.status = "completed" AND s.payment_method != "credit"');
+    console.log('  - Final WHERE:', cashInHandWhereClause);
+    
+    // Debug: Show exactly what rows will be included in cash in hand
+    console.log('🔍 CASH IN HAND DEBUG: Checking what rows match our criteria...');
+    let debugCashQuery = `
+      SELECT id, total_amount, payment_method, status, parent_sale_id, business_id, user_id, created_at
+      FROM sales s 
+      WHERE s.status = "completed" 
+        AND s.payment_method != "credit"
+        AND s.business_id = ?
+        AND DATE(s.created_at) >= ?
+        AND DATE(s.created_at) <= ?
+      ORDER BY s.created_at DESC
+    `;
+    
+    try {
+      const [debugCashRows] = await pool.query(debugCashQuery, [req.user.business_id, start_date, end_date]);
+      console.log('🔍 CASH IN HAND DEBUG: Found', debugCashRows.length, 'rows for cash in hand:');
+      debugCashRows.forEach((row, index) => {
+        console.log(`  [${index}] ID:${row.id}, Amount:$${row.total_amount}, Method:${row.payment_method}, Parent:${row.parent_sale_id}, Date:${row.created_at}`);
+      });
+      
+      const totalDebugAmount = debugCashRows.reduce((sum, row) => sum + Number(row.total_amount), 0);
+      console.log('🔍 CASH IN HAND DEBUG: Total amount from debug query: $', totalDebugAmount);
+    } catch (error) {
+      console.log('🔍 CASH IN HAND DEBUG: Error in debug query:', error.message);
+    }
+    
+    // Debug: Show exactly what the main cash in hand query will return
+    console.log('🔍 CASH IN HAND DEBUG: Main query will use these filters:');
+    console.log('  - status = "completed"');
+    console.log('  - payment_method != "credit"');
+    console.log('  - business_id =', req.user.business_id);
+    if (start_date) console.log('  - start_date =', start_date);
+    if (end_date) console.log('  - end_date =', end_date);
+    
     let cashInHandQuery = `
       SELECT 
         SUM(s.total_amount) as total_cash_in_hand
@@ -588,51 +678,13 @@ router.get('/report', auth, async (req, res) => {
     console.log('🔍 CASH IN HAND: Calculated cash in hand:', actualCashInHand);
     console.log('🔍 CASH IN HAND: ===== END =====');
     
-    // Debug: Show the actual sales data being processed
-    console.log('🔍 DEBUG SALES DATA: ===== START =====');
-    let debugQuery = `
-      SELECT id, total_amount, payment_method, status, parent_sale_id, business_id, user_id, created_at
-      FROM sales s 
-      WHERE s.status = "completed" 
-        AND s.payment_method != "credit"
-    `;
-    let debugParams = [];
-    
-    if (req.user.role !== 'superadmin') {
-      debugQuery += ' AND s.business_id = ?';
-      debugParams.push(req.user.business_id);
-    }
-    if (isCashier) {
-      debugQuery += ' AND s.user_id = ?';
-      debugParams.push(req.user.id);
-    } else if (user_id) {
-      debugQuery += ' AND s.user_id = ?';
-      debugParams.push(user_id);
-    }
-    if (start_date) {
-      debugQuery += ' AND DATE(s.created_at) >= ?';
-      debugParams.push(start_date);
-    }
-    if (end_date) {
-      debugQuery += ' AND DATE(s.created_at) <= ?';
-      debugParams.push(end_date);
-    }
-    
-    debugQuery += ' ORDER BY s.created_at DESC';
-    
-    console.log('🔍 DEBUG SALES DATA: Query:', debugQuery);
-    console.log('🔍 DEBUG SALES DATA: Parameters:', debugParams);
-    
-    try {
-      const [debugSales] = await pool.query(debugQuery, debugParams);
-      console.log('🔍 DEBUG SALES DATA: Found', debugSales.length, 'sales rows:');
-      debugSales.forEach((sale, index) => {
-        console.log(`  [${index}] ID:${sale.id}, Amount:$${sale.total_amount}, Method:${sale.payment_method}, Status:${sale.status}, Parent:${sale.parent_sale_id}, Business:${sale.business_id}, User:${sale.user_id}, Date:${sale.created_at}`);
-      });
-    } catch (error) {
-      console.log('🔍 DEBUG SALES DATA: Error querying sales:', error.message);
-    }
-    console.log('🔍 DEBUG SALES DATA: ===== END =====');
+    // Debug: Show exactly what the main cash in hand query will return
+    console.log('🔍 CASH IN HAND DEBUG: Main query will use these filters:');
+    console.log('  - status = "completed"');
+    console.log('  - payment_method != "credit"');
+    console.log('  - business_id =', req.user.business_id);
+    if (start_date) console.log('  - start_date =', start_date);
+    if (end_date) console.log('  - end_date =', end_date);
     
     console.log('SALES REPORT: Cash in hand calculation from sales:');
     console.log('  - Total Cash In Hand (completed non-credit sales):', actualCashInHand);
@@ -641,6 +693,17 @@ router.get('/report', auth, async (req, res) => {
     console.log('  - Total Revenue:', totalRevenue);
     console.log('  - Total COGS:', total_cost);
     console.log('  - Calculated totalProfit:', totalProfit);
+    
+    // Final summary of all calculations
+    console.log('🔍 SALES REPORT: ===== CALCULATION SUMMARY =====');
+    console.log('  - Total Sales (summary):', summary[0]?.total_revenue || 0);
+    console.log('  - Payment Methods Total:', paymentMethods.reduce((sum, pm) => sum + Number(pm.total_amount), 0));
+    console.log('  - Cash in Hand:', actualCashInHand);
+    console.log('  - Outstanding Credits:', outstandingCredits[0]?.total_outstanding_credit || 0);
+    console.log('  - Date Range:', start_date, 'to', end_date);
+    console.log('  - Business ID:', req.user.business_id);
+    console.log('  - User Role:', req.user.role);
+    console.log('🔍 SALES REPORT: ===== END CALCULATION SUMMARY =====');
     
     // Prepare safe response data
     const safeSummary = {
@@ -1141,7 +1204,7 @@ router.put('/:id/pay', auth, async (req, res) => {
     // Insert payment as a new sale row with parent_sale_id set
     await connection.query(
       `INSERT INTO sales (parent_sale_id, customer_id, user_id, total_amount, tax_amount, payment_method, status, business_id)
-       VALUES (?, ?, ?, ?, ?, ?, 'completed', ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [saleId, sale.customer_id, req.user.id, amount, 0.00, payment_method, sale.business_id]
     );
     
@@ -1149,241 +1212,16 @@ router.put('/:id/pay', auth, async (req, res) => {
     await connection.query(
       `INSERT INTO cash_flows (type, amount, date, reference, notes, business_id) 
        VALUES (?, ?, CURDATE(), ?, ?, ?)`,
-      ['in', amount, `Credit Payment - Sale #${saleId}`, `Payment received for credit sale #${saleId} via ${payment_method}`, sale.business_id]
-    );
-    
-    // If fully paid, update sale status
-    const newTotalPaid = totalPaid + Number(amount);
-    if (newTotalPaid >= Number(sale.total_amount)) {
-      await connection.query('UPDATE sales SET status = ? WHERE id = ?', ['paid', saleId]);
-    }
-    
-    await connection.commit();
-    res.json({ message: 'Payment recorded', remaining: Math.max(0, Number(sale.total_amount) - newTotalPaid) });
-  } catch (error) {
-    await connection.rollback();
-    console.error('Error marking credit sale as paid:', error);
-    res.status(500).json({ message: 'Server error' });
-  } finally {
-    connection.release();
-  }
-});
-
-// Get sale details
-router.get('/:id', auth, async (req, res) => {
-  try {
-    let query = 'SELECT * FROM sales WHERE id = ? AND business_id = ?';
-    let params = [req.params.id, req.user.business_id];
-    if (req.user.role === 'superadmin') {
-      query = 'SELECT * FROM sales WHERE id = ?';
-      params = [req.params.id];
-    }
-    const [sales] = await pool.query(query, params);
-
-    if (sales.length === 0) {
-      console.log('Sale not found for ID:', req.params.id);
-      return res.status(404).json({ message: 'Sale not found' });
-    }
-
-    const [items] = await pool.query(
-      `SELECT 
-        si.*,
-        p.name as product_name,
-        p.sku
-      FROM sale_items si
-      JOIN products p ON si.product_id = p.id
-      WHERE si.sale_id = ?`,
-      [req.params.id]
-    );
-
-    // Get total paid and remaining
-    const [payments] = await pool.query('SELECT IFNULL(SUM(total_amount),0) as total_paid FROM sales WHERE parent_sale_id = ?', [req.params.id]);
-    const paid = Number(payments[0].total_paid) || 0;
-    const totalAmount = Number(sales[0].total_amount) || 0;
-    const remaining = Math.max(0, totalAmount - paid);
-
-    // Get payment history from child sales
-    const [paymentHistory] = await pool.query(
-      'SELECT total_amount as amount, created_at as payment_date, payment_method FROM sales WHERE parent_sale_id = ? ORDER BY created_at ASC',
-      [req.params.id]
-    );
-
-    const result = {
-      ...sales[0],
-      items,
-      paid,
-      remaining,
-      payments: paymentHistory
-    };
-    
-    console.log('Sale details result:', result);
-    res.json(result);
-  } catch (error) {
-    console.error('Get sale details error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Cancel/Refund Sale Transaction
-router.post('/:id/cancel', auth, checkRole(['admin', 'manager', 'cashier']), async (req, res) => {
-  const connection = await pool.getConnection();
-  try {
-    await connection.beginTransaction();
-    
-    const saleId = req.params.id;
-    const { reason = 'Sale cancelled by user', refund_method } = req.body;
-    
-    console.log('🔍 SALE CANCELLATION: Starting cancellation for sale ID:', saleId);
-    
-    // Get sale details
-    const [sales] = await connection.query(
-      'SELECT * FROM sales WHERE id = ? AND business_id = ? AND parent_sale_id IS NULL',
-      [saleId, req.user.business_id]
-    );
-    
-    if (sales.length === 0) {
-      throw new Error('Sale not found or access denied');
-    }
-    
-    const sale = sales[0];
-    
-    // Check if sale can be cancelled
-    if (sale.status === 'cancelled') {
-      throw new Error('Sale is already cancelled');
-    }
-    
-    if (sale.status === 'refunded') {
-      throw new Error('Sale has already been refunded');
-    }
-    
-    // Check if there are any payments made (for credit sales)
-    const [payments] = await connection.query(
-      'SELECT IFNULL(SUM(total_amount), 0) as total_paid FROM sales WHERE parent_sale_id = ?',
-      [saleId]
-    );
-    
-    const totalPaid = Number(payments[0].total_paid) || 0;
-    
-    // Get sale items to restore stock
-    const [saleItems] = await connection.query(
-      'SELECT * FROM sale_items WHERE sale_id = ?',
-      [saleId]
-    );
-    
-    console.log('🔍 SALE CANCELLATION: Found', saleItems.length, 'items to restore');
-    
-    // Restore product stock for each item
-    for (const item of saleItems) {
-      console.log('🔍 SALE CANCELLATION: Restoring stock for product ID:', item.product_id, 'Quantity:', item.quantity);
-      
-      // Update product stock
-      await connection.query(
-        'UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?',
-        [item.quantity, item.product_id]
-      );
-      
-      // Add inventory transaction for stock restoration
-      await connection.query(
-        `INSERT INTO inventory_transactions (
-          product_id, quantity, transaction_type, reference_id, notes, business_id
-        ) VALUES (?, ?, ?, ?, ?, ?)`,
-        [
-          item.product_id,
-          item.quantity,
-          'cancellation',
-          saleId,
-          `Sale cancelled - Stock restored: ${reason}`,
-          req.user.business_id
-        ]
-      );
-    }
-    
-    // Handle payment refunds
-    if (totalPaid > 0) {
-      console.log('🔍 SALE CANCELLATION: Processing refund for amount:', totalPaid);
-      
-      // Create refund record
-      await connection.query(
-        `INSERT INTO sales (
-          parent_sale_id, customer_id, user_id, total_amount, tax_amount, 
-          payment_method, status, business_id, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, 'completed', ?, ?)`,
-        [
-          saleId, 
-          sale.customer_id, 
-          req.user.id, 
-          -totalPaid, // Negative amount for refund
-          0.00, 
-          refund_method || 'refund', 
-          req.user.business_id,
-          `Refund for cancelled sale #${saleId}: ${reason}`
-        ]
-      );
-      
-      // Update cash flow to decrease cash in hand
-      await connection.query(
-        `INSERT INTO cash_flows (type, amount, date, reference, notes, business_id) 
-         VALUES (?, ?, CURDATE(), ?, ?, ?)`,
-        ['out', totalPaid, `Sale Cancellation #${saleId}`, `Refund processed for cancelled sale: ${reason}`, req.user.business_id]
-      );
-    }
-    
-    // Reverse customer loyalty points if they were awarded
-    if (sale.customer_id) {
-      const pointsToRemove = Math.floor(sale.total_amount);
-      await connection.query(
-        'UPDATE customers SET loyalty_points = GREATEST(0, loyalty_points - ?) WHERE id = ?',
-        [pointsToRemove, sale.customer_id]
-      );
-      
-      console.log('🔍 SALE CANCELLATION: Removed', pointsToRemove, 'loyalty points from customer ID:', sale.customer_id);
-    }
-    
-    // Update sale status to cancelled
-    await connection.query(
-      'UPDATE sales SET status = ?, cancelled_at = NOW(), cancelled_by = ?, cancellation_reason = ? WHERE id = ?',
-      ['cancelled', req.user.id, reason, saleId]
-    );
-    
-    // Log the cancellation action
-    await connection.query(
-      `INSERT INTO system_logs (user_id, action, table_name, record_id, new_values, business_id) 
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        req.user.id, 
-        'CANCEL_SALE', 
-        'sales', 
-        saleId, 
-        JSON.stringify({ 
-          reason, 
-          refund_amount: totalPaid,
-          items_restored: saleItems.length,
-          original_amount: sale.total_amount
-        }), 
-        req.user.business_id
-      ]
+      ['in', amount, `Sale #${saleId} Payment`, `Payment of $${amount} for credit sale #${saleId}`, sale.business_id]
     );
     
     await connection.commit();
-    
-    console.log('🔍 SALE CANCELLATION: Successfully cancelled sale ID:', saleId);
-    
-    res.json({
-      message: 'Sale cancelled successfully',
-      sale_id: saleId,
-      status: 'cancelled',
-      stock_restored: saleItems.length,
-      refund_amount: totalPaid,
-      cancellation_reason: reason
-    });
-    
+    res.status(200).json({ message: 'Payment recorded successfully' });
   } catch (error) {
     await connection.rollback();
-    console.error('🔍 SALE CANCELLATION ERROR:', error);
+    console.error(error);
     res.status(500).json({ message: error.message || 'Server error' });
   } finally {
     connection.release();
   }
 });
-
-module.exports = router; 

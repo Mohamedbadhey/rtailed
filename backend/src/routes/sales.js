@@ -372,18 +372,13 @@ router.get('/report', auth, async (req, res) => {
       }
     }
     
-    // Payment methods - show actual payment methods + outstanding credits (exclude credits that have payments)
+    // Payment methods - show only actual payment methods (completed sales + credit payments, exclude original credits)
     const [paymentMethods] = await pool.query(
       `SELECT s.payment_method, COUNT(*) as count, SUM(s.total_amount) as total_amount 
        FROM sales s 
        WHERE (
-         s.status = "completed" OR 
-         s.parent_sale_id IS NOT NULL OR
-         (s.payment_method = "credit" AND s.parent_sale_id IS NULL AND s.id NOT IN (
-           SELECT DISTINCT parent_sale_id 
-           FROM sales 
-           WHERE parent_sale_id IS NOT NULL
-         ))
+         (s.status = "completed" AND s.parent_sale_id IS NULL) OR 
+         (s.parent_sale_id IS NOT NULL)
        )
          ${req.user.role !== 'superadmin' ? 'AND s.business_id = ?' : ''}
          ${isCashier ? 'AND s.user_id = ?' : ''}

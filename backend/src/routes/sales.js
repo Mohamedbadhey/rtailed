@@ -440,7 +440,7 @@ router.get('/report', auth, async (req, res) => {
     console.log('  - outstandingCredits result:', outstandingCredits);
     console.log('  - outstandingCreditsForPaymentMethods:', outstandingCreditsForPaymentMethods);
     
-    // Then get actual payment methods (excluding credits)
+    // Then get actual payment methods (excluding credits) - temporarily without date filter for debugging
     let paymentMethodsQuery = `
       SELECT s.payment_method, COUNT(*) as count, SUM(s.total_amount) as total_amount 
       FROM sales s 
@@ -465,22 +465,37 @@ router.get('/report', auth, async (req, res) => {
       console.log('🔍 PAYMENT METHODS: Added user filter:', isCashier ? req.user.id : user_id);
     }
     
-    // Add date filters
-    if (start_date) {
-      paymentMethodsQuery += ' AND DATE(s.created_at) >= ?';
-      paymentMethodsParams.push(start_date);
-      console.log('🔍 PAYMENT METHODS: Added start_date filter:', start_date);
-    }
-    if (end_date) {
-      paymentMethodsQuery += ' AND DATE(s.created_at) <= ?';
-      paymentMethodsParams.push(end_date);
-      console.log('🔍 PAYMENT METHODS: Added end_date filter:', end_date);
-    }
+    // Temporarily comment out date filters for debugging
+    // if (start_date) {
+    //   paymentMethodsQuery += ' AND DATE(s.created_at) >= DATE(?)';
+    //   paymentMethodsParams.push(start_date);
+    //   console.log('🔍 PAYMENT METHODS: Added start_date filter:', start_date);
+    // }
+    // if (end_date) {
+    //   paymentMethodsQuery += ' AND DATE(s.created_at) <= DATE(?)';
+    //   paymentMethodsParams.push(end_date);
+    //   console.log('🔍 PAYMENT METHODS: Added end_date filter:', end_date);
+    // }
     
     paymentMethodsQuery += ' GROUP BY s.payment_method ORDER BY total_amount DESC';
     
     console.log('🔍 PAYMENT METHODS: Final query:', paymentMethodsQuery);
     console.log('🔍 PAYMENT METHODS: Final params:', paymentMethodsParams);
+    
+    // Debug: Check what sales exist for this business and date range
+    let debugQuery = `
+      SELECT id, payment_method, total_amount, created_at, parent_sale_id, status
+      FROM sales 
+      WHERE business_id = ? AND DATE(created_at) = DATE(?)
+      ORDER BY created_at DESC
+    `;
+    let debugParams = [req.user.business_id, start_date || end_date];
+    console.log('🔍 PAYMENT METHODS DEBUG: Checking what sales exist...');
+    console.log('🔍 PAYMENT METHODS DEBUG: Debug query:', debugQuery);
+    console.log('🔍 PAYMENT METHODS DEBUG: Debug params:', debugParams);
+    
+    const [debugSales] = await pool.query(debugQuery, debugParams);
+    console.log('🔍 PAYMENT METHODS DEBUG: Found sales:', debugSales);
     
     const [paymentMethods] = await pool.query(paymentMethodsQuery, paymentMethodsParams);
     

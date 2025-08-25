@@ -617,7 +617,18 @@ class ApiService {
       print('Sales Report Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
-        return TypeConverter.safeToMap(json.decode(response.body));
+        final data = json.decode(response.body);
+        
+        // Debug logging for payment methods
+        print('🔍 API SERVICE: Sales report response data keys: ${data.keys.toList()}');
+        print('🔍 API SERVICE: paymentMethodBreakdown: ${data['paymentMethodBreakdown']}');
+        print('🔍 API SERVICE: paymentMethodBreakdown type: ${data['paymentMethodBreakdown']?.runtimeType}');
+        if (data['paymentMethodBreakdown'] != null) {
+          print('🔍 API SERVICE: paymentMethodBreakdown length: ${(data['paymentMethodBreakdown'] as List).length}');
+          print('🔍 API SERVICE: paymentMethodBreakdown content: ${data['paymentMethodBreakdown']}');
+        }
+        
+        return TypeConverter.safeToMap(data);
       } else {
         throw Exception('Failed to get sales report: ${response.body}');
       }

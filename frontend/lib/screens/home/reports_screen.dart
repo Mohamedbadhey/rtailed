@@ -886,6 +886,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final salesReport = _reportData.isNotEmpty ? _reportData : null;
     final paymentMethods = (salesReport?['paymentMethodBreakdown'] as List? ?? [])
         .map((item) => TypeConverter.safeToMap(item)).toList();
+    
+    // Debug logging for payment methods
+    print('🔍 FRONTEND PAYMENT METHODS DEBUG:');
+    print('  - salesReport keys: ${salesReport?.keys.toList()}');
+    print('  - paymentMethodBreakdown raw: ${salesReport?['paymentMethodBreakdown']}');
+    print('  - paymentMethods processed: $paymentMethods');
+    print('  - paymentMethods length: ${paymentMethods.length}');
+    print('  - paymentMethods isEmpty: ${paymentMethods.isEmpty}');
+    
     final totalSales = parseNum(salesReport?['totalSales']);
     
     // Fix: Use outstandingCredits (unpaid amount) instead of total credit sales
@@ -1186,6 +1195,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     ),
                   ),
                   SizedBox(height: isSmallMobile ? 6 : 10),
+                  
+                  // Debug logging for payment methods display
+                  Builder(
+                    builder: (context) {
+                      print('🔍 FRONTEND PAYMENT METHODS DISPLAY DEBUG:');
+                      print('  - paymentMethods in display: $paymentMethods');
+                      print('  - paymentMethods.isEmpty: ${paymentMethods.isEmpty}');
+                      print('  - paymentMethods.length: ${paymentMethods.length}');
+                      if (paymentMethods.isNotEmpty) {
+                        paymentMethods.forEach((pm, index) {
+                          print('  - paymentMethods[$index]: $pm');
+                        });
+                      }
+                      return Container(); // Empty container for debug
+                    },
+                  ),
+                  
                   paymentMethods.isEmpty
                       ? Text(t(context, 'no_payment_method_data'))
                       : Card(

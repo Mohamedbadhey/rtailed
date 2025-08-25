@@ -436,6 +436,10 @@ router.get('/report', auth, async (req, res) => {
       outstandingCreditsForPaymentMethods = Number(outstandingCredits[0].total_outstanding_credit) || 0;
     }
     
+    console.log('🔍 PAYMENT METHODS DEBUG:');
+    console.log('  - outstandingCredits result:', outstandingCredits);
+    console.log('  - outstandingCreditsForPaymentMethods:', outstandingCreditsForPaymentMethods);
+    
     // Then get actual payment methods (excluding credits)
     let paymentMethodsQuery = `
       SELECT s.payment_method, COUNT(*) as count, SUM(s.total_amount) as total_amount 
@@ -451,27 +455,36 @@ router.get('/report', auth, async (req, res) => {
       }
       paymentMethodsQuery += ' AND s.business_id = ?';
       paymentMethodsParams.push(req.user.business_id);
+      console.log('🔍 PAYMENT METHODS: Added business_id filter:', req.user.business_id);
     }
     
     // Add user filter for cashiers
     if (isCashier || user_id) {
       paymentMethodsQuery += ' AND s.user_id = ?';
       paymentMethodsParams.push(isCashier ? req.user.id : user_id);
+      console.log('🔍 PAYMENT METHODS: Added user filter:', isCashier ? req.user.id : user_id);
     }
     
     // Add date filters
     if (start_date) {
       paymentMethodsQuery += ' AND DATE(s.created_at) >= ?';
       paymentMethodsParams.push(start_date);
+      console.log('🔍 PAYMENT METHODS: Added start_date filter:', start_date);
     }
     if (end_date) {
       paymentMethodsQuery += ' AND DATE(s.created_at) <= ?';
       paymentMethodsParams.push(end_date);
+      console.log('🔍 PAYMENT METHODS: Added end_date filter:', end_date);
     }
     
     paymentMethodsQuery += ' GROUP BY s.payment_method ORDER BY total_amount DESC';
     
+    console.log('🔍 PAYMENT METHODS: Final query:', paymentMethodsQuery);
+    console.log('🔍 PAYMENT METHODS: Final params:', paymentMethodsParams);
+    
     const [paymentMethods] = await pool.query(paymentMethodsQuery, paymentMethodsParams);
+    
+    console.log('🔍 PAYMENT METHODS: Raw query result:', paymentMethods);
     
     // Create final payment methods array with outstanding credits
     let finalPaymentMethods = [];
@@ -483,16 +496,17 @@ router.get('/report', auth, async (req, res) => {
         count: 1,
         total_amount: outstandingCreditsForPaymentMethods
       });
+      console.log('🔍 PAYMENT METHODS: Added credit with outstanding amount:', outstandingCreditsForPaymentMethods);
+    } else {
+      console.log('🔍 PAYMENT METHODS: No outstanding credits to add');
     }
     
     // Add actual payment methods
     finalPaymentMethods = finalPaymentMethods.concat(paymentMethods);
+    console.log('🔍 PAYMENT METHODS: After adding actual payment methods:', finalPaymentMethods);
     
-    console.log('SALES REPORT: Payment methods query result:');
-    console.log('  - paymentMethodsQuery:', paymentMethodsQuery);
-    console.log('  - paymentMethodsParams:', paymentMethodsParams);
-    console.log('  - Raw paymentMethods result:', paymentMethods);
-    console.log('  - Final paymentMethods result:', finalPaymentMethods);
+    console.log('🔍 PAYMENT METHODS: Final result:', finalPaymentMethods);
+    console.log('🔍 PAYMENT METHODS: Final result length:', finalPaymentMethods.length);
     
     // Customer insights - exclude credit payments
     const [customerInsights] = await pool.query(
@@ -644,6 +658,11 @@ router.get('/report', auth, async (req, res) => {
       count: Number(m.count) || 0,
       total_amount: Number(m.total_amount) || 0,
     })) : [];
+    
+    console.log('🔍 FINAL RESPONSE DEBUG:');
+    console.log('  - safePaymentMethods:', safePaymentMethods);
+    console.log('  - safePaymentMethods length:', safePaymentMethods.length);
+    console.log('  - safePaymentMethods isArray:', Array.isArray(safePaymentMethods));
     
     const safeNetRevenue = Number(netRevenue) || 0;
     const safeTotalProductsSold = Number(totalProductsSold) || 0;

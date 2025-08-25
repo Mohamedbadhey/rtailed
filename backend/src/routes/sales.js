@@ -372,7 +372,33 @@ router.get('/report', auth, async (req, res) => {
       }
     }
     
-    // Calculate outstanding credits FIRST (before payment methods)
+    // Payment methods - exclude credit payments from this calculation
+    const [paymentMethods] = await pool.query(
+      `SELECT s.payment_method, COUNT(*) as count, SUM(s.total_amount) as total_amount FROM sales s ${whereClause} GROUP BY s.payment_method ORDER BY total_amount DESC`,
+      params
+    );
+    
+    // Customer insights - exclude credit payments
+    const [customerInsights] = await pool.query(
+      `SELECT COUNT(DISTINCT s.customer_id) as unique_customers, COUNT(*) as total_transactions, AVG(s.total_amount) as average_customer_spend FROM sales s ${whereClause} AND s.customer_id IS NOT NULL`,
+      params
+    );
+    
+    // Summary statistics - exclude credit payments from revenue calculation
+    console.log('SALES REPORT: Running summary query with whereClause =', whereClause, 'params =', params);
+    const [summary] = await pool.query(
+      `SELECT COUNT(*) as total_orders, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_order_value, MIN(s.total_amount) as min_order, MAX(s.total_amount) as max_order FROM sales s ${whereClause}`,
+      params
+    );
+    console.log('SALES REPORT: Summary result =', summary[0]);
+    
+    // Credit sales summary - only original credit sales, not payments
+    const [creditSummary] = await pool.query(
+      `SELECT COUNT(*) as total_credit_sales, SUM(s.total_amount) as total_credit_amount, COUNT(DISTINCT s.customer_id) as unique_credit_customers FROM sales s ${whereClause} AND s.payment_method = 'credit'`,
+      params
+    );
+    
+    // Calculate outstanding credits more accurately
     let outstandingCreditsQuery = `
       SELECT 
         SUM(orig.total_amount) as total_original_credit,
@@ -387,6 +413,7 @@ router.get('/report', auth, async (req, res) => {
       ) pay ON pay.parent_sale_id = orig.id 
       WHERE orig.payment_method = 'credit' 
         AND orig.parent_sale_id IS NULL 
+        AND (orig.status != 'paid' OR orig.status IS NULL)
     `;
     let outstandingCreditsParams = [];
     
@@ -415,133 +442,12 @@ router.get('/report', auth, async (req, res) => {
       outstandingCreditsParams.push(end_date);
     }
     
-    // Add HAVING clause to only show credit sales with outstanding amounts
-    outstandingCreditsQuery += ' HAVING total_outstanding_credit > 0';
-    
-    console.log('SALES REPORT: Outstanding credits query:');
-    console.log('  - Query:', outstandingCreditsQuery);
-    console.log('  - Params:', outstandingCreditsParams);
-    
     const [outstandingCredits] = await pool.query(outstandingCreditsQuery, outstandingCreditsParams);
     
     console.log('SALES REPORT: Credit calculations:');
     console.log('  - Total Original Credit Amount:', outstandingCredits[0]?.total_original_credit || 0);
     console.log('  - Total Paid Amount:', outstandingCredits[0]?.total_paid_amount || 0);
     console.log('  - Total Outstanding Credit:', outstandingCredits[0]?.total_outstanding_credit || 0);
-    
-    // Payment methods - show outstanding credits and actual payment methods
-    // First get outstanding credits
-    let outstandingCreditsForPaymentMethods = 0;
-    if (outstandingCredits && outstandingCredits[0]) {
-      outstandingCreditsForPaymentMethods = Number(outstandingCredits[0].total_outstanding_credit) || 0;
-    }
-    
-    console.log('🔍 PAYMENT METHODS DEBUG:');
-    console.log('  - outstandingCredits result:', outstandingCredits);
-    console.log('  - outstandingCreditsForPaymentMethods:', outstandingCreditsForPaymentMethods);
-    
-    // Then get actual payment methods (excluding credits) - temporarily without date filter for debugging
-    let paymentMethodsQuery = `
-      SELECT s.payment_method, COUNT(*) as count, SUM(s.total_amount) as total_amount 
-      FROM sales s 
-      WHERE s.parent_sale_id IS NULL AND s.payment_method != 'credit'
-    `;
-    let paymentMethodsParams = [];
-    
-    // Add business_id filter unless superadmin
-    if (req.user.role !== 'superadmin') {
-      if (!req.user.business_id) {
-        return res.status(400).json({ message: 'Business ID is required for this report.' });
-      }
-      paymentMethodsQuery += ' AND s.business_id = ?';
-      paymentMethodsParams.push(req.user.business_id);
-      console.log('🔍 PAYMENT METHODS: Added business_id filter:', req.user.business_id);
-    }
-    
-    // Add user filter for cashiers
-    if (isCashier || user_id) {
-      paymentMethodsQuery += ' AND s.user_id = ?';
-      paymentMethodsParams.push(isCashier ? req.user.id : user_id);
-      console.log('🔍 PAYMENT METHODS: Added user filter:', isCashier ? req.user.id : user_id);
-    }
-    
-    // Temporarily comment out date filters for debugging
-    // if (start_date) {
-    //   paymentMethodsQuery += ' AND DATE(s.created_at) >= DATE(?)';
-    //   paymentMethodsParams.push(start_date);
-    //   console.log('🔍 PAYMENT METHODS: Added start_date filter:', start_date);
-    // }
-    // if (end_date) {
-    //   paymentMethodsQuery += ' AND DATE(s.created_at) <= DATE(?)';
-    //   paymentMethodsParams.push(end_date);
-    //   console.log('🔍 PAYMENT METHODS: Added end_date filter:', end_date);
-    // }
-    
-    paymentMethodsQuery += ' GROUP BY s.payment_method ORDER BY total_amount DESC';
-    
-    console.log('🔍 PAYMENT METHODS: Final query:', paymentMethodsQuery);
-    console.log('🔍 PAYMENT METHODS: Final params:', paymentMethodsParams);
-    
-    // Debug: Check what sales exist for this business and date range
-    let debugQuery = `
-      SELECT id, payment_method, total_amount, created_at, parent_sale_id, status
-      FROM sales 
-      WHERE business_id = ? AND DATE(created_at) = DATE(?)
-      ORDER BY created_at DESC
-    `;
-    let debugParams = [req.user.business_id, start_date || end_date];
-    console.log('🔍 PAYMENT METHODS DEBUG: Checking what sales exist...');
-    console.log('🔍 PAYMENT METHODS DEBUG: Debug query:', debugQuery);
-    console.log('🔍 PAYMENT METHODS DEBUG: Debug params:', debugParams);
-    
-    const [debugSales] = await pool.query(debugQuery, debugParams);
-    console.log('🔍 PAYMENT METHODS DEBUG: Found sales:', debugSales);
-    
-    const [paymentMethods] = await pool.query(paymentMethodsQuery, paymentMethodsParams);
-    
-    console.log('🔍 PAYMENT METHODS: Raw query result:', paymentMethods);
-    
-    // Create final payment methods array with outstanding credits
-    let finalPaymentMethods = [];
-    
-    // Add outstanding credits if any
-    if (outstandingCreditsForPaymentMethods > 0) {
-      finalPaymentMethods.push({
-        payment_method: 'credit',
-        count: 1,
-        total_amount: outstandingCreditsForPaymentMethods
-      });
-      console.log('🔍 PAYMENT METHODS: Added credit with outstanding amount:', outstandingCreditsForPaymentMethods);
-    } else {
-      console.log('🔍 PAYMENT METHODS: No outstanding credits to add');
-    }
-    
-    // Add actual payment methods
-    finalPaymentMethods = finalPaymentMethods.concat(paymentMethods);
-    console.log('🔍 PAYMENT METHODS: After adding actual payment methods:', finalPaymentMethods);
-    
-    console.log('🔍 PAYMENT METHODS: Final result:', finalPaymentMethods);
-    console.log('🔍 PAYMENT METHODS: Final result length:', finalPaymentMethods.length);
-    
-    // Customer insights - exclude credit payments
-    const [customerInsights] = await pool.query(
-      `SELECT COUNT(DISTINCT s.customer_id) as unique_customers, COUNT(*) as total_transactions, AVG(s.total_amount) as average_customer_spend FROM sales s ${whereClause} AND s.customer_id IS NOT NULL`,
-      params
-    );
-    
-    // Summary statistics - exclude credit payments from revenue calculation
-    console.log('SALES REPORT: Running summary query with whereClause =', whereClause, 'params =', params);
-    const [summary] = await pool.query(
-      `SELECT COUNT(*) as total_orders, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_order_value, MIN(s.total_amount) as min_order, MAX(s.total_amount) as max_order FROM sales s ${whereClause}`,
-      params
-    );
-    console.log('SALES REPORT: Summary result =', summary[0]);
-    
-    // Credit sales summary - only original credit sales, not payments
-    const [creditSummary] = await pool.query(
-      `SELECT COUNT(*) as total_credit_sales, SUM(s.total_amount) as total_credit_amount, COUNT(DISTINCT s.customer_id) as unique_credit_customers FROM sales s ${whereClause} AND s.payment_method = 'credit'`,
-      params
-    );
     
     // Product breakdown - exclude credit payments
     console.log('SALES REPORT: Running product breakdown query with whereClause =', whereClause, 'params =', params);
@@ -587,8 +493,8 @@ router.get('/report', auth, async (req, res) => {
     const [cogs] = await pool.query(cogsQuery, cogsParams);
     const total_cost = cogs[0]?.total_cost || 0;
     
-    // Net revenue (total - outstanding credits) - this calculation is now correct since we excluded payments
-    const netRevenue = (summary[0]?.total_revenue || 0) - (Number(outstandingCredits[0]?.total_outstanding_credit) || 0);
+    // Net revenue (total - credit) - this calculation is now correct since we excluded payments
+    const netRevenue = (summary[0]?.total_revenue || 0) - (creditSummary[0]?.total_credit_amount || 0);
     const totalProductsSold = productBreakdown.reduce((sum, p) => sum + (p.quantity_sold || 0), 0);
     
     // Calculate profit using the same logic as Profit & Loss: Revenue - COGS
@@ -668,16 +574,11 @@ router.get('/report', auth, async (req, res) => {
     })) : [];
     
     const safeSalesByPeriod = Array.isArray(salesByPeriod) ? salesByPeriod : [];
-    const safePaymentMethods = Array.isArray(finalPaymentMethods) ? finalPaymentMethods.map(m => ({
+    const safePaymentMethods = Array.isArray(paymentMethods) ? paymentMethods.map(m => ({
       payment_method: m.payment_method,
       count: Number(m.count) || 0,
       total_amount: Number(m.total_amount) || 0,
     })) : [];
-    
-    console.log('🔍 FINAL RESPONSE DEBUG:');
-    console.log('  - safePaymentMethods:', safePaymentMethods);
-    console.log('  - safePaymentMethods length:', safePaymentMethods.length);
-    console.log('  - safePaymentMethods isArray:', Array.isArray(safePaymentMethods));
     
     const safeNetRevenue = Number(netRevenue) || 0;
     const safeTotalProductsSold = Number(totalProductsSold) || 0;

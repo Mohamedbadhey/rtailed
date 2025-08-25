@@ -886,28 +886,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final salesReport = _reportData.isNotEmpty ? _reportData : null;
     final paymentMethods = (salesReport?['paymentMethodBreakdown'] as List? ?? [])
         .map((item) => TypeConverter.safeToMap(item)).toList();
-    
-    // Debug logging for payment methods
-    print('🔍 FRONTEND PAYMENT METHODS DEBUG:');
-    print('  - salesReport keys: ${salesReport?.keys.toList()}');
-    print('  - paymentMethodBreakdown raw: ${salesReport?['paymentMethodBreakdown']}');
-    print('  - paymentMethods processed: $paymentMethods');
-    print('  - paymentMethods length: ${paymentMethods.length}');
-    print('  - paymentMethods isEmpty: ${paymentMethods.isEmpty}');
-    
     final totalSales = parseNum(salesReport?['totalSales']);
-    
-    // Fix: Use outstandingCredits (unpaid amount) instead of total credit sales
     double totalCredits = 0.0;
     if (salesReport?['outstandingCredits'] != null) {
       totalCredits = parseNum(salesReport?['outstandingCredits']);
-    } else if (salesReport?['creditBreakdown'] != null && salesReport?['creditBreakdown']['totalOutstanding'] != null) {
-      totalCredits = parseNum(salesReport?['creditBreakdown']['totalOutstanding']);
     } else if (salesReport?['creditSummary'] != null && salesReport?['creditSummary']['total_credit_amount'] != null) {
-      // Fallback: Only use this if we can't get outstanding amount
       totalCredits = parseNum(salesReport?['creditSummary']['total_credit_amount']);
     }
-    
     final cashInHand = parseNum(salesReport?['cashInHand']);
     final totalOrders = parseNum(salesReport?['totalOrders']);
     final profit = parseNum(salesReport?['totalProfit']);
@@ -1195,23 +1180,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     ),
                   ),
                   SizedBox(height: isSmallMobile ? 6 : 10),
-                  
-                  // Debug logging for payment methods display
-                  Builder(
-                    builder: (context) {
-                      print('🔍 FRONTEND PAYMENT METHODS DISPLAY DEBUG:');
-                      print('  - paymentMethods in display: $paymentMethods');
-                      print('  - paymentMethods.isEmpty: ${paymentMethods.isEmpty}');
-                      print('  - paymentMethods.length: ${paymentMethods.length}');
-                      if (paymentMethods.isNotEmpty) {
-                        for (int i = 0; i < paymentMethods.length; i++) {
-                          print('  - paymentMethods[$i]: ${paymentMethods[i]}');
-                        }
-                      }
-                      return Container(); // Empty container for debug
-                    },
-                  ),
-                  
                   paymentMethods.isEmpty
                       ? Text(t(context, 'no_payment_method_data'))
                       : Card(

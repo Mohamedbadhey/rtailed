@@ -83,9 +83,13 @@ async function testCreditPaymentLogic() {
     
     // Test 4b: Check what the final payment methods should look like with outstanding credits
     console.log('\n4b. Expected Final Payment Methods (with outstanding credits):');
-    const outstandingAmount = 2.00; // Based on your data: $5.00 - $3.00 = $2.00
-    console.log(`   - Credit: $${outstandingAmount} (outstanding amount)`);
-    console.log(`   - EVC: $3.00 (sale #86: $1.00 + payment #88: $2.00)`);
+    const outstandingAmount = 0.00; // Based on your data: $5.00 - $5.00 = $0.00 (fully paid)
+    if (outstandingAmount > 0) {
+      console.log(`   - Credit: $${outstandingAmount} (outstanding amount)`);
+    } else {
+      console.log(`   - Credit: $${outstandingAmount} (fully paid - should not appear)`);
+    }
+    console.log(`   - EVC: $4.00 (payment #88: $2.00 + payment #90: $2.00)`);
     console.log(`   - Edahab: $1.00 (payment #89: $1.00)`);
 
     // Test 5: Check individual credit sale status

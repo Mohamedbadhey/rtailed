@@ -372,94 +372,7 @@ router.get('/report', auth, async (req, res) => {
       }
     }
     
-    // Payment methods - show outstanding credits and actual payment methods
-    let paymentMethodsQuery = `
-      SELECT 
-        CASE 
-          WHEN s.payment_method = 'credit' THEN 'credit'
-          ELSE s.payment_method 
-        END as payment_method,
-        COUNT(*) as count, 
-        SUM(s.total_amount) as total_amount 
-      FROM sales s 
-      WHERE s.status = "completed" AND s.parent_sale_id IS NULL
-    `;
-    let paymentMethodsParams = [];
-    
-    // Add business_id filter unless superadmin
-    if (req.user.role !== 'superadmin') {
-      if (!req.user.business_id) {
-        return res.status(400).json({ message: 'Business ID is required for this report.' });
-      }
-      paymentMethodsQuery += ' AND s.business_id = ?';
-      paymentMethodsParams.push(req.user.business_id);
-    }
-    
-    // Add user filter for cashiers
-    if (isCashier || user_id) {
-      paymentMethodsQuery += ' AND s.user_id = ?';
-      paymentMethodsParams.push(isCashier ? req.user.id : user_id);
-    }
-    
-    // Add date filters
-    if (start_date) {
-      paymentMethodsQuery += ' AND DATE(s.created_at) >= ?';
-      paymentMethodsParams.push(start_date);
-    }
-    if (end_date) {
-      paymentMethodsQuery += ' AND DATE(s.created_at) <= ?';
-      paymentMethodsParams.push(end_date);
-    }
-    
-    paymentMethodsQuery += ' GROUP BY payment_method ORDER BY total_amount DESC';
-    
-    const [paymentMethods] = await pool.query(paymentMethodsQuery, paymentMethodsParams);
-    
-    // Now we need to replace the credit amount with outstanding credits amount
-    const updatedPaymentMethods = paymentMethods.map(pm => {
-      if (pm.payment_method === 'credit') {
-        // Replace credit total with outstanding credits amount
-        const outstandingAmount = Number(outstandingCredits[0]?.total_outstanding_credit) || 0;
-        return {
-          ...pm,
-          total_amount: outstandingAmount
-        };
-      }
-      return pm;
-    });
-    
-    // Filter out credit if outstanding amount is 0
-    const finalPaymentMethods = updatedPaymentMethods.filter(pm => 
-      pm.payment_method !== 'credit' || pm.total_amount > 0
-    );
-    
-    console.log('SALES REPORT: Payment methods query result:');
-    console.log('  - paymentMethodsQuery:', paymentMethodsQuery);
-    console.log('  - paymentMethodsParams:', paymentMethodsParams);
-    console.log('  - Raw paymentMethods result:', paymentMethods);
-    console.log('  - Final paymentMethods result:', finalPaymentMethods);
-    
-    // Customer insights - exclude credit payments
-    const [customerInsights] = await pool.query(
-      `SELECT COUNT(DISTINCT s.customer_id) as unique_customers, COUNT(*) as total_transactions, AVG(s.total_amount) as average_customer_spend FROM sales s ${whereClause} AND s.customer_id IS NOT NULL`,
-      params
-    );
-    
-    // Summary statistics - exclude credit payments from revenue calculation
-    console.log('SALES REPORT: Running summary query with whereClause =', whereClause, 'params =', params);
-    const [summary] = await pool.query(
-      `SELECT COUNT(*) as total_orders, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_order_value, MIN(s.total_amount) as min_order, MAX(s.total_amount) as max_order FROM sales s ${whereClause}`,
-      params
-    );
-    console.log('SALES REPORT: Summary result =', summary[0]);
-    
-    // Credit sales summary - only original credit sales, not payments
-    const [creditSummary] = await pool.query(
-      `SELECT COUNT(*) as total_credit_sales, SUM(s.total_amount) as total_credit_amount, COUNT(DISTINCT s.customer_id) as unique_credit_customers FROM sales s ${whereClause} AND s.payment_method = 'credit'`,
-      params
-    );
-    
-    // Calculate outstanding credits more accurately
+    // Calculate outstanding credits FIRST (before payment methods)
     let outstandingCreditsQuery = `
       SELECT 
         SUM(orig.total_amount) as total_original_credit,
@@ -515,6 +428,91 @@ router.get('/report', auth, async (req, res) => {
     console.log('  - Total Original Credit Amount:', outstandingCredits[0]?.total_original_credit || 0);
     console.log('  - Total Paid Amount:', outstandingCredits[0]?.total_paid_amount || 0);
     console.log('  - Total Outstanding Credit:', outstandingCredits[0]?.total_outstanding_credit || 0);
+    
+    // Payment methods - show outstanding credits and actual payment methods
+    // First get outstanding credits
+    let outstandingCreditsForPaymentMethods = 0;
+    if (outstandingCredits && outstandingCredits[0]) {
+      outstandingCreditsForPaymentMethods = Number(outstandingCredits[0].total_outstanding_credit) || 0;
+    }
+    
+    // Then get actual payment methods (excluding credits)
+    let paymentMethodsQuery = `
+      SELECT s.payment_method, COUNT(*) as count, SUM(s.total_amount) as total_amount 
+      FROM sales s 
+      WHERE s.parent_sale_id IS NULL AND s.payment_method != 'credit'
+    `;
+    let paymentMethodsParams = [];
+    
+    // Add business_id filter unless superadmin
+    if (req.user.role !== 'superadmin') {
+      if (!req.user.business_id) {
+        return res.status(400).json({ message: 'Business ID is required for this report.' });
+      }
+      paymentMethodsQuery += ' AND s.business_id = ?';
+      paymentMethodsParams.push(req.user.business_id);
+    }
+    
+    // Add user filter for cashiers
+    if (isCashier || user_id) {
+      paymentMethodsQuery += ' AND s.user_id = ?';
+      paymentMethodsParams.push(isCashier ? req.user.id : user_id);
+    }
+    
+    // Add date filters
+    if (start_date) {
+      paymentMethodsQuery += ' AND DATE(s.created_at) >= ?';
+      paymentMethodsParams.push(start_date);
+    }
+    if (end_date) {
+      paymentMethodsQuery += ' AND DATE(s.created_at) <= ?';
+      paymentMethodsParams.push(end_date);
+    }
+    
+    paymentMethodsQuery += ' GROUP BY s.payment_method ORDER BY total_amount DESC';
+    
+    const [paymentMethods] = await pool.query(paymentMethodsQuery, paymentMethodsParams);
+    
+    // Create final payment methods array with outstanding credits
+    let finalPaymentMethods = [];
+    
+    // Add outstanding credits if any
+    if (outstandingCreditsForPaymentMethods > 0) {
+      finalPaymentMethods.push({
+        payment_method: 'credit',
+        count: 1,
+        total_amount: outstandingCreditsForPaymentMethods
+      });
+    }
+    
+    // Add actual payment methods
+    finalPaymentMethods = finalPaymentMethods.concat(paymentMethods);
+    
+    console.log('SALES REPORT: Payment methods query result:');
+    console.log('  - paymentMethodsQuery:', paymentMethodsQuery);
+    console.log('  - paymentMethodsParams:', paymentMethodsParams);
+    console.log('  - Raw paymentMethods result:', paymentMethods);
+    console.log('  - Final paymentMethods result:', finalPaymentMethods);
+    
+    // Customer insights - exclude credit payments
+    const [customerInsights] = await pool.query(
+      `SELECT COUNT(DISTINCT s.customer_id) as unique_customers, COUNT(*) as total_transactions, AVG(s.total_amount) as average_customer_spend FROM sales s ${whereClause} AND s.customer_id IS NOT NULL`,
+      params
+    );
+    
+    // Summary statistics - exclude credit payments from revenue calculation
+    console.log('SALES REPORT: Running summary query with whereClause =', whereClause, 'params =', params);
+    const [summary] = await pool.query(
+      `SELECT COUNT(*) as total_orders, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_order_value, MIN(s.total_amount) as min_order, MAX(s.total_amount) as max_order FROM sales s ${whereClause}`,
+      params
+    );
+    console.log('SALES REPORT: Summary result =', summary[0]);
+    
+    // Credit sales summary - only original credit sales, not payments
+    const [creditSummary] = await pool.query(
+      `SELECT COUNT(*) as total_credit_sales, SUM(s.total_amount) as total_credit_amount, COUNT(DISTINCT s.customer_id) as unique_credit_customers FROM sales s ${whereClause} AND s.payment_method = 'credit'`,
+      params
+    );
     
     // Product breakdown - exclude credit payments
     console.log('SALES REPORT: Running product breakdown query with whereClause =', whereClause, 'params =', params);

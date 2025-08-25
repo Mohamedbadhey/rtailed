@@ -372,10 +372,29 @@ router.get('/report', auth, async (req, res) => {
       }
     }
     
-    // Payment methods - exclude credit payments from this calculation
+    // Payment methods - show actual payment methods + outstanding credits (exclude fully paid credits)
     const [paymentMethods] = await pool.query(
-      `SELECT s.payment_method, COUNT(*) as count, SUM(s.total_amount) as total_amount FROM sales s ${whereClause} GROUP BY s.payment_method ORDER BY total_amount DESC`,
-      params
+      `SELECT s.payment_method, COUNT(*) as count, SUM(s.total_amount) as total_amount 
+       FROM sales s 
+       WHERE (
+         s.status = "completed" OR 
+         s.parent_sale_id IS NOT NULL OR
+         (s.payment_method = "credit" AND s.parent_sale_id IS NULL AND s.status != "paid")
+       )
+         ${req.user.role !== 'superadmin' ? 'AND s.business_id = ?' : ''}
+         ${isCashier ? 'AND s.user_id = ?' : ''}
+         ${user_id && !isCashier ? 'AND s.user_id = ?' : ''}
+         ${start_date ? 'AND DATE(s.created_at) >= ?' : ''}
+         ${end_date ? 'AND DATE(s.created_at) <= ?' : ''}
+       GROUP BY s.payment_method 
+       ORDER BY total_amount DESC`,
+      [
+        ...(req.user.role !== 'superadmin' ? [req.user.business_id] : []),
+        ...(isCashier ? [req.user.id] : []),
+        ...(user_id && !isCashier ? [user_id] : []),
+        ...(start_date ? [start_date] : []),
+        ...(end_date ? [end_date] : [])
+      ]
     );
     
     // Customer insights - exclude credit payments

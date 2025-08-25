@@ -3065,8 +3065,8 @@ router.get('/accounting/profit-loss', [auth, checkRole(['admin', 'manager'])], a
   try {
     console.log('PROFIT-LOSS: Calculating profit for user business_id =', req.user.business_id);
     
-    // Calculate total sales revenue (including credit sales)
-    let salesQuery = 'SELECT SUM(total_amount) as total_revenue FROM sales WHERE (status = "completed" OR payment_method = "credit")';
+    // Calculate total sales revenue (including credit sales but excluding cancelled sales)
+    let salesQuery = 'SELECT SUM(total_amount) as total_revenue FROM sales WHERE (status = "completed" OR (payment_method = "credit" AND status != "cancelled"))';
     let salesParams = [];
     if (req.user.role !== 'superadmin' && req.user.business_id) {
       salesQuery += ' AND business_id = ?';
@@ -3075,13 +3075,13 @@ router.get('/accounting/profit-loss', [auth, checkRole(['admin', 'manager'])], a
     const [sales] = await pool.query(salesQuery, salesParams);
     const total_revenue = sales[0]?.total_revenue || 0;
     
-    // Calculate total cost of goods sold (COGS)
+    // Calculate total cost of goods sold (COGS) - exclude cancelled sales
     let cogsQuery = `
       SELECT SUM(si.quantity * p.cost_price) as total_cost 
       FROM sale_items si 
       JOIN products p ON si.product_id = p.id 
       JOIN sales s ON si.sale_id = s.id 
-      WHERE (s.status = "completed" OR s.payment_method = "credit")
+      WHERE (s.status = "completed" OR (s.payment_method = "credit" AND s.status != "cancelled"))
     `;
     let cogsParams = [];
     if (req.user.role !== 'superadmin' && req.user.business_id) {
@@ -3145,8 +3145,8 @@ router.get('/accounting/balance-sheet', [auth, checkRole(['admin', 'manager'])],
   const [cashFlows] = await pool.query(cashFlowsQuery, cashFlowsParams);
   const actualCash = (cashFlows[0]?.total_inflow || 0) - (cashFlows[0]?.total_outflow || 0);
   
-  // Get receivables (outstanding credit)
-  let creditsQuery = 'SELECT SUM(total_amount) as total_credit FROM sales WHERE payment_method = "credit" AND parent_sale_id IS NULL';
+  // Get receivables (outstanding credit) - exclude cancelled sales
+  let creditsQuery = 'SELECT SUM(total_amount) as total_credit FROM sales WHERE payment_method = "credit" AND parent_sale_id IS NULL AND status != "cancelled"';
   let creditsParams = [];
   if (req.user.role !== 'superadmin' && req.user.business_id) {
     creditsQuery += ' AND business_id = ?';

@@ -215,11 +215,12 @@ router.get('/report', auth, async (req, res) => {
     console.log('  - Date filter type:', typeof start_date, typeof end_date);
     console.log('  - Date filter parsed:', start_date ? new Date(start_date) : 'null', end_date ? new Date(end_date) : 'null');
     
-    // Build the WHERE clause - include both completed sales and credit sales (unpaid) but EXCLUDE credit payments
+    // Build the WHERE clause - include both completed sales and credit sales (unpaid) but EXCLUDE credit payments and cancelled sales
     // Credit payments have parent_sale_id IS NOT NULL and should not be counted as revenue
+    // Cancelled sales should never be counted regardless of payment method
     console.log('🔍 SALES REPORT: Building WHERE clause...');
     
-    let whereClause = 'WHERE (s.status = "completed" OR s.payment_method = "credit") AND s.parent_sale_id IS NULL';
+    let whereClause = 'WHERE (s.status = "completed" OR (s.payment_method = "credit" AND s.status != "cancelled")) AND s.parent_sale_id IS NULL';
     const params = [];
     
     console.log('🔍 SALES REPORT: Initial whereClause:', whereClause);
@@ -266,6 +267,7 @@ router.get('/report', auth, async (req, res) => {
     console.log('🔍 SALES REPORT: Final whereClause:', whereClause);
     console.log('🔍 SALES REPORT: Final params array:', params);
     console.log('🔍 SALES REPORT: Date filters - start_date:', start_date, 'end_date:', end_date);
+    console.log('🔍 SALES REPORT: Cancelled sales are now EXCLUDED from all calculations');
     
     // Debug: Check what sales exist for this business
     if (req.user.role !== 'superadmin' && req.user.business_id) {
@@ -274,6 +276,20 @@ router.get('/report', auth, async (req, res) => {
         [req.user.business_id]
       );
       console.log('SALES REPORT: Found', debugSales.length, 'sales for business_id', req.user.business_id, ':', debugSales);
+      
+      // Debug: Show cancelled sales that are being excluded
+      const [cancelledSales] = await pool.query(
+        'SELECT id, total_amount, status, business_id, created_at, parent_sale_id, payment_method FROM sales WHERE business_id = ? AND status = "cancelled" ORDER BY created_at DESC LIMIT 5',
+        [req.user.business_id]
+      );
+      if (cancelledSales.length > 0) {
+        console.log('🔍 SALES REPORT: Cancelled sales being EXCLUDED from calculations:', cancelledSales.length, 'rows:');
+        cancelledSales.forEach((sale, index) => {
+          console.log(`  [${index}] ID:${sale.id}, Amount:$${sale.total_amount}, Status:${sale.status}, Method:${sale.payment_method}, Parent:${sale.parent_sale_id}, Date:${sale.created_at}`);
+        });
+      } else {
+        console.log('🔍 SALES REPORT: No cancelled sales found to exclude');
+      }
     }
 
     // All queries below use whereClause and params
@@ -290,7 +306,7 @@ router.get('/report', auth, async (req, res) => {
     console.log('🔍 SALES REPORT: dateFormat:', dateFormat);
     
     // Build the query with explicit values instead of parameters to avoid confusion
-    let salesByPeriodQuery = `SELECT DATE_FORMAT(s.created_at, '${dateFormat}') as period, COUNT(*) as total_sales, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_sale FROM sales s WHERE (s.status = "completed" OR s.payment_method = "credit") AND s.parent_sale_id IS NULL`;
+    let salesByPeriodQuery = `SELECT DATE_FORMAT(s.created_at, '${dateFormat}') as period, COUNT(*) as total_sales, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_sale FROM sales s WHERE (s.status = "completed" OR (s.payment_method = "credit" AND s.status != "cancelled")) AND s.parent_sale_id IS NULL`;
     const salesByPeriodParams = [];
     
     console.log('🔍 SALES REPORT: Initial salesByPeriodQuery:', salesByPeriodQuery);
@@ -418,7 +434,7 @@ router.get('/report', auth, async (req, res) => {
        FROM sales s 
        WHERE (
          (s.status = "completed" AND s.parent_sale_id IS NULL) OR 
-         (s.parent_sale_id IS NOT NULL)
+         (s.parent_sale_id IS NOT NULL AND s.status != "cancelled")
        )
          ${req.user.role !== 'superadmin' ? 'AND s.business_id = ?' : ''}
          ${isCashier ? 'AND s.user_id = ?' : ''}
@@ -523,13 +539,13 @@ router.get('/report', auth, async (req, res) => {
     );
     console.log('SALES REPORT: Product breakdown result =', productBreakdown);
     
-    // Calculate total cost of goods sold (COGS) for profit calculation - exclude credit payments
+    // Calculate total cost of goods sold (COGS) for profit calculation - exclude credit payments and cancelled sales
     let cogsQuery = `
       SELECT SUM(si.quantity * p.cost_price) as total_cost 
       FROM sale_items si 
       JOIN products p ON si.product_id = p.id 
       JOIN sales s ON si.sale_id = s.id 
-      WHERE (s.status = "completed" OR s.payment_method = "credit") AND s.parent_sale_id IS NULL
+      WHERE (s.status = "completed" OR (s.payment_method = "credit" AND s.status != "cancelled")) AND s.parent_sale_id IS NULL
     `;
     let cogsParams = [];
     if (req.user.role !== 'superadmin') {
@@ -603,6 +619,7 @@ router.get('/report', auth, async (req, res) => {
       FROM sales s 
       WHERE s.status = "completed" 
         AND s.payment_method != "credit"
+        AND s.status != "cancelled"
         AND s.business_id = ?
         AND DATE(s.created_at) >= ?
         AND DATE(s.created_at) <= ?
@@ -636,6 +653,7 @@ router.get('/report', auth, async (req, res) => {
       FROM sales s 
       WHERE s.status = "completed" 
         AND s.payment_method != "credit"
+        AND s.status != "cancelled"
     `;
     let cashInHandParams = [];
     

@@ -1223,7 +1223,7 @@ router.put('/:id/pay', auth, async (req, res) => {
     await connection.query(
       `INSERT INTO sales (parent_sale_id, customer_id, user_id, total_amount, tax_amount, payment_method, status, business_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [saleId, sale.customer_id, req.user.id, amount, 0.00, payment_method, sale.business_id]
+      [saleId, sale.customer_id, req.user.id, amount, 0.00, payment_method, 'paid', sale.business_id]
     );
     
     // Create cash flow entry to increase cash in hand

@@ -1204,9 +1204,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       print('  - paymentMethods.isEmpty: ${paymentMethods.isEmpty}');
                       print('  - paymentMethods.length: ${paymentMethods.length}');
                       if (paymentMethods.isNotEmpty) {
-                        paymentMethods.forEach((pm, index) {
-                          print('  - paymentMethods[$index]: $pm');
-                        });
+                        for (int i = 0; i < paymentMethods.length; i++) {
+                          print('  - paymentMethods[$i]: ${paymentMethods[i]}');
+                        }
                       }
                       return Container(); // Empty container for debug
                     },

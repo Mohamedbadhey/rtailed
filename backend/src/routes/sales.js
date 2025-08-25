@@ -1225,3 +1225,5 @@ router.put('/:id/pay', auth, async (req, res) => {
     connection.release();
   }
 });
+
+module.exports = router;

@@ -648,9 +648,7 @@ router.get('/report', auth, async (req, res) => {
     
     console.log('🔍 SALES REPORT: Final response object:', response);
     console.log('🔍 SALES REPORT: Cash in hand breakdown:');
-    console.log('  - Total Inflow (sales + credit payments):', totalInflow);
-    console.log('  - Total Outflow (expenses):', totalOutflow);
-    console.log('  - Final Cash in Hand:', actualCashInHand);
+    console.log('  - Cash in Hand (completed non-credit sales + credit payments):', actualCashInHand);
     console.log('🔍 SALES REPORT: ===== SUCCESS - END =====');
     
     res.json(response);

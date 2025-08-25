@@ -74,9 +74,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       double totalCreditAmount = 0.0;
       if (salesReport['outstandingCredits'] != null) {
         totalCreditAmount = double.tryParse(salesReport['outstandingCredits'].toString()) ?? 0.0;
+      } else if (salesReport['creditBreakdown'] != null && salesReport['creditBreakdown']['totalOutstanding'] != null) {
+        totalCreditAmount = double.tryParse(salesReport['creditBreakdown']['totalOutstanding'].toString()) ?? 0.0;
       } else if (creditReport.isNotEmpty && creditReport['summary'] != null && creditReport['summary']['total_credit_amount'] != null) {
         totalCreditAmount = double.tryParse(creditReport['summary']['total_credit_amount'].toString()) ?? 0.0;
       } else if (salesReport['creditSummary'] != null && salesReport['creditSummary']['total_credit_amount'] != null) {
+        // Fallback: Only use this if we can't get outstanding amount
         totalCreditAmount = double.tryParse(salesReport['creditSummary']['total_credit_amount'].toString()) ?? 0.0;
       }
 

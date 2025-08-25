@@ -887,12 +887,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final paymentMethods = (salesReport?['paymentMethodBreakdown'] as List? ?? [])
         .map((item) => TypeConverter.safeToMap(item)).toList();
     final totalSales = parseNum(salesReport?['totalSales']);
+    
+    // Fix: Use outstandingCredits (unpaid amount) instead of total credit sales
     double totalCredits = 0.0;
     if (salesReport?['outstandingCredits'] != null) {
       totalCredits = parseNum(salesReport?['outstandingCredits']);
+    } else if (salesReport?['creditBreakdown'] != null && salesReport?['creditBreakdown']['totalOutstanding'] != null) {
+      totalCredits = parseNum(salesReport?['creditBreakdown']['totalOutstanding']);
     } else if (salesReport?['creditSummary'] != null && salesReport?['creditSummary']['total_credit_amount'] != null) {
+      // Fallback: Only use this if we can't get outstanding amount
       totalCredits = parseNum(salesReport?['creditSummary']['total_credit_amount']);
     }
+    
     final cashInHand = parseNum(salesReport?['cashInHand']);
     final totalOrders = parseNum(salesReport?['totalOrders']);
     final profit = parseNum(salesReport?['totalProfit']);

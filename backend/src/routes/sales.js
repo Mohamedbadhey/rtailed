@@ -372,11 +372,72 @@ router.get('/report', auth, async (req, res) => {
       }
     }
     
-    // Payment methods - exclude credit payments from this calculation
-    const [paymentMethods] = await pool.query(
-      `SELECT s.payment_method, COUNT(*) as count, SUM(s.total_amount) as total_amount FROM sales s ${whereClause} GROUP BY s.payment_method ORDER BY total_amount DESC`,
-      params
+    // Payment methods - show outstanding credits and actual payment methods
+    let paymentMethodsQuery = `
+      SELECT 
+        CASE 
+          WHEN s.payment_method = 'credit' THEN 'credit'
+          ELSE s.payment_method 
+        END as payment_method,
+        COUNT(*) as count, 
+        SUM(s.total_amount) as total_amount 
+      FROM sales s 
+      WHERE s.status = "completed" AND s.parent_sale_id IS NULL
+    `;
+    let paymentMethodsParams = [];
+    
+    // Add business_id filter unless superadmin
+    if (req.user.role !== 'superadmin') {
+      if (!req.user.business_id) {
+        return res.status(400).json({ message: 'Business ID is required for this report.' });
+      }
+      paymentMethodsQuery += ' AND s.business_id = ?';
+      paymentMethodsParams.push(req.user.business_id);
+    }
+    
+    // Add user filter for cashiers
+    if (isCashier || user_id) {
+      paymentMethodsQuery += ' AND s.user_id = ?';
+      paymentMethodsParams.push(isCashier ? req.user.id : user_id);
+    }
+    
+    // Add date filters
+    if (start_date) {
+      paymentMethodsQuery += ' AND DATE(s.created_at) >= ?';
+      paymentMethodsParams.push(start_date);
+    }
+    if (end_date) {
+      paymentMethodsQuery += ' AND DATE(s.created_at) <= ?';
+      paymentMethodsParams.push(end_date);
+    }
+    
+    paymentMethodsQuery += ' GROUP BY payment_method ORDER BY total_amount DESC';
+    
+    const [paymentMethods] = await pool.query(paymentMethodsQuery, paymentMethodsParams);
+    
+    // Now we need to replace the credit amount with outstanding credits amount
+    const updatedPaymentMethods = paymentMethods.map(pm => {
+      if (pm.payment_method === 'credit') {
+        // Replace credit total with outstanding credits amount
+        const outstandingAmount = Number(outstandingCredits[0]?.total_outstanding_credit) || 0;
+        return {
+          ...pm,
+          total_amount: outstandingAmount
+        };
+      }
+      return pm;
+    });
+    
+    // Filter out credit if outstanding amount is 0
+    const finalPaymentMethods = updatedPaymentMethods.filter(pm => 
+      pm.payment_method !== 'credit' || pm.total_amount > 0
     );
+    
+    console.log('SALES REPORT: Payment methods query result:');
+    console.log('  - paymentMethodsQuery:', paymentMethodsQuery);
+    console.log('  - paymentMethodsParams:', paymentMethodsParams);
+    console.log('  - Raw paymentMethods result:', paymentMethods);
+    console.log('  - Final paymentMethods result:', finalPaymentMethods);
     
     // Customer insights - exclude credit payments
     const [customerInsights] = await pool.query(
@@ -413,7 +474,6 @@ router.get('/report', auth, async (req, res) => {
       ) pay ON pay.parent_sale_id = orig.id 
       WHERE orig.payment_method = 'credit' 
         AND orig.parent_sale_id IS NULL 
-        AND (orig.status != 'paid' OR orig.status IS NULL)
     `;
     let outstandingCreditsParams = [];
     
@@ -441,6 +501,13 @@ router.get('/report', auth, async (req, res) => {
       outstandingCreditsQuery += ' AND orig.created_at <= ?';
       outstandingCreditsParams.push(end_date);
     }
+    
+    // Add HAVING clause to only show credit sales with outstanding amounts
+    outstandingCreditsQuery += ' HAVING total_outstanding_credit > 0';
+    
+    console.log('SALES REPORT: Outstanding credits query:');
+    console.log('  - Query:', outstandingCreditsQuery);
+    console.log('  - Params:', outstandingCreditsParams);
     
     const [outstandingCredits] = await pool.query(outstandingCreditsQuery, outstandingCreditsParams);
     
@@ -493,8 +560,8 @@ router.get('/report', auth, async (req, res) => {
     const [cogs] = await pool.query(cogsQuery, cogsParams);
     const total_cost = cogs[0]?.total_cost || 0;
     
-    // Net revenue (total - credit) - this calculation is now correct since we excluded payments
-    const netRevenue = (summary[0]?.total_revenue || 0) - (creditSummary[0]?.total_credit_amount || 0);
+    // Net revenue (total - outstanding credits) - this calculation is now correct since we excluded payments
+    const netRevenue = (summary[0]?.total_revenue || 0) - (Number(outstandingCredits[0]?.total_outstanding_credit) || 0);
     const totalProductsSold = productBreakdown.reduce((sum, p) => sum + (p.quantity_sold || 0), 0);
     
     // Calculate profit using the same logic as Profit & Loss: Revenue - COGS
@@ -574,7 +641,7 @@ router.get('/report', auth, async (req, res) => {
     })) : [];
     
     const safeSalesByPeriod = Array.isArray(salesByPeriod) ? salesByPeriod : [];
-    const safePaymentMethods = Array.isArray(paymentMethods) ? paymentMethods.map(m => ({
+    const safePaymentMethods = Array.isArray(finalPaymentMethods) ? finalPaymentMethods.map(m => ({
       payment_method: m.payment_method,
       count: Number(m.count) || 0,
       total_amount: Number(m.total_amount) || 0,

@@ -405,18 +405,14 @@ router.get('/report', auth, async (req, res) => {
       outstandingCreditsParams.push(isCashier ? req.user.id : user_id);
     }
     
-    // Add date filters - properly formatted for both date and datetime strings
+    // Add date filters
     if (start_date) {
-      const startDateOnly = start_date.split(' ')[0]; // Extract just the date part
-      outstandingCreditsQuery += ' AND DATE(orig.created_at) >= ?';
-      outstandingCreditsParams.push(startDateOnly);
-      console.log('🔍 OUTSTANDING CREDITS: Added start_date filter:', startDateOnly, '(from:', start_date, ')');
+      outstandingCreditsQuery += ' AND orig.created_at >= ?';
+      outstandingCreditsParams.push(start_date);
     }
     if (end_date) {
-      const endDateOnly = end_date.split(' ')[0]; // Extract just the date part
-      outstandingCreditsQuery += ' AND DATE(orig.created_at) <= ?';
-      outstandingCreditsParams.push(endDateOnly);
-      console.log('🔍 OUTSTANDING CREDITS: Added end_date filter:', endDateOnly, '(from:', end_date, ')');
+      outstandingCreditsQuery += ' AND orig.created_at <= ?';
+      outstandingCreditsParams.push(end_date);
     }
     
     // Add HAVING clause to only show credit sales with outstanding amounts
@@ -444,7 +440,7 @@ router.get('/report', auth, async (req, res) => {
     console.log('  - outstandingCredits result:', outstandingCredits);
     console.log('  - outstandingCreditsForPaymentMethods:', outstandingCreditsForPaymentMethods);
     
-    // Then get actual payment methods (excluding credits) - with proper filters
+    // Then get actual payment methods (excluding credits) - temporarily without date filter for debugging
     let paymentMethodsQuery = `
       SELECT s.payment_method, COUNT(*) as count, SUM(s.total_amount) as total_amount 
       FROM sales s 
@@ -469,19 +465,17 @@ router.get('/report', auth, async (req, res) => {
       console.log('🔍 PAYMENT METHODS: Added user filter:', isCashier ? req.user.id : user_id);
     }
     
-    // Add date filters - properly formatted for both date and datetime strings
-    if (start_date) {
-      const startDateOnly = start_date.split(' ')[0]; // Extract just the date part
-      paymentMethodsQuery += ' AND DATE(s.created_at) >= ?';
-      paymentMethodsParams.push(startDateOnly);
-      console.log('🔍 PAYMENT METHODS: Added start_date filter:', startDateOnly, '(from:', start_date, ')');
-    }
-    if (end_date) {
-      const endDateOnly = end_date.split(' ')[0]; // Extract just the date part
-      paymentMethodsQuery += ' AND DATE(s.created_at) <= ?';
-      paymentMethodsParams.push(endDateOnly);
-      console.log('🔍 PAYMENT METHODS: Added end_date filter:', endDateOnly, '(from:', end_date, ')');
-    }
+    // Temporarily comment out date filters for debugging
+    // if (start_date) {
+    //   paymentMethodsQuery += ' AND DATE(s.created_at) >= DATE(?)';
+    //   paymentMethodsParams.push(start_date);
+    //   console.log('🔍 PAYMENT METHODS: Added start_date filter:', start_date);
+    // }
+    // if (end_date) {
+    //   paymentMethodsQuery += ' AND DATE(s.created_at) <= DATE(?)';
+    //   paymentMethodsParams.push(end_date);
+    //   console.log('🔍 PAYMENT METHODS: Added end_date filter:', end_date);
+    // }
     
     paymentMethodsQuery += ' GROUP BY s.payment_method ORDER BY total_amount DESC';
     
@@ -492,10 +486,10 @@ router.get('/report', auth, async (req, res) => {
     let debugQuery = `
       SELECT id, payment_method, total_amount, created_at, parent_sale_id, status
       FROM sales 
-      WHERE business_id = ? AND DATE(created_at) = ?
+      WHERE business_id = ? AND DATE(created_at) = DATE(?)
       ORDER BY created_at DESC
     `;
-    let debugParams = [req.user.business_id, (start_date || end_date || '').split(' ')[0]];
+    let debugParams = [req.user.business_id, start_date || end_date];
     console.log('🔍 PAYMENT METHODS DEBUG: Checking what sales exist...');
     console.log('🔍 PAYMENT METHODS DEBUG: Debug query:', debugQuery);
     console.log('🔍 PAYMENT METHODS DEBUG: Debug params:', debugParams);

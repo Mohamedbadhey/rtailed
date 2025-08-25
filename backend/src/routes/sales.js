@@ -519,16 +519,13 @@ router.get('/report', auth, async (req, res) => {
     const totalRevenue = summary[0]?.total_revenue || 0;
     const totalProfit = totalRevenue - total_cost;
     
-    // Calculate cash in hand directly from sales data (more accurate)
+    // Calculate cash in hand from completed non-credit sales + credit payments
     let cashInHandQuery = `
       SELECT 
-        SUM(CASE 
-          WHEN s.status = "completed" AND s.parent_sale_id IS NULL THEN s.total_amount
-          WHEN s.parent_sale_id IS NOT NULL THEN s.total_amount
-          ELSE 0 
-        END) as total_inflow
+        SUM(s.total_amount) as total_cash_in_hand
       FROM sales s 
-      WHERE 1=1
+      WHERE s.status = "completed" 
+        AND s.payment_method != "credit"
     `;
     let cashInHandParams = [];
     
@@ -561,10 +558,10 @@ router.get('/report', auth, async (req, res) => {
     }
     
     const [cashInHandResult] = await pool.query(cashInHandQuery, cashInHandParams);
-    const actualCashInHand = Number(cashInHandResult[0]?.total_inflow) || 0;
+    const actualCashInHand = Number(cashInHandResult[0]?.total_cash_in_hand) || 0;
     
     console.log('SALES REPORT: Cash in hand calculation from sales:');
-    console.log('  - Total Cash In (completed sales + credit payments):', actualCashInHand);
+    console.log('  - Total Cash In Hand (completed non-credit sales):', actualCashInHand);
     
     console.log('SALES REPORT: Profit calculation:');
     console.log('  - Total Revenue:', totalRevenue);

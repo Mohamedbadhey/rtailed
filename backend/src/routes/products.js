@@ -183,10 +183,8 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
     const {
       name,
       description,
-      sku,
       barcode,
       category_id,
-      price,
       wholesale_price,
       cost_price,
       stock_quantity,
@@ -194,33 +192,22 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
     } = req.body;
 
     // Validate required fields
-    if (!name || !sku || !price || !cost_price) {
+    if (!name || !cost_price) {
       await connection.rollback();
       return res.status(400).json({ 
-        message: 'Missing required fields: name, sku, price, and cost_price are required' 
+        message: 'Missing required fields: name and cost_price are required' 
       });
     }
 
     // Validate numeric fields
-    if (isNaN(parseFloat(price)) || isNaN(parseFloat(cost_price))) {
+    if (isNaN(parseFloat(cost_price))) {
       await connection.rollback();
       return res.status(400).json({ 
-        message: 'Price and cost_price must be valid numbers' 
+        message: 'Cost_price must be a valid number' 
       });
     }
 
-    // Check if SKU already exists
-    const [existingProducts] = await connection.query(
-      'SELECT id FROM products WHERE sku = ?',
-      [sku]
-    );
 
-    if (existingProducts.length > 0) {
-      await connection.rollback();
-      return res.status(400).json({ 
-        message: 'Product with this SKU already exists' 
-      });
-    }
 
     const image_url = req.file ? `/uploads/products/${req.file.filename}` : null;
     const businessId = req.user.business_id;
@@ -228,10 +215,10 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
     const insertValues = [
       name, 
       description || null, 
-      sku, 
+      `SKU-${Date.now()}`, // Auto-generated SKU
       barcode || null, 
       category_id || null,
-      parseFloat(price), 
+      0.0, // Hardcoded price
       wholesale_price !== undefined ? parseFloat(wholesale_price) : null,
       parseFloat(cost_price), 
       parseInt(stock_quantity) || 0, 
@@ -243,10 +230,10 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
     console.log('=== INSERT VALUES ===');
     console.log('name:', name);
     console.log('description:', description || null);
-    console.log('sku:', sku);
+    console.log('sku: Auto-generated SKU-${Date.now()}');
     console.log('barcode:', barcode || null);
     console.log('category_id:', category_id || null);
-    console.log('price:', parseFloat(price));
+    console.log('price: Hardcoded 0.0');
     console.log('wholesale_price:', wholesale_price !== undefined ? parseFloat(wholesale_price) : null);
     console.log('cost_price:', parseFloat(cost_price));
     console.log('stock_quantity:', parseInt(stock_quantity) || 0);
@@ -303,10 +290,8 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
     const {
       name,
       description,
-      sku,
       barcode,
       category_id,
-      price,
       wholesale_price,
       cost_price,
       stock_quantity,
@@ -345,10 +330,7 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
       updateFields.push('description = ?');
       updateValues.push(description);
     }
-    if (sku) {
-      updateFields.push('sku = ?');
-      updateValues.push(sku);
-    }
+
     if (barcode) {
       updateFields.push('barcode = ?');
       updateValues.push(barcode);
@@ -357,10 +339,7 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
       updateFields.push('category_id = ?');
       updateValues.push(category_id === '' ? null : category_id);
     }
-    if (price !== undefined) {
-      updateFields.push('price = ?');
-      updateValues.push(parseFloat(price));
-    }
+
     if (wholesale_price !== undefined) {
       updateFields.push('wholesale_price = ?');
       updateValues.push(wholesale_price === '' ? null : parseFloat(wholesale_price));

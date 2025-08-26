@@ -3205,10 +3205,8 @@ class _ProductDialogState extends State<_ProductDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _priceController = TextEditingController();
   final _costController = TextEditingController();
   final _stockController = TextEditingController();
-  final _skuController = TextEditingController();
   
   File? _imageFile;
   String? _imageUrl;
@@ -3225,10 +3223,8 @@ class _ProductDialogState extends State<_ProductDialog> {
     if (widget.product != null) {
       _nameController.text = widget.product!.name;
       _descriptionController.text = widget.product!.description ?? '';
-      _priceController.text = widget.product!.price.toString();
       _costController.text = widget.product!.costPrice.toString();
       _stockController.text = widget.product!.stockQuantity.toString();
-      _skuController.text = widget.product!.sku ?? '';
       _imageUrl = widget.product!.imageUrl;
       _selectedCategoryId = widget.product!.categoryId;
     }
@@ -3238,10 +3234,8 @@ class _ProductDialogState extends State<_ProductDialog> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
-    _priceController.dispose();
     _costController.dispose();
     _stockController.dispose();
-    _skuController.dispose();
     super.dispose();
   }
 
@@ -3491,11 +3485,11 @@ class _ProductDialogState extends State<_ProductDialog> {
       final productData = {
         'name': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
-        'price': double.parse(_priceController.text),
+        'price': 0.0, // Hardcoded price
         'cost_price': double.parse(_costController.text),
         'stock_quantity': int.parse(_stockController.text),
         'category_id': _selectedCategoryId,
-        'sku': _skuController.text.trim(),
+        'sku': 'SKU-${DateTime.now().millisecondsSinceEpoch}', // Auto-generated SKU
         'low_stock_threshold': 10, // Default value
       };
       
@@ -3770,29 +3764,7 @@ class _ProductDialogState extends State<_ProductDialog> {
                           return null;
                         },
                       ),
-        SizedBox(height: isSmallMobile ? 12 : 16),
-                      TextFormField(
-                        controller: _skuController,
-                        decoration: InputDecoration(
-                          labelText: t(context, 'SKU *'),
-                          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
-                          ),
-            prefixIcon: Icon(Icons.qr_code, size: isSmallMobile ? 18 : 20),
-                          filled: true,
-                          fillColor: Colors.grey[50],
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: isSmallMobile ? 12 : 16,
-              vertical: isSmallMobile ? 10 : 14,
-            ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return t(context, 'SKU is required');
-                          }
-                          return null;
-                        },
-                      ),
+
         SizedBox(height: isSmallMobile ? 12 : 16),
                       TextFormField(
                         controller: _descriptionController,
@@ -3811,33 +3783,7 @@ class _ProductDialogState extends State<_ProductDialog> {
                         ),
                         maxLines: 3,
                       ),
-        SizedBox(height: isSmallMobile ? 12 : 16),
-                      TextFormField(
-                        controller: _priceController,
-                        decoration: InputDecoration(
-                          labelText: t(context, 'Price *'),
-                          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
-                          ),
-            prefixIcon: Icon(Icons.attach_money, size: isSmallMobile ? 18 : 20),
-                          filled: true,
-                          fillColor: Colors.green[50],
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: isSmallMobile ? 12 : 16,
-              vertical: isSmallMobile ? 10 : 14,
-            ),
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return t(context, 'Price is required');
-                          }
-                          if (double.tryParse(value) == null) {
-                            return t(context, 'Please enter a valid number');
-                          }
-                          return null;
-                        },
-                      ),
+
         SizedBox(height: isSmallMobile ? 12 : 16),
                       TextFormField(
                         controller: _costController,
@@ -3934,50 +3880,23 @@ class _ProductDialogState extends State<_ProductDialog> {
   Widget _buildDesktopFormFields() {
     return Column(
       children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _nameController,
-                              decoration: InputDecoration(
-                                labelText: t(context, 'Product Name *'),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                prefixIcon: const Icon(Icons.inventory_2),
-                                filled: true,
-                                fillColor: Colors.grey[50],
-                              ),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return t(context, 'Product name is required');
-                                }
-                                return null;
-                              },
-                            ),
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Product Name *'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _skuController,
-                              decoration: InputDecoration(
-                                labelText: t(context, 'SKU *'),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                prefixIcon: const Icon(Icons.qr_code),
-                                filled: true,
-                                fillColor: Colors.grey[50],
-                              ),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return t(context, 'SKU is required');
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
+                          prefixIcon: const Icon(Icons.inventory_2),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return t(context, 'Product name is required');
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -3994,58 +3913,27 @@ class _ProductDialogState extends State<_ProductDialog> {
                         maxLines: 3,
                       ),
                       const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _priceController,
-                              decoration: InputDecoration(
-                                labelText: t(context, 'Price *'),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                prefixIcon: const Icon(Icons.attach_money),
-                                filled: true,
-                                fillColor: Colors.green[50],
-                              ),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return t(context, 'Price is required');
-                                }
-                                if (double.tryParse(value) == null) {
-                                  return t(context, 'Please enter a valid number');
-                                }
-                                return null;
-                              },
-                            ),
+                      TextFormField(
+                        controller: _costController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Cost *'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _costController,
-                              decoration: InputDecoration(
-                                labelText: t(context, 'Cost *'),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                prefixIcon: const Icon(Icons.account_balance_wallet),
-                                filled: true,
-                                fillColor: Colors.orange[50],
-                              ),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                    return t(context, 'Price is required');
-                                }
-                                if (double.tryParse(value) == null) {
-                                  return t(context, 'Please enter a valid number');
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
+                          prefixIcon: const Icon(Icons.account_balance_wallet),
+                          filled: true,
+                          fillColor: Colors.orange[50],
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return t(context, 'Cost is required');
+                          }
+                          if (double.tryParse(value) == null) {
+                            return t(context, 'Please enter a valid number');
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 16),
                       Row(

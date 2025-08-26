@@ -22,7 +22,7 @@ import 'package:retail_management/utils/theme.dart';
 import 'package:retail_management/utils/translate.dart';
 import 'package:retail_management/widgets/notification_badge.dart';
 import 'package:retail_management/widgets/branded_app_bar.dart';
-import 'package:retail_management/widgets/offline_status_widget.dart';
+
 import 'package:google_fonts/google_fonts.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -195,8 +195,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Scaffold(
       body: Column(
         children: [
-          // Offline status bar
-          const OfflineStatusBar(),
+
           // Main content
           Expanded(
             child: FadeTransition(

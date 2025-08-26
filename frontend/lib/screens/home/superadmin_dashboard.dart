@@ -5,6 +5,7 @@ import 'package:retail_management/providers/branding_provider.dart';
 import 'package:retail_management/utils/theme.dart';
 import 'package:retail_management/utils/translate.dart';
 import 'package:retail_management/utils/type_converter.dart';
+import 'package:retail_management/utils/success_utils.dart';
 import 'package:retail_management/screens/home/branding_settings_screen.dart';
 import 'package:retail_management/screens/home/business_branding_screen.dart';
 import 'package:retail_management/widgets/branded_app_bar.dart';
@@ -3311,16 +3312,12 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                       }
                       
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Message sent successfully'), backgroundColor: Colors.green),
-                      );
+                      SuccessUtils.showNotificationSuccess(context, 'sent');
                     } catch (e) {
                       print('Error processing message response: $e');
                       // Still show success but don't add to state
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Message sent successfully'), backgroundColor: Colors.green),
-                      );
+                      SuccessUtils.showNotificationSuccess(context, 'sent');
                     }
                   } else {
                     throw Exception('Failed to send message');
@@ -7753,15 +7750,11 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 );
                 if (response.statusCode == 201) {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Notification created successfully'), backgroundColor: Colors.green),
-                  );
+                  SuccessUtils.showNotificationSuccess(context, 'created');
                   setState(() {}); // Refresh
                 } else {
                   final error = json.decode(response.body);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(error['message']), backgroundColor: Colors.red),
-                  );
+                  SuccessUtils.showOperationError(context, 'create notification', error['message'] ?? 'Unknown error');
                 }
               },
               child: const Text('Create'),

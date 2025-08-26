@@ -10,6 +10,7 @@ import 'package:retail_management/widgets/custom_text_field.dart';
 import 'package:retail_management/widgets/branded_header.dart';
 import 'package:retail_management/utils/api.dart';
 import 'package:retail_management/utils/translate.dart';
+import 'package:retail_management/utils/success_utils.dart';
 
 class POSScreen extends StatefulWidget {
   const POSScreen({super.key});
@@ -1233,21 +1234,10 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       widget.cart.clearCart();
       setState(() { _isLoading = false; });
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${t(context, 'sale_completed_successfully')}: ${sale['sale_id']}'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      SuccessUtils.showSaleSuccess(context, sale['sale_id'].toString());
     } catch (e) {
       setState(() { _isLoading = false; });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${t(context, 'error_processing_sale')}: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      SuccessUtils.showSaleError(context, e.toString());
     }
   }
 

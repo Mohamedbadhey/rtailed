@@ -14,6 +14,7 @@ import 'dart:typed_data';
 import 'dart:convert';
 import 'package:retail_management/utils/api.dart';
 import 'package:retail_management/utils/translate.dart';
+import 'package:retail_management/utils/success_utils.dart';
 import 'package:intl/intl.dart';
 
 class InventoryScreen extends StatefulWidget {
@@ -130,9 +131,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${t(context, 'Error loading data: ')}$e')),
-        );
+        SuccessUtils.showOperationError(context, 'load data', e.toString());
       }
     }
   }
@@ -184,9 +183,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${t(context, 'error_loading_products')}: $e')),
-        );
+        SuccessUtils.showOperationError(context, 'load products', e.toString());
       }
       print('📦 ===== INVENTORY LOAD PRODUCTS END (ERROR) =====');
     }
@@ -247,9 +244,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       setState(() { _reportTransactions = List<Map<String, dynamic>>.from(data); });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${t(context, 'Error loading inventory report: ')}$e')),
-        );
+        SuccessUtils.showOperationError(context, 'load inventory report', e.toString());
       }
     } finally {
       setState(() { _reportLoading = false; });
@@ -1799,37 +1794,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
             _loadProducts();
             if (mounted) {
               Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      const Icon(Icons.check_circle, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Text(t(context, 'Product added successfully')),
-                    ],
-                  ),
-                  backgroundColor: Colors.green[600],
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              );
+              SuccessUtils.showProductSuccess(context, 'added');
             }
           } catch (e, stack) {
             print('Error adding product: $e');
             print('Stack trace: $stack');
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(t(context, 'Failed to add product. Please try again.')),
-                  backgroundColor: Colors.red[600],
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              );
+              SuccessUtils.showProductError(context, 'add', e.toString());
             }
           }
         },
@@ -1885,37 +1856,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
             
             if (mounted) {
               Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      const Icon(Icons.check_circle, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Text(t(context, 'Product updated successfully')),
-                    ],
-                  ),
-                  backgroundColor: Colors.green[600],
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              );
+              SuccessUtils.showProductSuccess(context, 'updated');
             }
           } catch (e, stack) {
             print('Error updating product: $e');
             print('Stack trace: $stack');
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(t(context, 'Failed to update product. Please try again.')),
-                  backgroundColor: Colors.red[600],
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              );
+              SuccessUtils.showProductError(context, 'update', e.toString());
             }
           }
         },
@@ -2052,29 +1999,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
       await _apiService.deleteProduct(productId);
       _loadProducts();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(t(context, 'Product deleted successfully')),
-            backgroundColor: Colors.green[600],
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        );
+        SuccessUtils.showProductSuccess(context, 'deleted');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${t(context, 'Error deleting product: ')}$e'),
-            backgroundColor: Colors.red[600],
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        );
+        SuccessUtils.showProductError(context, 'delete', e.toString());
       }
     }
   }
@@ -3412,9 +3341,7 @@ class _ProductDialogState extends State<_ProductDialog> {
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
-      );
+      SuccessUtils.showOperationError(context, 'pick image', e.toString());
     }
   }
 
@@ -3543,9 +3470,7 @@ class _ProductDialogState extends State<_ProductDialog> {
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
-      );
+      SuccessUtils.showOperationError(context, 'pick image', e.toString());
     }
   }
 
@@ -3574,9 +3499,7 @@ class _ProductDialogState extends State<_ProductDialog> {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${t(context, 'Error: ')}$e')),
-        );
+        SuccessUtils.showOperationError(context, 'save product', e.toString());
       }
     }
   }
@@ -4270,12 +4193,7 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
     } catch (e) {
       print('Error loading categories: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load categories: $e'),
-            backgroundColor: Colors.red[600],
-          ),
-        );
+        SuccessUtils.showOperationError(context, 'load categories', e.toString());
       }
     }
   }
@@ -4312,18 +4230,7 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
           'description': _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Text('Category added successfully'),
-                ],
-              ),
-              backgroundColor: Colors.green[600],
-            ),
-          );
+          SuccessUtils.showBusinessSuccess(context, 'added');
         }
       } else {
         await widget.apiService.updateCategory(
@@ -4334,18 +4241,7 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
           },
         );
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Text('Category updated successfully'),
-                ],
-              ),
-              backgroundColor: Colors.green[600],
-            ),
-          );
+          SuccessUtils.showBusinessSuccess(context, 'updated');
         }
       }
 
@@ -4361,12 +4257,7 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to ${_isAddingNew ? 'add' : 'update'} category: $e'),
-            backgroundColor: Colors.red[600],
-          ),
-        );
+        SuccessUtils.showOperationError(context, '${_isAddingNew ? 'add' : 'update'} category', e.toString());
       }
     } finally {
       if (mounted) {
@@ -4404,27 +4295,11 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
         widget.onCategoryChanged();
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Text('Category deleted successfully'),
-                ],
-              ),
-              backgroundColor: Colors.green[600],
-            ),
-          );
+          SuccessUtils.showBusinessSuccess(context, 'deleted');
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to delete category: $e'),
-              backgroundColor: Colors.red[600],
-            ),
-          );
+                  SuccessUtils.showOperationError(context, 'delete category', e.toString());
         }
       }
     }

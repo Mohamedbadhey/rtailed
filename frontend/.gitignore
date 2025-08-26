@@ -31,7 +31,11 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-#/build/
+
+# Build directories - ignore all builds except web
+/build/
+!build/web/
+!build/web/**
 
 # Symbolication related
 app.*.symbols
@@ -43,3 +47,31 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Mobile-specific builds - ignore these completely
+/android/
+/ios/
+/windows/
+/macos/
+/linux/
+
+# Keep only web build for GitHub Pages
+/build/app/
+/build/android/
+/build/ios/
+/build/windows/
+/build/macos/
+/build/linux/
+/build/connectivity_plus/
+/build/file_picker/
+/build/flutter_assets/packages/
+/build/flutter_plugin_android_lifecycle/
+/build/flutter_secure_storage/
+/build/image_picker_android/
+/build/mobile_scanner/
+/build/path_provider_android/
+/build/printing/
+/build/reports/
+/build/shared_preferences_android/
+/build/sqflite_android/
+/build/url_launcher_android/

@@ -4,7 +4,7 @@ import 'package:retail_management/providers/auth_provider.dart';
 import 'package:retail_management/utils/theme.dart';
 import 'package:retail_management/widgets/notification_badge.dart';
 import 'package:retail_management/widgets/branded_app_bar.dart';
-import 'package:retail_management/widgets/offline_status_widget.dart';
+
 import 'package:retail_management/services/api_service.dart';
 import 'package:retail_management/utils/type_converter.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -220,8 +220,7 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
     return Scaffold(
       body: Column(
         children: [
-          // Offline status bar
-          const OfflineStatusBar(),
+
           // Main content
           Expanded(
             child: FadeTransition(

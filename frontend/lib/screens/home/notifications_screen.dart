@@ -6,6 +6,7 @@ import 'package:retail_management/providers/branding_provider.dart';
 import 'package:retail_management/models/notification.dart';
 import 'package:retail_management/utils/translate.dart';
 import 'package:retail_management/utils/theme.dart';
+import 'package:retail_management/utils/success_utils.dart';
 import 'package:retail_management/widgets/branded_app_bar.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -73,12 +74,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       final notificationProvider = context.read<NotificationProvider>();
       _cashiers = await notificationProvider.getCashiers();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${t(context, 'Error: ')}$e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      SuccessUtils.showOperationError(context, 'load cashiers', e.toString());
     } finally {
       setState(() {
         _isLoadingCashiers = false;
@@ -107,12 +103,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       final notificationProvider = context.read<NotificationProvider>();
       _threadNotifications = await notificationProvider.getThread(notificationId);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${t(context, 'Error: ')}$e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      SuccessUtils.showOperationError(context, 'load thread', e.toString());
     } finally {
       setState(() {
         _isLoadingThread = false;
@@ -143,12 +134,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       _replyController.clear();
       await _loadThread(parentId);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${t(context, 'Error: ')}$e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      SuccessUtils.showOperationError(context, 'send reply', e.toString());
     }
   }
 
@@ -847,12 +833,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         targetCashiers: _selectedCashiers.isEmpty ? null : _selectedCashiers,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(t(context, 'Notification sent successfully')),
-          backgroundColor: Colors.green,
-        ),
-      );
+      SuccessUtils.showNotificationSuccess(context, 'sent');
 
       // Clear form
       _titleController.clear();
@@ -997,12 +978,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         priority: _selectedPriority,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(t(context, 'Notification sent successfully')),
-          backgroundColor: Colors.green,
-        ),
-      );
+      SuccessUtils.showNotificationSuccess(context, 'sent');
 
       // Clear form
       _titleController.clear();
@@ -1011,12 +987,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       // Switch to notifications tab
       _tabController.animateTo(0);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      SuccessUtils.showNotificationError(context, e.toString());
     }
   }
 

@@ -16,7 +16,7 @@ import 'package:retail_management/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:retail_management/providers/settings_provider.dart';
 import 'package:retail_management/providers/branding_provider.dart';
-import 'package:retail_management/providers/offline_provider.dart';
+
 import 'package:retail_management/widgets/branding_initializer.dart';
 
 void main() async {
@@ -67,17 +67,12 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => BrandingProvider(),
         ),
-        ChangeNotifierProvider(
-          create: (_) => OfflineProvider(),
-        ),
+
       ],
-      child: Consumer3<SettingsProvider, AuthProvider, OfflineProvider>(
-        builder: (context, settings, auth, offline, child) {
+      child: Consumer2<SettingsProvider, AuthProvider>(
+        builder: (context, settings, auth, child) {
           // Connect the providers
           settings.setAuthProvider(auth);
-          
-          // Initialize offline provider
-          offline.initialize();
           
           return BrandingInitializer(
             child: BrandingListener(

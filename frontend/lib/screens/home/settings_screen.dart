@@ -4,10 +4,10 @@ import 'package:retail_management/providers/auth_provider.dart';
 import 'package:retail_management/providers/settings_provider.dart';
 import 'package:retail_management/providers/branding_provider.dart';
 import 'package:retail_management/services/api_service.dart';
-import 'package:retail_management/utils/connection_test.dart';
+
 import 'package:retail_management/widgets/branded_header.dart';
 import 'package:retail_management/utils/translate.dart';
-import 'package:retail_management/screens/home/offline_settings_screen.dart';
+
 import 'manage_cashiers_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -45,14 +45,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     try {
-      final connectionStatus = await ConnectionTest.getConnectionStatus();
       final products = await _apiService.getProducts();
       final customers = await _apiService.getCustomers();
       final sales = await _apiService.getSales();
 
       setState(() {
         _systemInfo = {
-          'connectionStatus': connectionStatus,
           'totalProducts': products.length,
           'totalCustomers': customers.length,
           'totalSales': sales.length,
@@ -920,20 +918,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             else
               Column(
                 children: [
-                  _buildSystemInfoTile(
-                    t(context, 'Backend Status'),
-                    _systemInfo['connectionStatus']?['overall'] == true ? 'Connected' : 'Disconnected',
-                    Icons.cloud,
-                    _systemInfo['connectionStatus']?['overall'] == true ? Colors.green : Colors.red,
-                    isSmallMobile,
-                  ),
-                  _buildSystemInfoTile(
-                    t(context, 'Database Status'),
-                    _systemInfo['connectionStatus']?['database']?['success'] == true ? 'Connected' : 'Disconnected',
-                    Icons.storage,
-                    _systemInfo['connectionStatus']?['database']?['success'] == true ? Colors.green : Colors.red,
-                    isSmallMobile,
-                  ),
+
                   _buildSystemInfoTile(
                     t(context, 'Total Products'),
                     '${_systemInfo['totalProducts'] ?? 0}',
@@ -995,62 +980,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     SizedBox(height: isSmallMobile ? 12 : 16),
                   ],
-                  ListTile(
-                    leading: Icon(
-                      Icons.offline_bolt, 
-                      color: Colors.orange,
-                      size: isSmallMobile ? 20 : 22,
-                    ),
-                    title: Text(
-                      'Offline Settings',
-                      style: TextStyle(fontSize: isSmallMobile ? 14 : 16),
-                    ),
-                    subtitle: Text(
-                      'Manage offline functionality and sync settings',
-                      style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
-                    ),
-                    trailing: Icon(
-                      Icons.arrow_forward_ios,
-                      size: isSmallMobile ? 16 : 20,
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const OfflineSettingsScreen()),
-                      );
-                    },
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: isSmallMobile ? 8 : 16,
-                      vertical: isSmallMobile ? 4 : 8,
-                    ),
-                  ),
-                  SizedBox(height: isSmallMobile ? 12 : 16),
+
                   Divider(height: isSmallMobile ? 8 : 16),
                   SizedBox(height: isSmallMobile ? 12 : 16),
-                  Text(
-                    t(context, 'Connection Details'),
-                    style: TextStyle(
-                      fontSize: isSmallMobile ? 14 : 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: isSmallMobile ? 6 : 8),
-                  if (_systemInfo['connectionStatus'] != null) ...[
-                    Text(
-                      '${t(context, 'Backend: ')}${_systemInfo['connectionStatus']['backend']?['message'] ?? t(context, 'Unknown')}',
-                      style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
-                    ),
-                    SizedBox(height: isSmallMobile ? 2 : 4),
-                    Text(
-                      '${t(context, 'Database: ')}${_systemInfo['connectionStatus']['database']?['message'] ?? t(context, 'Unknown')}',
-                      style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
-                    ),
-                    SizedBox(height: isSmallMobile ? 2 : 4),
-                    Text(
-                      '${t(context, 'Last Check: ')}${_systemInfo['connectionStatus']['timestamp'] ?? t(context, 'Unknown')}',
-                      style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
-                    ),
-                  ],
+
                 ],
               ),
           ],

@@ -651,7 +651,7 @@ router.get('/report', auth, async (req, res) => {
       SELECT 
         SUM(s.total_amount) as total_cash_in_hand
       FROM sales s 
-      WHERE s.status = "completed" 
+      WHERE s.status = "completed"
         AND s.payment_method != "credit"
         AND s.status != "cancelled"
     `;

@@ -11,7 +11,9 @@ const pool = mysql.createPool({
   // Configure SQL mode to be compatible with our queries
   multipleStatements: true,
   // Set SQL mode to be more permissive for GROUP BY queries
-  sql_mode: 'STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO'
+  sql_mode: 'STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO',
+  // Set timezone to match your local timezone
+  timezone: process.env.TIMEZONE || '+03:00', // Use environment variable or default to East Africa timezone
 });
 
 module.exports = pool; 

@@ -1246,4 +1246,184 @@ router.put('/:id/pay', auth, async (req, res) => {
   }
 });
 
+// Cancel/Refund a sale transaction
+router.post('/:id/cancel', auth, async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    
+    const saleId = req.params.id;
+    const { reason, refund_method } = req.body;
+    
+    if (!reason || reason.trim() === '') {
+      return res.status(400).json({ message: 'Cancellation reason is required' });
+    }
+    
+    // Get the sale to cancel
+    const [sales] = await connection.query(
+      'SELECT * FROM sales WHERE id = ? AND business_id = ?',
+      [saleId, req.user.business_id]
+    );
+    
+    if (sales.length === 0) {
+      return res.status(404).json({ message: 'Sale not found' });
+    }
+    
+    const sale = sales[0];
+    
+    // Check if sale can be cancelled
+    if (sale.status === 'cancelled') {
+      return res.status(400).json({ message: 'Sale is already cancelled' });
+    }
+    
+    if (sale.parent_sale_id) {
+      return res.status(400).json({ message: 'Credit payments cannot be cancelled directly' });
+    }
+    
+    // Get sale items to restore inventory
+    const [saleItems] = await connection.query(
+      'SELECT product_id, quantity FROM sale_items WHERE sale_id = ?',
+      [saleId]
+    );
+    
+    // Restore product stock quantities
+    for (const item of saleItems) {
+      await connection.query(
+        'UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ? AND business_id = ?',
+        [item.quantity, item.product_id, req.user.business_id]
+      );
+      
+      // Add inventory transaction for stock restoration
+      await connection.query(
+        `INSERT INTO inventory_transactions (
+          product_id, quantity, transaction_type, reference_id, notes, business_id
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          item.product_id,
+          item.quantity,
+          'cancellation',
+          saleId,
+          `Sale cancellation - stock restored`,
+          req.user.business_id
+        ]
+      );
+    }
+    
+    // Update sale status to cancelled
+    await connection.query(
+      `UPDATE sales SET 
+        status = 'cancelled',
+        cancelled_at = NOW(),
+        cancelled_by = ?,
+        cancellation_reason = ?
+       WHERE id = ?`,
+      [req.user.id, reason.trim(), saleId]
+    );
+    
+    // Handle refunds if payment was made
+    if (sale.payment_method !== 'credit' && sale.status === 'completed') {
+      // Create cash flow entry for refund (decreases cash in hand)
+      await connection.query(
+        `INSERT INTO cash_flows (type, amount, date, reference, notes, business_id) 
+         VALUES (?, ?, CURDATE(), ?, ?, ?)`,
+        ['out', sale.total_amount, `Sale #${saleId} Cancellation`, `Refund for cancelled sale #${saleId}: ${reason}`, req.user.business_id]
+      );
+      
+      // If customer loyalty points were given, deduct them
+      if (sale.customer_id) {
+        const pointsToDeduct = Math.floor(sale.total_amount);
+        await connection.query(
+          'UPDATE customers SET loyalty_points = GREATEST(0, loyalty_points - ?) WHERE id = ? AND business_id = ?',
+          [pointsToDeduct, sale.customer_id, req.user.business_id]
+        );
+      }
+    }
+    
+    // Handle credit sales differently
+    if (sale.payment_method === 'credit') {
+      // For credit sales, we don't need to handle refunds, just mark as cancelled
+      // The customer won't owe anything for cancelled credit sales
+      console.log(`Credit sale #${saleId} cancelled - no refund needed`);
+    }
+    
+    await connection.commit();
+    
+    res.json({
+      message: 'Sale cancelled successfully',
+      sale_id: saleId,
+      status: 'cancelled',
+      cancelled_at: new Date(),
+      cancelled_by: req.user.id,
+      cancellation_reason: reason
+    });
+    
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error cancelling sale:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  } finally {
+    connection.release();
+  }
+});
+
+// Get a specific sale with items - MUST be placed AFTER all specific routes
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const saleId = req.params.id;
+    
+    // Get sale details
+    const [sales] = await pool.query(
+      `SELECT s.*, 
+              c.name as customer_name,
+              u.username as cashier_name,
+              u2.username as cancelled_by_name
+       FROM sales s
+       LEFT JOIN customers c ON s.customer_id = c.id
+       LEFT JOIN users u ON s.user_id = u.id
+       LEFT JOIN users u2 ON s.cancelled_by = u2.id
+       WHERE s.id = ? AND s.business_id = ?`,
+      [saleId, req.user.business_id]
+    );
+    
+    if (sales.length === 0) {
+      return res.status(404).json({ message: 'Sale not found' });
+    }
+    
+    const sale = sales[0];
+    
+    // Get sale items
+    const [items] = await pool.query(
+      `SELECT si.*, p.name as product_name, p.description as product_description, p.image_url as product_image
+       FROM sale_items si
+       JOIN products p ON si.product_id = p.id
+       WHERE si.sale_id = ?`,
+      [saleId]
+    );
+    
+    // Get payment history if this is a credit sale
+    let payments = [];
+    if (sale.payment_method === 'credit' && !sale.parent_sale_id) {
+      const [paymentRows] = await pool.query(
+        `SELECT s.*, u.username as cashier_name
+         FROM sales s
+         LEFT JOIN users u ON s.user_id = u.id
+         WHERE s.parent_sale_id = ? AND s.status != 'cancelled'
+         ORDER BY s.created_at DESC`,
+        [saleId]
+      );
+      payments = paymentRows;
+    }
+    
+    res.json({
+      ...sale,
+      items: items,
+      payments: payments
+    });
+    
+  } catch (error) {
+    console.error('Error getting sale:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;

@@ -434,6 +434,14 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/branding', require('./routes/branding'));
 app.use('/api/business-payments', require('./routes/business_payments'));
 
+// 404 handler for API routes only
+app.use('/api/*', (req, res) => {
+  res.status(404).json({
+    status: 'error',
+    message: 'API endpoint not found'
+  });
+});
+
 // Serve Flutter web app
 app.use(express.static(path.join(__dirname, '../web-app')));
 
@@ -457,14 +465,6 @@ app.get('*', (req, res) => {
   
   // Serve Flutter web app
   res.sendFile(path.join(__dirname, '../web-app/index.html'));
-});
-
-// 404 handler for API routes only
-app.use('/api/*', (req, res) => {
-  res.status(404).json({
-    status: 'error',
-    message: 'API endpoint not found'
-  });
 });
 
 // Error handling middleware

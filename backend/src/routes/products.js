@@ -61,7 +61,7 @@ const upload = multer({
   }
 });
 
-// Get all products
+// Get all active products (for POS, sales, etc.)
 router.get('/', auth, async (req, res) => {
   try {
     console.log('🛍️ ===== PRODUCTS GET REQUEST START =====');
@@ -69,7 +69,7 @@ router.get('/', auth, async (req, res) => {
     console.log('🛍️ Business ID:', req.user.business_id);
     console.log('🛍️ User ID:', req.user.id);
     
-    let query = `
+        let query = `
       SELECT p.*, 
              CASE 
                WHEN p.category_id IS NULL THEN 'Uncategorized'
@@ -77,7 +77,7 @@ router.get('/', auth, async (req, res) => {
              END as category_name 
       FROM products p 
       LEFT JOIN categories c ON p.category_id = c.id 
-      WHERE p.business_id = ? 
+      WHERE p.business_id = ? AND p.is_deleted = 0
       ORDER BY p.name
     `;
     let params = [req.user.business_id];
@@ -86,10 +86,11 @@ router.get('/', auth, async (req, res) => {
         SELECT p.*, 
                CASE 
                  WHEN p.category_id IS NULL THEN 'Uncategorized'
-                 ELSE c.name 
-               END as category_name 
+               ELSE c.name 
+             END as category_name 
         FROM products p 
         LEFT JOIN categories c ON p.category_id = c.id 
+        WHERE p.is_deleted = 0
         ORDER BY p.name
       `;
       params = [];
@@ -120,6 +121,66 @@ router.get('/', auth, async (req, res) => {
     console.log('🛍️ ❌ Error in products GET:', error);
     console.log('🛍️ Error stack:', error.stack);
     console.log('🛍️ ===== PRODUCTS GET REQUEST END (ERROR) =====');
+    res.status(500).json({ message: 'Server error', details: error.message });
+  }
+});
+
+// Get all products including deleted ones (for inventory management)
+router.get('/all', auth, async (req, res) => {
+  try {
+    console.log('🛍️ ===== ALL PRODUCTS GET REQUEST START =====');
+    console.log('🛍️ User role:', req.user.role);
+    console.log('🛍️ Business ID:', req.user.business_id);
+    console.log('🛍️ User ID:', req.user.id);
+    
+    let query = `
+      SELECT p.*, 
+             CASE 
+               WHEN p.category_id IS NULL THEN 'Uncategorized'
+               ELSE c.name 
+             END as category_name 
+      FROM products p 
+      LEFT JOIN categories c ON p.category_id = c.id 
+      WHERE p.business_id = ?
+      ORDER BY p.name
+    `;
+    let params = [req.user.business_id];
+    if (req.user.role === 'superadmin') {
+      query = `
+        SELECT p.*, 
+               CASE 
+                 WHEN p.category_id IS NULL THEN 'Uncategorized'
+               ELSE c.name 
+             END as category_name 
+        FROM products p 
+        LEFT JOIN categories c ON p.category_id = c.id 
+        ORDER BY p.name
+      `;
+      params = [];
+    }
+    
+    console.log('🛍️ Query:', query);
+    console.log('🛍️ Params:', params);
+    const [products] = await pool.query(query, params);
+    console.log('🛍️ Found', products.length, 'products (including deleted)');
+    
+    // Debug each product's details including deletion status
+    products.forEach((product, index) => {
+      console.log(`🛍️ Product ${index + 1}:`);
+      console.log(`  - ID: ${product.id}`);
+      console.log(`  - Name: ${product.name}`);
+      console.log(`  - Category ID: ${product.category_id}`);
+      console.log(`  - Category Name: ${product.category_name}`);
+      console.log(`  - Is Deleted: ${product.is_deleted}`);
+      console.log(`  - Image URL: ${product.image_url || 'NULL'}`);
+    });
+    
+    console.log('🛍️ ===== ALL PRODUCTS GET REQUEST END =====');
+    res.json(products);
+  } catch (error) {
+    console.log('🛍️ ❌ Error in all products GET:', error);
+    console.log('🛍️ Error stack:', error.stack);
+    console.log('🛍️ ===== ALL PRODUCTS GET REQUEST END (ERROR) =====');
     res.status(500).json({ message: 'Server error', details: error.message });
   }
 });
@@ -461,6 +522,62 @@ router.delete('/:id', [auth, checkRole(['admin'])], async (req, res) => {
   } catch (error) {
     await connection.rollback();
     console.error('Delete Product Error:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  } finally {
+    connection.release();
+  }
+});
+
+// Restore product
+router.put('/:id/restore', [auth, checkRole(['admin'])], async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    console.log('=== PRODUCT RESTORE DEBUG ===');
+    console.log('User info:', { id: req.user.id, role: req.user.role, business_id: req.user.business_id });
+    console.log('Product ID to restore:', req.params.id);
+    
+    await connection.beginTransaction();
+
+    const productId = req.params.id;
+
+    // Check if product exists and belongs to user's business
+    let checkQuery = 'SELECT * FROM products WHERE id = ?';
+    let checkParams = [productId];
+    
+    if (req.user.role !== 'superadmin') {
+      if (!req.user.business_id) {
+        await connection.rollback();
+        return res.status(400).json({ message: 'Business ID is required for this operation.' });
+      }
+      checkQuery += ' AND business_id = ?';
+      checkParams.push(req.user.business_id);
+    }
+    
+    const [products] = await connection.query(checkQuery, checkParams);
+    
+    if (products.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: 'Product not found or access denied' });
+    }
+    
+    console.log('Found product to restore:', products[0]);
+
+    // Restore the product by setting is_deleted = 0
+    const [result] = await connection.query(
+      'UPDATE products SET is_deleted = 0 WHERE id = ?',
+      [productId]
+    );
+
+    await connection.commit();
+    
+    console.log('=== PRODUCT RESTORED SUCCESSFULLY ===');
+    console.log('Product ID:', productId);
+    console.log('=====================================');
+
+    res.json({ message: 'Product restored successfully' });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Restore Product Error:', error);
     res.status(500).json({ message: error.message || 'Server error' });
   } finally {
     connection.release();

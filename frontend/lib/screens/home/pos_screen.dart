@@ -1197,6 +1197,49 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
     setState(() {
       _isLoading = true;
     });
+    
+    // Validate each product's custom price before processing
+    final validationErrors = <String>[];
+    for (final item in widget.cart.items) {
+      final controller = _customPriceControllers[item.product.id];
+      final customTotalPrice = double.tryParse(controller?.text ?? '');
+      final requiredTotalPrice = item.product.costPrice * item.quantity;
+      
+      if (controller == null || controller.text.isEmpty) {
+        validationErrors.add('${item.product.name}: Custom price is required');
+      } else if (customTotalPrice == null) {
+        validationErrors.add('${item.product.name}: Invalid price format');
+      } else if (customTotalPrice < requiredTotalPrice) {
+        validationErrors.add('${item.product.name}: Price \$${customTotalPrice.toStringAsFixed(2)} is below cost \$${requiredTotalPrice.toStringAsFixed(2)}');
+      }
+    }
+    
+    if (validationErrors.isNotEmpty) {
+      setState(() { _isLoading = false; });
+      // Show validation errors
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Pricing Validation Errors'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: validationErrors.map((error) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text('• $error', style: TextStyle(color: Colors.red[700])),
+            )).toList(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    
     try {
       Customer? customer;
       // If new customer fields are shown and name is filled, create new customer
@@ -1281,10 +1324,18 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
           // Use total price directly, don't multiply by quantity
           return sum + (totalPrice ?? (item.product.costPrice * item.quantity));
         });
-        final isCombinedValid = combinedCustomTotal >= combinedCost && widget.cart.items.every((item) {
+        
+        // Validate each individual product's custom price
+        final isCombinedValid = widget.cart.items.every((item) {
           final controller = _customPriceControllers[item.product.id];
-          final price = double.tryParse(controller?.text ?? '');
-          return controller != null && controller.text.isNotEmpty && price != null;
+          final customTotalPrice = double.tryParse(controller?.text ?? '');
+          final requiredTotalPrice = item.product.costPrice * item.quantity;
+          
+          // Each product must have a custom price entered and it must be >= required cost
+          return controller != null && 
+                 controller.text.isNotEmpty && 
+                 customTotalPrice != null && 
+                 customTotalPrice >= requiredTotalPrice;
         });
 
         return Dialog(
@@ -1419,6 +1470,15 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                     }
                                     final controller = _customPriceControllers[id]!;
                                     bool isInvalid = false;
+                                    
+                                    // Calculate if this product's price is valid
+                                    if (controller.text.isNotEmpty) {
+                                      final customTotalPrice = double.tryParse(controller.text);
+                                      final requiredTotalPrice = item.product.costPrice * item.quantity;
+                                      isInvalid = customTotalPrice == null || customTotalPrice < requiredTotalPrice;
+                                    } else {
+                                      isInvalid = true; // Empty field is invalid
+                                    }
                                     return StatefulBuilder(
                                       builder: (context, setItemState) {
                                         return Padding(
@@ -1487,6 +1547,8 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                                             widget.cart.updateCustomTotalPrice(item.product, totalPrice);
                                                           });
                                                         }
+                                                        // Force rebuild to update validation state
+                                                        setState(() {});
                                                       },
                                                     ),
                                                   ),
@@ -1548,6 +1610,8 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                                             widget.cart.updateCustomTotalPrice(item.product, totalPrice);
                                                           });
                                                         }
+                                                        // Force rebuild to update validation state
+                                                        setState(() {});
                                                       },
                                                     ),
                                                   ),
@@ -1570,15 +1634,102 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                 ),
                               ),
                               const Divider(),
+                              
+                              // Validation Summary
+                              if (!isCombinedValid) ...[
+                                Container(
+                                  padding: EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red[50],
+                                    border: Border.all(color: Colors.red[200]!),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.warning, color: Colors.red[700], size: 16),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'Pricing Validation Required',
+                                            style: TextStyle(
+                                              color: Colors.red[700],
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(height: 8),
+                                      ...widget.cart.items.map((item) {
+                                        final controller = _customPriceControllers[item.product.id];
+                                        final customTotalPrice = double.tryParse(controller?.text ?? '');
+                                        final requiredTotalPrice = item.product.costPrice * item.quantity;
+                                        final isValid = controller != null && 
+                                                       controller.text.isNotEmpty && 
+                                                       customTotalPrice != null && 
+                                                       customTotalPrice >= requiredTotalPrice;
+                                        
+                                        if (isValid) return SizedBox.shrink();
+                                        
+                                        return Padding(
+                                          padding: EdgeInsets.only(bottom: 4),
+                                          child: Text(
+                                            '• ${item.product.name}: Need \$${requiredTotalPrice.toStringAsFixed(2)} minimum',
+                                            style: TextStyle(
+                                              color: Colors.red[600],
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        );
+                                      }).where((widget) => widget != SizedBox.shrink()),
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(height: 16),
+                              ],
+                              
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    t(context, 'total'),
-                                    style: TextStyle(
-                                      fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18), 
-                                      fontWeight: FontWeight.bold
-                                    ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        t(context, 'total'),
+                                        style: TextStyle(
+                                          fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18), 
+                                          fontWeight: FontWeight.bold
+                                        ),
+                                      ),
+                                      if (isCombinedValid)
+                                        Text(
+                                          '${widget.cart.items.length} products validated ✓',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.green[600],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        )
+                                      else
+                                        Text(
+                                          '${widget.cart.items.where((item) {
+                                            final controller = _customPriceControllers[item.product.id];
+                                            final customTotalPrice = double.tryParse(controller?.text ?? '');
+                                            final requiredTotalPrice = item.product.costPrice * item.quantity;
+                                            return controller != null && 
+                                                   controller.text.isNotEmpty && 
+                                                   customTotalPrice != null && 
+                                                   customTotalPrice >= requiredTotalPrice;
+                                          }).length}/${widget.cart.items.length} products validated',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.orange[600],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                   Text(
                                     '\$${widget.cart.total.toStringAsFixed(2)}',
@@ -1802,8 +1953,10 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                     ),
                     SizedBox(width: isSmallMobile ? 8 : (isMobile ? 12 : 16)),
                     Expanded(
-                      child: ElevatedButton(
-                        onPressed: _isLoading || !isCombinedValid ? null : _processSale,
+                      child: Tooltip(
+                        message: !isCombinedValid ? 'Fix pricing validation errors to continue' : 'Complete the sale',
+                        child: ElevatedButton(
+                          onPressed: _isLoading || !isCombinedValid ? null : _processSale,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,
@@ -1825,8 +1978,9 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                 t(context, 'complete_sale'),
                                 style: TextStyle(fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16)),
                               ),
+                          ),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ],

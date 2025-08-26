@@ -31,6 +31,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   List<String> _categories = ['All'];
   List<Map<String, dynamic>> _categoryList = [];
   bool _showLowStock = false;
+  bool _showDeletedProducts = false;
   bool _isLoading = true;
   List<Product> _products = [];
   List<Product> _filteredProducts = [];
@@ -145,8 +146,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
     });
 
     try {
-      print('📦 Calling API service to get products...');
-      final products = await _apiService.getProducts();
+      print('📦 Calling API service to get all products (including deleted)...');
+      final products = await _apiService.getAllProducts();
       print('📦 ✅ API call successful, loaded ${products.length} products');
       
       // Debug: Print image URLs for products with images
@@ -171,6 +172,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       }
       
       print('📦 Summary: $productsWithImages products with images, $productsWithoutImages without images');
+      print('📦 Deleted products: ${products.where((p) => p.isDeleted == 1).length}');
       
       setState(() {
         _products = products;
@@ -209,7 +211,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
         final stockMatch = !_showLowStock ||
             product.stockQuantity <= product.lowStockThreshold;
 
-        return searchMatch && categoryMatch && stockMatch;
+        // Deleted products filter
+        final deletedMatch = _showDeletedProducts || product.isDeleted == 0;
+
+        return searchMatch && categoryMatch && stockMatch && deletedMatch;
       }).toList();
     });
   }
@@ -1013,12 +1018,21 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 ),
                                 SizedBox(height: isSmallMobile ? 1 : 2),
                                   Text(
-                                  '${_filteredProducts.length} products found',
+                                    '${_filteredProducts.length} products found',
                                     style: TextStyle(
-                                    fontSize: isSmallMobile ? 9 : 10,
-                                    color: Colors.grey[600],
+                                      fontSize: isSmallMobile ? 9 : 10,
+                                      color: Colors.grey[600],
                                     ),
                                   ),
+                                  if (_showDeletedProducts && _filteredProducts.any((p) => p.isDeleted == 1))
+                                    Text(
+                                      '(${_filteredProducts.where((p) => p.isDeleted == 1).length} deleted)',
+                                      style: TextStyle(
+                                        fontSize: isSmallMobile ? 8 : 9,
+                                        color: Colors.orange[600],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
@@ -1035,13 +1049,26 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                   color: Theme.of(context).primaryColor.withOpacity(0.3),
                                 ),
                               ),
-                              child: Text(
-                                '${_products.length} Total',
-                                style: TextStyle(
-                                  color: Theme.of(context).primaryColor,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: isSmallMobile ? 9 : 10,
-                                ),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    '${_products.length} Total',
+                                    style: TextStyle(
+                                      color: Theme.of(context).primaryColor,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: isSmallMobile ? 9 : 10,
+                                    ),
+                                  ),
+                                  if (_products.any((p) => p.isDeleted == 1))
+                                    Text(
+                                      '${_products.where((p) => p.isDeleted == 1).length} deleted',
+                                      style: TextStyle(
+                                        color: Colors.orange[600],
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: isSmallMobile ? 7 : 8,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                           ],
@@ -1172,14 +1199,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
       itemBuilder: (context, index) {
         final product = _filteredProducts[index];
         final isLowStock = product.stockQuantity <= product.lowStockThreshold;
+        final isDeleted = product.isDeleted == 1;
         
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDeleted ? Colors.grey[100] : Colors.white,
             borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 10),
+            border: isDeleted ? Border.all(color: Colors.grey[400]!, width: 1) : null,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: isDeleted ? Colors.grey.withOpacity(0.1) : Colors.black.withOpacity(0.06),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -1261,17 +1290,44 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                            // Product Name
-                              Text(
-                                product.name,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                fontSize: isSmallMobile ? 10 : 12,
-                                  color: Colors.grey[800],
+                            // Product Name with Deleted Indicator
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    product.name,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: isSmallMobile ? 10 : 12,
+                                      color: isDeleted ? Colors.grey[500] : Colors.grey[800],
+                                      decoration: isDeleted ? TextDecoration.lineThrough : null,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                              maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                                if (isDeleted)
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: isSmallMobile ? 3 : 4,
+                                      vertical: 1,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red[100],
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: Colors.red[300]!),
+                                    ),
+                                    child: Text(
+                                      'DELETED',
+                                      style: TextStyle(
+                                        color: Colors.red[700],
+                                        fontSize: isSmallMobile ? 5 : 6,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                             
                             SizedBox(height: isSmallMobile ? 1 : 2),
                             
@@ -1523,6 +1579,49 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             ),
                           ),
                         ),
+                        
+                        // Restore Button (only for deleted products)
+                        if (isDeleted) ...[
+                          SizedBox(width: isSmallMobile ? 4 : 6),
+                          Expanded(
+                            child: Container(
+                              height: isSmallMobile ? 24 : 28,
+                              decoration: BoxDecoration(
+                                color: Colors.green[50],
+                                borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                                border: Border.all(color: Colors.green[200]!),
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                                  onTap: () {
+                                    _showRestoreProductDialog(product);
+                                  },
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.restore,
+                                        color: Colors.green[600],
+                                        size: isSmallMobile ? 10 : 12,
+                                      ),
+                                      SizedBox(width: isSmallMobile ? 2 : 3),
+                                      Text(
+                                        'Restore',
+                                        style: TextStyle(
+                                          color: Colors.green[700],
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: isSmallMobile ? 7 : 8,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                 ),
@@ -2010,6 +2109,144 @@ class _InventoryScreenState extends State<InventoryScreen> {
     } catch (e) {
       if (mounted) {
         SuccessUtils.showProductError(context, 'delete', e.toString());
+      }
+    }
+  }
+
+  void _showRestoreProductDialog(Product product) {
+    showDialog(
+      context: context,
+      builder: (context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth <= 480;
+          
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(isMobile ? 6 : 8),
+                  decoration: BoxDecoration(
+                    color: Colors.green[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.restore,
+                    color: Colors.green,
+                    size: isMobile ? 20 : 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Restore Product',
+                    style: TextStyle(
+                      fontSize: isMobile ? 16 : 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Are you sure you want to restore this product?',
+                  style: TextStyle(fontSize: isMobile ? 14 : 16),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: EdgeInsets.all(isMobile ? 8 : 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? 14 : 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'SKU: ${product.sku}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: isMobile ? 12 : 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Stock: ${product.stockQuantity}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: isMobile ? 12 : 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'This will make the product available for sale again',
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontSize: isMobile ? 12 : 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(fontSize: isMobile ? 14 : 16),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _restoreProduct(product.id!);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  'Restore',
+                  style: TextStyle(fontSize: isMobile ? 14 : 16),
+                ),
+              ),
+            ],
+            actionsPadding: EdgeInsets.all(isMobile ? 16 : 24),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _restoreProduct(int productId) async {
+    try {
+      await _apiService.restoreProduct(productId);
+      _loadProducts();
+      if (mounted) {
+        SuccessUtils.showProductSuccess(context, 'restored');
+      }
+    } catch (e) {
+      if (mounted) {
+        SuccessUtils.showProductError(context, 'restore', e.toString());
       }
     }
   }
@@ -3054,6 +3291,60 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ],
           ),
         ),
+        
+        SizedBox(height: isSmallMobile ? 8 : 12),
+        
+        // Horizontal Deleted Products Toggle
+        Container(
+          height: isSmallMobile ? 32 : 36,
+          decoration: BoxDecoration(
+            color: _showDeletedProducts ? Colors.orange[50] : Colors.grey[50],
+            borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+            border: Border.all(
+              color: _showDeletedProducts ? Colors.orange[200]! : Colors.grey[200]!,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(isSmallMobile ? 4 : 6),
+                margin: EdgeInsets.only(left: isSmallMobile ? 8 : 10),
+                decoration: BoxDecoration(
+                  color: _showDeletedProducts ? Colors.orange[100] : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                ),
+                child: Icon(
+                  _showDeletedProducts ? Icons.delete : Icons.inventory_2,
+                  color: _showDeletedProducts ? Colors.orange[600] : Colors.grey[600],
+                  size: isSmallMobile ? 14 : 16,
+                ),
+              ),
+              SizedBox(width: isSmallMobile ? 6 : 8),
+              Expanded(
+                child: Text(
+                  'Show Deleted Products',
+                  style: TextStyle(
+                    fontSize: isSmallMobile ? 10 : 11,
+                    fontWeight: FontWeight.w600,
+                    color: _showDeletedProducts ? Colors.orange[800] : Colors.grey[800],
+                  ),
+                ),
+              ),
+              Switch(
+                value: _showDeletedProducts,
+                onChanged: (value) {
+                  setState(() {
+                    _showDeletedProducts = value;
+                  });
+                  _applyFilters();
+                },
+                activeColor: Colors.orange[600],
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              SizedBox(width: isSmallMobile ? 8 : 10),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -3176,6 +3467,51 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     _applyFilters();
                   },
                   activeColor: Colors.red[600],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 20),
+        
+        // Deleted Products Toggle
+        Container(
+          decoration: BoxDecoration(
+            color: _showDeletedProducts ? Colors.orange[50] : Colors.grey[50],
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _showDeletedProducts ? Colors.orange[200]! : Colors.grey[200]!,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _showDeletedProducts ? Icons.delete : Icons.inventory_2,
+                  color: _showDeletedProducts ? Colors.orange[600] : Colors.grey[600],
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Deleted Products',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: _showDeletedProducts ? Colors.orange[800] : Colors.grey[800],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Switch(
+                  value: _showDeletedProducts,
+                  onChanged: (value) {
+                    setState(() {
+                      _showDeletedProducts = value;
+                    });
+                    _applyFilters();
+                  },
+                  activeColor: Colors.orange[600],
                 ),
               ],
             ),

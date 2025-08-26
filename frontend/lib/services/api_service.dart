@@ -288,6 +288,54 @@ class ApiService {
     }
   }
 
+  // Get all products including deleted ones (for inventory management)
+  Future<List<Product>> getAllProducts() async {
+    try {
+      print('🛍️ ===== API GET ALL PRODUCTS START =====');
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/products/all'),
+        headers: _headers,
+      );
+
+      print('🛍️ Response status: ${response.statusCode}');
+      print('🛍️ Response headers: ${response.headers}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        print('🛍️ Raw JSON response length: ${data.length}');
+        
+        // Debug: Print first product's raw JSON
+        if (data.isNotEmpty) {
+          print('🛍️ First product raw JSON: ${data.first}');
+          print('🛍️ First product is_deleted field: ${data.first['is_deleted']}');
+        }
+        
+        final products = data.map((json) => Product.fromJson(json)).toList();
+        print('🛍️ Parsed products length: ${products.length}');
+        
+        // Debug: Print first product's parsed data
+        if (products.isNotEmpty) {
+          final firstProduct = products.first;
+          print('🛍️ First product parsed:');
+          print('  - ID: ${firstProduct.id}');
+          print('  - Name: ${firstProduct.name}');
+          print('  - Is Deleted: ${firstProduct.isDeleted}');
+        }
+        
+        print('🛍️ ===== API GET ALL PRODUCTS END (SUCCESS) =====');
+        return products;
+      } else {
+        print('🛍️ ❌ Error response: ${response.body}');
+        print('🛍️ ===== API GET ALL PRODUCTS END (ERROR) =====');
+        throw Exception('Failed to get all products: ${response.body}');
+      }
+    } catch (e) {
+      print('🛍️ ❌ Exception: $e');
+      print('🛍️ ===== API GET ALL PRODUCTS END (EXCEPTION) =====');
+      rethrow;
+    }
+  }
+
   Future<Product> getProduct(int id) async {
     try {
       final response = await http.get(
@@ -440,6 +488,22 @@ class ApiService {
       }
     } catch (e) {
       print('Delete Product Error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> restoreProduct(int id) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/api/products/$id/restore'),
+        headers: _headers,
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to restore product: ${response.body}');
+      }
+    } catch (e) {
+      print('Restore Product Error: $e');
       rethrow;
     }
   }

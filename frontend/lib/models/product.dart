@@ -27,6 +27,8 @@ class Product with _$Product {
     required int lowStockThreshold,
     @JsonKey(name: 'image_url')
     String? imageUrl,
+    @JsonKey(name: 'is_deleted', fromJson: _stringToInt, toJson: _intToString)
+    @Default(0) int isDeleted,
     @Default(1) int businessId,
     DateTime? createdAt,
     DateTime? updatedAt,

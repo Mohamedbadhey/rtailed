@@ -46,6 +46,8 @@ mixin _$Product {
   int get lowStockThreshold => throw _privateConstructorUsedError;
   @JsonKey(name: 'image_url')
   String? get imageUrl => throw _privateConstructorUsedError;
+  @JsonKey(name: 'is_deleted', fromJson: _stringToInt, toJson: _intToString)
+  int get isDeleted => throw _privateConstructorUsedError;
   int get businessId => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
   DateTime? get updatedAt => throw _privateConstructorUsedError;
@@ -94,6 +96,8 @@ abstract class $ProductCopyWith<$Res> {
           toJson: _intToString)
       int lowStockThreshold,
       @JsonKey(name: 'image_url') String? imageUrl,
+      @JsonKey(name: 'is_deleted', fromJson: _stringToInt, toJson: _intToString)
+      int isDeleted,
       int businessId,
       DateTime? createdAt,
       DateTime? updatedAt});
@@ -128,6 +132,7 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
     Object? damagedQuantity = null,
     Object? lowStockThreshold = null,
     Object? imageUrl = freezed,
+    Object? isDeleted = null,
     Object? businessId = null,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
@@ -189,6 +194,10 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
           ? _value.imageUrl
           : imageUrl // ignore: cast_nullable_to_non_nullable
               as String?,
+      isDeleted: null == isDeleted
+          ? _value.isDeleted
+          : isDeleted // ignore: cast_nullable_to_non_nullable
+              as int,
       businessId: null == businessId
           ? _value.businessId
           : businessId // ignore: cast_nullable_to_non_nullable
@@ -242,6 +251,8 @@ abstract class _$$ProductImplCopyWith<$Res> implements $ProductCopyWith<$Res> {
           toJson: _intToString)
       int lowStockThreshold,
       @JsonKey(name: 'image_url') String? imageUrl,
+      @JsonKey(name: 'is_deleted', fromJson: _stringToInt, toJson: _intToString)
+      int isDeleted,
       int businessId,
       DateTime? createdAt,
       DateTime? updatedAt});
@@ -274,6 +285,7 @@ class __$$ProductImplCopyWithImpl<$Res>
     Object? damagedQuantity = null,
     Object? lowStockThreshold = null,
     Object? imageUrl = freezed,
+    Object? isDeleted = null,
     Object? businessId = null,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
@@ -335,6 +347,10 @@ class __$$ProductImplCopyWithImpl<$Res>
           ? _value.imageUrl
           : imageUrl // ignore: cast_nullable_to_non_nullable
               as String?,
+      isDeleted: null == isDeleted
+          ? _value.isDeleted
+          : isDeleted // ignore: cast_nullable_to_non_nullable
+              as int,
       businessId: null == businessId
           ? _value.businessId
           : businessId // ignore: cast_nullable_to_non_nullable
@@ -385,6 +401,8 @@ class _$ProductImpl implements _Product {
           toJson: _intToString)
       required this.lowStockThreshold,
       @JsonKey(name: 'image_url') this.imageUrl,
+      @JsonKey(name: 'is_deleted', fromJson: _stringToInt, toJson: _intToString)
+      this.isDeleted = 0,
       this.businessId = 1,
       this.createdAt,
       this.updatedAt});
@@ -433,6 +451,9 @@ class _$ProductImpl implements _Product {
   @JsonKey(name: 'image_url')
   final String? imageUrl;
   @override
+  @JsonKey(name: 'is_deleted', fromJson: _stringToInt, toJson: _intToString)
+  final int isDeleted;
+  @override
   @JsonKey()
   final int businessId;
   @override
@@ -442,7 +463,7 @@ class _$ProductImpl implements _Product {
 
   @override
   String toString() {
-    return 'Product(id: $id, name: $name, description: $description, sku: $sku, barcode: $barcode, categoryId: $categoryId, categoryName: $categoryName, price: $price, wholesalePrice: $wholesalePrice, costPrice: $costPrice, stockQuantity: $stockQuantity, damagedQuantity: $damagedQuantity, lowStockThreshold: $lowStockThreshold, imageUrl: $imageUrl, businessId: $businessId, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Product(id: $id, name: $name, description: $description, sku: $sku, barcode: $barcode, categoryId: $categoryId, categoryName: $categoryName, price: $price, wholesalePrice: $wholesalePrice, costPrice: $costPrice, stockQuantity: $stockQuantity, damagedQuantity: $damagedQuantity, lowStockThreshold: $lowStockThreshold, imageUrl: $imageUrl, isDeleted: $isDeleted, businessId: $businessId, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -473,6 +494,8 @@ class _$ProductImpl implements _Product {
                 other.lowStockThreshold == lowStockThreshold) &&
             (identical(other.imageUrl, imageUrl) ||
                 other.imageUrl == imageUrl) &&
+            (identical(other.isDeleted, isDeleted) ||
+                other.isDeleted == isDeleted) &&
             (identical(other.businessId, businessId) ||
                 other.businessId == businessId) &&
             (identical(other.createdAt, createdAt) ||
@@ -499,6 +522,7 @@ class _$ProductImpl implements _Product {
       damagedQuantity,
       lowStockThreshold,
       imageUrl,
+      isDeleted,
       businessId,
       createdAt,
       updatedAt);
@@ -551,6 +575,8 @@ abstract class _Product implements Product {
           toJson: _intToString)
       required final int lowStockThreshold,
       @JsonKey(name: 'image_url') final String? imageUrl,
+      @JsonKey(name: 'is_deleted', fromJson: _stringToInt, toJson: _intToString)
+      final int isDeleted,
       final int businessId,
       final DateTime? createdAt,
       final DateTime? updatedAt}) = _$ProductImpl;
@@ -597,6 +623,9 @@ abstract class _Product implements Product {
   @override
   @JsonKey(name: 'image_url')
   String? get imageUrl;
+  @override
+  @JsonKey(name: 'is_deleted', fromJson: _stringToInt, toJson: _intToString)
+  int get isDeleted;
   @override
   int get businessId;
   @override

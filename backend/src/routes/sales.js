@@ -656,6 +656,7 @@ router.get('/report', auth, async (req, res) => {
         (s.parent_sale_id IS NOT NULL AND s.status != "cancelled")
       )
         AND s.payment_method != "credit"
+        AND s.status != "cancelled"
     `;
     let cashInHandParams = [];
     

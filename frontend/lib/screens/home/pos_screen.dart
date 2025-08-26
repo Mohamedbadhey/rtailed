@@ -42,7 +42,7 @@ class _POSScreenState extends State<POSScreen> {
   }
 
   Future<void> _loadProducts() async {
-    print('🛍️ ===== POS LOAD PRODUCTS START =====');
+    print('🛍️ ===== POS LOAD PRODUCTS AND CATEGORIES START =====');
     setState(() {
       _isLoading = true;
     });
@@ -73,15 +73,33 @@ class _POSScreenState extends State<POSScreen> {
       
       print('🛍️ Summary: $productsWithImages products with images, $productsWithoutImages without images');
       
+      // Load categories separately to show all available categories
+      List<String> allCategories = ['All'];
+      try {
+        final categoriesData = await _apiService.getCategories();
+        final categoryNames = categoriesData.map((cat) => cat['name'] as String).toList();
+        allCategories.addAll(categoryNames);
+        print('🛍️ ✅ Loaded ${categoryNames.length} categories from API');
+        
+        // Add "Uncategorized" if there are products without categories
+        if (products.any((p) => p.categoryName == null || p.categoryName!.isEmpty)) {
+          allCategories.add('Uncategorized');
+        }
+      } catch (e) {
+        print('🛍️ ⚠️ Failed to load categories, falling back to product-based categories: $e');
+        // Fallback to product-based categories if API fails
+        allCategories.addAll(products.map((p) => p.categoryName ?? 'Uncategorized').toSet().toList());
+      }
+      
       setState(() {
         _products = products;
         _filteredProducts = products;
-        _categories = ['All', ...products.map((p) => p.categoryName ?? 'Uncategorized').toSet().toList()];
+        _categories = allCategories;
         _isLoading = false;
       });
       print('🛍️ ✅ State updated, applying filters...');
       _applyFilters();
-      print('🛍️ ===== POS LOAD PRODUCTS END (SUCCESS) =====');
+      print('🛍️ ===== POS LOAD PRODUCTS AND CATEGORIES END (SUCCESS) =====');
     } catch (e) {
       print('🛍️ ❌ Error loading products: $e');
       print('🛍️ Error stack trace: ${StackTrace.current}');
@@ -93,9 +111,11 @@ class _POSScreenState extends State<POSScreen> {
           SnackBar(content: Text('${t(context, 'error_loading_products')}: $e')),
         );
       }
-      print('🛍️ ===== POS LOAD PRODUCTS END (ERROR) =====');
+      print('🛍️ ===== POS LOAD PRODUCTS AND CATEGORIES END (ERROR) =====');
     }
   }
+
+
 
   void _applyFilters() {
     setState(() {
@@ -352,7 +372,9 @@ class _POSScreenState extends State<POSScreen> {
                       ),
                       child: IconButton(
                     icon: Icon(Icons.refresh, color: Colors.blue, size: isSmallMobile ? 16 : 18),
-                        onPressed: _loadProducts,
+                        onPressed: () async {
+                          await _loadProducts(); // This will also refresh categories
+                        },
                         tooltip: t(context, 'refresh_products'),
                     padding: EdgeInsets.zero,
                     constraints: BoxConstraints(
@@ -415,7 +437,9 @@ class _POSScreenState extends State<POSScreen> {
                       ),
                       child: IconButton(
                         icon: const Icon(Icons.refresh, color: Colors.blue),
-                        onPressed: _loadProducts,
+                        onPressed: () async {
+                          await _loadProducts(); // This will also refresh categories
+                        },
                         tooltip: t(context, 'refresh_products'),
                       ),
                     ),

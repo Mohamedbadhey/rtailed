@@ -69,10 +69,21 @@ router.get('/', auth, async (req, res) => {
     console.log('🛍️ Business ID:', req.user.business_id);
     console.log('🛍️ User ID:', req.user.id);
     
-    let query = 'SELECT * FROM products WHERE business_id = ? ORDER BY name';
+    let query = `
+      SELECT p.*, c.name as category_name 
+      FROM products p 
+      LEFT JOIN categories c ON p.category_id = c.id 
+      WHERE p.business_id = ? 
+      ORDER BY p.name
+    `;
     let params = [req.user.business_id];
     if (req.user.role === 'superadmin') {
-      query = 'SELECT * FROM products ORDER BY name';
+      query = `
+        SELECT p.*, c.name as category_name 
+        FROM products p 
+        LEFT JOIN categories c ON p.category_id = c.id 
+        ORDER BY p.name
+      `;
       params = [];
     }
     
@@ -106,10 +117,20 @@ router.get('/', auth, async (req, res) => {
 // Get single product
 router.get('/:id', auth, async (req, res) => {
   try {
-    let query = 'SELECT * FROM products WHERE id = ? AND business_id = ?';
+    let query = `
+      SELECT p.*, c.name as category_name 
+      FROM products p 
+      LEFT JOIN categories c ON p.category_id = c.id 
+      WHERE p.id = ? AND p.business_id = ?
+    `;
     let params = [req.params.id, req.user.business_id];
     if (req.user.role === 'superadmin') {
-      query = 'SELECT * FROM products WHERE id = ?';
+      query = `
+        SELECT p.*, c.name as category_name 
+        FROM products p 
+        LEFT JOIN categories c ON p.category_id = c.id 
+        WHERE p.id = ?
+      `;
       params = [req.params.id];
     }
     const [products] = await pool.query(query, params);
@@ -307,9 +328,9 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
       updateFields.push('barcode = ?');
       updateValues.push(barcode);
     }
-    if (category_id) {
+    if (category_id !== undefined) {
       updateFields.push('category_id = ?');
-      updateValues.push(category_id);
+      updateValues.push(category_id === '' ? null : category_id);
     }
     if (price !== undefined) {
       updateFields.push('price = ?');

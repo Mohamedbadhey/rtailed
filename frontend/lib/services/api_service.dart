@@ -319,9 +319,8 @@ class ApiService {
         multipartHeaders.remove('Content-Type');
         request.headers.addAll(multipartHeaders);
         productData.forEach((key, value) {
-          if (value != null) {
-            request.fields[key] = value.toString();
-          }
+          // Send all values including null to allow clearing fields like category_id
+          request.fields[key] = value?.toString() ?? '';
         });
         if (kIsWeb && webImageBytes != null) {
           request.files.add(
@@ -384,9 +383,8 @@ class ApiService {
         multipartHeaders.remove('Content-Type');
         request.headers.addAll(multipartHeaders);
         productData.forEach((key, value) {
-          if (value != null) {
-            request.fields[key] = value.toString();
-          }
+          // Send all values including null to allow clearing fields like category_id
+          request.fields[key] = value?.toString() ?? '';
         });
         if (kIsWeb && webImageBytes != null) {
           request.files.add(

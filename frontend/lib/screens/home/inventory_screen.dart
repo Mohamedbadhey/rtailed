@@ -1850,6 +1850,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
               print('  - Name: ${updatedProduct.name}');
               print('  - Cost Price: ${updatedProduct.costPrice}');
               print('  - Stock Quantity: ${updatedProduct.stockQuantity}');
+              print('  - Category ID: ${updatedProduct.categoryId}');
+              print('  - Category Name: ${updatedProduct.categoryName}');
             } else {
               print('ERROR: Updated product not found in list!');
             }
@@ -3492,6 +3494,11 @@ class _ProductDialogState extends State<_ProductDialog> {
         'sku': _skuController.text.trim(),
         'low_stock_threshold': 10, // Default value
       };
+      
+      print('=== FRONTEND PRODUCT UPDATE DEBUG ===');
+      print('Selected category ID: $_selectedCategoryId');
+      print('Product data to send: $productData');
+      print('=====================================');
 
       widget.onSave(productData, _imageFile, webImageBytes: kIsWeb && _webImageDataUrl != null ? base64Decode(_webImageDataUrl!.split(',').last) : null, webImageName: kIsWeb ? _webImageName : null);
     } catch (e) {

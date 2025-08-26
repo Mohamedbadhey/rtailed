@@ -308,6 +308,7 @@ class ApiService {
         if (data.isNotEmpty) {
           print('🛍️ First product raw JSON: ${data.first}');
           print('🛍️ First product is_deleted field: ${data.first['is_deleted']}');
+          print('🛍️ First product is_deleted type: ${data.first['is_deleted'].runtimeType}');
         }
         
         final products = data.map((json) => Product.fromJson(json)).toList();
@@ -320,6 +321,7 @@ class ApiService {
           print('  - ID: ${firstProduct.id}');
           print('  - Name: ${firstProduct.name}');
           print('  - Is Deleted: ${firstProduct.isDeleted}');
+          print('  - Is Deleted Type: ${firstProduct.isDeleted.runtimeType}');
         }
         
         print('🛍️ ===== API GET ALL PRODUCTS END (SUCCESS) =====');

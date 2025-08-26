@@ -31,7 +31,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   List<String> _categories = ['All'];
   List<Map<String, dynamic>> _categoryList = [];
   bool _showLowStock = false;
-  bool _showDeletedProducts = false;
+  bool _showDeletedProducts = false; // Show active products by default, toggle to show deleted
   bool _isLoading = true;
   List<Product> _products = [];
   List<Product> _filteredProducts = [];
@@ -77,6 +77,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
   DateTime? _endDate;
   DateTime? _filterStartDate;
   DateTime? _filterEndDate;
+  
+  // Pagination state variables
+  static const int _itemsPerPage = 10;
+  int _stockSummaryCurrentPage = 0;
+  int _recentTransactionsCurrentPage = 0;
+  int _todayTransactionsCurrentPage = 0;
+  int _weekTransactionsCurrentPage = 0;
+  int _filteredTransactionsCurrentPage = 0;
 
   @override
   void initState() {
@@ -106,18 +114,20 @@ class _InventoryScreenState extends State<InventoryScreen> {
       
       // Load products and categories in parallel
       final results = await Future.wait([
-        _apiService.getProducts(),
+        _apiService.getAllProducts(), // Use getAllProducts to include deleted products
         _apiService.getCategories(),
       ]);
 
       final products = results[0] as List<Product>;
       print('Loaded ${products.length} products from API');
+      print('Deleted products count: ${products.where((p) => p.isDeleted == 1).length}');
       
       // Debug: Print each product's details
       for (var product in products) {
         print('Product ${product.id}: ${product.name} - Cost: ${product.costPrice}, Stock: ${product.stockQuantity}');
         print('  - Category ID: ${product.categoryId}');
         print('  - Category Name: ${product.categoryName}');
+        print('  - Is Deleted: ${product.isDeleted}');
       }
       final categories = results[1] as List<Map<String, dynamic>>;
 
@@ -128,6 +138,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
         _categories = ['All', ...categories.map((c) => c['name'] as String).toList()];
         _isLoading = false;
       });
+      print('🔄 _loadData: State updated, calling _applyFilters()');
+      print('🔄 _loadData: _showDeletedProducts = $_showDeletedProducts');
       _applyFilters();
     } catch (e) {
       setState(() {
@@ -176,10 +188,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
       
       setState(() {
         _products = products;
-        _filteredProducts = products;
         _isLoading = false;
       });
       print('📦 ✅ State updated, applying filters...');
+      print('📦 Products loaded, calling _applyFilters()...');
       _applyFilters();
       print('📦 ===== INVENTORY LOAD PRODUCTS END (SUCCESS) =====');
     } catch (e) {
@@ -197,6 +209,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   void _applyFilters() {
     setState(() {
+      print('🔍 ===== APPLYING FILTERS =====');
+      print('🔍 Total products: ${_products.length}');
+      print('🔍 Show deleted products: $_showDeletedProducts');
+      print('🔍 Show low stock: $_showLowStock');
+      print('🔍 Selected category: $_selectedCategory');
+      print('🔍 Search text: "${_searchController.text}"');
+      
       _filteredProducts = _products.where((product) {
         // Search filter
         final searchMatch = _searchController.text.isEmpty ||
@@ -211,11 +230,28 @@ class _InventoryScreenState extends State<InventoryScreen> {
         final stockMatch = !_showLowStock ||
             product.stockQuantity <= product.lowStockThreshold;
 
-        // Deleted products filter
-        final deletedMatch = _showDeletedProducts || product.isDeleted == 0;
+        // Deleted products filter - show either active OR deleted, not both
+        final deletedMatch = _showDeletedProducts ? product.isDeleted == 1 : product.isDeleted == 0;
+        
+        // Debug: Show the logic for deleted products
+        if (product.isDeleted == 1) {
+          print('🔍   - Product ${product.name} is deleted, _showDeletedProducts = $_showDeletedProducts, deletedMatch = $deletedMatch');
+        }
+
+        print('🔍 Product: ${product.name}');
+        print('🔍   - Is deleted: ${product.isDeleted}');
+        print('🔍   - Search match: $searchMatch');
+        print('🔍   - Category match: $categoryMatch');
+        print('🔍   - Stock match: $stockMatch');
+        print('🔍   - Deleted match: $deletedMatch');
+        print('🔍   - Final result: ${searchMatch && categoryMatch && stockMatch && deletedMatch}');
 
         return searchMatch && categoryMatch && stockMatch && deletedMatch;
       }).toList();
+      
+      print('🔍 Filtered products: ${_filteredProducts.length}');
+      print('🔍 Deleted products in filtered: ${_filteredProducts.where((p) => p.isDeleted == 1).length}');
+      print('🔍 ===== FILTERS APPLIED =====');
     });
   }
 
@@ -272,6 +308,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       );
       setState(() {
         _valueReportRows = List<Map<String, dynamic>>.from(data['products'] ?? []);
+          _resetStockSummaryPagination();
       });
     } catch (e) {
       setState(() {
@@ -918,7 +955,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 ),
                               ),
                               SizedBox(height: isSmallMobile ? 4 : 6),
-                              _buildTransactionsTable(_recentTransactions, _recentLoading, _recentError, 'No recent transactions', isSmallMobile),
+                              _buildTransactionsTable(
+                                _recentTransactions, 
+                                _recentLoading, 
+                                _recentError, 
+                                'No recent transactions', 
+                                isSmallMobile,
+                                currentPage: _recentTransactionsCurrentPage,
+                                onPageChanged: (page) => setState(() => _recentTransactionsCurrentPage = page),
+                                paginationLabel: 'Recent',
+                              ),
                               SizedBox(height: isSmallMobile ? 8 : 12),
                               Text(
                                 'Todays Transactions', 
@@ -928,7 +974,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 ),
                               ),
                               SizedBox(height: isSmallMobile ? 4 : 6),
-                              _buildTransactionsTable(_todayTransactions, _todayLoading, _todayError, 'No transactions today', isSmallMobile),
+                              _buildTransactionsTable(
+                                _todayTransactions, 
+                                _todayLoading, 
+                                _todayError, 
+                                'No transactions today', 
+                                isSmallMobile,
+                                currentPage: _todayTransactionsCurrentPage,
+                                onPageChanged: (page) => setState(() => _todayTransactionsCurrentPage = page),
+                                paginationLabel: 'Today',
+                              ),
                               SizedBox(height: isSmallMobile ? 8 : 12),
                               Text(
                                 'This Weeks Transactions', 
@@ -938,7 +993,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 ),
                               ),
                               SizedBox(height: isSmallMobile ? 4 : 6),
-                              _buildTransactionsTable(_weekTransactions, _weekLoading, _weekError, 'No transactions this week', isSmallMobile),
+                              _buildTransactionsTable(
+                                _weekTransactions, 
+                                _weekLoading, 
+                                _weekError, 
+                                'No transactions this week', 
+                                isSmallMobile,
+                                currentPage: _weekTransactionsCurrentPage,
+                                onPageChanged: (page) => setState(() => _weekTransactionsCurrentPage = page),
+                                paginationLabel: 'Week',
+                              ),
                               SizedBox(height: isSmallMobile ? 8 : 12),
                               Text(
                                 'Filter Transactions by Date', 
@@ -950,7 +1014,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               SizedBox(height: isSmallMobile ? 4 : 6),
                               _buildDateFilterControls(isSmallMobile),
                               SizedBox(height: isSmallMobile ? 6 : 8),
-                              _buildTransactionsTable(_filteredTransactions, _filteredLoading, _filteredError, 'No transactions for selected dates', isSmallMobile),
+                              _buildTransactionsTable(
+                                _filteredTransactions, 
+                                _filteredLoading, 
+                                _filteredError, 
+                                'No transactions for selected dates', 
+                                isSmallMobile,
+                                currentPage: _filteredTransactionsCurrentPage,
+                                onPageChanged: (page) => setState(() => _filteredTransactionsCurrentPage = page),
+                                paginationLabel: 'Filtered',
+                              ),
                             ],
                           ),
                         ),
@@ -1018,21 +1091,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 ),
                                 SizedBox(height: isSmallMobile ? 1 : 2),
                                   Text(
-                                    '${_filteredProducts.length} products found',
+                                    _showDeletedProducts 
+                                      ? '${_filteredProducts.length} deleted products'
+                                      : '${_filteredProducts.length} active products',
                                     style: TextStyle(
-                                      fontSize: isSmallMobile ? 9 : 10,
-                                      color: Colors.grey[600],
+                                    fontSize: isSmallMobile ? 9 : 10,
+                                      color: _showDeletedProducts ? Colors.orange[600] : Colors.grey[600],
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                  if (_showDeletedProducts && _filteredProducts.any((p) => p.isDeleted == 1))
-                                    Text(
-                                      '(${_filteredProducts.where((p) => p.isDeleted == 1).length} deleted)',
-                                      style: TextStyle(
-                                        fontSize: isSmallMobile ? 8 : 9,
-                                        color: Colors.orange[600],
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
                                 ],
                               ),
                             ),
@@ -1052,26 +1119,61 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               child: Column(
                                 children: [
                                   Text(
-                                    '${_products.length} Total',
-                                    style: TextStyle(
-                                      color: Theme.of(context).primaryColor,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: isSmallMobile ? 9 : 10,
-                                    ),
+                                '${_products.length} Total',
+                                style: TextStyle(
+                                  color: Theme.of(context).primaryColor,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: isSmallMobile ? 9 : 10,
+                                ),
                                   ),
-                                  if (_products.any((p) => p.isDeleted == 1))
-                                    Text(
-                                      '${_products.where((p) => p.isDeleted == 1).length} deleted',
-                                      style: TextStyle(
-                                        color: Colors.orange[600],
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: isSmallMobile ? 7 : 8,
-                                      ),
-                                    ),
-                                ],
+                                  Text(
+                                    '${_products.where((p) => p.isDeleted == 0).length} active, ${_products.where((p) => p.isDeleted == 1).length} deleted',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: isSmallMobile ? 7 : 8,
                               ),
                             ),
                           ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    
+                    // Status Banner
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+                      margin: EdgeInsets.only(bottom: isSmallMobile ? 8 : 12),
+                      decoration: BoxDecoration(
+                        color: _showDeletedProducts ? Colors.orange[50] : Colors.green[50],
+                        border: Border.all(
+                          color: _showDeletedProducts ? Colors.orange[200]! : Colors.green[200]!,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _showDeletedProducts ? Icons.warning_amber_rounded : Icons.check_circle,
+                            color: _showDeletedProducts ? Colors.orange[600] : Colors.green[600],
+                            size: isSmallMobile ? 16 : 20,
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _showDeletedProducts
+                                ? 'Showing deleted products only. These products cannot be sold in POS.'
+                                : 'Showing active products. These are available for sale in POS.',
+                              style: TextStyle(
+                                color: _showDeletedProducts ? Colors.orange[700] : Colors.green[700],
+                                fontSize: isSmallMobile ? 10 : 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -1119,7 +1221,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                     ),
                                     SizedBox(height: isSmallMobile ? 8 : 12),
                                 Text(
-                                  t(context, 'No products found'),
+                                  _showDeletedProducts 
+                                    ? 'No deleted products found'
+                                    : 'No active products found',
                                   style: TextStyle(
                                         fontSize: isSmallMobile ? 12 : 14,
                                         fontWeight: FontWeight.w600,
@@ -1128,7 +1232,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 ),
                                     SizedBox(height: isSmallMobile ? 4 : 6),
                                 Text(
-                                      'Try adjusting your search or filters',
+                                  _showDeletedProducts
+                                    ? 'All products are currently active'
+                                    : 'Try adjusting your search or filters',
                                   style: TextStyle(
                                         fontSize: isSmallMobile ? 9 : 10,
                                     color: Colors.grey[500],
@@ -1295,15 +1401,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    product.name,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: isSmallMobile ? 10 : 12,
+                                product.name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                fontSize: isSmallMobile ? 10 : 12,
                                       color: isDeleted ? Colors.grey[500] : Colors.grey[800],
                                       decoration: isDeleted ? TextDecoration.lineThrough : null,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                ),
+                              maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 if (isDeleted)
@@ -1327,7 +1433,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                     ),
                                   ),
                               ],
-                            ),
+                              ),
                             
                             SizedBox(height: isSmallMobile ? 1 : 2),
                             
@@ -1613,9 +1719,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                           color: Colors.green[700],
                                           fontWeight: FontWeight.w600,
                                           fontSize: isSmallMobile ? 7 : 8,
-                                        ),
-                                      ),
-                                    ],
+                          ),
+                        ),
+                      ],
                                   ),
                                 ),
                               ),
@@ -2262,7 +2368,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
     setState(() { _recentLoading = true; _recentError = null; });
     try {
       final data = await _apiService.getInventoryTransactions({'limit': 10});
-      setState(() { _recentTransactions = List<Map<String, dynamic>>.from(data); });
+        setState(() { 
+          _recentTransactions = List<Map<String, dynamic>>.from(data);
+          _resetRecentTransactionsPagination();
+        });
     } catch (e) {
       setState(() { _recentError = 'Failed to load recent transactions: $e'; });
     } finally {
@@ -2280,7 +2389,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
         'start_date': start.toIso8601String(),
         'end_date': end.toIso8601String(),
       });
-      setState(() { _todayTransactions = List<Map<String, dynamic>>.from(data); });
+        setState(() { 
+          _todayTransactions = List<Map<String, dynamic>>.from(data);
+          _resetTodayTransactionsPagination();
+        });
     } catch (e) {
       setState(() { _todayError = 'Failed to load today\'s transactions: $e'; });
     } finally {
@@ -2298,7 +2410,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
         'start_date': start.toIso8601String(),
         'end_date': end.toIso8601String(),
       });
-      setState(() { _weekTransactions = List<Map<String, dynamic>>.from(data); });
+        setState(() { 
+          _weekTransactions = List<Map<String, dynamic>>.from(data);
+          _resetWeekTransactionsPagination();
+        });
     } catch (e) {
       setState(() { _weekError = 'Failed to load this week\'s transactions: $e'; });
     } finally {
@@ -2322,6 +2437,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         setState(() {
           _filteredTransactions = transactions;
           _filteredLoading = false;
+            _resetFilteredTransactionsPagination();
         });
       }).catchError((error) {
         setState(() {
@@ -2346,6 +2462,37 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
     setState(() {});
     _fetchInventoryValueReport();
+  }
+  
+  // Pagination helper methods
+  void _resetStockSummaryPagination() {
+    _stockSummaryCurrentPage = 0;
+  }
+  
+  void _resetRecentTransactionsPagination() {
+    _recentTransactionsCurrentPage = 0;
+  }
+  
+  void _resetTodayTransactionsPagination() {
+    _todayTransactionsCurrentPage = 0;
+  }
+  
+  void _resetWeekTransactionsPagination() {
+    _weekTransactionsCurrentPage = 0;
+  }
+  
+  void _resetFilteredTransactionsPagination() {
+    _filteredTransactionsCurrentPage = 0;
+  }
+  
+  List<Map<String, dynamic>> _getPaginatedData(List<Map<String, dynamic>> data, int currentPage) {
+    final startIndex = currentPage * _itemsPerPage;
+    final endIndex = (startIndex + _itemsPerPage).clamp(0, data.length);
+    return data.sublist(startIndex, endIndex);
+  }
+  
+  int _getTotalPages(int dataLength) {
+    return (dataLength / _itemsPerPage).ceil();
   }
 
   Widget _buildMobileReportFilters() {
@@ -2715,9 +2862,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
 
     if (isSmallMobile) {
-      // Mobile layout - cards
+      // Mobile layout - cards with pagination
+      final paginatedData = _getPaginatedData(_valueReportRows, _stockSummaryCurrentPage);
+      final totalPages = _getTotalPages(_valueReportRows.length);
+      
       return Column(
-        children: _valueReportRows.map((row) => Card(
+        children: [
+          ...paginatedData.map((row) => Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -2767,11 +2918,77 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
           ),
         )).toList(),
+          
+          // Mobile Pagination Controls
+          if (totalPages > 1) ...[
+            SizedBox(height: 12),
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Page ${_stockSummaryCurrentPage + 1} of $totalPages',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.chevron_left, size: 20),
+                        onPressed: _stockSummaryCurrentPage > 0
+                          ? () => setState(() => _stockSummaryCurrentPage--)
+                          : null,
+                        padding: EdgeInsets.all(8),
+                        constraints: BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
+                      ),
+                      Text(
+                        '${(_stockSummaryCurrentPage * _itemsPerPage) + 1}-${(_stockSummaryCurrentPage + 1) * _itemsPerPage} of ${_valueReportRows.length}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.chevron_right, size: 20),
+                        onPressed: _stockSummaryCurrentPage < totalPages - 1
+                          ? () => setState(() => _stockSummaryCurrentPage++)
+                          : null,
+                        padding: EdgeInsets.all(8),
+                        constraints: BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       );
     }
 
-    // Desktop layout - table
-    return SingleChildScrollView(
+    // Desktop layout - table with pagination
+    final paginatedData = _getPaginatedData(_valueReportRows, _stockSummaryCurrentPage);
+    final totalPages = _getTotalPages(_valueReportRows.length);
+    
+    return Column(
+      children: [
+        // Table
+        SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
         columns: [
@@ -2785,7 +3002,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           DataColumn(label: Text(t(context, 'Mode'))),
         ],
         rows: [
-          ..._valueReportRows.map((row) => DataRow(
+              ...paginatedData.map((row) => DataRow(
             cells: [
               DataCell(
                 InkWell(
@@ -2820,10 +3037,81 @@ class _InventoryScreenState extends State<InventoryScreen> {
           ),
         ],
       ),
+        ),
+        
+        // Desktop Pagination Controls
+        if (totalPages > 1)
+          Container(
+            padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+            margin: EdgeInsets.only(top: isSmallMobile ? 8 : 12),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              border: Border(
+                top: BorderSide(color: Colors.grey[300]!),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Showing ${(_stockSummaryCurrentPage * _itemsPerPage) + 1} to ${(_stockSummaryCurrentPage + 1) * _itemsPerPage} of ${_valueReportRows.length} entries',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: isSmallMobile ? 10 : 12,
+                  ),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.chevron_left, size: isSmallMobile ? 16 : 20),
+                      onPressed: _stockSummaryCurrentPage > 0
+                        ? () => setState(() => _stockSummaryCurrentPage--)
+                        : null,
+                      padding: EdgeInsets.all(isSmallMobile ? 4 : 8),
+                      constraints: BoxConstraints(
+                        minWidth: isSmallMobile ? 24 : 32,
+                        minHeight: isSmallMobile ? 24 : 32,
+                      ),
+                    ),
+                    SizedBox(width: isSmallMobile ? 4 : 8),
+                    Text(
+                      'Page ${_stockSummaryCurrentPage + 1} of $totalPages',
+                      style: TextStyle(
+                        fontSize: isSmallMobile ? 10 : 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(width: isSmallMobile ? 4 : 8),
+                    IconButton(
+                      icon: Icon(Icons.chevron_right, size: isSmallMobile ? 16 : 20),
+                      onPressed: _stockSummaryCurrentPage < totalPages - 1
+                        ? () => setState(() => _stockSummaryCurrentPage++)
+                        : null,
+                      padding: EdgeInsets.all(isSmallMobile ? 4 : 8),
+                      constraints: BoxConstraints(
+                        minWidth: isSmallMobile ? 24 : 32,
+                        minHeight: isSmallMobile ? 24 : 32,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
-  Widget _buildTransactionsTable(List<Map<String, dynamic>> transactions, bool isLoading, String? error, String emptyMessage, bool isSmallMobile) {
+  Widget _buildTransactionsTable(
+    List<Map<String, dynamic>> transactions, 
+    bool isLoading, 
+    String? error, 
+    String emptyMessage, 
+    bool isSmallMobile, {
+    int? currentPage,
+    Function(int)? onPageChanged,
+    String? paginationLabel,
+  }) {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -2843,9 +3131,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
 
     if (isSmallMobile) {
-      // Mobile layout - cards
+      // Mobile layout - cards with pagination
+      final paginatedData = currentPage != null 
+        ? _getPaginatedData(transactions, currentPage)
+        : transactions;
+      final totalPages = currentPage != null ? _getTotalPages(transactions.length) : 0;
+      
     return Column(
-        children: transactions.map((tx) => Card(
+        children: [
+          ...paginatedData.map((tx) => Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -2883,11 +3177,79 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
           ),
         )).toList(),
+          
+          // Mobile Pagination Controls
+          if (currentPage != null && totalPages > 1) ...[
+            SizedBox(height: 12),
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Page ${currentPage + 1} of $totalPages',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.chevron_left, size: 20),
+                        onPressed: currentPage > 0
+                          ? () => onPageChanged?.call(currentPage - 1)
+                          : null,
+                        padding: EdgeInsets.all(8),
+                        constraints: BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
+                      ),
+                      Text(
+                        '${(currentPage * _itemsPerPage) + 1}-${(currentPage + 1) * _itemsPerPage} of ${transactions.length}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.chevron_right, size: 20),
+                        onPressed: currentPage < totalPages - 1
+                          ? () => onPageChanged?.call(currentPage + 1)
+                          : null,
+                        padding: EdgeInsets.all(8),
+                        constraints: BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       );
     }
 
-    // Desktop layout - table
-    return SingleChildScrollView(
+    // Desktop layout - table with pagination
+    final paginatedData = currentPage != null 
+      ? _getPaginatedData(transactions, currentPage)
+      : transactions;
+    final totalPages = currentPage != null ? _getTotalPages(transactions.length) : 0;
+    
+    return Column(
+      children: [
+        // Table
+        SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
         columns: [
@@ -2900,7 +3262,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           DataColumn(label: Text('Notes')),
           DataColumn(label: Text('Mode')),
         ],
-        rows: transactions.map((tx) => DataRow(cells: [
+            rows: paginatedData.map((tx) => DataRow(cells: [
           DataCell(Text(tx['created_at']?.toString()?.split('T')?.first ?? '')),
           DataCell(Text(tx['product_name'] ?? '')),
           DataCell(Text(tx['transaction_type'] ?? '')),
@@ -2911,6 +3273,68 @@ class _InventoryScreenState extends State<InventoryScreen> {
           DataCell(Text((tx['sale_mode'] ?? '').toString().isNotEmpty ? (tx['sale_mode'] == 'wholesale' ? 'Wholesale' : 'Retail') : '')),
         ])).toList(),
       ),
+        ),
+        
+        // Desktop Pagination Controls
+        if (currentPage != null && totalPages > 1)
+          Container(
+            padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+            margin: EdgeInsets.only(top: isSmallMobile ? 8 : 12),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              border: Border(
+                top: BorderSide(color: Colors.grey[300]!),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Showing ${(currentPage * _itemsPerPage) + 1} to ${(currentPage + 1) * _itemsPerPage} of ${transactions.length} entries',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: isSmallMobile ? 10 : 12,
+                  ),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.chevron_left, size: isSmallMobile ? 16 : 20),
+                      onPressed: currentPage > 0
+                        ? () => onPageChanged?.call(currentPage - 1)
+                        : null,
+                      padding: EdgeInsets.all(isSmallMobile ? 4 : 8),
+                      constraints: BoxConstraints(
+                        minWidth: isSmallMobile ? 24 : 32,
+                        minHeight: isSmallMobile ? 24 : 32,
+                      ),
+                    ),
+                    SizedBox(width: isSmallMobile ? 4 : 8),
+                    Text(
+                      'Page ${currentPage + 1} of $totalPages',
+                      style: TextStyle(
+                        fontSize: isSmallMobile ? 10 : 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(width: isSmallMobile ? 4 : 8),
+                    IconButton(
+                      icon: Icon(Icons.chevron_right, size: isSmallMobile ? 16 : 20),
+                      onPressed: currentPage < totalPages - 1
+                        ? () => onPageChanged?.call(currentPage + 1)
+                        : null,
+                      padding: EdgeInsets.all(isSmallMobile ? 4 : 8),
+                      constraints: BoxConstraints(
+                        minWidth: isSmallMobile ? 24 : 32,
+                        minHeight: isSmallMobile ? 24 : 32,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
@@ -3321,21 +3745,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
               ),
               SizedBox(width: isSmallMobile ? 6 : 8),
               Expanded(
-                child: Text(
-                  'Show Deleted Products',
-                  style: TextStyle(
-                    fontSize: isSmallMobile ? 10 : 11,
-                    fontWeight: FontWeight.w600,
-                    color: _showDeletedProducts ? Colors.orange[800] : Colors.grey[800],
-                  ),
-                ),
+                child:                                   Text(
+                                    _showDeletedProducts ? 'Showing Deleted Only' : 'Show Deleted Products',
+                                    style: TextStyle(
+                                      fontSize: isSmallMobile ? 10 : 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: _showDeletedProducts ? Colors.orange[800] : Colors.grey[800],
+                                    ),
+                                  ),
               ),
               Switch(
                 value: _showDeletedProducts,
                 onChanged: (value) {
+                  print('🔄 Deleted products toggle changed to: $value');
                   setState(() {
                     _showDeletedProducts = value;
                   });
+                  print('🔄 Calling _applyFilters() after toggle change');
                   _applyFilters();
                 },
                 activeColor: Colors.orange[600],
@@ -3494,21 +3920,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   size: 20,
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  'Deleted Products',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _showDeletedProducts ? Colors.orange[800] : Colors.grey[800],
+                                  Text(
+                    _showDeletedProducts ? 'Deleted Only' : 'Show Deleted',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _showDeletedProducts ? Colors.orange[800] : Colors.grey[800],
+                    ),
                   ),
-                ),
                 const SizedBox(width: 12),
                 Switch(
                   value: _showDeletedProducts,
                   onChanged: (value) {
+                    print('🔄 Desktop deleted products toggle changed to: $value');
                     setState(() {
                       _showDeletedProducts = value;
                     });
+                    print('🔄 Desktop calling _applyFilters() after toggle change');
                     _applyFilters();
                   },
                   activeColor: Colors.orange[600],
@@ -4217,22 +4645,22 @@ class _ProductDialogState extends State<_ProductDialog> {
     return Column(
       children: [
                       TextFormField(
-                        controller: _nameController,
-                        decoration: InputDecoration(
-                          labelText: t(context, 'Product Name *'),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          prefixIcon: const Icon(Icons.inventory_2),
-                          filled: true,
-                          fillColor: Colors.grey[50],
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return t(context, 'Product name is required');
-                          }
-                          return null;
-                        },
+                              controller: _nameController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'Product Name *'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.inventory_2),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return t(context, 'Product name is required');
+                                }
+                                return null;
+                              },
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -4250,26 +4678,26 @@ class _ProductDialogState extends State<_ProductDialog> {
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
-                        controller: _costController,
-                        decoration: InputDecoration(
-                          labelText: t(context, 'Cost *'),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          prefixIcon: const Icon(Icons.account_balance_wallet),
-                          filled: true,
-                          fillColor: Colors.orange[50],
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
+                              controller: _costController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'Cost *'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.account_balance_wallet),
+                                filled: true,
+                                fillColor: Colors.orange[50],
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
                             return t(context, 'Cost is required');
-                          }
-                          if (double.tryParse(value) == null) {
-                            return t(context, 'Please enter a valid number');
-                          }
-                          return null;
-                        },
+                                }
+                                if (double.tryParse(value) == null) {
+                                  return t(context, 'Please enter a valid number');
+                                }
+                                return null;
+                              },
                       ),
                       const SizedBox(height: 16),
                       Row(

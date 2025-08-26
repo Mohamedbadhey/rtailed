@@ -115,6 +115,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
       // Debug: Print each product's details
       for (var product in products) {
         print('Product ${product.id}: ${product.name} - Cost: ${product.costPrice}, Stock: ${product.stockQuantity}');
+        print('  - Category ID: ${product.categoryId}');
+        print('  - Category Name: ${product.categoryName}');
       }
       final categories = results[1] as List<Map<String, dynamic>>;
 
@@ -154,6 +156,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
       
       for (final product in products) {
         print('📦 Product: ${product.name} (ID: ${product.id})');
+        print('📦   - Category ID: ${product.categoryId}');
+        print('📦   - Category Name: ${product.categoryName}');
         print('📦   - Image URL from API: ${product.imageUrl ?? 'NULL'}');
         
         if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {

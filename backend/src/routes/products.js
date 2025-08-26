@@ -70,7 +70,11 @@ router.get('/', auth, async (req, res) => {
     console.log('🛍️ User ID:', req.user.id);
     
     let query = `
-      SELECT p.*, c.name as category_name 
+      SELECT p.*, 
+             CASE 
+               WHEN p.category_id IS NULL THEN 'Uncategorized'
+               ELSE c.name 
+             END as category_name 
       FROM products p 
       LEFT JOIN categories c ON p.category_id = c.id 
       WHERE p.business_id = ? 
@@ -79,7 +83,11 @@ router.get('/', auth, async (req, res) => {
     let params = [req.user.business_id];
     if (req.user.role === 'superadmin') {
       query = `
-        SELECT p.*, c.name as category_name 
+        SELECT p.*, 
+               CASE 
+                 WHEN p.category_id IS NULL THEN 'Uncategorized'
+                 ELSE c.name 
+               END as category_name 
         FROM products p 
         LEFT JOIN categories c ON p.category_id = c.id 
         ORDER BY p.name
@@ -92,11 +100,13 @@ router.get('/', auth, async (req, res) => {
     const [products] = await pool.query(query, params);
     console.log('🛍️ Found', products.length, 'products');
     
-    // Debug each product's image URL
+    // Debug each product's details including category
     products.forEach((product, index) => {
       console.log(`🛍️ Product ${index + 1}:`);
       console.log(`  - ID: ${product.id}`);
       console.log(`  - Name: ${product.name}`);
+      console.log(`  - Category ID: ${product.category_id}`);
+      console.log(`  - Category Name: ${product.category_name}`);
       console.log(`  - Image URL: ${product.image_url || 'NULL'}`);
       if (product.image_url) {
         const fullUrl = `https://rtailed-production.up.railway.app${product.image_url}`;
@@ -118,7 +128,11 @@ router.get('/', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     let query = `
-      SELECT p.*, c.name as category_name 
+      SELECT p.*, 
+             CASE 
+               WHEN p.category_id IS NULL THEN 'Uncategorized'
+               ELSE c.name 
+             END as category_name 
       FROM products p 
       LEFT JOIN categories c ON p.category_id = c.id 
       WHERE p.id = ? AND p.business_id = ?
@@ -126,7 +140,11 @@ router.get('/:id', auth, async (req, res) => {
     let params = [req.params.id, req.user.business_id];
     if (req.user.role === 'superadmin') {
       query = `
-        SELECT p.*, c.name as category_name 
+        SELECT p.*, 
+               CASE 
+                 WHEN p.category_id IS NULL THEN 'Uncategorized'
+                 ELSE c.name 
+               END as category_name 
         FROM products p 
         LEFT JOIN categories c ON p.category_id = c.id 
         WHERE p.id = ?
@@ -137,6 +155,13 @@ router.get('/:id', auth, async (req, res) => {
     if (products.length === 0) {
       return res.status(404).json({ message: 'Product not found' });
     }
+    
+    console.log('🛍️ Single product fetched:');
+    console.log(`  - ID: ${products[0].id}`);
+    console.log(`  - Name: ${products[0].name}`);
+    console.log(`  - Category ID: ${products[0].category_id}`);
+    console.log(`  - Category Name: ${products[0].category_name}`);
+    
     res.json(products[0]);
   } catch (error) {
     console.error(error);

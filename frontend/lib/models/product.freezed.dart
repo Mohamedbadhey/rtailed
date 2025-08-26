@@ -25,7 +25,9 @@ mixin _$Product {
   String? get description => throw _privateConstructorUsedError;
   String? get sku => throw _privateConstructorUsedError;
   String? get barcode => throw _privateConstructorUsedError;
+  @JsonKey(name: 'category_id')
   int? get categoryId => throw _privateConstructorUsedError;
+  @JsonKey(name: 'category_name')
   String? get categoryName => throw _privateConstructorUsedError;
   @JsonKey(fromJson: _stringToDouble, toJson: _doubleToString)
   double get price => throw _privateConstructorUsedError;
@@ -68,8 +70,8 @@ abstract class $ProductCopyWith<$Res> {
       String? description,
       String? sku,
       String? barcode,
-      int? categoryId,
-      String? categoryName,
+      @JsonKey(name: 'category_id') int? categoryId,
+      @JsonKey(name: 'category_name') String? categoryName,
       @JsonKey(fromJson: _stringToDouble, toJson: _doubleToString) double price,
       @JsonKey(fromJson: _stringToDouble, toJson: _doubleToStringNullable)
       double? wholesalePrice,
@@ -216,8 +218,8 @@ abstract class _$$ProductImplCopyWith<$Res> implements $ProductCopyWith<$Res> {
       String? description,
       String? sku,
       String? barcode,
-      int? categoryId,
-      String? categoryName,
+      @JsonKey(name: 'category_id') int? categoryId,
+      @JsonKey(name: 'category_name') String? categoryName,
       @JsonKey(fromJson: _stringToDouble, toJson: _doubleToString) double price,
       @JsonKey(fromJson: _stringToDouble, toJson: _doubleToStringNullable)
       double? wholesalePrice,
@@ -358,8 +360,8 @@ class _$ProductImpl implements _Product {
       this.description,
       this.sku,
       this.barcode,
-      this.categoryId,
-      this.categoryName,
+      @JsonKey(name: 'category_id') this.categoryId,
+      @JsonKey(name: 'category_name') this.categoryName,
       @JsonKey(fromJson: _stringToDouble, toJson: _doubleToString)
       required this.price,
       @JsonKey(fromJson: _stringToDouble, toJson: _doubleToStringNullable)
@@ -401,8 +403,10 @@ class _$ProductImpl implements _Product {
   @override
   final String? barcode;
   @override
+  @JsonKey(name: 'category_id')
   final int? categoryId;
   @override
+  @JsonKey(name: 'category_name')
   final String? categoryName;
   @override
   @JsonKey(fromJson: _stringToDouble, toJson: _doubleToString)
@@ -522,8 +526,8 @@ abstract class _Product implements Product {
       final String? description,
       final String? sku,
       final String? barcode,
-      final int? categoryId,
-      final String? categoryName,
+      @JsonKey(name: 'category_id') final int? categoryId,
+      @JsonKey(name: 'category_name') final String? categoryName,
       @JsonKey(fromJson: _stringToDouble, toJson: _doubleToString)
       required final double price,
       @JsonKey(fromJson: _stringToDouble, toJson: _doubleToStringNullable)
@@ -564,8 +568,10 @@ abstract class _Product implements Product {
   @override
   String? get barcode;
   @override
+  @JsonKey(name: 'category_id')
   int? get categoryId;
   @override
+  @JsonKey(name: 'category_name')
   String? get categoryName;
   @override
   @JsonKey(fromJson: _stringToDouble, toJson: _doubleToString)

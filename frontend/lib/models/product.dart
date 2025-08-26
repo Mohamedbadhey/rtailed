@@ -11,8 +11,8 @@ class Product with _$Product {
     String? description,
     String? sku,
     String? barcode,
-    int? categoryId,
-    String? categoryName,
+    @JsonKey(name: 'category_id') int? categoryId,
+    @JsonKey(name: 'category_name') String? categoryName,
     @JsonKey(fromJson: _stringToDouble, toJson: _doubleToString)
     required double price,
     @JsonKey(fromJson: _stringToDouble, toJson: _doubleToStringNullable)

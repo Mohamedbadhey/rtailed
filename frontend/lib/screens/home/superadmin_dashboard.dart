@@ -9,7 +9,6 @@ import 'package:retail_management/utils/success_utils.dart';
 import 'package:retail_management/screens/home/branding_settings_screen.dart';
 import 'package:retail_management/screens/home/business_branding_screen.dart';
 import 'package:retail_management/widgets/branded_app_bar.dart';
-import 'package:retail_management/services/api_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -29,9 +28,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   List<Map<String, dynamic>> _settings = [];
   List<Map<String, dynamic>> _notifications = [];
   List<Map<String, dynamic>> _auditLogs = [];
-  
-  // API Service for business operations
-  final ApiService _apiService = ApiService();
   
   // State variables for real-time updates
   List<Map<String, dynamic>> _allMessages = [];
@@ -91,132 +87,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     if (isTiny) return defaultSize - 4;
     if (isExtraSmall) return defaultSize - 2;
     return defaultSize;
-  }
-  
-  // Reset business data method
-  Future<void> _resetBusinessData(int businessId, String businessName) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.warning, color: Colors.orange),
-            const SizedBox(width: 8),
-            Text('Reset Business Data'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Are you sure you want to reset all data for business:'),
-            const SizedBox(height: 8),
-            Text(
-              businessName,
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'This will DELETE:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text('• All products and inventory'),
-            Text('• All sales and transactions'),
-            Text('• All customers and categories'),
-            Text('• All reports and analytics'),
-            const SizedBox(height: 16),
-            Text(
-              'This will KEEP:',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
-            ),
-            const SizedBox(height: 8),
-            Text('• All user accounts'),
-            Text('• Business settings and configuration'),
-            const SizedBox(height: 16),
-            Text(
-              '🛡️ AUTOMATIC BACKUP: A complete backup will be created before deletion',
-              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '🔄 ROLLBACK AVAILABLE: You can restore all data from the backup if needed',
-              style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '⚠️ This action cannot be undone!',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: Text('Reset Business Data'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      final result = await _apiService.resetBusinessData(businessId);
-      
-      if (mounted) {
-        // Show success message with backup info
-        final backupInfo = result['backup'];
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Business data reset successfully!'),
-                if (backupInfo != null)
-                  Text(
-                    'Backup created: ${backupInfo['name']}',
-                    style: TextStyle(fontSize: 12, color: Colors.white70),
-                  ),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 5),
-          ),
-        );
-        
-        // Reload businesses to show updated stats
-        _loadDashboardData();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to reset business data: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
   }
 
   @override
@@ -2600,7 +2470,27 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                            const PopupMenuItem(value: 'users', child: Text('Manage Users')),
                            const PopupMenuItem(value: 'analytics', child: Text('Analytics')),
                            const PopupMenuItem(value: 'toggle_status', child: Text('Toggle Status')),
-                           const PopupMenuItem(value: 'reset_data', child: Text('Reset Data')),
+                           const PopupMenuDivider(),
+                           PopupMenuItem(
+                             value: 'check_counts',
+                             child: Row(
+                               children: [
+                                 Icon(Icons.analytics, color: Colors.blue[600], size: 16),
+                                 const SizedBox(width: 8),
+                                 const Text('Check Data Counts'),
+                               ],
+                             ),
+                           ),
+                           PopupMenuItem(
+                             value: 'reset_data',
+                             child: Row(
+                               children: [
+                                 Icon(Icons.delete_sweep, color: Colors.red[600], size: 16),
+                                 const SizedBox(width: 8),
+                                 const Text('Reset Business Data'),
+                               ],
+                             ),
+                           ),
                          ],
                          child: const Icon(Icons.more_vert, size: 16, color: Colors.grey),
                        ),
@@ -2682,7 +2572,26 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                               const PopupMenuItem(value: 'users', child: Text('Manage Users')),
                               const PopupMenuItem(value: 'analytics', child: Text('Analytics')),
                               const PopupMenuItem(value: 'toggle_status', child: Text('Toggle Status')),
-                              const PopupMenuItem(value: 'reset_data', child: Text('Reset Data')),
+                              const PopupMenuDivider(),
+                              PopupMenuItem(
+                                value: 'check_counts',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.analytics, color: Colors.blue[600], size: 16),
+                                    const SizedBox(width: 8),
+                                    const Text('Check Data Counts'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'reset_data',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete_sweep, color: Colors.red[600], size: 16),
+                                    const Text('Reset Business Data'),
+                                  ],
+                                ),
+                              ),
                             ],
                             child: const Icon(Icons.more_vert, size: 16, color: Colors.grey),
                           ),
@@ -2699,30 +2608,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                         _buildStatChip('Sales', business['sale_count']?.toString() ?? '0'),
                         _buildStatChip('Customers', business['customer_count']?.toString() ?? '0'),
                       ],
-                    ),
-                    const SizedBox(height: 8),
-                    // Reset Data Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _resetBusinessData(
-                          business['id'],
-                          business['name'] ?? 'Unknown Business',
-                        ),
-                        icon: Icon(Icons.refresh, size: 14),
-                        label: Text(
-                          'Reset Data',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        ),
-                      ),
                     ),
                     const SizedBox(height: 3),
                     Row(
@@ -2861,8 +2746,11 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       case 'toggle_status':
         _toggleBusinessStatus(business);
         break;
+      case 'check_counts':
+        _checkBusinessDataCounts(business);
+        break;
       case 'reset_data':
-        _resetBusinessData(business['id'], business['name'] ?? 'Unknown Business');
+        _showBusinessResetDialog(business);
         break;
     }
   }
@@ -10354,6 +10242,31 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                           ),
                         ],
                       ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.blue[600], size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Use the ⋮ menu on the business card above to check data counts or reset business data',
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  fontSize: 12,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ] else ...[
                       const Center(
                         child: Text(
@@ -10929,6 +10842,331 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
           backgroundColor: Colors.red
         ),
       );
+    }
+  }
+
+  Future<void> _showBusinessResetDialog(Map<String, dynamic> business) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red[600], size: 24),
+            const SizedBox(width: 8),
+            const Text('Reset Business Data'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to reset all data for ${business['name']}?',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'This will permanently delete:',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            _buildResetDataList(),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange[600], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Users will be kept. Only business data (products, sales, customers, etc.) will be deleted.',
+                      style: TextStyle(color: Colors.orange[800], fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[600],
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Reset Business Data'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            const SizedBox(width: 16),
+            Text('Resetting business data for ${business['name']}...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final safeBusiness = TypeConverter.safeToMap(business);
+      final resetResult = await _resetBusinessData(TypeConverter.safeToInt(safeBusiness['id']));
+      
+      Navigator.of(context).pop(); // Close loading dialog
+      
+      // Show success message with verification details
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green, size: 24),
+              const SizedBox(width: 8),
+              const Text('Reset Completed'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Business data reset successfully for ${business['name']}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              const Text('Verification Results:', style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              _buildVerificationResults(resetResult['verification'] ?? {}),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      
+      // Refresh the dashboard data
+      setState(() {});
+      
+    } catch (e) {
+      Navigator.of(context).pop(); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error resetting business data: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Widget _buildResetDataList() {
+    final resetItems = [
+      {'icon': Icons.inventory, 'label': 'All Products', 'color': Colors.red},
+      {'icon': Icons.shopping_cart, 'label': 'All Sales', 'color': Colors.red},
+      {'icon': Icons.people, 'label': 'All Customers', 'color': Colors.red},
+      {'icon': Icons.category, 'label': 'All Categories', 'color': Colors.red},
+      {'icon': Icons.notifications, 'label': 'All Notifications', 'color': Colors.red},
+      {'icon': Icons.account_balance_wallet, 'label': 'All Financial Data', 'color': Colors.red},
+      {'icon': Icons.people, 'label': 'Users (Kept)', 'color': Colors.green},
+    ];
+
+    return Column(
+      children: resetItems.map((item) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Icon(item['icon'] as IconData, color: item['color'] as Color, size: 16),
+            const SizedBox(width: 8),
+            Text(
+              item['label'] as String,
+              style: TextStyle(
+                color: item['color'] as Color,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      )).toList(),
+    );
+  }
+
+  Future<void> _checkBusinessDataCounts(Map<String, dynamic> business) async {
+    try {
+      final safeBusiness = TypeConverter.safeToMap(business);
+      final businessId = TypeConverter.safeToInt(safeBusiness['id']);
+      
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              const SizedBox(width: 16),
+              Text('Checking data counts for ${business['name']}...'),
+            ],
+          ),
+        ),
+      );
+
+      final result = await _fetchBusinessDataCounts(businessId);
+      
+      Navigator.of(context).pop(); // Close loading dialog
+      
+      // Show data counts dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.analytics, color: Colors.blue[600], size: 24),
+              const SizedBox(width: 8),
+              Text('Data Counts - ${business['name']}'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Current data counts for this business:',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 16),
+              _buildVerificationResults(result['data_counts'] ?? {}),
+              const SizedBox(height: 16),
+              Text(
+                'Timestamp: ${result['timestamp'] ?? 'N/A'}',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+      
+    } catch (e) {
+      Navigator.of(context).pop(); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error checking data counts: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> _fetchBusinessDataCounts(int businessId) async {
+    final authProvider = context.read<AuthProvider>();
+    final token = authProvider.token;
+    
+    try {
+      final response = await http.get(
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/business-data-counts/$businessId'),
+        headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      );
+      
+      if (response.statusCode == 200) {
+        final result = TypeConverter.safeToMap(json.decode(response.body));
+        return result;
+      } else {
+        final errorData = TypeConverter.safeToMap(json.decode(response.body));
+        throw Exception(errorData['message'] ?? 'Failed to fetch business data counts');
+      }
+    } catch (e) {
+      print('Error fetching business data counts: $e');
+      rethrow;
+    }
+  }
+
+  Widget _buildVerificationResults(Map<String, dynamic> verification) {
+    final items = [
+      {'label': 'Products', 'count': verification['products_count'] ?? 0, 'icon': Icons.inventory},
+      {'label': 'Sales', 'count': verification['sales_count'] ?? 0, 'icon': Icons.shopping_cart},
+      {'label': 'Customers', 'count': verification['customers_count'] ?? 0, 'icon': Icons.people},
+      {'label': 'Categories', 'count': verification['categories_count'] ?? 0, 'icon': Icons.category},
+      {'label': 'Inventory Transactions', 'count': verification['inventory_count'] ?? 0, 'icon': Icons.swap_horiz},
+      {'label': 'Damaged Products', 'count': verification['damaged_count'] ?? 0, 'icon': Icons.warning},
+      {'label': 'Cash Flows', 'count': verification['cash_flows_count'] ?? 0, 'icon': Icons.account_balance_wallet},
+      {'label': 'Monthly Bills', 'count': verification['monthly_bills_count'] ?? 0, 'icon': Icons.receipt},
+      {'label': 'Notifications', 'count': verification['notifications_count'] ?? 0, 'icon': Icons.notifications},
+    ];
+
+    return Column(
+      children: items.map((item) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Icon(
+              item['icon'] as IconData, 
+              color: (item['count'] as int) == 0 ? Colors.green : Colors.red, 
+              size: 16
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${item['label']}: ${item['count']}',
+              style: TextStyle(
+                color: (item['count'] as int) == 0 ? Colors.green : Colors.red,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      )).toList(),
+    );
+  }
+
+  Future<Map<String, dynamic>> _resetBusinessData(int businessId) async {
+    final authProvider = context.read<AuthProvider>();
+    final token = authProvider.token;
+    
+    try {
+      final response = await http.post(
+        Uri.parse('https://rtailed-production.up.railway.app/api/admin/reset-business-data'),
+        headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+        body: json.encode({'businessId': businessId}),
+      );
+      
+      if (response.statusCode == 200) {
+        final result = TypeConverter.safeToMap(json.decode(response.body));
+        print('Business reset successful: ${result['message']}');
+        return result;
+      } else {
+        final errorData = TypeConverter.safeToMap(json.decode(response.body));
+        throw Exception(errorData['message'] ?? 'Failed to reset business data');
+      }
+    } catch (e) {
+      print('Error resetting business data: $e');
+      rethrow;
     }
   }
 

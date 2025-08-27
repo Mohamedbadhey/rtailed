@@ -3479,4 +3479,224 @@ router.get('/revenue-analytics', auth, superadminOnly, async (req, res) => {
 
 // --- ACCOUNTING SECTION END ---
 
+// Get Business Data Counts (for verification)
+router.get('/business-data-counts/:businessId', auth, superadminOnly, async (req, res) => {
+  try {
+    const { businessId } = req.params;
+    
+    if (!businessId) {
+      return res.status(400).json({ message: 'Business ID is required' });
+    }
+
+    // Verify business exists
+    const [businessCheck] = await pool.query(
+      'SELECT id, name FROM businesses WHERE id = ?',
+      [businessId]
+    );
+
+    if (businessCheck.length === 0) {
+      return res.status(404).json({ message: 'Business not found' });
+    }
+
+    const businessName = businessCheck[0].name;
+    console.log(`🔍 Getting data counts for business: ${businessName} (ID: ${businessId})`);
+
+    // Get current data counts
+    const [counts] = await pool.query(`
+      SELECT 
+        (SELECT COUNT(*) FROM products WHERE business_id = ?) as products_count,
+        (SELECT COUNT(*) FROM sales WHERE business_id = ?) as sales_count,
+        (SELECT COUNT(*) FROM customers WHERE business_id = ?) as customers_count,
+        (SELECT COUNT(*) FROM categories WHERE business_id = ?) as categories_count,
+        (SELECT COUNT(*) FROM inventory_transactions WHERE business_id = ?) as inventory_count,
+        (SELECT COUNT(*) FROM damaged_products WHERE business_id = ?) as damaged_count,
+        (SELECT COUNT(*) FROM cash_flows WHERE business_id = ?) as cash_flows_count,
+        (SELECT COUNT(*) FROM monthly_bills WHERE business_id = ?) as monthly_bills_count,
+        (SELECT COUNT(*) FROM notifications WHERE business_id = ?) as notifications_count,
+        (SELECT COUNT(*) FROM users WHERE business_id = ?) as users_count
+    `, [businessId, businessId, businessId, businessId, businessId, businessId, businessId, businessId, businessId, businessId]);
+    
+    const dataCounts = counts[0];
+    console.log(`🔍 Data counts for business ${businessId}:`, dataCounts);
+    
+    res.json({
+      business_name: businessName,
+      business_id: businessId,
+      data_counts: dataCounts,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Error getting business data counts:', error);
+    res.status(500).json({ 
+      message: 'Failed to get business data counts', 
+      error: error.message 
+    });
+  }
+});
+
+// Business Data Reset Endpoint
+router.post('/reset-business-data', auth, superadminOnly, async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    
+    const { businessId } = req.body;
+    
+    if (!businessId) {
+      return res.status(400).json({ message: 'Business ID is required' });
+    }
+
+    // Verify business exists
+    const [businessCheck] = await connection.query(
+      'SELECT id, name FROM businesses WHERE id = ?',
+      [businessId]
+    );
+
+    if (businessCheck.length === 0) {
+      return res.status(404).json({ message: 'Business not found' });
+    }
+
+    const businessName = businessCheck[0].name;
+    console.log(`🔄 Starting business data reset for: ${businessName} (ID: ${businessId})`);
+
+    // Delete business data in the correct order (respecting foreign key constraints)
+    
+    // 1. Delete inventory transactions
+    const [inventoryResult] = await connection.query(
+      'DELETE FROM inventory_transactions WHERE business_id = ?',
+      [businessId]
+    );
+    console.log(`🗑️ Deleted ${inventoryResult.affectedRows} inventory transactions`);
+
+    // 2. Delete sale items
+    const [saleItemsResult] = await connection.query(
+      'DELETE si FROM sale_items si INNER JOIN sales s ON si.sale_id = s.id WHERE s.business_id = ?',
+      [businessId]
+    );
+    console.log(`🗑️ Deleted ${saleItemsResult.affectedRows} sale items`);
+
+    // 3. Delete sales
+    const [salesResult] = await connection.query(
+      'DELETE FROM sales WHERE business_id = ?',
+      [businessId]
+    );
+    console.log(`🗑️ Deleted ${salesResult.affectedRows} sales`);
+
+    // 4. Delete damaged products
+    const [damagedResult] = await connection.query(
+      'DELETE FROM damaged_products WHERE business_id = ?',
+      [businessId]
+    );
+    console.log(`🗑️ Deleted ${damagedResult.affectedRows} damaged products`);
+
+    // 5. Delete products
+    const [productsResult] = await connection.query(
+      'DELETE FROM products WHERE business_id = ?',
+      [businessId]
+    );
+    console.log(`🗑️ Deleted ${productsResult.affectedRows} products`);
+
+    // 6. Delete customers
+    const [customersResult] = await connection.query(
+      'DELETE FROM customers WHERE business_id = ?',
+      [businessId]
+    );
+    console.log(`🗑️ Deleted ${customersResult.affectedRows} customers`);
+
+    // 7. Delete categories
+    const [categoriesResult] = await connection.query(
+      'DELETE FROM categories WHERE business_id = ?',
+      [businessId]
+    );
+    console.log(`🗑️ Deleted ${categoriesResult.affectedRows} categories`);
+
+    // 8. Delete cash flows
+    const [cashFlowsResult] = await connection.query(
+      'DELETE FROM cash_flows WHERE business_id = ?',
+      [businessId]
+    );
+    console.log(`🗑️ Deleted ${cashFlowsResult.affectedRows} cash flows`);
+
+    // 9. Delete monthly bills
+    const [monthlyBillsResult] = await connection.query(
+      'DELETE FROM monthly_bills WHERE business_id = ?',
+      [businessId]
+    );
+    console.log(`🗑️ Deleted ${monthlyBillsResult.affectedRows} monthly bills`);
+
+    // 10. Delete notifications
+    const [notificationsResult] = await connection.query(
+      'DELETE FROM notifications WHERE business_id = ?',
+      [businessId]
+    );
+    console.log(`🗑️ Deleted ${notificationsResult.affectedRows} notifications`);
+
+    // 11. Delete branding files (optional - keep branding settings)
+    // const [brandingResult] = await connection.query(
+    //   'DELETE FROM business_branding WHERE business_id = ?',
+    //   [businessId]
+    // );
+
+    // VERIFICATION: Check if data was actually deleted
+    console.log(`🔍 Verifying data deletion for business ${businessId}...`);
+    
+    const [verificationResults] = await connection.query(`
+      SELECT 
+        (SELECT COUNT(*) FROM products WHERE business_id = ?) as products_count,
+        (SELECT COUNT(*) FROM sales WHERE business_id = ?) as sales_count,
+        (SELECT COUNT(*) FROM customers WHERE business_id = ?) as customers_count,
+        (SELECT COUNT(*) FROM categories WHERE business_id = ?) as categories_count,
+        (SELECT COUNT(*) FROM inventory_transactions WHERE business_id = ?) as inventory_count,
+        (SELECT COUNT(*) FROM damaged_products WHERE business_id = ?) as damaged_count,
+        (SELECT COUNT(*) FROM cash_flows WHERE business_id = ?) as cash_flows_count,
+        (SELECT COUNT(*) FROM monthly_bills WHERE business_id = ?) as monthly_bills_count,
+        (SELECT COUNT(*) FROM notifications WHERE business_id = ?) as notifications_count
+    `, [businessId, businessId, businessId, businessId, businessId, businessId, businessId, businessId, businessId]);
+    
+    const verification = verificationResults[0];
+    console.log(`🔍 Verification results:`, verification);
+    
+    // Check if any data remains (should all be 0)
+    const remainingData = Object.values(verification).some(count => count > 0);
+    if (remainingData) {
+      console.log(`⚠️ WARNING: Some data still remains for business ${businessId}:`, verification);
+    } else {
+      console.log(`✅ SUCCESS: All business data verified as deleted for business ${businessId}`);
+    }
+
+    await connection.commit();
+    
+    console.log(`✅ Business data reset completed for: ${businessName} (ID: ${businessId})`);
+    
+    res.json({
+      message: `Business data reset successfully for ${businessName}`,
+      deleted_counts: {
+        inventory_transactions: inventoryResult.affectedRows,
+        sale_items: saleItemsResult.affectedRows,
+        sales: salesResult.affectedRows,
+        damaged_products: damagedResult.affectedRows,
+        products: productsResult.affectedRows,
+        customers: customersResult.affectedRows,
+        categories: categoriesResult.affectedRows,
+        cash_flows: cashFlowsResult.affectedRows,
+        monthly_bills: monthlyBillsResult.affectedRows,
+        notifications: notificationsResult.affectedRows,
+      },
+      verification: verification,
+      all_data_deleted: !remainingData
+    });
+
+  } catch (error) {
+    await connection.rollback();
+    console.error('❌ Error resetting business data:', error);
+    res.status(500).json({ 
+      message: 'Failed to reset business data', 
+      error: error.message 
+    });
+  } finally {
+    connection.release();
+  }
+});
+
 module.exports = router;

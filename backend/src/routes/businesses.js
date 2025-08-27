@@ -7,15 +7,9 @@ const bcrypt = require('bcryptjs');
 // Get all businesses with pagination and statistics (superadmin only)
 router.get('/', auth, checkRole(['superadmin']), async (req, res) => {
   try {
-    console.log('🔄 DEBUG: GET /api/businesses called');
-    console.log('🔄 DEBUG: User role:', req.user.role);
-    console.log('🔄 DEBUG: User ID:', req.user.id);
-    
     const limit = parseInt(req.query.limit) || 10;
     const offset = parseInt(req.query.offset) || 0;
     const search = req.query.search || '';
-    
-    console.log('🔄 DEBUG: Query params - limit:', limit, 'offset:', offset, 'search:', search);
     
     let whereClause = '';
     let params = [];
@@ -25,19 +19,11 @@ router.get('/', auth, checkRole(['superadmin']), async (req, res) => {
       params = [`%${search}%`, `%${search}%`, `%${search}%`];
     }
     
-    console.log('🔄 DEBUG: Where clause:', whereClause);
-    console.log('🔄 DEBUG: Params:', params);
-    
     // Get businesses with pagination
     const [businesses] = await pool.query(
       `SELECT * FROM businesses ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
-    
-    console.log('🔄 DEBUG: Raw businesses query result:', businesses.length, 'businesses found');
-    if (businesses.length > 0) {
-      console.log('🔄 DEBUG: First business:', businesses[0]);
-    }
     
     // Get total count for pagination
     const [countResult] = await pool.query(
@@ -46,14 +32,10 @@ router.get('/', auth, checkRole(['superadmin']), async (req, res) => {
     );
     
     const total = countResult[0].total;
-    console.log('🔄 DEBUG: Total businesses count:', total);
     
     // Get statistics for each business
-    console.log('🔄 DEBUG: Starting to get statistics for each business...');
     const businessesWithStats = await Promise.all(
       businesses.map(async (business) => {
-        console.log('🔄 DEBUG: Getting stats for business ID:', business.id, 'Name:', business.name);
-        
         // Get user count
         const [userCount] = await pool.query(
           'SELECT COUNT(*) as count FROM users WHERE business_id = ? AND is_deleted = 0',
@@ -78,20 +60,17 @@ router.get('/', auth, checkRole(['superadmin']), async (req, res) => {
           [business.id]
         );
         
-        const businessWithStats = {
+        return {
           ...business,
           user_count: userCount[0].count,
           product_count: productCount[0].count,
           customer_count: customerCount[0].count,
           sale_count: saleCount[0].count
         };
-        
-        console.log('🔄 DEBUG: Business stats for ID', business.id, ':', businessWithStats);
-        return businessWithStats;
       })
     );
     
-    const response = {
+    res.json({
       businesses: businessesWithStats,
       pagination: {
         total,
@@ -99,12 +78,9 @@ router.get('/', auth, checkRole(['superadmin']), async (req, res) => {
         offset,
         pages: Math.ceil(total / limit)
       }
-    };
-    
-    console.log('🔄 DEBUG: Final response:', JSON.stringify(response, null, 2));
-    res.json(response);
+    });
   } catch (error) {
-    console.error('❌ DEBUG: Error in GET /api/businesses:', error);
+    console.error(error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -1557,60 +1533,6 @@ router.get('/backups/all', auth, checkRole(['superadmin']), async (req, res) => 
   }
 });
 
-// Get business backups (superadmin only)
-router.get('/:businessId/backups', auth, checkRole(['superadmin']), async (req, res) => {
-  try {
-    console.log('🔄 DEBUG: GET /api/businesses/:businessId/backups called');
-    console.log('🔄 DEBUG: User role:', req.user.role);
-    console.log('🔄 DEBUG: User ID:', req.user.id);
-    console.log('🔄 DEBUG: Business ID from params:', req.params.businessId);
-    
-    const { businessId } = req.params;
-    
-    // Verify business exists
-    console.log('🔄 DEBUG: Verifying business exists with ID:', businessId);
-    const [businessRows] = await pool.query(
-      'SELECT id, name FROM businesses WHERE id = ?',
-      [businessId]
-    );
-    
-    console.log('🔄 DEBUG: Business verification result:', businessRows.length, 'rows found');
-    if (businessRows.length > 0) {
-      console.log('🔄 DEBUG: Business found:', businessRows[0]);
-    }
-    
-    if (businessRows.length === 0) {
-      console.log('❌ DEBUG: Business not found, returning 404');
-      return res.status(404).json({ message: 'Business not found' });
-    }
-    
-    const business = businessRows[0];
-    
-    // Get all backups for this business
-    console.log('🔄 DEBUG: Querying backups for business ID:', businessId);
-    const [backups] = await pool.query(
-      `SELECT bb.*, u.username as created_by_username
-       FROM business_backups bb
-       LEFT JOIN users u ON bb.created_by = u.id
-       WHERE bb.business_id = ?
-       ORDER BY bb.backup_date DESC, bb.backup_time DESC`,
-      [businessId]
-    );
-    
-    console.log('🔄 DEBUG: Backups query result:', backups.length, 'backups found');
-    if (backups.length > 0) {
-      console.log('🔄 DEBUG: First backup:', backups[0]);
-    }
-    
-    const response = { backups };
-    console.log('🔄 DEBUG: Final response:', JSON.stringify(response, null, 2));
-    res.json(response);
-  } catch (error) {
-    console.error('❌ DEBUG: Error in GET /api/businesses/:businessId/backups:', error);
-    res.status(500).json({ message: 'Failed to fetch business backups' });
-  }
-});
-
 // Get all deleted businesses (superadmin dashboard)
 router.get('/deleted/all', auth, checkRole(['superadmin']), async (req, res) => {
   try {
@@ -1697,449 +1619,6 @@ router.put('/:businessId/subscription-plan', auth, checkRole(['superadmin']), as
   } catch (error) {
     console.error('Error updating subscription plan:', error);
     res.status(500).json({ message: 'Failed to update subscription plan' });
-  }
-});
-
-// Reset business data (delete all business-related data except users) - superadmin only
-router.post('/:businessId/reset-data', auth, checkRole(['superadmin']), async (req, res) => {
-  const connection = await pool.getConnection();
-  try {
-    await connection.beginTransaction();
-    
-    const { businessId } = req.params;
-    
-    // Verify business exists
-    const [businessRows] = await connection.query(
-      'SELECT id, name, business_code FROM businesses WHERE id = ?',
-      [businessId]
-    );
-    
-    if (businessRows.length === 0) {
-      return res.status(404).json({ message: 'Business not found' });
-    }
-    
-    const business = businessRows[0];
-    
-    console.log(`🔄 Superadmin ${req.user.username} is resetting data for business: ${business.name} (ID: ${businessId})`);
-    
-    // STEP 1: CREATE AUTOMATIC BACKUP BEFORE DELETION
-    console.log(`💾 Creating automatic backup before data reset...`);
-    
-    const backupTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    const backupName = `AUTO_BACKUP_BEFORE_RESET_${backupTimestamp}`;
-    
-    // Create backup record
-    const [backupResult] = await connection.query(
-      `INSERT INTO business_backups (
-        business_id, backup_type, backup_date, backup_time, 
-        created_by, notes
-      ) VALUES (?, 'auto_reset_backup', CURDATE(), CURTIME(), ?, ?)`,
-      [businessId, req.user.id, 'Automatic backup created before business data reset']
-    );
-    
-    const backupId = backupResult.insertId;
-    
-    // STEP 2: BACKUP ALL DATA TO PERMANENT BACKUP TABLES
-    // Create permanent backup tables with business data (not temporary!)
-    console.log(`💾 Creating permanent backup tables...`);
-    
-    // Create backup tables with unique names
-    const backupTablePrefix = `backup_${backupId}_${Date.now()}`;
-    
-    await connection.query(`CREATE TABLE ${backupTablePrefix}_products AS SELECT * FROM products WHERE business_id = ?`, [businessId]);
-    await connection.query(`CREATE TABLE ${backupTablePrefix}_sales AS SELECT * FROM sales WHERE business_id = ?`, [businessId]);
-    await connection.query(`CREATE TABLE ${backupTablePrefix}_sale_items AS SELECT * FROM sale_items WHERE business_id = ?`, [businessId]);
-    await connection.query(`CREATE TABLE ${backupTablePrefix}_customers AS SELECT * FROM customers WHERE business_id = ?`, [businessId]);
-    await connection.query(`CREATE TABLE ${backupTablePrefix}_categories AS SELECT * FROM categories WHERE business_id = ?`, [businessId]);
-    await connection.query(`CREATE TABLE ${backupTablePrefix}_inventory AS SELECT * FROM inventory_transactions WHERE business_id = ?`, [businessId]);
-    await connection.query(`CREATE TABLE ${backupTablePrefix}_cash_flows AS SELECT * FROM cash_flows WHERE business_id = ?`, [businessId]);
-    await connection.query(`CREATE TABLE ${backupTablePrefix}_notifications AS SELECT * FROM notifications WHERE business_id = ?`, [businessId]);
-    await connection.query(`CREATE TABLE ${backupTablePrefix}_damaged AS SELECT * FROM damaged_products WHERE business_id = ?`, [businessId]);
-    await connection.query(`CREATE TABLE ${backupTablePrefix}_messages AS SELECT * FROM business_messages WHERE business_id = ?`, [businessId]);
-    await connection.query(`CREATE TABLE ${backupTablePrefix}_bills AS SELECT * FROM monthly_bills WHERE business_id = ?`, [businessId]);
-    await connection.query(`CREATE TABLE ${backupTablePrefix}_usage AS SELECT * FROM business_usage WHERE business_id = ?`, [businessId]);
-    await connection.query(`CREATE TABLE ${backupTablePrefix}_payments AS SELECT * FROM business_payments WHERE business_id = ?`, [businessId]);
-    
-    // Store backup table names in the backup record for restoration
-    await connection.query(
-      `UPDATE business_backups SET 
-       backup_tables = ?, 
-       backup_size = (SELECT COUNT(*) FROM ${backupTablePrefix}_products) + 
-                     (SELECT COUNT(*) FROM ${backupTablePrefix}_sales) + 
-                     (SELECT COUNT(*) FROM ${backupTablePrefix}_customers) + 
-                     (SELECT COUNT(*) FROM ${backupTablePrefix}_categories) + 
-                     (SELECT COUNT(*) FROM ${backupTablePrefix}_inventory) + 
-                     (SELECT COUNT(*) FROM ${backupTablePrefix}_cash_flows) + 
-                     (SELECT COUNT(*) FROM ${backupTablePrefix}_notifications) + 
-                     (SELECT COUNT(*) FROM ${backupTablePrefix}_damaged) + 
-                     (SELECT COUNT(*) FROM ${backupTablePrefix}_messages) + 
-                     (SELECT COUNT(*) FROM ${backupTablePrefix}_bills) + 
-                     (SELECT COUNT(*) FROM ${backupTablePrefix}_usage) + 
-                     (SELECT COUNT(*) FROM ${backupTablePrefix}_payments)
-       WHERE id = ?`,
-      [backupTablePrefix, backupId]
-    );
-    
-    // Get counts before deletion for logging
-    const [productCount] = await connection.query(
-      'SELECT COUNT(*) as count FROM products WHERE business_id = ?',
-      [businessId]
-    );
-    
-    const [saleCount] = await connection.query(
-      'SELECT COUNT(*) as count FROM sales WHERE business_id = ?',
-      [businessId]
-    );
-    
-    const [customerCount] = await connection.query(
-      'SELECT COUNT(*) as count FROM customers WHERE business_id = ?',
-      [businessId]
-    );
-    
-    const [categoryCount] = await connection.query(
-      'SELECT COUNT(*) as count FROM categories WHERE business_id = ?',
-      [businessId]
-    );
-    
-    const [inventoryCount] = await connection.query(
-      'SELECT COUNT(*) as count FROM inventory_transactions WHERE business_id = ?',
-      [businessId]
-    );
-    
-    const [cashFlowCount] = await connection.query(
-      'SELECT COUNT(*) as count FROM cash_flows WHERE business_id = ?',
-      [businessId]
-    );
-    
-    const [notificationCount] = await connection.query(
-      'SELECT COUNT(*) as count FROM notifications WHERE business_id = ?',
-      [businessId]
-    );
-    
-    const [damagedCount] = await connection.query(
-      'SELECT COUNT(*) as count FROM damaged_products WHERE business_id = ?',
-      [businessId]
-    );
-    
-    const [messageCount] = await connection.query(
-      'SELECT COUNT(*) as count FROM business_messages WHERE business_id = ?',
-      [businessId]
-    );
-    
-    // STEP 3: DELETE ALL BUSINESS-RELATED DATA
-    console.log(`🗑️ Deleting business data...`);
-    
-    // 1. Delete products (soft delete)
-    await connection.query(
-      'UPDATE products SET is_deleted = 1 WHERE business_id = ?',
-      [businessId]
-    );
-    
-    // 2. Delete sales
-    await connection.query(
-      'DELETE FROM sales WHERE business_id = ?',
-      [businessId]
-    );
-    
-    // 3. Delete sale items
-    await connection.query(
-      'DELETE FROM sale_items WHERE business_id = ?',
-      [businessId]
-    );
-    
-    // 4. Delete customers
-    await connection.query(
-      'DELETE FROM customers WHERE business_id = ?',
-      [businessId]
-    );
-    
-    // 5. Delete categories
-    await connection.query(
-      'DELETE FROM categories WHERE business_id = ?',
-      [businessId]
-    );
-    
-    // 6. Delete inventory transactions
-    await connection.query(
-      'DELETE FROM inventory_transactions WHERE business_id = ?',
-      [businessId]
-    );
-    
-    // 7. Delete cash flows
-    await connection.query(
-      'DELETE FROM cash_flows WHERE business_id = ?',
-      [businessId]
-    );
-    
-    // 8. Delete notifications
-    await connection.query(
-      'DELETE FROM notifications WHERE business_id = ?',
-      [businessId]
-    );
-    
-    // 9. Delete damaged products
-    await connection.query(
-      'DELETE FROM damaged_products WHERE business_id = ?',
-      [businessId]
-    );
-    
-    // 10. Delete business messages
-    await connection.query(
-      'DELETE FROM business_messages WHERE business_id = ?',
-      [businessId]
-    );
-    
-    // 11. Delete monthly bills
-    await connection.query(
-      'DELETE FROM monthly_bills WHERE business_id = ?',
-      [businessId]
-    );
-    
-    // 12. Delete business usage
-    await connection.query(
-      'DELETE FROM business_usage WHERE business_id = ?',
-      [businessId]
-    );
-    
-    // 13. Delete business payments
-    await connection.query(
-      'DELETE FROM business_payments WHERE business_id = ?',
-      [businessId]
-    );
-    
-    // STEP 4: LOG THE RESET OPERATION WITH BACKUP INFO
-    await connection.query(
-      `INSERT INTO business_deletion_log (
-        business_id, business_name, business_code, deleted_by, deleted_by_role, 
-        deletion_type, deletion_reason, data_deleted, backup_id, restored_at
-      ) VALUES (?, ?, ?, ?, ?, 'data_reset', 'Business data reset by superadmin', ?, ?, NULL)`,
-      [
-        businessId,
-        business.name,
-        business.business_code,
-        req.user.id,
-        req.user.role,
-        JSON.stringify({
-          products: productCount[0].count,
-          sales: saleCount[0].count,
-          customers: customerCount[0].count,
-          categories: categoryCount[0].count,
-          inventory_transactions: inventoryCount[0].count,
-          cash_flows: cashFlowCount[0].count,
-          notifications: notificationCount[0].count,
-          damaged_products: damagedCount[0].count,
-          business_messages: messageCount[0].count
-        }),
-        backupId
-      ]
-    );
-    
-    await connection.commit();
-    
-    console.log(`✅ Business data reset completed for: ${business.name}`);
-    console.log(`💾 Backup created with ID: ${backupId}`);
-    console.log(`📊 Data deleted: ${productCount[0].count} products, ${saleCount[0].count} sales, ${customerCount[0].count} customers, etc.`);
-    
-    res.json({
-      message: 'Business data reset successfully',
-      business: {
-        id: business.id,
-        name: business.name,
-        business_code: business.business_code
-      },
-      backup: {
-        id: backupId,
-        name: backupName,
-        timestamp: backupTimestamp
-      },
-      dataDeleted: {
-        products: productCount[0].count,
-        sales: saleCount[0].count,
-        customers: customerCount[0].count,
-        categories: categoryCount[0].count,
-        inventory_transactions: inventoryCount[0].count,
-        cash_flows: cashFlowCount[0].count,
-        notifications: notificationCount[0].count,
-        damaged_products: damagedCount[0].count,
-        business_messages: messageCount[0].count
-      }
-    });
-    
-  } catch (error) {
-    await connection.rollback();
-    console.error('Error resetting business data:', error);
-    res.status(500).json({ message: 'Failed to reset business data' });
-  } finally {
-    connection.release();
-  }
-});
-
-// Restore business data from backup - superadmin only
-router.post('/:businessId/restore-data/:backupId', auth, checkRole(['superadmin']), async (req, res) => {
-  const connection = await pool.getConnection();
-  try {
-    await connection.beginTransaction();
-    
-    const { businessId, backupId } = req.params;
-    
-    // Verify business exists
-    const [businessRows] = await connection.query(
-      'SELECT id, name, business_code FROM businesses WHERE id = ?',
-      [businessId]
-    );
-    
-    if (businessRows.length === 0) {
-      return res.status(404).json({ message: 'Business not found' });
-    }
-    
-    const business = businessRows[0];
-    
-    // Verify backup exists and belongs to this business
-    const [backupRows] = await connection.query(
-      'SELECT * FROM business_backups WHERE id = ? AND business_id = ?',
-      [backupId, businessId]
-    );
-    
-    if (backupRows.length === 0) {
-      return res.status(404).json({ message: 'Backup not found or does not belong to this business' });
-    }
-    
-    const backup = backupRows[0];
-    
-    console.log(`🔄 Superadmin ${req.user.username} is restoring data for business: ${business.name} (ID: ${businessId}) from backup ID: ${backupId}`);
-    
-    // STEP 1: RESTORE ALL DATA FROM PERMANENT BACKUP TABLES
-    console.log(`🔄 Restoring data from backup...`);
-    
-    // Get backup table prefix from backup record
-    const backupTablePrefix = backup.backup_tables;
-    if (!backupTablePrefix) {
-      throw new Error('Backup table information not found');
-    }
-    
-    console.log(`🔄 Using backup tables with prefix: ${backupTablePrefix}`);
-    
-    // Restore products (only if they were soft-deleted)
-    await connection.query(
-      `UPDATE products p 
-       INNER JOIN ${backupTablePrefix}_products b ON p.id = b.id 
-       SET p.is_deleted = 0, p.updated_at = NOW() 
-       WHERE p.business_id = ? AND p.is_deleted = 1`,
-      [businessId]
-    );
-    
-    // Restore sales
-    await connection.query(
-      `INSERT INTO sales SELECT * FROM ${backupTablePrefix}_sales`
-    );
-    
-    // Restore sale items
-    await connection.query(
-      `INSERT INTO sale_items SELECT * FROM ${backupTablePrefix}_sale_items`
-    );
-    
-    // Restore customers
-    await connection.query(
-      `INSERT INTO customers SELECT * FROM ${backupTablePrefix}_customers`
-    );
-    
-    // Restore categories
-    await connection.query(
-      `INSERT INTO categories SELECT * FROM ${backupTablePrefix}_categories`
-    );
-    
-    // Restore inventory transactions
-    await connection.query(
-      `INSERT INTO inventory_transactions SELECT * FROM ${backupTablePrefix}_inventory`
-    );
-    
-    // Restore cash flows
-    await connection.query(
-      `INSERT INTO cash_flows SELECT * FROM ${backupTablePrefix}_cash_flows`
-    );
-    
-    // Restore notifications
-    await connection.query(
-      `INSERT INTO notifications SELECT * FROM ${backupTablePrefix}_notifications`
-    );
-    
-    // Restore damaged products
-    await connection.query(
-      `INSERT INTO damaged_products SELECT * FROM ${backupTablePrefix}_damaged`
-    );
-    
-    // Restore business messages
-    await connection.query(
-      `INSERT INTO business_messages SELECT * FROM ${backupTablePrefix}_messages`
-    );
-    
-    // Restore monthly bills
-    await connection.query(
-      `INSERT INTO monthly_bills SELECT * FROM ${backupTablePrefix}_bills`
-    );
-    
-    // Restore business usage
-    await connection.query(
-      `INSERT INTO business_usage SELECT * FROM ${backupTablePrefix}_usage`
-    );
-    
-    // Restore business payments
-    await connection.query(
-      `INSERT INTO business_payments SELECT * FROM ${backupTablePrefix}_payments`
-    );
-    
-    // STEP 2: UPDATE BACKUP STATUS
-    await connection.query(
-      'UPDATE business_backups SET status = ?, notes = ? WHERE id = ?',
-      ['restored', `Data restored on ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`, backupId]
-    );
-    
-    // STEP 3: UPDATE DELETION LOG
-    await connection.query(
-      'UPDATE business_deletion_log SET restored_at = NOW() WHERE business_id = ? AND backup_id = ?',
-      [businessId, backupId]
-    );
-    
-    // STEP 4: CLEAN UP PERMANENT BACKUP TABLES AFTER SUCCESSFUL RESTORE
-    console.log(`🧹 Cleaning up backup tables after successful restore...`);
-    await connection.query(`DROP TABLE IF EXISTS ${backupTablePrefix}_products`);
-    await connection.query(`DROP TABLE IF EXISTS ${backupTablePrefix}_sales`);
-    await connection.query(`DROP TABLE IF EXISTS ${backupTablePrefix}_sale_items`);
-    await connection.query(`DROP TABLE IF EXISTS ${backupTablePrefix}_customers`);
-    await connection.query(`DROP TABLE IF EXISTS ${backupTablePrefix}_categories`);
-    await connection.query(`DROP TABLE IF EXISTS ${backupTablePrefix}_inventory`);
-    await connection.query(`DROP TABLE IF EXISTS ${backupTablePrefix}_cash_flows`);
-    await connection.query(`DROP TABLE IF EXISTS ${backupTablePrefix}_notifications`);
-    await connection.query(`DROP TABLE IF EXISTS ${backupTablePrefix}_damaged`);
-    await connection.query(`DROP TABLE IF EXISTS ${backupTablePrefix}_messages`);
-    await connection.query(`DROP TABLE IF EXISTS ${backupTablePrefix}_bills`);
-    await connection.query(`DROP TABLE IF EXISTS ${backupTablePrefix}_usage`);
-    await connection.query(`DROP TABLE IF EXISTS ${backupTablePrefix}_payments`);
-    
-    await connection.commit();
-    
-    console.log(`✅ Business data restored successfully for: ${business.name}`);
-    
-    res.json({
-      message: 'Business data restored successfully',
-      business: {
-        id: business.id,
-        name: business.name,
-        business_code: business.business_code
-      },
-      backup: {
-        id: backupId,
-        type: backup.backup_type,
-        restored_at: new Date().toISOString()
-      }
-    });
-    
-  } catch (error) {
-    await connection.rollback();
-    console.error('Error restoring business data:', error);
-    res.status(500).json({ message: 'Failed to restore business data' });
-  } finally {
-    connection.release();
   }
 });
 

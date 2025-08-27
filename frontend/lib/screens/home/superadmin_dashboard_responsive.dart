@@ -279,6 +279,7 @@ class _SuperadminDashboardResponsiveState extends State<SuperadminDashboardRespo
   }
 
   Widget _buildBusinessesContent() {
+    print('🔄 DEBUG: _buildBusinessesContent called');
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -319,6 +320,9 @@ class _SuperadminDashboardResponsiveState extends State<SuperadminDashboardRespo
                   const SizedBox(height: 16),
                   
                   // Business List
+                  print('🔄 DEBUG: About to render _BusinessListWidget'),
+                  Text('🔄 DEBUG: Business List Widget should appear below this text', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
                   _BusinessListWidget(),
                 ],
               ),
@@ -551,41 +555,63 @@ class _BusinessListWidgetState extends State<_BusinessListWidget> {
   @override
   void initState() {
     super.initState();
+    print('🔄 DEBUG: _BusinessListWidget initState called');
+    print('🔄 DEBUG: About to call _loadBusinesses()');
     _loadBusinesses();
   }
 
   Future<void> _loadBusinesses() async {
     try {
+      print('🔄 DEBUG: Starting to load businesses...');
       setState(() {
         _isLoading = true;
         _error = null;
       });
 
+      print('🔄 DEBUG: Calling _apiService.getBusinesses()...');
       final result = await _apiService.getBusinesses();
+      print('🔄 DEBUG: API response received: ${result.toString()}');
+      
       final businesses = List<Map<String, dynamic>>.from(result['businesses'] ?? []);
+      print('🔄 DEBUG: Parsed businesses list: ${businesses.length} businesses found');
+      
+      if (businesses.isNotEmpty) {
+        print('🔄 DEBUG: First business data: ${businesses.first}');
+      }
       
       // Load backup information for each business
+      print('🔄 DEBUG: Starting to load backup information for ${businesses.length} businesses...');
       for (int i = 0; i < businesses.length; i++) {
         try {
+          print('🔄 DEBUG: Loading backups for business ${i + 1}/${businesses.length}: ID=${businesses[i]['id']}, Name=${businesses[i]['name']}');
           final backups = await _apiService.getBusinessBackups(businesses[i]['id']);
+          print('🔄 DEBUG: Business ${businesses[i]['id']} has ${backups.length} backups');
+          
           if (backups.isNotEmpty) {
             // Get the most recent backup
             final recentBackup = backups.first;
             businesses[i]['recent_backup_id'] = recentBackup['id'];
-            businesses[i]['recent_backup_name'] = recentBackup['backup_name'];
+            businesses[i]['recent_backup_name'] = `Backup ${recentBackup['id']} (${recentBackup['backup_type']})`;
             businesses[i]['recent_backup_date'] = recentBackup['backup_date'];
             businesses[i]['backup_count'] = backups.length;
+            print('🔄 DEBUG: Added backup info to business ${businesses[i]['id']}: backup_id=${recentBackup['id']}, backup_type=${recentBackup['backup_type']}');
+          } else {
+            print('🔄 DEBUG: No backups found for business ${businesses[i]['id']}');
           }
         } catch (e) {
-          print('Error loading backups for business ${businesses[i]['id']}: $e');
+          print('❌ DEBUG: Error loading backups for business ${businesses[i]['id']}: $e');
         }
       }
+      
+      print('🔄 DEBUG: Final businesses data with backups: ${businesses.map((b) => {'id': b['id'], 'name': b['name'], 'backup_count': b['backup_count'], 'recent_backup_id': b['recent_backup_id']}).toList()}');
       
       setState(() {
         _businesses = businesses;
         _isLoading = false;
       });
+      print('🔄 DEBUG: State updated with ${_businesses.length} businesses');
     } catch (e) {
+      print('❌ DEBUG: Error in _loadBusinesses: $e');
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -817,11 +843,16 @@ class _BusinessListWidgetState extends State<_BusinessListWidget> {
 
   @override
   Widget build(BuildContext context) {
+    print('🔄 DEBUG: Building _BusinessListWidget with ${_businesses.length} businesses');
+    print('🔄 DEBUG: _isLoading: $_isLoading, _error: $_error');
+    
     if (_isLoading) {
+      print('🔄 DEBUG: Showing loading indicator');
       return Center(child: CircularProgressIndicator());
     }
 
     if (_error != null) {
+      print('❌ DEBUG: Showing error: $_error');
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -840,6 +871,7 @@ class _BusinessListWidgetState extends State<_BusinessListWidget> {
     }
 
     if (_businesses.isEmpty) {
+      print('🔄 DEBUG: No businesses found, showing empty state');
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -852,10 +884,23 @@ class _BusinessListWidgetState extends State<_BusinessListWidget> {
       );
     }
 
+    print('🔄 DEBUG: Rendering business list with ${_businesses.length} businesses');
     return Column(
       children: [
+        // Debug text to show widget is rendering
+        Container(
+          padding: EdgeInsets.all(8),
+          color: Colors.yellow,
+          child: Text(
+            '🔄 DEBUG: _BusinessListWidget is rendering! Businesses: ${_businesses.length}',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+          ),
+        ),
+        const SizedBox(height: 8),
         // Business List
-        ..._businesses.map((business) => Card(
+        ..._businesses.map((business) {
+          print('🔄 DEBUG: Rendering business card: ID=${business['id']}, Name=${business['name']}, backup_count=${business['backup_count']}, recent_backup_id=${business['recent_backup_id']}');
+          return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: Padding(
             padding: const EdgeInsets.all(16),

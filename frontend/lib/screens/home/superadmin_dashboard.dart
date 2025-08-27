@@ -9,6 +9,7 @@ import 'package:retail_management/utils/success_utils.dart';
 import 'package:retail_management/screens/home/branding_settings_screen.dart';
 import 'package:retail_management/screens/home/business_branding_screen.dart';
 import 'package:retail_management/widgets/branded_app_bar.dart';
+import 'package:retail_management/services/api_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -28,6 +29,9 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   List<Map<String, dynamic>> _settings = [];
   List<Map<String, dynamic>> _notifications = [];
   List<Map<String, dynamic>> _auditLogs = [];
+  
+  // API Service for business operations
+  final ApiService _apiService = ApiService();
   
   // State variables for real-time updates
   List<Map<String, dynamic>> _allMessages = [];
@@ -87,6 +91,132 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     if (isTiny) return defaultSize - 4;
     if (isExtraSmall) return defaultSize - 2;
     return defaultSize;
+  }
+  
+  // Reset business data method
+  Future<void> _resetBusinessData(int businessId, String businessName) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.orange),
+            const SizedBox(width: 8),
+            Text('Reset Business Data'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to reset all data for business:'),
+            const SizedBox(height: 8),
+            Text(
+              businessName,
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'This will DELETE:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text('• All products and inventory'),
+            Text('• All sales and transactions'),
+            Text('• All customers and categories'),
+            Text('• All reports and analytics'),
+            const SizedBox(height: 16),
+            Text(
+              'This will KEEP:',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+            ),
+            const SizedBox(height: 8),
+            Text('• All user accounts'),
+            Text('• Business settings and configuration'),
+            const SizedBox(height: 16),
+            Text(
+              '🛡️ AUTOMATIC BACKUP: A complete backup will be created before deletion',
+              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '🔄 ROLLBACK AVAILABLE: You can restore all data from the backup if needed',
+              style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '⚠️ This action cannot be undone!',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Reset Business Data'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final result = await _apiService.resetBusinessData(businessId);
+      
+      if (mounted) {
+        // Show success message with backup info
+        final backupInfo = result['backup'];
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Business data reset successfully!'),
+                if (backupInfo != null)
+                  Text(
+                    'Backup created: ${backupInfo['name']}',
+                    style: TextStyle(fontSize: 12, color: Colors.white70),
+                  ),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 5),
+          ),
+        );
+        
+        // Reload businesses to show updated stats
+        _loadDashboardData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to reset business data: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -2470,6 +2600,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                            const PopupMenuItem(value: 'users', child: Text('Manage Users')),
                            const PopupMenuItem(value: 'analytics', child: Text('Analytics')),
                            const PopupMenuItem(value: 'toggle_status', child: Text('Toggle Status')),
+                           const PopupMenuItem(value: 'reset_data', child: Text('Reset Data')),
                          ],
                          child: const Icon(Icons.more_vert, size: 16, color: Colors.grey),
                        ),
@@ -2551,6 +2682,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                               const PopupMenuItem(value: 'users', child: Text('Manage Users')),
                               const PopupMenuItem(value: 'analytics', child: Text('Analytics')),
                               const PopupMenuItem(value: 'toggle_status', child: Text('Toggle Status')),
+                              const PopupMenuItem(value: 'reset_data', child: Text('Reset Data')),
                             ],
                             child: const Icon(Icons.more_vert, size: 16, color: Colors.grey),
                           ),
@@ -2567,6 +2699,30 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                         _buildStatChip('Sales', business['sale_count']?.toString() ?? '0'),
                         _buildStatChip('Customers', business['customer_count']?.toString() ?? '0'),
                       ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Reset Data Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _resetBusinessData(
+                          business['id'],
+                          business['name'] ?? 'Unknown Business',
+                        ),
+                        icon: Icon(Icons.refresh, size: 14),
+                        label: Text(
+                          'Reset Data',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 3),
                     Row(
@@ -2704,6 +2860,9 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         break;
       case 'toggle_status':
         _toggleBusinessStatus(business);
+        break;
+      case 'reset_data':
+        _resetBusinessData(business['id'], business['name'] ?? 'Unknown Business');
         break;
     }
   }

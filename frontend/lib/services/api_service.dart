@@ -1258,32 +1258,66 @@ class ApiService {
 
   // Business Management Methods
   Future<Map<String, dynamic>> getBusinesses({int? limit, int? offset, String? search}) async {
+    print('🔄 DEBUG: getBusinesses called with limit=$limit, offset=$offset, search=$search');
+    print('🔄 DEBUG: Using baseUrl: $baseUrl');
+    print('🔄 DEBUG: Headers: $_headers');
+    
     final params = <String, String>{};
     if (limit != null) params['limit'] = limit.toString();
     if (offset != null) params['offset'] = offset.toString();
     if (search != null) params['search'] = search;
     
     final uri = Uri.parse('$baseUrl/api/businesses').replace(queryParameters: params);
-    final response = await http.get(uri, headers: _headers);
+    print('🔄 DEBUG: Requesting URL: $uri');
     
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      throw Exception('Failed to get businesses: ${response.body}');
+    try {
+      final response = await http.get(uri, headers: _headers);
+      print('🔄 DEBUG: Response status: ${response.statusCode}');
+      print('🔄 DEBUG: Response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final result = json.decode(response.body);
+        print('🔄 DEBUG: Successfully parsed response: ${result.toString()}');
+        return result;
+      } else {
+        print('❌ DEBUG: API error: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to get businesses: ${response.body}');
+      }
+    } catch (e) {
+      print('❌ DEBUG: Exception in getBusinesses: $e');
+      rethrow;
     }
   }
 
   Future<List<Map<String, dynamic>>> getBusinessBackups(int businessId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/businesses/$businessId/backups'),
-      headers: _headers,
-    );
+    print('🔄 DEBUG: getBusinessBackups called for businessId: $businessId');
+    print('🔄 DEBUG: Using baseUrl: $baseUrl');
+    print('🔄 DEBUG: Headers: $_headers');
     
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return List<Map<String, dynamic>>.from(data['backups'] ?? []);
-    } else {
-      throw Exception('Failed to get business backups: ${response.body}');
+    final url = '$baseUrl/api/businesses/$businessId/backups';
+    print('🔄 DEBUG: Requesting URL: $url');
+    
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers,
+      );
+      
+      print('🔄 DEBUG: Response status: ${response.statusCode}');
+      print('🔄 DEBUG: Response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final backups = List<Map<String, dynamic>>.from(data['backups'] ?? []);
+        print('🔄 DEBUG: Successfully parsed backups: ${backups.length} backups found');
+        return backups;
+      } else {
+        print('❌ DEBUG: API error: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to get business backups: ${response.body}');
+      }
+    } catch (e) {
+      print('❌ DEBUG: Exception in getBusinessBackups: $e');
+      rethrow;
     }
   }
 

@@ -377,7 +377,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 final isNegativeQuantity = tx['quantity'] != null && tx['quantity'] < 0;
                                 
                                 return DataRow(cells: [
-                                  DataCell(Text(tx['created_at']?.toString()?.split('T')?.first ?? '')),
+                                  DataCell(Text(_formatTimestamp(tx['created_at'] ?? ''))),
                                   DataCell(
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -1284,6 +1284,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       DataColumn(label: Text(t(context, 'Product'))),
       DataColumn(label: Text(t(context, 'Category'))),
       DataColumn(label: Text(t(context, 'Cost Price'))),
+      DataColumn(label: Text(t(context, 'Price'))),
       DataColumn(label: Text(t(context, 'Stock'))),
       DataColumn(label: Text(t(context, 'Status'))),
       DataColumn(label: Text(t(context, 'Actions'))),
@@ -1742,8 +1743,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
   List<DataRow> _buildProductRows(bool isTablet) {
     return _filteredProducts.map((product) {
       final isLowStock = product.stockQuantity <= product.lowStockThreshold;
+      final isDeleted = product.isDeleted == 1;
       
       return DataRow(
+        color: MaterialStateProperty.resolveWith<Color?>(
+          (states) => isDeleted ? Colors.grey[100] : null,
+        ),
         cells: [
           DataCell(
             Container(
@@ -1810,14 +1815,41 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
                           product.name,
-                          style: const TextStyle(
+                                style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
+                                                                  decoration: isDeleted == 1 ? TextDecoration.lineThrough : null,
+                                color: isDeleted == 1 ? Colors.grey[600] : null,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isDeleted == 1) ...[
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[100],
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: Colors.red[200]!),
+                                ),
+                                child: Text(
+                                  'DELETED',
+                                  style: TextStyle(
+                                    color: Colors.red[700],
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         const SizedBox(height: 2),
                         Container(
@@ -1886,6 +1918,24 @@ class _InventoryScreenState extends State<InventoryScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
+                color: Colors.purple[50],
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.purple[200]!),
+              ),
+              child: Text(
+                '\$${product.price.toStringAsFixed(2)}',
+                style: TextStyle(
+                  color: Colors.purple,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+          DataCell(
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
                 color: isLowStock ? Colors.red[50] : Colors.blue[50],
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
@@ -1936,6 +1986,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Edit Button (only for active products)
+                if (product.isDeleted == 0) ...[
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.blue[50],
@@ -1952,6 +2004,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   ),
                 ),
                 const SizedBox(width: 4),
+                ],
+                // Delete Button (only for active products)
+                if (product.isDeleted == 0) ...[
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.red[50],
@@ -1967,6 +2022,25 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                   ),
                 ),
+              ],
+                // Restore Button (only for deleted products)
+                if (product.isDeleted == 1) ...[
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.restore, color: Colors.green, size: 18),
+                      onPressed: () {
+                        _showRestoreProductDialog(product);
+                      },
+                      tooltip: t(context, 'Restore Product'),
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1989,6 +2063,22 @@ class _InventoryScreenState extends State<InventoryScreen> {
         return Colors.teal;
       default:
         return Colors.grey;
+    }
+  }
+
+  String _formatTimestamp(String timestamp) {
+    try {
+      if (timestamp.isEmpty) return '';
+      
+      // Parse the timestamp and convert to local time
+      final dateTime = DateTime.parse(timestamp);
+      final localDateTime = dateTime.toLocal();
+      
+      // Format: "2025-08-27 19:15:33"
+      return '${localDateTime.year}-${localDateTime.month.toString().padLeft(2, '0')}-${localDateTime.day.toString().padLeft(2, '0')} ${localDateTime.hour.toString().padLeft(2, '0')}:${localDateTime.minute.toString().padLeft(2, '0')}:${localDateTime.second.toString().padLeft(2, '0')}';
+    } catch (e) {
+      // Fallback to original timestamp if parsing fails
+      return timestamp;
     }
   }
 
@@ -3168,7 +3258,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   ],
         ),
         const SizedBox(height: 8),
-                Text('Date: ${tx['created_at']?.toString()?.split('T')?.first ?? ''}', style: const TextStyle(fontSize: 12)),
+                                                Text('Date: ${_formatTimestamp(tx['created_at'] ?? '')}', style: const TextStyle(fontSize: 12)),
                 Text('Qty: ${tx['quantity']?.toString() ?? ''}', style: const TextStyle(fontSize: 12)),
                 Text('Amount: \$${_safeToDouble(tx['sale_total_price']).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
                 if (tx['notes'] != null && tx['notes'].toString().isNotEmpty)
@@ -3263,7 +3353,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           DataColumn(label: Text('Mode')),
         ],
             rows: paginatedData.map((tx) => DataRow(cells: [
-          DataCell(Text(tx['created_at']?.toString()?.split('T')?.first ?? '')),
+                                          DataCell(Text(_formatTimestamp(tx['created_at'] ?? ''))),
           DataCell(Text(tx['product_name'] ?? '')),
           DataCell(Text(tx['transaction_type'] ?? '')),
           DataCell(Text(tx['quantity']?.toString() ?? '')),
@@ -3969,6 +4059,7 @@ class _ProductDialogState extends State<_ProductDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _priceController = TextEditingController();
   final _costController = TextEditingController();
   final _stockController = TextEditingController();
   
@@ -3987,6 +4078,7 @@ class _ProductDialogState extends State<_ProductDialog> {
     if (widget.product != null) {
       _nameController.text = widget.product!.name;
       _descriptionController.text = widget.product!.description ?? '';
+      _priceController.text = widget.product!.price.toString();
       _costController.text = widget.product!.costPrice.toString();
       _stockController.text = widget.product!.stockQuantity.toString();
       _imageUrl = widget.product!.imageUrl;
@@ -3998,6 +4090,7 @@ class _ProductDialogState extends State<_ProductDialog> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
+    _priceController.dispose();
     _costController.dispose();
     _stockController.dispose();
     super.dispose();
@@ -4249,7 +4342,7 @@ class _ProductDialogState extends State<_ProductDialog> {
       final productData = {
         'name': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
-        'price': 0.0, // Hardcoded price
+          'price': double.parse(_priceController.text.trim()),
         'cost_price': double.parse(_costController.text),
         'stock_quantity': int.parse(_stockController.text),
         'category_id': _selectedCategoryId,
@@ -4603,6 +4696,33 @@ class _ProductDialogState extends State<_ProductDialog> {
                         },
                       ),
         SizedBox(height: isSmallMobile ? 12 : 16),
+                      TextFormField(
+                          controller: _priceController,
+                        decoration: InputDecoration(
+                            labelText: t(context, 'Price *'),
+                          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                          ),
+                            prefixIcon: Icon(Icons.attach_money, size: isSmallMobile ? 18 : 20),
+                          filled: true,
+                            fillColor: Colors.green[50],
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: isSmallMobile ? 12 : 16,
+              vertical: isSmallMobile ? 10 : 14,
+            ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                              return t(context, 'Price is required');
+                          }
+                            if (double.tryParse(value) == null) {
+                            return t(context, 'Please enter a valid number');
+                          }
+                          return null;
+                        },
+                      ),
+        SizedBox(height: isSmallMobile ? 12 : 16),
                       DropdownButtonFormField<int>(
                         value: _categories.any((cat) => cat['id'] == _selectedCategoryId) ? _selectedCategoryId : null,
                         decoration: InputDecoration(
@@ -4677,7 +4797,30 @@ class _ProductDialogState extends State<_ProductDialog> {
                         maxLines: 3,
                       ),
                       const SizedBox(height: 16),
-                      TextFormField(
+                       TextFormField(
+                              controller: _priceController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'Price *'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.attach_money),
+                                filled: true,
+                                fillColor: Colors.green[50],
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return t(context, 'Price is required');
+                                }
+                                if (double.tryParse(value) == null) {
+                                  return t(context, 'Please enter a valid number');
+                                }
+                                return null;
+                              },
+                            ),
+                       const SizedBox(height: 16),
+                       TextFormField(
                               controller: _costController,
                               decoration: InputDecoration(
                                 labelText: t(context, 'Cost *'),

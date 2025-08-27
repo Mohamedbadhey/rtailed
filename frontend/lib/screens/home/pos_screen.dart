@@ -750,13 +750,30 @@ class _POSScreenState extends State<POSScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     SizedBox(height: isSmallMobile ? 3 : 4),
-                    Text(
-                      '${t(context, 'cost')}: ${product.costPrice.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        color: Colors.green[700],
-                        fontWeight: FontWeight.bold,
-                        fontSize: isSmallMobile ? 10 : (isMobile ? 11 : 14),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${t(context, 'cost')}: ${product.costPrice.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: Colors.green[700],
+                              fontWeight: FontWeight.bold,
+                              fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            '${t(context, 'price')}: ${product.price.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: Colors.purple[700],
+                              fontWeight: FontWeight.bold,
+                              fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
+                            ),
+                            textAlign: TextAlign.end,
+                          ),
+                        ),
+                      ],
                     ),
                     SizedBox(height: isSmallMobile ? 3 : 4),
                     Text(
@@ -949,9 +966,26 @@ class _POSScreenState extends State<POSScreen> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                subtitle: Text(
-                                  '${t(context, 'cost')}: ${item.product.costPrice.toStringAsFixed(2)}',
-                                  style: TextStyle(fontSize: isSmallMobile ? 10 : (isMobile ? 12 : 14)),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${t(context, 'cost')}: ${item.product.costPrice.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
+                                        color: Colors.green[700],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${t(context, 'price')}: ${item.product.price.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
+                                        color: Colors.purple[700],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -1492,22 +1526,41 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                                     style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
                                                   ),
                                                   SizedBox(height: 4),
-                                                  Row(
+                                                  Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
                                                     children: [
-                                                      Text(
-                                                        '${t(context, 'cost')}: ${item.product.costPrice.toStringAsFixed(2)}',
-                                                        style: TextStyle(
-                                                          fontSize: isSmallMobile ? 10 : 12,
-                                                          color: Colors.grey[700],
-                                                        ),
+                                                      Row(
+                                                        children: [
+                                                          Text(
+                                                            '${t(context, 'cost')}: ${item.product.costPrice.toStringAsFixed(2)}',
+                                                            style: TextStyle(
+                                                              fontSize: isSmallMobile ? 12 : 14,
+                                                              color: Colors.green[700],
+                                                              fontWeight: FontWeight.w500,
+                                                            ),
+                                                          ),
+                                                          SizedBox(width: 16),
+                                                          Text(
+                                                            '${t(context, 'price')}: ${item.product.price.toStringAsFixed(2)}',
+                                                            style: TextStyle(
+                                                              fontSize: isSmallMobile ? 12 : 14,
+                                                              color: Colors.purple[700],
+                                                              fontWeight: FontWeight.w500,
+                                                            ),
+                                                          ),
+                                                        ],
                                                       ),
-                                                      Spacer(),
-                                                      Text(
-                                                        '\$${item.total.toStringAsFixed(2)}',
-                                                        style: TextStyle(
-                                                          fontWeight: FontWeight.bold,
-                                                          fontSize: isSmallMobile ? 12 : 14,
-                                                        ),
+                                                      Row(
+                                                        children: [
+                                                          Spacer(),
+                                                          Text(
+                                                            '\$${item.total.toStringAsFixed(2)}',
+                                                            style: TextStyle(
+                                                              fontWeight: FontWeight.bold,
+                                                              fontSize: isSmallMobile ? 12 : 14,
+                                                            ),
+                                                          ),
+                                                        ],
                                                       ),
                                                     ],
                                                   ),
@@ -1568,12 +1621,26 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                               Column(
                                                 crossAxisAlignment: CrossAxisAlignment.end,
                                                 children: [
-                                                  Text(
-                                                    '${t(context, 'cost')}: ${item.product.costPrice.toStringAsFixed(2)}',
-                                                    style: TextStyle(
-                                                      fontSize: isMobile ? 12 : 14,
-                                                      color: Colors.grey[700],
-                                                    ),
+                                                  Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        '${t(context, 'cost')}: ${item.product.costPrice.toStringAsFixed(2)}',
+                                                        style: TextStyle(
+                                                          fontSize: isMobile ? 14 : 16,
+                                                          color: Colors.green[700],
+                                                          fontWeight: FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        '${t(context, 'price')}: ${item.product.price.toStringAsFixed(2)}',
+                                                        style: TextStyle(
+                                                          fontSize: isMobile ? 14 : 16,
+                                                          color: Colors.purple[700],
+                                                          fontWeight: FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                   SizedBox(
                                                     width: 110,
@@ -2167,9 +2234,26 @@ class _MobileCartDialogState extends State<_MobileCartDialog> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                subtitle: Text(
-                                  '${item.product.costPrice.toStringAsFixed(2)} x ${item.quantity}',
-                                  style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${t(context, 'cost')}: ${item.product.costPrice.toStringAsFixed(2)} x ${item.quantity}',
+                                      style: TextStyle(
+                                        fontSize: isSmallMobile ? 12 : 14,
+                                        color: Colors.green[700],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${t(context, 'price')}: ${item.product.price.toStringAsFixed(2)} x ${item.quantity}',
+                                      style: TextStyle(
+                                        fontSize: isSmallMobile ? 12 : 14,
+                                        color: Colors.purple[700],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,

@@ -14,8 +14,8 @@ class CartItem {
     this.mode = 'retail',
   });
 
-  double get unitPrice => customTotalPrice != null ? (customTotalPrice! / quantity) : product.costPrice;
-  double get total => customTotalPrice ?? (product.costPrice * quantity);
+  double get unitPrice => customTotalPrice != null ? (customTotalPrice! / quantity) : product.price;
+  double get total => customTotalPrice ?? (product.price * quantity);
 }
 
 class CartProvider with ChangeNotifier {

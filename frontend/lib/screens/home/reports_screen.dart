@@ -563,7 +563,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       ),
                     ),
                     Text(
-                      tx['created_at'] ?? '',
+                      _formatTimestamp(tx['created_at'] ?? ''),
                       style: TextStyle(
                         fontSize: isSmallMobile ? 11 : 13,
                         color: Colors.grey[800],
@@ -879,6 +879,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
         );
       },
     );
+  }
+
+  String _formatTimestamp(String timestamp) {
+    try {
+      if (timestamp.isEmpty) return '';
+      
+      // Parse the timestamp and convert to local time
+      final dateTime = DateTime.parse(timestamp);
+      final localDateTime = dateTime.toLocal();
+      
+      // Format: "2025-08-27 19:15:33"
+      return '${localDateTime.year}-${localDateTime.month.toString().padLeft(2, '0')}-${localDateTime.day.toString().padLeft(2, '0')} ${localDateTime.hour.toString().padLeft(2, '0')}:${localDateTime.minute.toString().padLeft(2, '0')}:${localDateTime.second.toString().padLeft(2, '0')}';
+    } catch (e) {
+      // Fallback to original timestamp if parsing fails
+      return timestamp;
+    }
   }
 
   @override
@@ -1262,7 +1278,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                               ) : null,
                                             ),
                                           ),
-                                          DataCell(Text(tx['created_at'] ?? '')),
+                                          DataCell(Text(_formatTimestamp(tx['created_at'] ?? ''))),
                                           DataCell(
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

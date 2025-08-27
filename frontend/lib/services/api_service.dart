@@ -1256,6 +1256,65 @@ class ApiService {
     }
   }
 
+  // Business Management Methods
+  Future<Map<String, dynamic>> getBusinesses({int? limit, int? offset, String? search}) async {
+    final params = <String, String>{};
+    if (limit != null) params['limit'] = limit.toString();
+    if (offset != null) params['offset'] = offset.toString();
+    if (search != null) params['search'] = search;
+    
+    final uri = Uri.parse('$baseUrl/api/businesses').replace(queryParameters: params);
+    final response = await http.get(uri, headers: _headers);
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to get businesses: ${response.body}');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getBusinessBackups(int businessId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/businesses/$businessId/backups'),
+      headers: _headers,
+    );
+    
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return List<Map<String, dynamic>>.from(data['backups'] ?? []);
+    } else {
+      throw Exception('Failed to get business backups: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> resetBusinessData(int businessId) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/businesses/$businessId/reset-data'),
+      headers: _headers,
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      final errorData = json.decode(response.body);
+      throw Exception(errorData['message'] ?? 'Failed to reset business data');
+    }
+  }
+
+  Future<Map<String, dynamic>> restoreBusinessData(int businessId, int backupId) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/businesses/$businessId/restore-data/$backupId'),
+      headers: _headers,
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      final errorData = json.decode(response.body);
+      throw Exception(errorData['message'] ?? 'Failed to restore business data');
+    }
+  }
+
   // --- STATIC GENERIC HTTP METHODS FOR CUSTOM ENDPOINTS ---
   static Future<dynamic> getStatic(String path) async {
     final response = await http.get(

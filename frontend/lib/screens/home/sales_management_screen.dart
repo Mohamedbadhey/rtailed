@@ -259,8 +259,12 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isSmallMobile = MediaQuery.of(context).size.width <= 360;
-    final isMobile = MediaQuery.of(context).size.width <= 768;
+    final size = MediaQuery.of(context).size;
+    final isSmallMobile = size.width <= 360;
+    final isMobile = size.width <= 768;
+    final isTablet = size.width > 768 && size.width <= 1024;
+    final isDesktop = size.width > 1024;
+    final isLargeDesktop = size.width > 1440;
     final user = context.read<AuthProvider>().user;
     
     // Check if user can access sales management
@@ -286,8 +290,29 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
     
     return Scaffold(
       appBar: AppBar(
-        title: Text(t(context, 'Sales Management')),
+        title: Row(
+          children: [
+            Icon(Icons.receipt, size: isSmallMobile ? 20 : (isMobile ? 24 : 28)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                t(context, 'Sales Management'),
+                style: TextStyle(
+                  fontSize: isSmallMobile ? 16 : (isMobile ? 18 : 20),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
         actions: [
+          if (!isSmallMobile) ...[
+            IconButton(
+              icon: const Icon(Icons.filter_list),
+              onPressed: () => _showAdvancedFilters(),
+              tooltip: t(context, 'Advanced Filters'),
+            ),
+          ],
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadSales,
@@ -295,17 +320,28 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Summary Cards
-          _buildSummaryCards(isSmallMobile, isMobile),
-          
-          // Filters
-          _buildFilters(isSmallMobile, isMobile),
-          
-          // Sales List
-          Expanded(
-            child: _isLoading
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: EdgeInsets.only(
+          left: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+          right: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+          bottom: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Summary Cards - Scrollable within main scroll
+            _buildSummaryCards(isSmallMobile, isMobile, isTablet, isDesktop, isLargeDesktop),
+            
+            SizedBox(height: isSmallMobile ? 12 : (isMobile ? 16 : 24)),
+            
+            // Filters - Scrollable within main scroll
+            _buildFilters(isSmallMobile, isMobile, isTablet, isDesktop),
+            
+            SizedBox(height: isSmallMobile ? 12 : (isMobile ? 16 : 24)),
+            
+            // Sales List - Scrollable within main scroll
+            _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
                     ? Center(child: Text(_error!))
@@ -320,75 +356,59 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
                               ],
                             ),
                           )
-                        : _buildSalesList(isSmallMobile, isMobile),
-          ),
-        ],
+                        : _buildSalesList(isSmallMobile, isMobile, isTablet, isDesktop),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSummaryCards(bool isSmallMobile, bool isMobile) {
+  Widget _buildSummaryCards(bool isSmallMobile, bool isMobile, bool isTablet, bool isDesktop, bool isLargeDesktop) {
     final totalSales = _sales.length;
     final completedSales = _sales.where((s) => s.status == 'completed').length;
     final cancelledSales = _sales.where((s) => s.status == 'cancelled').length;
     final creditSales = _sales.where((s) => s.status == 'unpaid').length;
     
+    // Truly responsive grid layout
+    int crossAxisCount;
+    
+    if (isSmallMobile) {
+      crossAxisCount = 2; // 2 columns on very small screens
+    } else if (isMobile) {
+      crossAxisCount = 2; // 2 columns on mobile
+    } else if (isTablet) {
+      crossAxisCount = 3; // 3 columns on tablet for better balance
+    } else if (isDesktop) {
+      crossAxisCount = 4; // 4 columns on desktop
+    } else {
+      crossAxisCount = 4; // 4 columns on large desktop
+    }
+    
     return Card(
-      margin: EdgeInsets.all(isSmallMobile ? 8 : 16),
       child: Padding(
-        padding: EdgeInsets.all(isSmallMobile ? 12 : 16),
+        padding: EdgeInsets.all(isSmallMobile ? 12 : (isMobile ? 14 : 16)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              t(context, 'Sales Overview'),
+              'Sales Overview',
               style: TextStyle(
-                fontSize: isSmallMobile ? 14 : 16,
+                fontSize: isSmallMobile ? 16 : (isMobile ? 17 : 18),
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 12),
-            Row(
+            SizedBox(height: isSmallMobile ? 12 : 16),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: isSmallMobile ? 2 : (isMobile ? 4 : 8),
+              mainAxisSpacing: isSmallMobile ? 2 : (isMobile ? 4 : 8),
               children: [
-                Expanded(
-                  child: _buildSummaryCard(
-                    'Total',
-                    totalSales.toString(),
-                    Icons.receipt,
-                    Colors.blue,
-                    isSmallMobile,
-                  ),
-                ),
-                SizedBox(width: isSmallMobile ? 8 : 12),
-                Expanded(
-                  child: _buildSummaryCard(
-                    'Completed',
-                    completedSales.toString(),
-                    Icons.check_circle,
-                    Colors.green,
-                    isSmallMobile,
-                  ),
-                ),
-                SizedBox(width: isSmallMobile ? 8 : 12),
-                Expanded(
-                  child: _buildSummaryCard(
-                    'Credit',
-                    creditSales.toString(),
-                    Icons.credit_card,
-                    Colors.orange,
-                    isSmallMobile,
-                  ),
-                ),
-                SizedBox(width: isSmallMobile ? 8 : 12),
-                Expanded(
-                  child: _buildSummaryCard(
-                    'Cancelled',
-                    cancelledSales.toString(),
-                    Icons.cancel,
-                    Colors.red,
-                    isSmallMobile,
-                  ),
-                ),
+                _buildSummaryCard('Total', totalSales.toString(), Icons.receipt, Colors.blue, isSmallMobile, isMobile),
+                _buildSummaryCard('Completed', completedSales.toString(), Icons.check_circle, Colors.green, isSmallMobile, isMobile),
+                _buildSummaryCard('Credit', creditSales.toString(), Icons.credit_card, Colors.orange, isSmallMobile, isMobile),
+                _buildSummaryCard('Cancelled', cancelledSales.toString(), Icons.cancel, Colors.red, isSmallMobile, isMobile),
               ],
             ),
           ],
@@ -397,137 +417,226 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
     );
   }
 
-  Widget _buildSummaryCard(String title, String value, IconData icon, Color color, bool isSmallMobile) {
-    return Container(
-      padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: isSmallMobile ? 16 : 20),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: isSmallMobile ? 14 : 18,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
+  Widget _buildSummaryCard(String title, String value, IconData icon, Color color, bool isSmallMobile, bool isMobile) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Calculate responsive sizes based on available space
+        final cardWidth = constraints.maxWidth;
+        final cardHeight = constraints.maxHeight;
+        
+        // Responsive padding based on card size
+        final padding = cardWidth < 100 ? 4.0 : (cardWidth < 150 ? 6.0 : 8.0);
+        
+        // Responsive icon size based on card size
+        final iconSize = cardWidth < 100 ? 16.0 : (cardWidth < 150 ? 20.0 : 24.0);
+        
+        // Responsive font sizes based on card size
+        final valueFontSize = cardWidth < 100 ? 12.0 : (cardWidth < 150 ? 14.0 : 16.0);
+        final titleFontSize = cardWidth < 100 ? 8.0 : (cardWidth < 150 ? 10.0 : 12.0);
+        
+        // Responsive spacing based on card size
+        final spacing = cardHeight < 80 ? 2.0 : (cardHeight < 120 ? 4.0 : 6.0);
+        
+        return Container(
+          padding: EdgeInsets.all(padding),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(padding),
+            border: Border.all(color: color.withOpacity(0.3)),
           ),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: isSmallMobile ? 10 : 12,
-              color: color,
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: iconSize),
+              SizedBox(height: spacing),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: valueFontSize,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: spacing / 2),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: titleFontSize,
+                  color: color,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildFilters(bool isSmallMobile, bool isMobile) {
+  Widget _buildFilters(bool isSmallMobile, bool isMobile, bool isTablet, bool isDesktop) {
     return Card(
-      margin: EdgeInsets.all(isSmallMobile ? 8 : 16),
       child: Padding(
-        padding: EdgeInsets.all(isSmallMobile ? 12 : 16),
+        padding: EdgeInsets.all(isSmallMobile ? 12 : (isMobile ? 14 : 16)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               t(context, 'Filters'),
               style: TextStyle(
-                fontSize: isSmallMobile ? 14 : 16,
+                fontSize: isSmallMobile ? 16 : (isMobile ? 17 : 18),
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedStatus ?? 'all',
-                    decoration: InputDecoration(
-                      labelText: t(context, 'Status'),
-                      border: const OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: isSmallMobile ? 8 : 12,
-                        vertical: isSmallMobile ? 8 : 12,
-                      ),
-                    ),
-                    items: [
+            SizedBox(height: isSmallMobile ? 12 : 16),
+            
+            // Responsive filter layout
+            if (isSmallMobile) ...[
+              // Stack vertically on very small screens
+              Column(
+                children: [
+                  _buildFilterDropdown(
+                    'Status',
+                    _selectedStatus ?? 'all',
+                    [
                       DropdownMenuItem(value: 'all', child: Text(t(context, 'All Statuses'))),
                       DropdownMenuItem(value: 'completed', child: Text(t(context, 'Completed'))),
                       DropdownMenuItem(value: 'unpaid', child: Text(t(context, 'Unpaid (Credit)'))),
                       DropdownMenuItem(value: 'cancelled', child: Text(t(context, 'Cancelled'))),
                     ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedStatus = value;
-                      });
-                    },
+                    (value) => setState(() => _selectedStatus = value),
+                    isSmallMobile,
+                    isMobile,
                   ),
-                ),
-                SizedBox(width: isSmallMobile ? 8 : 16),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedPaymentMethod ?? 'all',
-                    decoration: InputDecoration(
-                      labelText: t(context, 'Payment Method'),
-                      border: const OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: isSmallMobile ? 8 : 12,
-                        vertical: isSmallMobile ? 8 : 12,
-                      ),
+                  SizedBox(height: 8),
+                  _buildFilterDropdown(
+                    'Payment Method',
+                    _selectedPaymentMethod ?? 'all',
+                    [
+                      DropdownMenuItem(value: 'all', child: Text(t(context, 'All Methods'))),
+                      DropdownMenuItem(value: 'evc', child: Text(t(context, 'EVC'))),
+                      DropdownMenuItem(value: 'edahab', child: Text(t(context, 'Edahab'))),
+                      DropdownMenuItem(value: 'merchant', child: Text(t(context, 'Merchant'))),
+                      DropdownMenuItem(value: 'credit', child: Text(t(context, 'Credit'))),
+                    ],
+                    (value) => setState(() => _selectedPaymentMethod = value),
+                    isSmallMobile,
+                    isMobile,
+                  ),
+                ],
+              ),
+            ] else if (isMobile) ...[
+              // 2 columns on mobile
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildFilterDropdown(
+                      'Status',
+                      _selectedStatus ?? 'all',
+                      [
+                        DropdownMenuItem(value: 'all', child: Text(t(context, 'All Statuses'))),
+                        DropdownMenuItem(value: 'completed', child: Text(t(context, 'Completed'))),
+                        DropdownMenuItem(value: 'unpaid', child: Text(t(context, 'Unpaid (Credit)'))),
+                        DropdownMenuItem(value: 'cancelled', child: Text(t(context, 'Cancelled'))),
+                      ],
+                      (value) => setState(() => _selectedStatus = value),
+                      isSmallMobile,
+                      isMobile,
                     ),
-                                         items: [
-                       DropdownMenuItem(value: 'all', child: Text(t(context, 'All Methods'))),
-                       DropdownMenuItem(value: 'evc', child: Text(t(context, 'EVC'))),
-                       DropdownMenuItem(value: 'edahab', child: Text(t(context, 'Edahab'))),
-                       DropdownMenuItem(value: 'merchant', child: Text(t(context, 'Merchant'))),
-                       DropdownMenuItem(value: 'credit', child: Text(t(context, 'Credit'))),
-                     ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedPaymentMethod = value;
-                      });
-                    },
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: _buildFilterDropdown(
+                      'Payment Method',
+                      _selectedPaymentMethod ?? 'all',
+                      [
+                        DropdownMenuItem(value: 'all', child: Text(t(context, 'All Methods'))),
+                        DropdownMenuItem(value: 'evc', child: Text(t(context, 'EVC'))),
+                        DropdownMenuItem(value: 'edahab', child: Text(t(context, 'Edahab'))),
+                        DropdownMenuItem(value: 'merchant', child: Text(t(context, 'Merchant'))),
+                        DropdownMenuItem(value: 'credit', child: Text(t(context, 'Credit'))),
+                      ],
+                      (value) => setState(() => _selectedPaymentMethod = value),
+                      isSmallMobile,
+                      isMobile,
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              // 3+ columns on larger screens
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildFilterDropdown(
+                      'Status',
+                      _selectedStatus ?? 'all',
+                      [
+                        DropdownMenuItem(value: 'all', child: Text(t(context, 'All Statuses'))),
+                        DropdownMenuItem(value: 'completed', child: Text(t(context, 'Completed'))),
+                        DropdownMenuItem(value: 'unpaid', child: Text(t(context, 'Unpaid (Credit)'))),
+                        DropdownMenuItem(value: 'cancelled', child: Text(t(context, 'Cancelled'))),
+                      ],
+                      (value) => setState(() => _selectedStatus = value),
+                      isSmallMobile,
+                      isMobile,
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: _buildFilterDropdown(
+                      'Payment Method',
+                      _selectedPaymentMethod ?? 'all',
+                      [
+                        DropdownMenuItem(value: 'all', child: Text(t(context, 'All Methods'))),
+                        DropdownMenuItem(value: 'evc', child: Text(t(context, 'EVC'))),
+                        DropdownMenuItem(value: 'edahab', child: Text(t(context, 'Edahab'))),
+                        DropdownMenuItem(value: 'merchant', child: Text(t(context, 'Merchant'))),
+                        DropdownMenuItem(value: 'credit', child: Text(t(context, 'Credit'))),
+                      ],
+                      (value) => setState(() => _selectedPaymentMethod = value),
+                      isSmallMobile,
+                      isMobile,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            SizedBox(height: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
             // Show/Hide Cancelled Sales Toggle
-            Row(
-              children: [
-                Expanded(
-                  child: CheckboxListTile(
-                    title: Text(
-                      t(context, 'Show Cancelled Sales'),
-                      style: TextStyle(
-                        fontSize: isSmallMobile ? 12 : 14,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final availableWidth = constraints.maxWidth;
+                final fontSize = availableWidth < 200 ? 10.0 : (availableWidth < 300 ? 11.0 : 12.0);
+                final padding = availableWidth < 200 ? 4.0 : (availableWidth < 300 ? 6.0 : 8.0);
+                
+                return Row(
+                  children: [
+                    Expanded(
+                      child: CheckboxListTile(
+                        title: Text(
+                          t(context, 'Show Cancelled Sales'),
+                          style: TextStyle(fontSize: fontSize),
+                        ),
+                        value: _selectedStatus != 'cancelled' || _selectedStatus == 'all',
+                        onChanged: (value) {
+                          setState(() {
+                            if (value == true) {
+                              _selectedStatus = 'all';
+                            } else {
+                              _selectedStatus = 'completed';
+                            }
+                          });
+                        },
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.all(padding),
+                        dense: availableWidth < 200,
                       ),
                     ),
-                    value: _selectedStatus != 'cancelled' || _selectedStatus == 'all',
-                    onChanged: (value) {
-                      setState(() {
-                        if (value == true) {
-                          _selectedStatus = 'all';
-                        } else {
-                          _selectedStatus = 'completed';
-                        }
-                      });
-                    },
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -535,30 +644,102 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
     );
   }
 
-  Widget _buildSalesList(bool isSmallMobile, bool isMobile) {
-    return ListView.builder(
-      padding: EdgeInsets.all(isSmallMobile ? 8 : 16),
-      itemCount: _filteredSales.length,
-             itemBuilder: (context, index) {
-         final sale = _filteredSales[index];
-         final canCancel = sale.status == 'completed' || sale.status == 'unpaid';
+  Widget _buildFilterDropdown(
+    String label,
+    String value,
+    List<DropdownMenuItem<String>> items,
+    Function(String?) onChanged,
+    bool isSmallMobile,
+    bool isMobile,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Calculate responsive sizes based on available space
+        final availableWidth = constraints.maxWidth;
+        
+        // Responsive padding based on available width
+        final horizontalPadding = availableWidth < 120 ? 8.0 : (availableWidth < 180 ? 10.0 : 12.0);
+        final verticalPadding = availableWidth < 120 ? 8.0 : (availableWidth < 180 ? 10.0 : 12.0);
+        
+        // Responsive font sizes based on available width
+        final labelFontSize = availableWidth < 120 ? 12.0 : (availableWidth < 180 ? 13.0 : 14.0);
+        final itemFontSize = availableWidth < 120 ? 11.0 : (availableWidth < 180 ? 12.0 : 13.0);
+        
+        return DropdownButtonFormField<String>(
+          value: value,
+          decoration: InputDecoration(
+            labelText: t(context, label),
+            border: const OutlineInputBorder(),
+            isDense: availableWidth < 120, // Make it dense on small screens
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: verticalPadding,
+            ),
+            labelStyle: TextStyle(fontSize: labelFontSize),
+          ),
+          items: items.map((item) => DropdownMenuItem<String>(
+            value: item.value,
+            child: Text(
+              item.child.toString().replaceAll('Text("', '').replaceAll('")', ''),
+              style: TextStyle(fontSize: itemFontSize),
+            ),
+          )).toList(),
+          onChanged: onChanged,
+          style: TextStyle(fontSize: itemFontSize),
+          icon: Icon(
+            Icons.arrow_drop_down,
+            size: availableWidth < 120 ? 16.0 : 20.0,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSalesList(bool isSmallMobile, bool isMobile, bool isTablet, bool isDesktop) {
+    // Responsive layout based on screen size
+    if (isSmallMobile) {
+      return _buildSalesCards(isSmallMobile, isMobile); // Always cards on very small screens
+    } else if (isMobile) {
+      return _buildSalesCards(isSmallMobile, isMobile); // Cards on mobile
+    } else if (isTablet) {
+      // On tablet, show table but make it more mobile-friendly
+      return _buildSalesTable(isSmallMobile, isMobile, isTablet, isDesktop);
+    } else {
+      // Desktop gets the full table experience
+      return _buildSalesTable(isSmallMobile, isMobile, isTablet, isDesktop);
+    }
+  }
+
+  Widget _buildSalesCards(bool isSmallMobile, bool isMobile) {
+    return Column(
+      children: List.generate(_filteredSales.length, (index) {
+        final sale = _filteredSales[index];
+        final canCancel = sale.status == 'completed' || sale.status == 'unpaid';
         
         return Card(
-          margin: EdgeInsets.only(bottom: isSmallMobile ? 8 : 12),
+          margin: EdgeInsets.only(bottom: isSmallMobile ? 4 : (isMobile ? 6 : 16)),
           child: ListTile(
-                         title: Text(
-               'Sale #${sale.id ?? 'Unknown'}',
-               style: TextStyle(
-                 fontWeight: FontWeight.bold,
-                 fontSize: isSmallMobile ? 14 : 16,
-               ),
-             ),
+            dense: isSmallMobile || isMobile, // Make it dense on mobile
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+              vertical: isSmallMobile ? 4 : (isMobile ? 6 : 8),
+            ),
+            title: Text(
+              'Sale #${sale.id ?? 'Unknown'}',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 18),
+              ),
+            ),
              subtitle: Column(
                crossAxisAlignment: CrossAxisAlignment.start,
                children: [
-                 // Sale Amount - Make it prominent
+                 // Sale Amount - Make it prominent but compact
                  Container(
-                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                   padding: EdgeInsets.symmetric(
+                     horizontal: isSmallMobile ? 6 : (isMobile ? 8 : 8),
+                     vertical: isSmallMobile ? 2 : (isMobile ? 4 : 4),
+                   ),
                    decoration: BoxDecoration(
                      color: Colors.blue[50],
                      borderRadius: BorderRadius.circular(4),
@@ -567,59 +748,62 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
                    child: Text(
                      'Total Amount: \$${(sale.totalAmount ?? 0.0).toStringAsFixed(2)}',
                      style: TextStyle(
-                       fontSize: isSmallMobile ? 13 : 15,
+                       fontSize: isSmallMobile ? 11 : (isMobile ? 13 : 15),
                        fontWeight: FontWeight.bold,
                        color: Colors.blue[700],
                      ),
                    ),
                  ),
-                 const SizedBox(height: 6),
+                 SizedBox(height: isSmallMobile ? 3 : (isMobile ? 4 : 6)),
                  // Status with color coding
                  Row(
                    children: [
                      Container(
-                       width: 8,
-                       height: 8,
+                       width: isSmallMobile ? 6 : 8,
+                       height: isSmallMobile ? 6 : 8,
                        decoration: BoxDecoration(
                          color: _getStatusColor(sale.status),
                          shape: BoxShape.circle,
                        ),
                      ),
-                     const SizedBox(width: 6),
+                     SizedBox(width: isSmallMobile ? 4 : 6),
                      Text(
                        'Status: ${sale.status?.toString().toUpperCase() ?? 'UNKNOWN'}',
                        style: TextStyle(
-                         fontSize: isSmallMobile ? 11 : 12,
+                         fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 12),
                          color: _getStatusColor(sale.status),
                          fontWeight: FontWeight.w600,
                        ),
                      ),
                    ],
                  ),
-                 const SizedBox(height: 2),
+                 SizedBox(height: isSmallMobile ? 1 : 2),
                  // Payment method
                  Text(
                    'Payment: ${_formatPaymentMethod(sale.paymentMethod)}',
                    style: TextStyle(
-                     fontSize: isSmallMobile ? 11 : 12,
+                     fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 12),
                      color: Colors.grey[600],
                    ),
                  ),
-                 const SizedBox(height: 2),
+                 SizedBox(height: isSmallMobile ? 1 : 2),
                  // Date and time
                  Text(
                    'Date: ${_formatDate(sale.createdAt)}',
                    style: TextStyle(
-                     fontSize: isSmallMobile ? 11 : 12,
+                     fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 12),
                      color: Colors.grey[600],
                    ),
                  ),
-                 const SizedBox(height: 4),
+                 SizedBox(height: isSmallMobile ? 2 : 4),
                  // Product details
                  if (_saleItems[sale.id] != null && _saleItems[sale.id]!.isNotEmpty) ...[
-                   const SizedBox(height: 4),
+                   SizedBox(height: isSmallMobile ? 2 : 4),
                    Container(
-                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                     padding: EdgeInsets.symmetric(
+                       horizontal: isSmallMobile ? 6 : (isMobile ? 8 : 8),
+                       vertical: isSmallMobile ? 4 : (isMobile ? 6 : 6),
+                     ),
                      decoration: BoxDecoration(
                        color: Colors.green[50],
                        borderRadius: BorderRadius.circular(4),
@@ -631,16 +815,16 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
                          Text(
                            'Products Sold:',
                            style: TextStyle(
-                             fontSize: 10,
+                             fontSize: isSmallMobile ? 8 : (isMobile ? 9 : 10),
                              fontWeight: FontWeight.bold,
                              color: Colors.green[700],
                            ),
                          ),
-                         const SizedBox(height: 4),
+                         SizedBox(height: isSmallMobile ? 2 : 4),
                                                    ...(_saleItems[sale.id]!.take(3).map((item) => Text(
                             '• ${item['product_name'] ?? 'Unknown Product'} x${_safeInt(item['quantity'])} @\$${_safeDouble(item['unit_price']).toStringAsFixed(2)}',
                             style: TextStyle(
-                              fontSize: 9,
+                              fontSize: isSmallMobile ? 7 : (isMobile ? 8 : 9),
                               color: Colors.green[600],
                             ),
                           ))),
@@ -648,7 +832,7 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
                            Text(
                              '... and ${_saleItems[sale.id]!.length - 3} more items',
                              style: TextStyle(
-                               fontSize: 8,
+                               fontSize: isSmallMobile ? 6 : (isMobile ? 7 : 8),
                                color: Colors.green[500],
                                fontStyle: FontStyle.italic,
                              ),
@@ -658,50 +842,53 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
                      ),
                    ),
                  ],
-                 // Show cancellation details if sale was cancelled
+                                  // Show cancellation details if sale was cancelled
                  if (sale.status == 'cancelled') ...[
-                  const SizedBox(height: 4),
+                  SizedBox(height: isSmallMobile ? 2 : 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isSmallMobile ? 6 : (isMobile ? 8 : 8),
+                      vertical: isSmallMobile ? 2 : (isMobile ? 2 : 2),
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.red[50],
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(color: Colors.red[200]!),
                     ),
-                                         child: Text(
+                     child: Text(
                        'Cancelled by: ${sale.cancelledByName ?? 'Unknown'}',
                        style: TextStyle(
-                         fontSize: 10,
+                         fontSize: isSmallMobile ? 8 : (isMobile ? 9 : 10),
                          color: Colors.red[700],
                          fontWeight: FontWeight.w500,
                        ),
                      ),
                    ),
                    if (sale.cancellationReason != null) ...[
-                     const SizedBox(height: 2),
+                     SizedBox(height: isSmallMobile ? 1 : 2),
                      Text(
                        'Reason: ${sale.cancellationReason}',
                        style: TextStyle(
-                         fontSize: 10,
+                         fontSize: isSmallMobile ? 8 : (isMobile ? 9 : 10),
                          color: Colors.red[600],
                          fontStyle: FontStyle.italic,
                        ),
                      ),
                    ],
                    if (sale.cancelledAt != null) ...[
-                     const SizedBox(height: 2),
+                     SizedBox(height: isSmallMobile ? 1 : 2),
                      Text(
                        'Cancelled: ${_formatDate(sale.cancelledAt)}',
                        style: TextStyle(
-                         fontSize: 10,
+                         fontSize: isSmallMobile ? 8 : (isMobile ? 9 : 10),
                          color: Colors.red[600],
                        ),
                      ),
                    ],
                 ],
-              ],
-            ),
-                         trailing: canCancel
+               ],
+             ),
+             trailing: canCancel
                  ? IconButton(
                      icon: const Icon(Icons.cancel, color: Colors.red),
                      onPressed: () => _cancelSale(sale),
@@ -710,9 +897,163 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
                  : sale.status == 'cancelled'
                      ? const Icon(Icons.cancel, color: Colors.grey)
                      : null,
+           ),
+         );
+       }),
+     );
+   }
+
+  Widget _buildSalesTable(bool isSmallMobile, bool isMobile, bool isTablet, bool isDesktop) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columnSpacing: isTablet ? 12 : (isDesktop ? 20 : 24),
+        dataRowHeight: isTablet ? 56 : (isDesktop ? 68 : 72),
+        headingRowHeight: isTablet ? 48 : (isDesktop ? 60 : 64),
+        columns: [
+          DataColumn(
+            label: Text(
+              'Sale ID',
+              style: TextStyle(
+                fontSize: isTablet ? 12 : (isDesktop ? 14 : 16),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
-        );
-      },
+          DataColumn(
+            label: Text(
+              'Amount',
+              style: TextStyle(
+                fontSize: isTablet ? 12 : (isDesktop ? 14 : 16),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          DataColumn(
+            label: Text(
+              'Status',
+              style: TextStyle(
+                fontSize: isTablet ? 12 : (isDesktop ? 14 : 16),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          DataColumn(
+            label: Text(
+              'Payment',
+              style: TextStyle(
+                fontSize: isTablet ? 12 : (isDesktop ? 14 : 16),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          DataColumn(
+            label: Text(
+              'Date',
+              style: TextStyle(
+                fontSize: isTablet ? 12 : (isDesktop ? 14 : 16),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          DataColumn(
+            label: Text(
+              'Actions',
+              style: TextStyle(
+                fontSize: isTablet ? 12 : (isDesktop ? 14 : 16),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+        rows: _filteredSales.map((sale) {
+          final canCancel = sale.status == 'completed' || sale.status == 'unpaid';
+          
+          return DataRow(
+            cells: [
+              DataCell(
+                Text(
+                  '#${sale.id ?? 'Unknown'}',
+                  style: TextStyle(
+                    fontSize: isTablet ? 13 : 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              DataCell(
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Text(
+                    '\$${(sale.totalAmount ?? 0.0).toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: isTablet ? 13 : 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue[700],
+                    ),
+                  ),
+                ),
+              ),
+              DataCell(
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: _getStatusColor(sale.status),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      sale.status?.toString().toUpperCase() ?? 'UNKNOWN',
+                      style: TextStyle(
+                        fontSize: isTablet ? 12 : 14,
+                        color: _getStatusColor(sale.status),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              DataCell(
+                Text(
+                  _formatPaymentMethod(sale.paymentMethod),
+                  style: TextStyle(
+                    fontSize: isTablet ? 12 : 14,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ),
+              DataCell(
+                Text(
+                  _formatDate(sale.createdAt),
+                  style: TextStyle(
+                    fontSize: isTablet ? 12 : 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ),
+              DataCell(
+                canCancel
+                    ? IconButton(
+                        icon: const Icon(Icons.cancel, color: Colors.red),
+                        onPressed: () => _cancelSale(sale),
+                        tooltip: t(context, 'Cancel Sale'),
+                      )
+                    : sale.status == 'cancelled'
+                        ? const Icon(Icons.cancel, color: Colors.grey)
+                        : const SizedBox.shrink(),
+              ),
+            ],
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -765,5 +1106,65 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
     if (value is int) return value.toDouble();
     if (value is String) return double.tryParse(value) ?? 0.0;
     return 0.0;
+  }
+
+  void _showAdvancedFilters() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t(context, 'Advanced Filters')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Date range picker
+            ListTile(
+              leading: const Icon(Icons.date_range),
+              title: Text(t(context, 'Date Range')),
+              subtitle: Text(
+                _filterStartDate != null && _filterEndDate != null
+                    ? '${_formatDate(_filterStartDate)} - ${_formatDate(_filterEndDate)}'
+                    : 'No date filter',
+              ),
+              onTap: () async {
+                final DateTimeRange? picked = await showDateRangePicker(
+                  context: context,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now(),
+                  initialDateRange: _filterStartDate != null && _filterEndDate != null
+                      ? DateTimeRange(start: _filterStartDate!, end: _filterEndDate!)
+                      : null,
+                );
+                if (picked != null) {
+                  setState(() {
+                    _filterStartDate = picked.start;
+                    _filterEndDate = picked.end;
+                  });
+                }
+              },
+            ),
+            // Clear filters button
+            ListTile(
+              leading: const Icon(Icons.clear_all),
+              title: Text(t(context, 'Clear All Filters')),
+              onTap: () {
+                setState(() {
+                  _filterStartDate = null;
+                  _filterEndDate = null;
+                  _selectedStatus = 'all';
+                  _selectedPaymentMethod = 'all';
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(t(context, 'Close')),
+          ),
+        ],
+      ),
+    );
   }
 }

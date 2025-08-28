@@ -38,8 +38,31 @@ router.get('/', auth, async (req, res) => {
 
 // Create new sale
 router.post('/', auth, async (req, res) => {
+  console.log('🚀 ===== SALE CREATION START =====');
+  console.log('📝 Request body:', JSON.stringify(req.body, null, 2));
+  console.log('👤 User ID:', req.user.id);
+  console.log('🏢 Business ID:', req.user.business_id);
+  
   const connection = await pool.getConnection();
   try {
+    // First, let's check the sale_items table structure
+    console.log('🔍 ===== CHECKING SALE_ITEMS TABLE STRUCTURE =====');
+    try {
+      const [columns] = await connection.query('DESCRIBE sale_items');
+      console.log('📋 sale_items table columns:', JSON.stringify(columns, null, 2));
+      
+      // Check if mode column exists and its type
+      const modeColumn = columns.find(col => col.Field === 'mode');
+      if (modeColumn) {
+        console.log('✅ mode column found:', JSON.stringify(modeColumn, null, 2));
+      } else {
+        console.log('❌ mode column NOT found in sale_items table!');
+      }
+    } catch (error) {
+      console.log('⚠️ Schema check error:', error.message);
+    }
+    
+    // Extract sale data
     await connection.beginTransaction();
 
     const {
@@ -110,29 +133,35 @@ router.post('/', auth, async (req, res) => {
     // Note: No overall sale_mode is set - each item maintains its individual mode
     console.log('Individual item modes preserved - no overall sale_mode classification');
     
-    // Set default sale_mode for database compatibility (each item keeps its own mode)
-    const defaultSaleMode = sale_mode || 'retail'; // Default to retail if not provided
-
-    // Create sale record
+    // Determine the actual sale mode based on items
+    let actualSaleMode = 'retail'; // Default
+    if (items.some(item => item.mode === 'wholesale')) {
+      actualSaleMode = 'wholesale';
+    }
+    console.log('🎯 Determined actual sale_mode:', actualSaleMode, 'based on items');
+    
+    // Create sale record with the correct sale_mode
     let saleStatus = 'completed';
     if (payment_method === 'credit') {
       saleStatus = 'unpaid';
     }
     const businessId = req.user.business_id;
     
-    console.log('Inserting sale with sale_mode:', defaultSaleMode);
+    console.log('Inserting sale with sale_mode:', actualSaleMode);
     
     const [saleResult] = await connection.query(
       `INSERT INTO sales (
         customer_id, user_id, total_amount, tax_amount,
         payment_method, status, sale_mode, business_id
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [customer_id, req.user.id, totalAmount, 0.00, payment_method, saleStatus, defaultSaleMode, businessId]
+      [customer_id, req.user.id, totalAmount, 0.00, payment_method, saleStatus, actualSaleMode, businessId]
     );
 
     const sale_id = saleResult.insertId;
+    console.log('✅ Sale created with ID:', sale_id);
 
-    // Create sale items and update inventory
+    // Insert sale items
+    console.log('🔄 ===== INSERTING SALE ITEMS =====');
     for (const item of items) {
       console.log('\n--- Processing Sale Item ---');
       console.log('Raw item data:', JSON.stringify(item, null, 2));
@@ -150,19 +179,23 @@ router.post('/', auth, async (req, res) => {
       const itemMode = item.mode || 'retail';
       console.log('Inserting sale item with mode:', itemMode);
       
+      // Log the exact INSERT query values
+      const insertValues = [
+        sale_id,
+        item.product_id,
+        item.quantity,
+        item.unit_price,
+        item.unit_price * item.quantity,
+        itemMode,
+        businessId
+      ];
+      console.log('📝 INSERT VALUES:', JSON.stringify(insertValues, null, 2));
+      
       await connection.query(
         `INSERT INTO sale_items (
           sale_id, product_id, quantity, unit_price, total_price, mode, business_id
         ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
-          sale_id,
-          item.product_id,
-          item.quantity,
-          item.unit_price,
-          item.unit_price * item.quantity,
-          itemMode,
-          businessId
-        ]
+        insertValues
       );
       
       console.log(`✅ Sale item inserted: Product ${item.product_id}, Mode: ${itemMode}`);
@@ -205,7 +238,12 @@ router.post('/', auth, async (req, res) => {
     }
 
     await connection.commit();
-
+    
+    console.log('🎉 ===== SALE CREATION COMPLETED SUCCESSFULLY =====');
+    console.log('📊 Sale ID:', sale_id);
+    console.log('💰 Total Amount:', totalAmount);
+    console.log('📦 Items Count:', items.length);
+    
     res.status(201).json({
       message: 'Sale completed successfully',
       sale_id,

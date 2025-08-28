@@ -25,8 +25,30 @@ const testMixedSale = {
 
 async function testBackendSales() {
   try {
-    console.log('=== Testing Backend Sales Endpoint ===\\n');
+    console.log('🔍 ===== TESTING BACKEND SALES ENDPOINT =====');
     
+    // First, let's check the database schema
+    console.log('\n📋 ===== CHECKING DATABASE SCHEMA =====');
+    try {
+      const schemaResponse = await fetch(`${baseUrl}/api/admin/check-schema`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${adminToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (schemaResponse.ok) {
+        const schemaData = await schemaResponse.json();
+        console.log('✅ Schema check response:', JSON.stringify(schemaData, null, 2));
+      } else {
+        console.log('❌ Schema check failed:', schemaResponse.status);
+      }
+    } catch (error) {
+      console.log('⚠️ Schema check error:', error.message);
+    }
+    
+    // Test data for a single wholesale product
     console.log('1. Testing mixed sale (retail + wholesale items)...');
     console.log('   - Expected: sale_mode will be default "retail" (but this is just for database compatibility)');
     console.log('   - Expected: Each item maintains its individual mode in sale_items table');

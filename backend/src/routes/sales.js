@@ -103,6 +103,15 @@ router.post('/', auth, async (req, res) => {
       unit_price: item.unit_price,
       mode: item.mode
     })));
+    
+    // Auto-determine sale_mode if not provided
+    let finalSaleMode = sale_mode;
+    if (!finalSaleMode) {
+      // If any item is wholesale, the sale is considered wholesale
+      // This maintains backward compatibility while supporting mixed modes
+      finalSaleMode = items.some(item => item.mode === 'wholesale') ? 'wholesale' : 'retail';
+      console.log('Auto-determined sale_mode:', finalSaleMode, 'based on items');
+    }
 
     // Create sale record
     let saleStatus = 'completed';
@@ -110,12 +119,15 @@ router.post('/', auth, async (req, res) => {
       saleStatus = 'unpaid';
     }
     const businessId = req.user.business_id;
+    
+    console.log('Inserting sale with sale_mode:', finalSaleMode);
+    
     const [saleResult] = await connection.query(
       `INSERT INTO sales (
         customer_id, user_id, total_amount, tax_amount,
         payment_method, status, sale_mode, business_id
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [customer_id, req.user.id, totalAmount, 0.00, payment_method, saleStatus, sale_mode || 'retail', businessId]
+      [customer_id, req.user.id, totalAmount, 0.00, payment_method, saleStatus, finalSaleMode, businessId]
     );
 
     const sale_id = saleResult.insertId;

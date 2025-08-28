@@ -1331,18 +1331,34 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       // If blank, treat as walk-in
       final customerId = customer?.id;
       
-      // Determine sale mode from cart items - if any item is wholesale, the whole sale is wholesale
-      final saleMode = widget.cart.items.any((item) => item.mode == 'wholesale') ? 'wholesale' : 'retail';
-      
-      // Debug logging for sale mode
-      print('🛒 POS: Sale mode determination:');
+      // Debug logging for cart items
+      print('🛒 POS: Cart items for sale:');
       print('  - Cart items: ${widget.cart.items.length}');
       print('  - Item details:');
       for (final item in widget.cart.items) {
         print('    * ${item.product.name}: mode=${item.mode}, qty=${item.quantity}');
       }
-      print('  - Determined sale_mode: $saleMode');
-      print('  - Logic: ${widget.cart.items.any((item) => item.mode == 'wholesale') ? 'ANY item is wholesale → wholesale' : 'ALL items are retail → retail'}');
+      print('  - Note: Each item maintains its individual mode (retail/wholesale)');
+      
+      // Check for same product with different modes
+      final productIds = widget.cart.items.map((item) => item.product.id).toSet();
+      if (productIds.length < widget.cart.items.length) {
+        print('  - 🔍 Same product detected with different modes!');
+        final groupedByProduct = <int, List<CartItem>>{};
+        for (final item in widget.cart.items) {
+          if (item.product.id != null) {
+            groupedByProduct.putIfAbsent(item.product.id!, () => []).add(item);
+          }
+        }
+        for (final entry in groupedByProduct.entries) {
+          if (entry.value.length > 1) {
+            print('    * Product ID ${entry.key} (${entry.value.first.product.name}):');
+            for (final item in entry.value) {
+              print('      - ${item.mode} mode: qty=${item.quantity}');
+            }
+          }
+        }
+      }
       
       final saleData = {
         if (customerId != null && customerId.toString().isNotEmpty) 'customer_id': customerId is int ? customerId : int.tryParse(customerId.toString()) ?? 0,
@@ -1353,7 +1369,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
           // Use total price directly, don't multiply by quantity again
           return sum + (totalPrice > 0 ? totalPrice : (item.product.costPrice * item.quantity));
         }),
-        'sale_mode': saleMode, // Use determined mode instead of static widget.saleMode
+        // Note: sale_mode is not set - each item maintains its individual mode
         'items': widget.cart.items.map((item) {
           final controller = _customPriceControllers[item.product.id];
           final totalPrice = double.tryParse(controller?.text ?? '') ?? 0.0;

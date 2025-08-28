@@ -96,6 +96,9 @@ router.post('/', auth, async (req, res) => {
       status: 'completed'
     });
     
+    // Debug log for complete request body
+    console.log('Complete request body:', JSON.stringify(req.body, null, 2));
+    
     // Debug log for items
     console.log('Sale items:', items.map(item => ({
       product_id: item.product_id,
@@ -131,12 +134,22 @@ router.post('/', auth, async (req, res) => {
 
     // Create sale items and update inventory
     for (const item of items) {
+      console.log('\n--- Processing Sale Item ---');
+      console.log('Raw item data:', JSON.stringify(item, null, 2));
+      console.log('Item mode field:', item.mode);
+      console.log('Item mode type:', typeof item.mode);
+      console.log('Item mode === "wholesale":', item.mode === 'wholesale');
+      console.log('Item mode === "retail":', item.mode === 'retail');
+      
       const [product] = await connection.query(
         'SELECT cost_price FROM products WHERE id = ?',
         [item.product_id]
       );
 
       // Add sale item
+      const itemMode = item.mode || 'retail';
+      console.log('Inserting sale item with mode:', itemMode);
+      
       await connection.query(
         `INSERT INTO sale_items (
           sale_id, product_id, quantity, unit_price, total_price, mode, business_id
@@ -147,10 +160,12 @@ router.post('/', auth, async (req, res) => {
           item.quantity,
           item.unit_price,
           item.unit_price * item.quantity,
-          item.mode || 'retail',
+          itemMode,
           businessId
         ]
       );
+      
+      console.log(`✅ Sale item inserted: Product ${item.product_id}, Mode: ${itemMode}`);
 
       // NOTE: Stock quantity is automatically updated by database trigger after_sale_item_insert
       // No need for manual UPDATE here to avoid double deduction

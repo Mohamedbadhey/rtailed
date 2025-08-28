@@ -33,6 +33,19 @@ async function testBackendSales() {
     console.log('   - Expected: Individual item modes are preserved for detailed tracking');
     console.log('   - Sale data:', JSON.stringify(testMixedSale, null, 2));
     
+    console.log('\\nSending request to:', `${BASE_URL}/sales`);
+    console.log('Request data structure:');
+    console.log('  - customer_id:', testMixedSale.customer_id);
+    console.log('  - payment_method:', testMixedSale.payment_method);
+    console.log('  - items count:', testMixedSale.items.length);
+    testMixedSale.items.forEach((item, index) => {
+      console.log(`  - Item ${index + 1}:`);
+      console.log(`    * product_id: ${item.product_id}`);
+      console.log(`    * quantity: ${item.quantity}`);
+      console.log(`    * unit_price: ${item.unit_price}`);
+      console.log(`    * mode: ${item.mode} (type: ${typeof item.mode})`);
+    });
+    
     const response = await axios.post(`${BASE_URL}/sales`, testMixedSale);
     
     console.log('\\n✅ Sale created successfully!');

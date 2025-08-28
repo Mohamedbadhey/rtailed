@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:retail_management/models/product.dart';
 import 'package:retail_management/models/customer.dart';
@@ -60,6 +61,7 @@ class _POSScreenState extends State<POSScreen> {
       for (final product in products) {
         print('🛍️ Product: ${product.name} (ID: ${product.id})');
         print('🛍️   - Image URL from API: ${product.imageUrl ?? 'NULL'}');
+        print('🛍️   - Stock Quantity: ${product.stockQuantity}');
         
         if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
           productsWithImages++;
@@ -115,7 +117,14 @@ class _POSScreenState extends State<POSScreen> {
     }
   }
 
-
+  /// Refresh the entire POS interface
+  /// This method reloads products to show updated stock quantities
+  /// and refreshes the filtered product list
+  Future<void> refreshPOS() async {
+    print('🔄 POS Refresh requested');
+    await _loadProducts();
+    print('🔄 POS Refresh completed');
+  }
 
   void _applyFilters() {
     setState(() {
@@ -373,9 +382,9 @@ class _POSScreenState extends State<POSScreen> {
                       child: IconButton(
                     icon: Icon(Icons.refresh, color: Colors.blue, size: isSmallMobile ? 16 : 18),
                         onPressed: () async {
-                          await _loadProducts(); // This will also refresh categories
+                          await refreshPOS(); // This will also refresh categories
                         },
-                        tooltip: t(context, 'refresh_products'),
+                        tooltip: t(context, 'refresh_products') + ' (Stock quantities, categories)',
                     padding: EdgeInsets.zero,
                     constraints: BoxConstraints(
                       minWidth: isSmallMobile ? 36 : 40,
@@ -438,9 +447,9 @@ class _POSScreenState extends State<POSScreen> {
                       child: IconButton(
                         icon: const Icon(Icons.refresh, color: Colors.blue),
                         onPressed: () async {
-                          await _loadProducts(); // This will also refresh categories
+                          await refreshPOS(); // This will also refresh categories
                         },
-                        tooltip: t(context, 'refresh_products'),
+                        tooltip: t(context, 'refresh_products') + ' (Stock quantities, categories)',
                       ),
                     ),
                   ],
@@ -549,8 +558,10 @@ class _POSScreenState extends State<POSScreen> {
               ),
             );
             if (mode == 'retail') {
+              print('🛒 POS: Adding product as RETAIL: ${product.name}');
               context.read<CartProvider>().addItem(product, mode: 'retail', quantity: 1);
             } else if (mode == 'wholesale') {
+              print('🛒 POS: Adding product as WHOLESALE: ${product.name}');
               final qty = await showDialog<int>(
                 context: context,
                 builder: (context) {
@@ -617,6 +628,7 @@ class _POSScreenState extends State<POSScreen> {
                 },
               );
               if (qty != null && qty > 0 && qty <= product.stockQuantity) {
+                print('🛒 POS: Adding wholesale item: ${product.name} x $qty (mode: wholesale)');
                 context.read<CartProvider>().addItemWithMode(product, 'wholesale', qty);
               }
             }
@@ -1152,7 +1164,14 @@ class _POSScreenState extends State<POSScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => _CheckoutDialog(cart: cart, saleMode: _saleMode),
+      builder: (context) => _CheckoutDialog(
+        cart: cart, 
+        saleMode: _saleMode,
+        onSaleCompleted: () async {
+          // Refresh the POS after successful sale
+          await _loadProducts();
+        },
+      ),
     );
   }
 
@@ -1171,8 +1190,13 @@ class _POSScreenState extends State<POSScreen> {
 class _CheckoutDialog extends StatefulWidget {
   final CartProvider cart;
   final String saleMode;
+  final VoidCallback onSaleCompleted;
 
-  const _CheckoutDialog({required this.cart, required this.saleMode});
+  const _CheckoutDialog({
+    required this.cart, 
+    required this.saleMode,
+    required this.onSaleCompleted,
+  });
 
   @override
   State<_CheckoutDialog> createState() => _CheckoutDialogState();
@@ -1306,6 +1330,20 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       }
       // If blank, treat as walk-in
       final customerId = customer?.id;
+      
+      // Determine sale mode from cart items - if any item is wholesale, the whole sale is wholesale
+      final saleMode = widget.cart.items.any((item) => item.mode == 'wholesale') ? 'wholesale' : 'retail';
+      
+      // Debug logging for sale mode
+      print('🛒 POS: Sale mode determination:');
+      print('  - Cart items: ${widget.cart.items.length}');
+      print('  - Item details:');
+      for (final item in widget.cart.items) {
+        print('    * ${item.product.name}: mode=${item.mode}, qty=${item.quantity}');
+      }
+      print('  - Determined sale_mode: $saleMode');
+      print('  - Logic: ${widget.cart.items.any((item) => item.mode == 'wholesale') ? 'ANY item is wholesale → wholesale' : 'ALL items are retail → retail'}');
+      
       final saleData = {
         if (customerId != null && customerId.toString().isNotEmpty) 'customer_id': customerId is int ? customerId : int.tryParse(customerId.toString()) ?? 0,
         'payment_method': _selectedPaymentMethod,
@@ -1315,7 +1353,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
           // Use total price directly, don't multiply by quantity again
           return sum + (totalPrice > 0 ? totalPrice : (item.product.costPrice * item.quantity));
         }),
-        'sale_mode': widget.saleMode,
+        'sale_mode': saleMode, // Use determined mode instead of static widget.saleMode
         'items': widget.cart.items.map((item) {
           final controller = _customPriceControllers[item.product.id];
           final totalPrice = double.tryParse(controller?.text ?? '') ?? 0.0;
@@ -1325,17 +1363,36 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
             'product_id': item.product.id,
             'quantity': item.quantity,
             'unit_price': unitPrice,
-            'mode': item.mode,
+            'mode': item.mode, // This is already correct - individual item mode
           };
         }).toList(),
         if (_selectedPaymentMethod == 'credit' || (customer != null && (_customerPhoneController.text.trim().isNotEmpty || _newCustomerPhoneController.text.trim().isNotEmpty)))
           'customer_phone': customer == null ? '' : (_newCustomerPhoneController.text.trim().isNotEmpty ? _newCustomerPhoneController.text.trim() : _customerPhoneController.text.trim()),
       };
       final sale = await _apiService.createSale(saleData);
+      
+      // Clear the cart
       widget.cart.clearCart();
+      
       setState(() { _isLoading = false; });
       Navigator.of(context).pop();
+      
+      // Call the callback to refresh the main POS screen
+      widget.onSaleCompleted();
+      
+      // Show success message and inform user that POS has been refreshed
       SuccessUtils.showSaleSuccess(context, sale['sale_id'].toString());
+      
+      // Show additional message about POS refresh
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ POS refreshed with updated stock quantities'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
       setState(() { _isLoading = false; });
       SuccessUtils.showSaleError(context, e.toString());

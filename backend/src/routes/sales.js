@@ -92,8 +92,17 @@ router.post('/', auth, async (req, res) => {
       user_id: req.user.id,
       total_amount: totalAmount,
       payment_method,
+      sale_mode, // Add sale_mode to debug log
       status: 'completed'
     });
+    
+    // Debug log for items
+    console.log('Sale items:', items.map(item => ({
+      product_id: item.product_id,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      mode: item.mode
+    })));
 
     // Create sale record
     let saleStatus = 'completed';

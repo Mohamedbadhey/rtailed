@@ -246,6 +246,7 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
       description,
       barcode,
       category_id,
+      price,
       wholesale_price,
       cost_price,
       stock_quantity,
@@ -253,14 +254,20 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
     } = req.body;
 
     // Validate required fields
-    if (!name || !cost_price) {
+    if (!name || !cost_price || !price) {
       await connection.rollback();
       return res.status(400).json({ 
-        message: 'Missing required fields: name and cost_price are required' 
+        message: 'Missing required fields: name, price, and cost_price are required' 
       });
     }
 
     // Validate numeric fields
+    if (isNaN(parseFloat(price))) {
+      await connection.rollback();
+      return res.status(400).json({ 
+        message: 'Price must be a valid number' 
+      });
+    }
     if (isNaN(parseFloat(cost_price))) {
       await connection.rollback();
       return res.status(400).json({ 
@@ -279,7 +286,7 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
       `SKU-${Date.now()}`, // Auto-generated SKU
       barcode || null, 
       category_id || null,
-      0.0, // Hardcoded price
+      parseFloat(price), // Use price from request body instead of hardcoded 0.0
       wholesale_price !== undefined ? parseFloat(wholesale_price) : null,
       parseFloat(cost_price), 
       parseInt(stock_quantity) || 0, 
@@ -294,7 +301,7 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
     console.log('sku: Auto-generated SKU-${Date.now()}');
     console.log('barcode:', barcode || null);
     console.log('category_id:', category_id || null);
-    console.log('price: Hardcoded 0.0');
+    console.log('price:', parseFloat(price));
     console.log('wholesale_price:', wholesale_price !== undefined ? parseFloat(wholesale_price) : null);
     console.log('cost_price:', parseFloat(cost_price));
     console.log('stock_quantity:', parseInt(stock_quantity) || 0);
@@ -353,6 +360,7 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
       description,
       barcode,
       category_id,
+      price,
       wholesale_price,
       cost_price,
       stock_quantity,
@@ -399,6 +407,11 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
     if (category_id !== undefined) {
       updateFields.push('category_id = ?');
       updateValues.push(category_id === '' ? null : category_id);
+    }
+
+    if (price !== undefined) {
+      updateFields.push('price = ?');
+      updateValues.push(parseFloat(price));
     }
 
     if (wholesale_price !== undefined) {
@@ -493,20 +506,7 @@ router.delete('/:id', [auth, checkRole(['admin'])], async (req, res) => {
     
     console.log('Found product to delete:', products[0]);
 
-    // Delete related records first (due to foreign key constraints)
-    // Delete from sale_items
-    await connection.query(
-      'DELETE FROM sale_items WHERE product_id = ?',
-      [productId]
-    );
-
-    // Delete from inventory_transactions
-    await connection.query(
-      'DELETE FROM inventory_transactions WHERE product_id = ?',
-      [productId]
-    );
-
-    // Now soft delete the product
+    // Simple soft delete - just mark as deleted, preserve all data
     const [result] = await connection.query(
       'UPDATE products SET is_deleted = 1 WHERE id = ?',
       [productId]
@@ -562,7 +562,7 @@ router.put('/:id/restore', [auth, checkRole(['admin'])], async (req, res) => {
     
     console.log('Found product to restore:', products[0]);
 
-    // Restore the product by setting is_deleted = 0
+    // Simple restore - just mark as not deleted
     const [result] = await connection.query(
       'UPDATE products SET is_deleted = 0 WHERE id = ?',
       [productId]

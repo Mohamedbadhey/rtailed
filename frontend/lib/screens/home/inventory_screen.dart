@@ -4342,7 +4342,7 @@ class _ProductDialogState extends State<_ProductDialog> {
       final productData = {
         'name': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
-          'price': double.parse(_priceController.text.trim()),
+        'price': double.parse(_priceController.text.trim()),
         'cost_price': double.parse(_costController.text),
         'stock_quantity': int.parse(_stockController.text),
         'category_id': _selectedCategoryId,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:retail_management/models/product.dart';
 import 'package:retail_management/models/customer.dart';
@@ -559,7 +560,33 @@ class _POSScreenState extends State<POSScreen> {
             );
             if (mode == 'retail') {
               print('🛒 POS: Adding product as RETAIL: ${product.name}');
-              context.read<CartProvider>().addItem(product, mode: 'retail', quantity: 1);
+              
+              // Use stock validation
+              final result = context.read<CartProvider>().addItemWithValidation(
+                product, 
+                mode: 'retail', 
+                quantity: 1
+              );
+              
+              if (!result['success']) {
+                // Show insufficient stock message
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(result['message']),
+                    backgroundColor: Colors.red,
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              } else {
+                // Show success message
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('${product.name} added to cart (Retail)'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
             } else if (mode == 'wholesale') {
               print('🛒 POS: Adding product as WHOLESALE: ${product.name}');
               final qty = await showDialog<int>(
@@ -606,8 +633,22 @@ class _POSScreenState extends State<POSScreen> {
                       ElevatedButton(
                         onPressed: () {
                           final q = int.tryParse(controller.text);
-                          if (q != null && q > 0 && q <= product.stockQuantity) {
-                            Navigator.of(context).pop(q);
+                          if (q != null && q > 0) {
+                            // Check stock validation before allowing
+                            final cartProvider = context.read<CartProvider>();
+                            final availableStock = cartProvider.getAvailableStock(product, 'wholesale');
+                            if (q <= availableStock) {
+                              Navigator.of(context).pop(q);
+                            } else {
+                              // Show insufficient stock message in dialog
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Insufficient stock! Available: $availableStock'),
+                                  backgroundColor: Colors.red,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
                           }
                         },
                             style: ElevatedButton.styleFrom(
@@ -617,7 +658,7 @@ class _POSScreenState extends State<POSScreen> {
                               ),
                             ),
                             child: Text(
-                              t(context, 'add'),
+                              'add',
                               style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
                             ),
                           ),
@@ -627,9 +668,35 @@ class _POSScreenState extends State<POSScreen> {
                   );
                 },
               );
-              if (qty != null && qty > 0 && qty <= product.stockQuantity) {
+              if (qty != null && qty > 0) {
                 print('🛒 POS: Adding wholesale item: ${product.name} x $qty (mode: wholesale)');
-                context.read<CartProvider>().addItemWithMode(product, 'wholesale', qty);
+                
+                // Use stock validation
+                final result = context.read<CartProvider>().addItemWithValidation(
+                  product, 
+                  mode: 'wholesale', 
+                  quantity: qty
+                );
+                
+                if (!result['success']) {
+                  // Show insufficient stock message
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(result['message']),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                } else {
+                  // Show success message
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${product.name} x $qty added to cart (Wholesale)'),
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
               }
             }
           }
@@ -1047,8 +1114,24 @@ class _POSScreenState extends State<POSScreen> {
                                             );
                                           },
                                         );
-                                        if (newQuantity != null && newQuantity > 0 && newQuantity <= item.product.stockQuantity) {
-                                          cart.updateQuantity(item.product, newQuantity);
+                                        if (newQuantity != null && newQuantity > 0) {
+                                          // Use stock validation for quantity updates
+                                          final result = cart.updateQuantityWithValidation(
+                                            item.product, 
+                                            newQuantity, 
+                                            mode: item.mode
+                                          );
+                                          
+                                          if (!result['success']) {
+                                            // Show insufficient stock message
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text(result['message']),
+                                                backgroundColor: Colors.red,
+                                                duration: Duration(seconds: 3),
+                                              ),
+                                            );
+                                          }
                                         }
                                       },
                                       child: Text(
@@ -1064,7 +1147,23 @@ class _POSScreenState extends State<POSScreen> {
                                     IconButton(
                                       icon: Icon(Icons.add, size: isSmallMobile ? 14 : 18),
                                       onPressed: () {
-                                        cart.addItem(item.product);
+                                        // Use stock validation for adding more of the same item
+                                        final result = cart.addItemWithValidation(
+                                          item.product, 
+                                          mode: item.mode, 
+                                          quantity: 1
+                                        );
+                                        
+                                        if (!result['success']) {
+                                          // Show insufficient stock message
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(result['message']),
+                                              backgroundColor: Colors.red,
+                                              duration: Duration(seconds: 3),
+                                            ),
+                                          );
+                                        }
                                       },
                                       padding: EdgeInsets.all(isSmallMobile ? 2 : (isMobile ? 4 : 8)),
                                       constraints: BoxConstraints(
@@ -1226,6 +1325,8 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
   void initState() {
     super.initState();
     _fetchCustomers();
+    // Ensure new customer fields are hidden by default
+    _showNewCustomerFields = false;
   }
 
   Future<void> _fetchCustomers() async {
@@ -1255,6 +1356,87 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
     setState(() {
       _isLoading = true;
     });
+    
+    // Validate credit sales require customer selection
+    if (_selectedPaymentMethod == 'credit') {
+      if (!_isCustomerSetupValidForCredit()) {
+        setState(() { _isLoading = false; });
+        
+        String errorMessage = 'Credit sales require:\n';
+        if (_selectedCustomer == null && 
+            _customerNameController.text.trim().isEmpty && 
+            _newCustomerNameController.text.trim().isEmpty) {
+          errorMessage += '• A customer to be selected, OR\n• A new customer to be created';
+        } else {
+          errorMessage += '• A valid phone number for the customer';
+        }
+        
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Customer Setup Required'),
+            content: Text(errorMessage),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('OK'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+    }
+    
+    // Validate stock quantities for each cart item
+    final stockValidationErrors = <String>[];
+    for (final item in widget.cart.items) {
+      final availableStock = item.product.stockQuantity - item.product.damagedQuantity;
+      if (item.quantity > availableStock) {
+        stockValidationErrors.add('${item.product.name} (${item.mode}): Quantity ${item.quantity} exceeds available stock ${availableStock}');
+      }
+    }
+    
+    if (stockValidationErrors.isNotEmpty) {
+      setState(() { _isLoading = false; });
+      // Show stock validation errors
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Stock Validation Failed'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'The following items exceed available stock:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              SizedBox(height: 16),
+              ...stockValidationErrors.map((error) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text('• $error', style: TextStyle(color: Colors.red[700])),
+              )).toList(),
+              SizedBox(height: 16),
+              Text(
+                'Please reduce quantities or remove items before proceeding.',
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     
     // Validate each product's custom price before processing
     final validationErrors = <String>[];
@@ -1924,55 +2106,108 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                         SizedBox(height: isSmallMobile ? 12 : (isMobile ? 16 : 24)),
 
                         // Customer Name (always visible)
-                        Text(
-                          t(context, 'customer_name'),
-                          style: TextStyle(
-                            fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16), 
-                            fontWeight: FontWeight.bold
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              t(context, 'customer_name'),
+                              style: TextStyle(
+                                fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16), 
+                                fontWeight: FontWeight.bold
+                              ),
+                            ),
+                            if (_selectedPaymentMethod == 'credit')
+                              Text(
+                                ' *',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
+                                  fontWeight: FontWeight.bold
+                                ),
+                              ),
+                          ],
                         ),
                         SizedBox(height: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
                         _customersLoading
                           ? Center(child: CircularProgressIndicator())
-                          : Autocomplete<Customer>(
-                              optionsBuilder: (TextEditingValue textEditingValue) {
-                                if (textEditingValue.text == '') {
-                                  return _customers;
-                                }
-                                return _customers.where((Customer option) {
-                                  return option.name.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                                });
-                              },
-                              displayStringForOption: (Customer option) => option.name,
-                              fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-                                controller.text = _selectedCustomer?.name ?? _customerNameController.text;
-                                return TextFormField(
-                                  controller: controller,
-                                  focusNode: focusNode,
-                                  decoration: InputDecoration(
-                                    labelText: t(context, 'customer_name_optional'),
-                                    border: const OutlineInputBorder(),
-                                    hintText: t(context, 'select_or_enter_customer_name'),
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
-                                      vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
+                          : Row(
+                              children: [
+                                Expanded(
+                                  child: Autocomplete<Customer>(
+                                    optionsBuilder: (TextEditingValue textEditingValue) {
+                                      if (textEditingValue.text == '') {
+                                        return _customers;
+                                      }
+                                      return _customers.where((Customer option) {
+                                        return option.name.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                                      });
+                                    },
+                                    displayStringForOption: (Customer option) => option.name,
+                                    fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                                      controller.text = _selectedCustomer?.name ?? _customerNameController.text;
+                                      return TextFormField(
+                                        controller: controller,
+                                        focusNode: focusNode,
+                                        decoration: InputDecoration(
+                                          labelText: _selectedPaymentMethod == 'credit' 
+                                              ? '${t(context, 'customer_name')} *'
+                                              : t(context, 'customer_name_optional'),
+                                          border: const OutlineInputBorder(),
+                                          hintText: _selectedPaymentMethod == 'credit' 
+                                              ? 'Select or enter customer name (required for credit)'
+                                              : t(context, 'select_or_enter_customer_name'),
+                                          contentPadding: EdgeInsets.symmetric(
+                                            horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                                            vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
+                                          ),
+                                        ),
+                                        onChanged: (value) {
+                                          print('🔄 Customer name changed to: $value');
+                                          setState(() {
+                                            _selectedCustomer = null;
+                                            _customerNameController.text = value;
+                                            // Clear phone when manually typing customer name
+                                            _customerPhoneController.text = '';
+                                            // DON'T automatically show new customer fields - let user choose
+                                            // _showNewCustomerFields = false; // Keep existing customer mode
+                                          });
+                                          print('✅ Phone field cleared, selectedCustomer set to null, staying in existing customer mode');
+                                        },
+                                      );
+                                    },
+                                    onSelected: (Customer selection) {
+                                      print('🔄 Customer selected: ${selection.name} with phone: ${selection.phone}');
+                                      setState(() {
+                                        _selectedCustomer = selection;
+                                        _customerNameController.text = selection.name;
+                                        // Only populate phone if it's not empty
+                                        if (selection.phone != null && selection.phone!.trim().isNotEmpty) {
+                                          _customerPhoneController.text = selection.phone!;
+                                          print('✅ Phone field populated with: ${selection.phone}');
+                                        } else {
+                                          _customerPhoneController.text = '';
+                                          print('⚠️ Customer has no phone number, phone field cleared');
+                                        }
+                                        // Hide new customer fields when selecting existing customer
+                                        _showNewCustomerFields = false;
+                                      });
+                                      print('✅ Phone field updated to: ${_customerPhoneController.text}');
+                                    },
+                                  ),
+                                ),
+                                if (_selectedCustomer != null) ...[
+                                  SizedBox(width: 8),
+                                  IconButton(
+                                    onPressed: _clearCustomerSelection,
+                                    icon: Icon(Icons.clear, color: Colors.red),
+                                    tooltip: 'Clear customer selection',
+                                    padding: EdgeInsets.all(8),
+                                    constraints: BoxConstraints(
+                                      minWidth: 32,
+                                      minHeight: 32,
                                     ),
                                   ),
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _selectedCustomer = null;
-                                      _customerNameController.text = value;
-                                    });
-                                  },
-                                );
-                              },
-                              onSelected: (Customer selection) {
-                                setState(() {
-                                  _selectedCustomer = selection;
-                                  _customerNameController.text = selection.name;
-                                  _customerPhoneController.text = selection.phone ?? '';
-                                });
-                              },
+                                ],
+                              ],
                             ),
                         SizedBox(height: isSmallMobile ? 8 : (isMobile ? 12 : 16)),
 
@@ -1987,48 +2222,78 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                             ),
                           ),
                           SizedBox(height: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
-                          TextFormField(
-                            controller: _customerPhoneController,
-                            decoration: InputDecoration(
-                              labelText: t(context, 'customer_phone'),
-                              border: const OutlineInputBorder(),
-                              hintText: t(context, 'required_for_credit_sales'),
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
-                                vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
+
+                          // Customer phone field (always visible for credit sales)
+                          if (_shouldShowExistingCustomerFields()) ...[
+                            TextFormField(
+                              controller: _customerPhoneController,
+                              decoration: InputDecoration(
+                                labelText: '${t(context, 'customer_phone')} *',
+                                border: const OutlineInputBorder(),
+                                hintText: t(context, 'required_for_credit_sales'),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                                  vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
+                                ),
+                                prefixIcon: Icon(Icons.phone, size: isSmallMobile ? 18 : 20),
                               ),
-                              prefixIcon: Icon(Icons.phone, size: isSmallMobile ? 18 : 20),
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
                             ),
-                            keyboardType: TextInputType.phone,
-                          ),
-                          SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
-                          Row(
-                            children: [
-                              ElevatedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _showNewCustomerFields = !_showNewCustomerFields;
-                                  });
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isSmallMobile ? 8 : 12,
-                                    vertical: isSmallMobile ? 8 : 10,
+                            SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
+                          ],
+                          
+                          // New Customer Button - Always show when credit is selected
+                          if (_shouldShowNewCustomerButton()) ...[
+                            Row(
+                              children: [
+                                ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      if (_showNewCustomerFields) {
+                                        // Cancel new customer - show existing customer fields
+                                        _showNewCustomerFields = false;
+                                        // Clear new customer fields
+                                        _newCustomerNameController.text = '';
+                                        _newCustomerPhoneController.text = '';
+                                      } else {
+                                        // Show new customer fields - hide existing customer fields
+                                        _showNewCustomerFields = true;
+                                        // Clear existing customer selection
+                                        _selectedCustomer = null;
+                                        _customerNameController.text = '';
+                                        _customerPhoneController.text = '';
+                                      }
+                                    });
+                                    print('🔄 New customer fields toggled: $_showNewCustomerFields');
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: isSmallMobile ? 8 : 12,
+                                      vertical: isSmallMobile ? 8 : 10,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    _showNewCustomerFields ? t(context, 'cancel_new_customer') : t(context, 'new_customer'),
+                                    style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
                                   ),
                                 ),
-                                child: Text(
-                                  _showNewCustomerFields ? t(context, 'cancel_new_customer') : t(context, 'new_customer'),
-                                  style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
-                                ),
-                              ),
-                            ],
-                          ),
+                              ],
+                            ),
+                            SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
+                          ],
+                          
+                          // New Customer Fields
                           if (_showNewCustomerFields) ...[
                             SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
                             TextFormField(
                               controller: _newCustomerNameController,
                               decoration: InputDecoration(
-                                labelText: t(context, 'new_customer_name'),
+                                labelText: _selectedPaymentMethod == 'credit' 
+                                    ? '${t(context, 'new_customer_name')} *'
+                                    : t(context, 'new_customer_name'),
                                 border: const OutlineInputBorder(),
                                 hintText: t(context, 'enter_new_customer_name'),
                                 contentPadding: EdgeInsets.symmetric(
@@ -2041,17 +2306,62 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                             TextFormField(
                               controller: _newCustomerPhoneController,
                               decoration: InputDecoration(
-                                labelText: t(context, 'new_customer_phone'),
+                                labelText: _selectedPaymentMethod == 'credit' 
+                                    ? '${t(context, 'new_customer_phone')} *'
+                                    : t(context, 'new_customer_phone'),
                                 border: const OutlineInputBorder(),
-                                hintText: t(context, 'enter_phone_optional'),
+                                hintText: _selectedPaymentMethod == 'credit' 
+                                    ? t(context, 'required_for_credit_sales')
+                                    : t(context, 'enter_phone_optional'),
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
                                   vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
                                 ),
                               ),
                               keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
                             ),
                           ],
+                        ],
+
+                        // Show customer setup status for credit sales
+                        if (_selectedPaymentMethod == 'credit') ...[
+                          SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
+                          Container(
+                            padding: EdgeInsets.all(isSmallMobile ? 8 : (isMobile ? 10 : 12)),
+                            decoration: BoxDecoration(
+                              color: _isCustomerSetupValidForCredit() ? Colors.green[50] : Colors.red[50],
+                              border: Border.all(
+                                color: _isCustomerSetupValidForCredit() ? Colors.green[300]! : Colors.red[300]!,
+                                width: 1,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _isCustomerSetupValidForCredit() ? Icons.check_circle : Icons.error,
+                                  color: _isCustomerSetupValidForCredit() ? Colors.green[700] : Colors.red[700],
+                                  size: isSmallMobile ? 16 : 18,
+                                ),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _isCustomerSetupValidForCredit() 
+                                        ? 'Customer setup complete ✓'
+                                        : 'Customer setup incomplete - Please select or create a customer with phone number',
+                                    style: TextStyle(
+                                      color: _isCustomerSetupValidForCredit() ? Colors.green[700] : Colors.red[700],
+                                      fontSize: isSmallMobile ? 12 : 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
 
                         // Show error message if combined custom total is less than combined cost
@@ -2130,6 +2440,102 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       },
     );
   }
+
+  // Helper method to validate customer setup for credit sales
+  bool _isCustomerSetupValidForCredit() {
+    // Check if we have a valid customer setup
+    if (_selectedCustomer != null) {
+      // Selected customer must have a phone number
+      final phone = _selectedCustomer!.phone;
+      return phone != null && phone.trim().isNotEmpty && _isValidPhoneNumber(phone);
+    } else if (_showNewCustomerFields) {
+      // New customer fields must have both name and phone
+      final name = _newCustomerNameController.text.trim();
+      final phone = _newCustomerPhoneController.text.trim();
+      return name.isNotEmpty && phone.isNotEmpty && _isValidPhoneNumber(phone);
+    } else if (_customerNameController.text.trim().isNotEmpty) {
+      // Existing customer name must have phone number
+      final phone = _customerPhoneController.text.trim();
+      return phone.isNotEmpty && _isValidPhoneNumber(phone);
+    }
+    return false;
+  }
+
+  // Helper method to get current customer phone number
+  String? _getCurrentCustomerPhone() {
+    if (_selectedCustomer != null) {
+      return _selectedCustomer!.phone;
+    } else if (_showNewCustomerFields) {
+      return _newCustomerPhoneController.text.trim();
+    } else if (_customerNameController.text.trim().isNotEmpty) {
+      return _customerPhoneController.text.trim();
+    }
+    return null;
+  }
+
+  // Helper method to validate phone number format
+  bool _isValidPhoneNumber(String phone) {
+    // Just check if it contains only digits
+    return RegExp(r'^\d+$').hasMatch(phone);
+  }
+
+  // Helper method to get formatted phone number for display
+  String _formatPhoneNumber(String phone) {
+    // Remove any non-digit characters
+    final digitsOnly = phone.replaceAll(RegExp(r'[^\d]'), '');
+    
+    // Format based on length
+    if (digitsOnly.length == 10) {
+      return '(${digitsOnly.substring(0, 3)}) ${digitsOnly.substring(3, 6)}-${digitsOnly.substring(6)}';
+    } else if (digitsOnly.length == 11 && digitsOnly.startsWith('1')) {
+      return '+1 (${digitsOnly.substring(1, 4)}) ${digitsOnly.substring(4, 7)}-${digitsOnly.substring(7)}';
+    } else if (digitsOnly.length == 7) {
+      return '${digitsOnly.substring(0, 3)}-${digitsOnly.substring(3)}';
+    }
+    
+    return phone; // Return as-is if no specific format matches
+  }
+
+  // Method to reset customer fields
+  void _resetCustomerFields() {
+    setState(() {
+      _selectedCustomer = null;
+      _customerNameController.text = '';
+      _customerPhoneController.text = '';
+      _newCustomerNameController.text = '';
+      _newCustomerPhoneController.text = '';
+      _showNewCustomerFields = false;
+    });
+  }
+
+  // Method to clear customer selection
+  void _clearCustomerSelection() {
+    setState(() {
+      _selectedCustomer = null;
+      _customerNameController.text = '';
+      _customerPhoneController.text = '';
+      // DON'T automatically show new customer fields - stay in existing customer mode
+      // _showNewCustomerFields = true;
+    });
+    print('🔄 Customer selection cleared, staying in existing customer mode');
+  }
+
+  // Method to determine if existing customer fields should be visible
+  bool _shouldShowExistingCustomerFields() {
+    return _selectedPaymentMethod == 'credit';
+  }
+
+  // Method to determine if new customer fields should be visible
+  bool _shouldShowNewCustomerFields() {
+    return _showNewCustomerFields;
+  }
+
+  // Method to determine if new customer button should be visible
+  bool _shouldShowNewCustomerButton() {
+    return _selectedPaymentMethod == 'credit';
+  }
+
+
 } 
 
 class _MobileCartDialog extends StatefulWidget {
@@ -2143,6 +2549,52 @@ class _MobileCartDialog extends StatefulWidget {
 }
 
 class _MobileCartDialogState extends State<_MobileCartDialog> {
+  // Method to check if cart is valid for checkout (stock quantities)
+  bool _isCartValidForCheckout() {
+    for (final item in widget.cart.items) {
+      final availableStock = item.product.stockQuantity - item.product.damagedQuantity;
+      if (item.quantity > availableStock) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // Method to get cart validation summary
+  Map<String, dynamic> _getCartValidationSummary() {
+    final summary = <String, dynamic>{
+      'isValid': true,
+      'totalItems': widget.cart.items.length,
+      'validItems': 0,
+      'invalidItems': <Map<String, dynamic>>[],
+      'warnings': <String>[],
+    };
+
+    for (final item in widget.cart.items) {
+      final availableStock = item.product.stockQuantity - item.product.damagedQuantity;
+      
+      if (item.quantity > availableStock) {
+        summary['isValid'] = false;
+        summary['invalidItems'].add({
+          'productName': item.product.name,
+          'mode': item.mode,
+          'quantity': item.quantity,
+          'totalStock': availableStock,
+          'shortage': item.quantity - availableStock,
+        });
+      } else {
+        summary['validItems']++;
+        
+        // Add low stock warnings
+        if (availableStock <= item.product.lowStockThreshold) {
+          summary['warnings'].add('${item.product.name} (${item.mode}): Low stock (${availableStock})');
+        }
+      }
+    }
+
+    return summary;
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -2349,7 +2801,24 @@ class _MobileCartDialogState extends State<_MobileCartDialog> {
                                     IconButton(
                                       icon: Icon(Icons.add, size: isSmallMobile ? 16 : 18),
                                       onPressed: () {
-                                        widget.cart.addItem(item.product);
+                                        // Use stock validation for adding more of the same item
+                                        final result = widget.cart.addItemWithValidation(
+                                          item.product, 
+                                          mode: item.mode, 
+                                          quantity: 1
+                                        );
+                                        
+                                        if (!result['success']) {
+                                          // Show insufficient stock message
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(result['message']),
+                                              backgroundColor: Colors.red,
+                                              duration: Duration(seconds: 3),
+                                            ),
+                                          );
+                                        }
+                                        
                                         setState(() {});
                                       },
                                       padding: EdgeInsets.all(isSmallMobile ? 4 : 8),
@@ -2405,12 +2874,90 @@ class _MobileCartDialogState extends State<_MobileCartDialog> {
                           ],
                         ),
                         SizedBox(height: isSmallMobile ? 12 : 16),
+                        
+                        // Stock Validation Status
+                        Builder(
+                          builder: (context) {
+                            final cartValidation = _getCartValidationSummary();
+                            final hasStockIssues = !cartValidation['isValid'];
+                            final hasWarnings = cartValidation['warnings'].isNotEmpty;
+                            
+                            if (!hasStockIssues && !hasWarnings) return SizedBox.shrink();
+                            
+                            return Container(
+                              margin: EdgeInsets.only(bottom: isSmallMobile ? 8 : 12),
+                              padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+                              decoration: BoxDecoration(
+                                color: hasStockIssues ? Colors.red[50] : Colors.orange[50],
+                                border: Border.all(
+                                  color: hasStockIssues ? Colors.red[300]! : Colors.orange[300]!,
+                                  width: 1,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        hasStockIssues ? Icons.error : Icons.warning,
+                                        color: hasStockIssues ? Colors.red[700] : Colors.orange[700],
+                                        size: isSmallMobile ? 16 : 18,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        hasStockIssues ? 'Stock Issues Detected' : 'Low Stock Warnings',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: hasStockIssues ? Colors.red[700] : Colors.orange[700],
+                                          fontSize: isSmallMobile ? 12 : 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (hasStockIssues) ...[
+                                    SizedBox(height: 8),
+                                    ...cartValidation['invalidItems'].map<Widget>((item) => 
+                                      Padding(
+                                        padding: EdgeInsets.only(bottom: 4),
+                                        child: Text(
+                                          '• ${item['productName']} (${item['mode']}): Need ${item['quantity']}, Available ${item['totalStock']}',
+                                          style: TextStyle(
+                                            color: Colors.red[600],
+                                            fontSize: isSmallMobile ? 10 : 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ).toList(),
+                                  ],
+                                  if (hasWarnings) ...[
+                                    SizedBox(height: 8),
+                                    ...cartValidation['warnings'].map<Widget>((warning) => 
+                                      Padding(
+                                        padding: EdgeInsets.only(bottom: 4),
+                                        child: Text(
+                                          '• $warning',
+                                          style: TextStyle(
+                                            color: Colors.orange[600],
+                                            fontSize: isSmallMobile ? 10 : 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ).toList(),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                        
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: widget.onCheckout,
+                            onPressed: _isCartValidForCheckout() ? widget.onCheckout : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
+                              backgroundColor: _isCartValidForCheckout() ? Colors.green : Colors.grey,
                               foregroundColor: Colors.white,
                               padding: EdgeInsets.symmetric(vertical: isSmallMobile ? 12 : 16),
                               shape: RoundedRectangleBorder(
@@ -2418,7 +2965,7 @@ class _MobileCartDialogState extends State<_MobileCartDialog> {
                               ),
                             ),
                             child: Text(
-                              'Continue to Checkout',
+                              _isCartValidForCheckout() ? 'Continue to Checkout' : 'Fix Stock Issues to Continue',
                               style: TextStyle(
                                 fontSize: isSmallMobile ? 14 : 16,
                                 fontWeight: FontWeight.bold,

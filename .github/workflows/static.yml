@@ -1,9 +1,8 @@
-name: Build and Deploy Flutter Web to GitHub Pages
+name: Build & Deploy Flutter Web to GitHub Pages
 
 on:
   push:
-    branches:
-      - master   # or "main" depending on your default branch
+    branches: ["master"]   # or "main"
   workflow_dispatch:
 
 permissions:
@@ -29,19 +28,21 @@ jobs:
           channel: stable
 
       - name: Install dependencies
+        working-directory: frontend
         run: flutter pub get
 
       - name: Build Flutter Web
+        working-directory: frontend
         run: flutter build web --release
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: build/web   # 👈 freshly built output
+          path: frontend/build/web
 
   deploy:
-    needs: build
     runs-on: ubuntu-latest
+    needs: build
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

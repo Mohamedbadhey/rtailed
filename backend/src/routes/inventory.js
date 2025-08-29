@@ -159,14 +159,38 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
     // Add date filters if provided
     if (start_date) {
       // Convert start_date to start of day for proper comparison
-      const startDateTime = start_date.includes(' ') ? start_date : start_date + ' 00:00:00';
+      // Handle both ISO strings (with T) and space-separated strings
+      let startDateTime;
+      if (start_date.includes('T')) {
+        // ISO string like "2025-08-29T00:00:00.000Z" - extract just the date part
+        const datePart = start_date.split('T')[0];
+        startDateTime = datePart + ' 00:00:00';
+      } else if (start_date.includes(' ')) {
+        // Already has time, use as is
+        startDateTime = start_date;
+      } else {
+        // Just date, add start of day
+        startDateTime = start_date + ' 00:00:00';
+      }
       query += ' AND it.created_at >= ?';
       params.push(startDateTime);
       console.log('🔍 INVENTORY TRANSACTIONS: Added start_date filter:', startDateTime);
     }
     if (end_date) {
       // Convert end_date to end of day for proper comparison
-      const endDateTime = end_date.includes(' ') ? end_date : end_date + ' 23:59:59';
+      // Handle both ISO strings (with T) and space-separated strings
+      let endDateTime;
+      if (end_date.includes('T')) {
+        // ISO string like "2025-08-29T23:59:59.999Z" - extract just the date part
+        const datePart = end_date.split('T')[0];
+        endDateTime = datePart + ' 23:59:59';
+      } else if (end_date.includes(' ')) {
+        // Already has time, use as is
+        endDateTime = end_date;
+      } else {
+        // Just date, add end of day
+        endDateTime = end_date + ' 23:59:59';
+      }
       query += ' AND it.created_at <= ?';
       params.push(endDateTime);
       console.log('🔍 INVENTORY TRANSACTIONS: Added end_date filter:', endDateTime);
@@ -196,6 +220,114 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
     res.json(transactions);
   } catch (error) {
     console.error('🔍 INVENTORY TRANSACTIONS ERROR:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+});
+
+// Get enhanced inventory transactions for PDF export
+router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
+  try {
+    const { start_date, end_date, user_id, limit } = req.query;
+    
+    console.log('📄 PDF TRANSACTIONS: Request params:', { start_date, end_date, user_id, limit });
+    console.log('📄 PDF TRANSACTIONS: User:', req.user.id, req.user.role, req.user.business_id);
+    
+    let query = `
+      SELECT 
+        it.id,
+        it.created_at,
+        it.transaction_type,
+        it.quantity,
+        it.notes,
+        it.reference_id,
+        p.name AS product_name,
+        p.sku AS product_sku,
+        p.cost_price AS product_cost_price,
+        p.price AS product_price,
+        s.id AS sale_id,
+        s.status,
+        s.payment_method,
+        s.sale_mode,
+        COALESCE(s.user_id, dp.reported_by) AS cashier_id,
+        COALESCE(u.username, dp_reporter.username) AS cashier_name,
+        c.name AS customer_name,
+        si.unit_price AS sale_unit_price,
+        si.total_price AS sale_total_price,
+        (si.total_price - (si.quantity * p.cost_price)) AS profit,
+        (si.quantity * p.cost_price) AS total_cost
+      FROM inventory_transactions it
+      LEFT JOIN products p ON it.product_id = p.id
+      LEFT JOIN sales s ON it.reference_id = s.id
+      LEFT JOIN users u ON s.user_id = u.id
+      LEFT JOIN customers c ON s.customer_id = c.id
+      LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id
+      LEFT JOIN damaged_products dp ON it.notes LIKE CONCAT('%Damaged:%') AND dp.product_id = it.product_id AND dp.created_at = it.created_at
+      LEFT JOIN users dp_reporter ON dp.reported_by = dp_reporter.id
+      WHERE it.business_id = ?
+    `;
+    let params = [req.user.business_id];
+    
+    // Add date filters if provided
+    if (start_date) {
+      // Convert start_date to start of day for proper comparison
+      let startDateTime;
+      if (start_date.includes('T')) {
+        const datePart = start_date.split('T')[0];
+        startDateTime = datePart + ' 00:00:00';
+      } else if (start_date.includes(' ')) {
+        startDateTime = start_date;
+      } else {
+        startDateTime = start_date + ' 00:00:00';
+      }
+      query += ' AND it.created_at >= ?';
+      params.push(startDateTime);
+      console.log('📄 PDF TRANSACTIONS: Added start_date filter:', startDateTime);
+    }
+    if (end_date) {
+      // Convert end_date to end of day for proper comparison
+      let endDateTime;
+      if (end_date.includes('T')) {
+        const datePart = end_date.split('T')[0];
+        endDateTime = datePart + ' 23:59:59';
+      } else if (end_date.includes(' ')) {
+        endDateTime = end_date;
+      } else {
+        endDateTime = end_date + ' 23:59:59';
+      }
+      query += ' AND it.created_at <= ?';
+      params.push(endDateTime);
+      console.log('📄 PDF TRANSACTIONS: Added end_date filter:', endDateTime);
+    }
+    
+    // Add cashier filter if provided
+    if (user_id && user_id !== 'all') {
+      query += ' AND (s.user_id = ? OR dp.reported_by = ?)';
+      params.push(user_id, user_id);
+    }
+    
+    query += ' ORDER BY it.created_at DESC';
+    
+    // Add limit if provided
+    if (limit) {
+      query += ' LIMIT ?';
+      params.push(parseInt(limit));
+    }
+    
+    if (req.user.role === 'superadmin') {
+      query = query.replace('WHERE it.business_id = ?', '');
+      params = params.slice(1); // Remove business_id from params
+      console.log('📄 PDF TRANSACTIONS: Superadmin - removed business_id filter');
+    }
+    
+    console.log('📄 PDF TRANSACTIONS: Final query:', query);
+    console.log('📄 PDF TRANSACTIONS: Final params:', params);
+    
+    const [transactions] = await pool.query(query, params);
+    console.log('📄 PDF TRANSACTIONS: Found', transactions.length, 'transactions');
+    
+    res.json(transactions);
+  } catch (error) {
+    console.error('📄 PDF TRANSACTIONS ERROR:', error);
     res.status(500).json({ message: error.message || 'Server error' });
   }
 });

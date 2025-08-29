@@ -609,6 +609,32 @@ class ApiService {
   }
 
   // Inventory
+  // Get enhanced inventory transactions for PDF export
+  Future<List<Map<String, dynamic>>> getInventoryTransactionsForPdf([Map<String, dynamic>? filters]) async {
+    try {
+      final queryParams = <String, String>{};
+      if (filters != null) {
+        filters.forEach((key, value) {
+          if (value != null && value.toString().isNotEmpty) {
+            queryParams[key] = value.toString();
+          }
+        });
+      }
+      print('getInventoryTransactionsForPdf queryParams: ' + queryParams.toString());
+      final uri = Uri.parse('$baseUrl/api/inventory/transactions/pdf').replace(queryParameters: queryParams);
+      final response = await http.get(uri, headers: _headers);
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return TypeConverter.safeToList(data);
+      } else {
+        throw Exception('Failed to get enhanced inventory transactions: ${response.body}');
+      }
+    } catch (e) {
+      print('Get Enhanced Inventory Transactions Error: $e');
+      rethrow;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getInventoryTransactions([Map<String, dynamic>? filters]) async {
     try {
       final queryParams = <String, String>{};

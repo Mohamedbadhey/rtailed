@@ -15,6 +15,8 @@ import 'dart:convert';
 import 'package:retail_management/utils/api.dart';
 import 'package:retail_management/utils/translate.dart';
 import 'package:retail_management/utils/success_utils.dart';
+import 'package:retail_management/services/pdf_export_service.dart';
+import 'package:retail_management/providers/auth_provider.dart';
 import 'package:intl/intl.dart';
 
 class InventoryScreen extends StatefulWidget {
@@ -947,12 +949,40 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               SizedBox(height: isSmallMobile ? 6 : 8),
                               _buildValueReportTable(isSmallMobile),
                               SizedBox(height: isSmallMobile ? 8 : 12),
-                              Text(
-                                isSmallMobile ? 'Recent Transactions' : t(context, 'Recent Transactions'), 
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold, 
-                                  fontSize: isSmallMobile ? 11 : 13,
-                                ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      isSmallMobile ? 'Recent Transactions' : t(context, 'Recent Transactions'), 
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold, 
+                                        fontSize: isSmallMobile ? 11 : 13,
+                                      ),
+                                    ),
+                                  ),
+                                  if (_recentTransactions.isNotEmpty)
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.red[50],
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: Colors.red[200]!),
+                                      ),
+                                      child: IconButton(
+                                        icon: Icon(Icons.picture_as_pdf, color: Colors.red[600], size: 16),
+                                        onPressed: () => _exportTransactionsToPdf(
+                                          transactions: _recentTransactions,
+                                          reportTitle: 'Recent Transactions Report',
+                                          fileName: 'recent_transactions_${DateTime.now().millisecondsSinceEpoch}',
+                                        ),
+                                        tooltip: 'Export to PDF',
+                                        padding: EdgeInsets.all(4),
+                                        constraints: BoxConstraints(
+                                          minWidth: 24,
+                                          minHeight: 24,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                               SizedBox(height: isSmallMobile ? 4 : 6),
                               _buildTransactionsTable(
@@ -966,12 +996,40 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 paginationLabel: 'Recent',
                               ),
                               SizedBox(height: isSmallMobile ? 8 : 12),
-                              Text(
-                                'Todays Transactions', 
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold, 
-                                  fontSize: isSmallMobile ? 11 : 13,
-                                ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Todays Transactions', 
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold, 
+                                        fontSize: isSmallMobile ? 11 : 13,
+                                      ),
+                                    ),
+                                  ),
+                                  if (_todayTransactions.isNotEmpty)
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue[50],
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: Colors.blue[200]!),
+                                      ),
+                                      child: IconButton(
+                                        icon: Icon(Icons.picture_as_pdf, color: Colors.blue[600], size: 16),
+                                        onPressed: () => _exportTransactionsToPdf(
+                                          transactions: _todayTransactions,
+                                          reportTitle: 'Today\'s Transactions Report',
+                                          fileName: 'today_transactions_${DateTime.now().millisecondsSinceEpoch}',
+                                        ),
+                                        tooltip: 'Export to PDF',
+                                        padding: EdgeInsets.all(4),
+                                        constraints: BoxConstraints(
+                                          minWidth: 24,
+                                          minHeight: 24,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                               SizedBox(height: isSmallMobile ? 4 : 6),
                               _buildTransactionsTable(
@@ -985,12 +1043,40 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 paginationLabel: 'Today',
                               ),
                               SizedBox(height: isSmallMobile ? 8 : 12),
-                              Text(
-                                'This Weeks Transactions', 
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold, 
-                                  fontSize: isSmallMobile ? 11 : 13,
-                                ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'This Weeks Transactions', 
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold, 
+                                        fontSize: isSmallMobile ? 11 : 13,
+                                      ),
+                                    ),
+                                  ),
+                                  if (_weekTransactions.isNotEmpty)
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.green[50],
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: Colors.green[200]!),
+                                      ),
+                                      child: IconButton(
+                                        icon: Icon(Icons.picture_as_pdf, color: Colors.green[600], size: 16),
+                                        onPressed: () => _exportTransactionsToPdf(
+                                          transactions: _weekTransactions,
+                                          reportTitle: 'This Week\'s Transactions Report',
+                                          fileName: 'week_transactions_${DateTime.now().millisecondsSinceEpoch}',
+                                        ),
+                                        tooltip: 'Export to PDF',
+                                        padding: EdgeInsets.all(4),
+                                        constraints: BoxConstraints(
+                                          minWidth: 24,
+                                          minHeight: 24,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                               SizedBox(height: isSmallMobile ? 4 : 6),
                               _buildTransactionsTable(
@@ -1004,12 +1090,40 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 paginationLabel: 'Week',
                               ),
                               SizedBox(height: isSmallMobile ? 8 : 12),
-                              Text(
-                                'Filter Transactions by Date', 
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold, 
-                                  fontSize: isSmallMobile ? 11 : 13,
-                                ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Filter Transactions by Date', 
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold, 
+                                        fontSize: isSmallMobile ? 11 : 13,
+                                      ),
+                                    ),
+                                  ),
+                                  if (_filteredTransactions.isNotEmpty)
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.purple[50],
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: Colors.purple[200]!),
+                                      ),
+                                      child: IconButton(
+                                        icon: Icon(Icons.picture_as_pdf, color: Colors.purple[600], size: 16),
+                                        onPressed: () => _exportTransactionsToPdf(
+                                          transactions: _filteredTransactions,
+                                          reportTitle: 'Filtered Transactions Report',
+                                          fileName: 'filtered_transactions_${DateTime.now().millisecondsSinceEpoch}',
+                                        ),
+                                        tooltip: 'Export to PDF',
+                                        padding: EdgeInsets.all(4),
+                                        constraints: BoxConstraints(
+                                          minWidth: 24,
+                                          minHeight: 24,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                               SizedBox(height: isSmallMobile ? 4 : 6),
                               _buildDateFilterControls(isSmallMobile),
@@ -2454,6 +2568,80 @@ class _InventoryScreenState extends State<InventoryScreen> {
     return 0.0;
   }
 
+  Future<void> _exportTransactionsToPdf({
+    required List<Map<String, dynamic>> transactions,
+    required String reportTitle,
+    required String fileName,
+  }) async {
+    try {
+      // Get current business ID from AuthProvider
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final businessId = authProvider.user?.businessId;
+      
+      if (businessId == null) {
+        throw Exception('Business ID not found. Please log in again.');
+      }
+      
+      // Get enhanced transaction data for PDF export
+      List<Map<String, dynamic>> enhancedTransactions = [];
+      
+      // Determine which transactions to export based on the report title
+      Map<String, dynamic> filters = {};
+      
+      if (reportTitle.contains('Recent')) {
+        filters = {'limit': '10'};
+      } else if (reportTitle.contains('Today')) {
+        final today = DateTime.now();
+        final start = DateTime(today.year, today.month, today.day);
+        final end = start.add(Duration(days: 1)).subtract(Duration(milliseconds: 1));
+        filters = {
+          'start_date': start.toIso8601String(),
+          'end_date': end.toIso8601String(),
+        };
+      } else if (reportTitle.contains('Week')) {
+        final now = DateTime.now();
+        final start = now.subtract(Duration(days: now.weekday - 1));
+        final end = start.add(Duration(days: 7)).subtract(Duration(milliseconds: 1));
+        filters = {
+          'start_date': start.toIso8601String(),
+          'end_date': end.toIso8601String(),
+        };
+      } else if (reportTitle.contains('Filtered')) {
+        if (_filterStartDate != null && _filterEndDate != null) {
+          filters = {
+            'start_date': _filterStartDate!.toIso8601String(),
+            'end_date': _filterEndDate!.toIso8601String(),
+          };
+        }
+      }
+      
+      // Get enhanced transaction data
+      enhancedTransactions = await _apiService.getInventoryTransactionsForPdf(filters);
+      
+      final result = await PdfExportService.exportTransactionsToPdf(
+        transactions: enhancedTransactions,
+        reportTitle: reportTitle,
+        fileName: fileName,
+        businessId: businessId,
+      );
+      
+      if (mounted) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF exported successfully! $result'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        SuccessUtils.showOperationError(context, 'export PDF', e.toString());
+      }
+    }
+  }
+
   Future<void> _fetchRecentTransactions() async {
     setState(() { _recentLoading = true; _recentError = null; });
     try {
@@ -2512,6 +2700,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   void _loadFilteredTransactions() {
+    print('🔍 INVENTORY: _loadFilteredTransactions called');
+    print('🔍 INVENTORY: _filterStartDate: $_filterStartDate');
+    print('🔍 INVENTORY: _filterEndDate: $_filterEndDate');
+    
     if (_filterStartDate != null && _filterEndDate != null) {
       setState(() {
         _filteredLoading = true;
@@ -2523,18 +2715,24 @@ class _InventoryScreenState extends State<InventoryScreen> {
         'end_date': _filterEndDate!.toIso8601String(),
       };
       
+      print('🔍 INVENTORY: Sending params to API: $params');
+      
       _apiService.getInventoryTransactions(params).then((transactions) {
+        print('🔍 INVENTORY: Received ${transactions.length} transactions');
         setState(() {
           _filteredTransactions = transactions;
           _filteredLoading = false;
             _resetFilteredTransactionsPagination();
         });
       }).catchError((error) {
+        print('🔍 INVENTORY: Error loading transactions: $error');
         setState(() {
           _filteredError = error.toString();
           _filteredLoading = false;
         });
       });
+    } else {
+      print('🔍 INVENTORY: Date filters are null, skipping API call');
     }
   }
 
@@ -2604,13 +2802,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   onTap: () async {
                     final date = await showDatePicker(
                       context: context,
-                      initialDate: _startDate ?? DateTime.now().subtract(const Duration(days: 30)),
+                      initialDate: _filterStartDate ?? DateTime.now().subtract(const Duration(days: 30)),
                       firstDate: DateTime(2020),
                       lastDate: DateTime.now(),
                     );
                     if (date != null) {
                       setState(() {
-                        _startDate = date;
+                        _filterStartDate = date;
                       });
                       _loadFilteredTransactions();
                     }
@@ -2627,8 +2825,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            _startDate != null
-                                ? DateFormat('MMM dd').format(_startDate!)
+                            _filterStartDate != null
+                                ? DateFormat('MMM dd').format(_filterStartDate!)
                                 : 'Start',
                             style: TextStyle(
                               fontSize: 10,
@@ -2660,13 +2858,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   onTap: () async {
                     final date = await showDatePicker(
                       context: context,
-                      initialDate: _endDate ?? DateTime.now(),
+                      initialDate: _filterEndDate ?? DateTime.now(),
                       firstDate: DateTime(2020),
                       lastDate: DateTime.now(),
                     );
                     if (date != null) {
                       setState(() {
-                        _endDate = date;
+                        _filterEndDate = date;
                       });
                       _loadFilteredTransactions();
                     }
@@ -2683,8 +2881,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            _endDate != null
-                                ? DateFormat('MMM dd').format(_endDate!)
+                            _filterEndDate != null
+                                ? DateFormat('MMM dd').format(_filterEndDate!)
                                 : 'End',
                           style: TextStyle(
                               fontSize: 10,
@@ -2710,32 +2908,38 @@ class _InventoryScreenState extends State<InventoryScreen> {
           children: [
             Expanded(
               child: _buildQuickDateButton('Today', () {
+                print('🔍 INVENTORY: Today button clicked');
+                final now = DateTime.now();
                 setState(() {
-                  _startDate = DateTime.now();
-                  _endDate = DateTime.now();
+                  _filterStartDate = DateTime(now.year, now.month, now.day); // Start of day (00:00:00)
+                  _filterEndDate = DateTime(now.year, now.month, now.day).add(Duration(days: 1)).subtract(Duration(milliseconds: 1)); // End of day (23:59:59.999)
                 });
+                print('🔍 INVENTORY: Set _filterStartDate: $_filterStartDate');
+                print('🔍 INVENTORY: Set _filterEndDate: $_filterEndDate');
                 _loadFilteredTransactions();
-              }, isActive: _startDate?.day == DateTime.now().day && _endDate?.day == DateTime.now().day),
+              }, isActive: _filterStartDate?.day == DateTime.now().day && _filterEndDate?.day == DateTime.now().day),
             ),
             const SizedBox(width: 4),
             Expanded(
               child: _buildQuickDateButton('Week', () {
+                final now = DateTime.now();
                 setState(() {
-                  _startDate = DateTime.now().subtract(const Duration(days: 7));
-                  _endDate = DateTime.now();
+                  _filterStartDate = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 7)); // Start of day 7 days ago
+                  _filterEndDate = DateTime(now.year, now.month, now.day).add(Duration(days: 1)).subtract(Duration(milliseconds: 1)); // End of today
                 });
                 _loadFilteredTransactions();
-              }, isActive: _startDate?.difference(DateTime.now()).inDays.abs() == 7),
+              }, isActive: _filterStartDate?.difference(DateTime.now()).inDays.abs() == 7),
             ),
             const SizedBox(width: 4),
             Expanded(
               child: _buildQuickDateButton('Month', () {
+                final now = DateTime.now();
                 setState(() {
-                  _startDate = DateTime.now().subtract(const Duration(days: 30));
-                  _endDate = DateTime.now();
+                  _filterStartDate = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 30)); // Start of day 30 days ago
+                  _filterEndDate = DateTime(now.year, now.month, now.day).add(Duration(days: 1)).subtract(Duration(milliseconds: 1)); // End of today
                 });
                 _loadFilteredTransactions();
-              }, isActive: _startDate?.difference(DateTime.now()).inDays.abs() == 30),
+              }, isActive: _filterStartDate?.difference(DateTime.now()).inDays.abs() == 30),
             ),
           ],
         ),

@@ -1,0 +1,57 @@
+name: retail_management
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI and Navigation
+  cupertino_icons: ^1.0.2
+  provider: ^6.1.5
+  google_fonts: ^6.2.1
+
+  # HTTP and API
+  http: ^1.4.0
+  dio: ^5.8.0+1
+
+  # State Management
+  shared_preferences: ^2.2.5
+
+  # Image Handling
+  image_picker: ^1.1.2
+  file_picker: ^10.2.0
+
+  # Charts and Visualization
+  fl_chart: ^0.63.0
+
+  # QR Code and Barcode
+  mobile_scanner: ^3.5.7
+
+  # Security
+  flutter_secure_storage: ^8.1.0
+
+  # Connectivity
+  connectivity_plus: ^4.0.2
+
+  # URL Launcher
+  url_launcher: ^6.3.1
+
+  # Internationalization
+  intl: ^0.18.1
+
+  # PDF Generation
+  pdf: ^3.10.7
+  path_provider: ^2.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.3
+
+flutter:
+  uses-material-design: true

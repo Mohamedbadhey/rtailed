@@ -638,7 +638,7 @@ class _POSScreenState extends State<POSScreen> {
                             final cartProvider = context.read<CartProvider>();
                             final availableStock = cartProvider.getAvailableStock(product, 'wholesale');
                             if (q <= availableStock) {
-                              Navigator.of(context).pop(q);
+                            Navigator.of(context).pop(q);
                             } else {
                               // Show insufficient stock message in dialog
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -2108,12 +2108,12 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                         // Customer Name (always visible)
                         Row(
                           children: [
-                            Text(
-                              t(context, 'customer_name'),
-                              style: TextStyle(
-                                fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16), 
-                                fontWeight: FontWeight.bold
-                              ),
+                        Text(
+                          t(context, 'customer_name'),
+                          style: TextStyle(
+                            fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16), 
+                            fontWeight: FontWeight.bold
+                          ),
                             ),
                             if (_selectedPaymentMethod == 'credit')
                               Text(
@@ -2133,52 +2133,52 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                               children: [
                                 Expanded(
                                   child: Autocomplete<Customer>(
-                                    optionsBuilder: (TextEditingValue textEditingValue) {
-                                      if (textEditingValue.text == '') {
-                                        return _customers;
-                                      }
-                                      return _customers.where((Customer option) {
-                                        return option.name.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                                      });
-                                    },
-                                    displayStringForOption: (Customer option) => option.name,
-                                    fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-                                      controller.text = _selectedCustomer?.name ?? _customerNameController.text;
-                                      return TextFormField(
-                                        controller: controller,
-                                        focusNode: focusNode,
-                                        decoration: InputDecoration(
+                              optionsBuilder: (TextEditingValue textEditingValue) {
+                                if (textEditingValue.text == '') {
+                                  return _customers;
+                                }
+                                return _customers.where((Customer option) {
+                                  return option.name.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                                });
+                              },
+                              displayStringForOption: (Customer option) => option.name,
+                              fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                                controller.text = _selectedCustomer?.name ?? _customerNameController.text;
+                                return TextFormField(
+                                  controller: controller,
+                                  focusNode: focusNode,
+                                  decoration: InputDecoration(
                                           labelText: _selectedPaymentMethod == 'credit' 
                                               ? '${t(context, 'customer_name')} *'
                                               : t(context, 'customer_name_optional'),
-                                          border: const OutlineInputBorder(),
+                                    border: const OutlineInputBorder(),
                                           hintText: _selectedPaymentMethod == 'credit' 
                                               ? 'Select or enter customer name (required for credit)'
                                               : t(context, 'select_or_enter_customer_name'),
-                                          contentPadding: EdgeInsets.symmetric(
-                                            horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
-                                            vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
-                                          ),
-                                        ),
-                                        onChanged: (value) {
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                                      vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
+                                    ),
+                                  ),
+                                  onChanged: (value) {
                                           print('🔄 Customer name changed to: $value');
-                                          setState(() {
-                                            _selectedCustomer = null;
-                                            _customerNameController.text = value;
+                                    setState(() {
+                                      _selectedCustomer = null;
+                                      _customerNameController.text = value;
                                             // Clear phone when manually typing customer name
                                             _customerPhoneController.text = '';
                                             // DON'T automatically show new customer fields - let user choose
                                             // _showNewCustomerFields = false; // Keep existing customer mode
-                                          });
+                                    });
                                           print('✅ Phone field cleared, selectedCustomer set to null, staying in existing customer mode');
-                                        },
-                                      );
-                                    },
-                                    onSelected: (Customer selection) {
+                                  },
+                                );
+                              },
+                              onSelected: (Customer selection) {
                                       print('🔄 Customer selected: ${selection.name} with phone: ${selection.phone}');
-                                      setState(() {
-                                        _selectedCustomer = selection;
-                                        _customerNameController.text = selection.name;
+                                setState(() {
+                                  _selectedCustomer = selection;
+                                  _customerNameController.text = selection.name;
                                         // Only populate phone if it's not empty
                                         if (selection.phone != null && selection.phone!.trim().isNotEmpty) {
                                           _customerPhoneController.text = selection.phone!;
@@ -2225,33 +2225,33 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
 
                           // Customer phone field (always visible for credit sales)
                           if (_shouldShowExistingCustomerFields()) ...[
-                            TextFormField(
-                              controller: _customerPhoneController,
-                              decoration: InputDecoration(
+                          TextFormField(
+                            controller: _customerPhoneController,
+                            decoration: InputDecoration(
                                 labelText: '${t(context, 'customer_phone')} *',
-                                border: const OutlineInputBorder(),
-                                hintText: t(context, 'required_for_credit_sales'),
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
-                                  vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
-                                ),
-                                prefixIcon: Icon(Icons.phone, size: isSmallMobile ? 18 : 20),
+                              border: const OutlineInputBorder(),
+                              hintText: t(context, 'required_for_credit_sales'),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                                vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
                               ),
-                              keyboardType: TextInputType.phone,
+                              prefixIcon: Icon(Icons.phone, size: isSmallMobile ? 18 : 20),
+                            ),
+                            keyboardType: TextInputType.phone,
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
                               ],
-                            ),
-                            SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
+                          ),
+                          SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
                           ],
                           
                           // New Customer Button - Always show when credit is selected
                           if (_shouldShowNewCustomerButton()) ...[
-                            Row(
-                              children: [
-                                ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
+                          Row(
+                            children: [
+                              ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
                                       if (_showNewCustomerFields) {
                                         // Cancel new customer - show existing customer fields
                                         _showNewCustomerFields = false;
@@ -2268,20 +2268,20 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                       }
                                     });
                                     print('🔄 New customer fields toggled: $_showNewCustomerFields');
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: isSmallMobile ? 8 : 12,
-                                      vertical: isSmallMobile ? 8 : 10,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    _showNewCustomerFields ? t(context, 'cancel_new_customer') : t(context, 'new_customer'),
-                                    style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isSmallMobile ? 8 : 12,
+                                    vertical: isSmallMobile ? 8 : 10,
                                   ),
                                 ),
-                              ],
-                            ),
+                                child: Text(
+                                  _showNewCustomerFields ? t(context, 'cancel_new_customer') : t(context, 'new_customer'),
+                                  style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+                                ),
+                              ),
+                            ],
+                          ),
                             SizedBox(height: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
                           ],
                           

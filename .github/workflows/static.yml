@@ -2,7 +2,8 @@ name: Build and Deploy Flutter Web to GitHub Pages
 
 on:
   push:
-    branches: ["main"]   # or "master"
+    branches:
+      - master   # or "main" depending on your default branch
   workflow_dispatch:
 
 permissions:
@@ -10,18 +11,22 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0' # or your version
+          channel: stable
 
       - name: Install dependencies
         run: flutter pub get
@@ -32,11 +37,11 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: build/web
+          path: build/web   # 👈 freshly built output
 
   deploy:
-    runs-on: ubuntu-latest
     needs: build
+    runs-on: ubuntu-latest
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

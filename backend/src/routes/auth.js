@@ -180,7 +180,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', auth, async (req, res) => {
   try {
     const [users] = await pool.query(
-      'SELECT id, username, email, role, language FROM users WHERE id = ?',
+      'SELECT id, username, email, role, business_id, language FROM users WHERE id = ?',
       [req.user.id]
     );
 

@@ -2618,11 +2618,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
       // Get enhanced transaction data
       enhancedTransactions = await _apiService.getInventoryTransactionsForPdf(filters);
       
+      // Get authentication token
+      final authToken = authProvider.token;
+      
       final result = await PdfExportService.exportTransactionsToPdf(
         transactions: enhancedTransactions,
         reportTitle: reportTitle,
         fileName: fileName,
         businessId: businessId,
+        authToken: authToken,
       );
       
       if (mounted) {

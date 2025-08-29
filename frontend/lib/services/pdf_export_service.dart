@@ -3,8 +3,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 // Conditional imports for different platforms
 import 'pdf_export_io.dart' if (dart.library.html) 'pdf_export_web.dart';
@@ -15,17 +13,19 @@ class PdfExportService {
     required String reportTitle,
     required String fileName,
     int? businessId,
+    String? authToken,
   }) async {
-    // Fetch business branding information
-    Map<String, dynamic> businessInfo = {};
-    if (businessId != null) {
-      try {
-        businessInfo = await _fetchBusinessBranding(businessId);
-      } catch (e) {
-        print('Error fetching business branding: $e');
-        // Continue with default values
-      }
-    }
+    // Use fallback business branding for consistency
+    Map<String, dynamic> businessInfo = {
+      'name': 'XXX',
+      'tagline': 'XXX',
+      'contact_email': 'XXX',
+      'contact_phone': 'XXX',
+      'address': 'XXX',
+      'primary_color': '#1976D2',
+    };
+    
+    print('🔍 PDF: Using fallback business branding for consistency');
     
     // Create PDF document
     final pdf = pw.Document();
@@ -70,31 +70,13 @@ class PdfExportService {
     return await PdfExportPlatform.savePdf(pdfBytes, fileName);
   }
   
-  // Fetch business branding from backend
-  static Future<Map<String, dynamic>> _fetchBusinessBranding(int businessId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/branding/business/$businessId'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      );
-      
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['data'] ?? {};
-      }
-    } catch (e) {
-      print('Error fetching business branding: $e');
-    }
-    return {};
-  }
+
   
   // Build compact header
   static pw.Widget _buildCompactHeader(Map<String, dynamic> businessInfo, String reportTitle) {
-    final businessName = businessInfo['name'] ?? 'Your Business Name';
+    final businessName = businessInfo['name'] ?? 'XXX';
     final primaryColor = _parseColor(businessInfo['primary_color'] ?? '#1976D2');
-    final tagline = businessInfo['tagline'] ?? 'Professional Retail Solutions';
+    final tagline = businessInfo['tagline'] ?? 'XXX';
     
     return pw.Container(
       width: double.infinity,
@@ -114,14 +96,16 @@ class PdfExportService {
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
             ),
             child: pw.Center(
-              child: pw.Text(
-                businessName.substring(0, 1).toUpperCase(),
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
-                  color: primaryColor,
-                ),
-              ),
+                           child: pw.Text(
+               businessName.isNotEmpty && businessName != 'XXX' 
+                 ? businessName.substring(0, 1).toUpperCase()
+                 : 'X',
+               style: pw.TextStyle(
+                 fontSize: 16,
+                 fontWeight: pw.FontWeight.bold,
+                 color: primaryColor,
+               ),
+             ),
             ),
           ),
           
@@ -175,9 +159,9 @@ class PdfExportService {
   
   // Build compact invoice details
   static pw.Widget _buildCompactInvoiceDetails(Map<String, dynamic> businessInfo) {
-    final contactEmail = businessInfo['contact_email'] ?? 'contact@yourbusiness.com';
-    final contactPhone = businessInfo['contact_phone'] ?? '+1 (555) 123-4567';
-    final address = businessInfo['address'] ?? '123 Business Street, City, State 12345';
+    final contactEmail = businessInfo['contact_email'] ?? 'XXX';
+    final contactPhone = businessInfo['contact_phone'] ?? 'XXX';
+    final address = businessInfo['address'] ?? 'XXX';
     
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),

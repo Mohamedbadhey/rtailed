@@ -1,16 +1,12 @@
-# Only block specific Flutter/Dart files that cause Railway to detect Dart
+# Ignore the entire frontend directory where Flutter is located
+frontend/
+
+# Block specific Flutter files that might be in root
 pubspec.yaml
 pubspec.lock
 *.dart
-frontend/
-lib/
-web/
-build/
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
 
-# Block documentation files
+# Block documentation and test files
 *.md
 *.bat
 *.html

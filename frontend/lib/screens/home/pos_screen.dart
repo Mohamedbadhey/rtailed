@@ -1327,6 +1327,83 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
     _fetchCustomers();
     // Ensure new customer fields are hidden by default
     _showNewCustomerFields = false;
+    
+    // Initialize custom price controllers with stored values from cart
+    _initializeCustomPriceControllers();
+  }
+  
+  // Initialize custom price controllers with stored values
+  void _initializeCustomPriceControllers() {
+    for (final item in widget.cart.items) {
+      if (item.product.id != null) {
+        final id = item.product.id!;
+        String initialValue = '';
+        
+        // If there's a stored custom total price, use it
+        if (item.customTotalPrice != null) {
+          initialValue = item.customTotalPrice!.toString();
+        }
+        
+        _customPriceControllers[id] = TextEditingController(text: initialValue);
+      }
+    }
+  }
+  
+  // Update controllers when cart changes
+  void _updateControllersForCartChanges() {
+    // Remove controllers for items no longer in cart
+    final currentProductIds = widget.cart.items.map((item) => item.product.id).where((id) => id != null).cast<int>().toSet();
+    final controllerKeysToRemove = _customPriceControllers.keys.where((id) => !currentProductIds.contains(id)).toList();
+    
+    for (final id in controllerKeysToRemove) {
+      _customPriceControllers[id]?.dispose();
+      _customPriceControllers.remove(id);
+    }
+    
+    // Add controllers for new items
+    for (final item in widget.cart.items) {
+      if (item.product.id != null && !_customPriceControllers.containsKey(item.product.id)) {
+        final id = item.product.id!;
+        String initialValue = '';
+        if (item.customTotalPrice != null) {
+          initialValue = item.customTotalPrice!.toString();
+        }
+        _customPriceControllers[id] = TextEditingController(text: initialValue);
+      }
+    }
+  }
+  
+  @override
+  void didUpdateWidget(_CheckoutDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update controllers if cart has changed
+    if (oldWidget.cart.items != widget.cart.items) {
+      _updateControllersForCartChanges();
+    }
+  }
+  
+  // Sync controller values with cart items to ensure persistence
+  void _syncControllerValuesWithCart() {
+    for (final item in widget.cart.items) {
+      if (item.product.id != null) {
+        final id = item.product.id!;
+        final controller = _customPriceControllers[id];
+        
+        if (controller != null) {
+          // If cart has a custom total price but controller is empty, update controller
+          if (item.customTotalPrice != null && controller.text.isEmpty) {
+            controller.text = item.customTotalPrice!.toString();
+          }
+          // If controller has text but cart doesn't have custom total price, update cart
+          else if (controller.text.isNotEmpty && item.customTotalPrice == null) {
+            final totalPrice = double.tryParse(controller.text);
+            if (totalPrice != null) {
+              widget.cart.updateCustomTotalPrice(item.product, totalPrice);
+            }
+          }
+        }
+      }
+    }
   }
 
   Future<void> _fetchCustomers() async {
@@ -1599,6 +1676,9 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // Sync controller values with cart items to ensure persistence
+    _syncControllerValuesWithCart();
+    
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth <= 600;
@@ -1753,9 +1833,12 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                       ? item.product.wholesalePrice!
                                       : item.product.price;
                                     if (!_customPriceControllers.containsKey(id)) {
-                                      _customPriceControllers[id] = TextEditingController(
-                                        text: '', // Start with blank field instead of pre-filled price
-                                      );
+                                      // Initialize with stored custom total price if available
+                                      String initialValue = '';
+                                      if (item.customTotalPrice != null) {
+                                        initialValue = item.customTotalPrice!.toString();
+                                      }
+                                      _customPriceControllers[id] = TextEditingController(text: initialValue);
                                     }
                                     final controller = _customPriceControllers[id]!;
                                     bool isInvalid = false;

@@ -120,7 +120,7 @@ router.put('/:id/stock', [auth, checkRole(['admin', 'manager'])], async (req, re
 // Get inventory transactions
 router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
-    const { start_date, end_date, user_id } = req.query;
+    const { start_date, end_date, user_id, category_id, product_id } = req.query;
     
     console.log('🔍 INVENTORY TRANSACTIONS: Request params:', { start_date, end_date, user_id });
     console.log('🔍 INVENTORY TRANSACTIONS: User:', req.user.id, req.user.role, req.user.business_id);
@@ -278,6 +278,20 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
       console.log('🔍 INVENTORY TRANSACTIONS: Added cashier filter:', user_id);
     }
     
+    // Add category filter if provided
+    if (category_id) {
+      query += ' AND p.category_id = ?';
+      params.push(category_id);
+      console.log('🔍 INVENTORY TRANSACTIONS: Added category filter:', category_id);
+    }
+    
+    // Add product filter if provided
+    if (product_id) {
+      query += ' AND it.product_id = ?';
+      params.push(product_id);
+      console.log('🔍 INVENTORY TRANSACTIONS: Added product filter:', product_id);
+    }
+    
     query += ' ORDER BY it.created_at DESC';
     
     if (req.user.role === 'superadmin') {
@@ -393,7 +407,7 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
 // Get enhanced inventory transactions for PDF export
 router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
-    const { start_date, end_date, user_id, limit } = req.query;
+    const { start_date, end_date, user_id, category_id, product_id, limit } = req.query;
     
     console.log('📄 PDF TRANSACTIONS: Request params:', { start_date, end_date, user_id, limit });
     console.log('📄 PDF TRANSACTIONS: User:', req.user.id, req.user.role, req.user.business_id);
@@ -469,6 +483,20 @@ router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier']
     if (user_id && user_id !== 'all') {
       query += ' AND (s.user_id = ? OR dp.reported_by = ?)';
       params.push(user_id, user_id);
+    }
+    
+    // Add category filter if provided
+    if (category_id) {
+      query += ' AND p.category_id = ?';
+      params.push(category_id);
+      console.log('📄 PDF TRANSACTIONS: Added category filter:', category_id);
+    }
+    
+    // Add product filter if provided
+    if (product_id) {
+      query += ' AND it.product_id = ?';
+      params.push(product_id);
+      console.log('📄 PDF TRANSACTIONS: Added product filter:', product_id);
     }
     
     query += ' ORDER BY it.created_at DESC';

@@ -134,6 +134,7 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
         it.notes,
         it.reference_id,
         p.name AS product_name,
+        p.cost_price AS product_cost_price,
         s.id AS sale_id,
         s.status,
         s.payment_method,
@@ -382,7 +383,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
           `SELECT IFNULL(SUM(si.quantity),0) as sold_after
            FROM sale_items si
            JOIN sales s ON si.sale_id = s.id
-           WHERE si.product_id = ? AND s.created_at >= ?` , [p.id, start_date]);
+           WHERE si.product_id = ? AND s.created_at >= ? AND s.status = 'completed' AND s.business_id = ? AND si.business_id = ?` , [p.id, start_date, req.user.business_id, req.user.business_id]);
         // Get all stock added after start_date (purchases, adjustments, etc.)
         const [[{ added_after = 0 } = {}]] = await pool.query(
           `SELECT IFNULL(SUM(CASE WHEN quantity > 0 THEN quantity ELSE 0 END),0) as added_after
@@ -393,7 +394,9 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
         // All-time starting quantity
         const [[{ sold_all = 0 } = {}]] = await pool.query(
           `SELECT IFNULL(SUM(si.quantity),0) as sold_all
-           FROM sale_items si WHERE si.product_id = ?`, [p.id]);
+           FROM sale_items si 
+           JOIN sales s ON si.sale_id = s.id
+           WHERE si.product_id = ? AND s.status = 'completed' AND s.business_id = ? AND si.business_id = ?`, [p.id, req.user.business_id, req.user.business_id]);
         startingQuantity = p.quantity_remaining + sold_all;
       }
       // Sold quantity, revenue, profit in period
@@ -402,11 +405,11 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
           `SELECT 
             IFNULL(SUM(si.quantity),0) as sold_qty,
             IFNULL(SUM(si.total_price),0) as revenue,
-            IFNULL(SUM(si.total_price - (si.quantity * p.cost_price)),0) as profit
+            IFNULL(SUM((si.unit_price - COALESCE(p.cost_price, 0)) * si.quantity),0) as profit
            FROM sale_items si
            JOIN sales s ON si.sale_id = s.id
            JOIN products p ON si.product_id = p.id
-           WHERE si.product_id = ? AND s.created_at >= ? AND s.created_at <= ?`, [p.id, start_date, end_date]);
+           WHERE si.product_id = ? AND s.created_at >= ? AND s.created_at <= ? AND s.status = 'completed' AND s.business_id = ? AND si.business_id = ? AND p.business_id = ?`, [p.id, start_date, end_date, req.user.business_id, req.user.business_id, req.user.business_id]);
         soldQty = sales.sold_qty || 0;
         revenue = sales.revenue || 0;
         profit = sales.profit || 0;
@@ -415,11 +418,11 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
           `SELECT 
             IFNULL(SUM(si.quantity),0) as sold_qty,
             IFNULL(SUM(si.total_price),0) as revenue,
-            IFNULL(SUM(si.total_price - (si.quantity * p.cost_price)),0) as profit
+            IFNULL(SUM((si.unit_price - COALESCE(p.cost_price, 0)) * si.quantity),0) as profit
            FROM sale_items si
            JOIN sales s ON si.sale_id = s.id
            JOIN products p ON si.product_id = p.id
-           WHERE si.product_id = ? AND s.created_at >= ?`, [p.id, start_date]);
+           WHERE si.product_id = ? AND s.created_at >= ? AND s.status = 'completed' AND s.business_id = ? AND si.business_id = ? AND p.business_id = ?`, [p.id, start_date, req.user.business_id, req.user.business_id, req.user.business_id]);
         soldQty = sales.sold_qty || 0;
         revenue = sales.revenue || 0;
         profit = sales.profit || 0;
@@ -428,11 +431,11 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
           `SELECT 
             IFNULL(SUM(si.quantity),0) as sold_qty,
             IFNULL(SUM(si.total_price),0) as revenue,
-            IFNULL(SUM(si.total_price - (si.quantity * p.cost_price)),0) as profit
+            IFNULL(SUM((si.unit_price - COALESCE(p.cost_price, 0)) * si.quantity),0) as profit
            FROM sale_items si
            JOIN sales s ON si.sale_id = s.id
            JOIN products p ON si.product_id = p.id
-           WHERE si.product_id = ? AND s.created_at <= ?`, [p.id, end_date]);
+           WHERE si.product_id = ? AND s.created_at <= ? AND s.status = 'completed' AND s.business_id = ? AND si.business_id = ? AND p.business_id = ?`, [p.id, end_date, req.user.business_id, req.user.business_id, req.user.business_id]);
         soldQty = sales.sold_qty || 0;
         revenue = sales.revenue || 0;
         profit = sales.profit || 0;
@@ -441,14 +444,18 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
       `SELECT 
             IFNULL(SUM(si.quantity),0) as sold_qty,
             IFNULL(SUM(si.total_price),0) as revenue,
-            IFNULL(SUM(si.total_price - (si.quantity * p.cost_price)),0) as profit
+            IFNULL(SUM((si.unit_price - COALESCE(p.cost_price, 0)) * si.quantity),0) as profit
            FROM sale_items si
+           JOIN sales s ON si.sale_id = s.id
            JOIN products p ON si.product_id = p.id
-           WHERE si.product_id = ?`, [p.id]);
+           WHERE si.product_id = ? AND s.status = 'completed' AND s.business_id = ? AND si.business_id = ? AND p.business_id = ?`, [p.id, req.user.business_id, req.user.business_id, req.user.business_id]);
         soldQty = sales.sold_qty || 0;
         revenue = sales.revenue || 0;
         profit = sales.profit || 0;
       }
+      // Debug logging
+      console.log(`Product ${p.id} (${p.name}): sold=${soldQty}, revenue=${revenue}, profit=${profit}, cost_price=${p.cost_price}`);
+      
       return {
         product_id: p.id,
         product_name: p.name,

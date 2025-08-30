@@ -16,7 +16,6 @@ import 'package:retail_management/utils/api.dart';
 import 'package:retail_management/utils/translate.dart';
 import 'package:retail_management/utils/success_utils.dart';
 import 'package:retail_management/services/pdf_export_service.dart';
-import 'package:retail_management/providers/auth_provider.dart';
 import 'package:intl/intl.dart';
 
 class InventoryScreen extends StatefulWidget {
@@ -937,12 +936,36 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 _buildDesktopReportFilters(),
                               ],
                               SizedBox(height: isSmallMobile ? 6 : 8),
-                              Text(
-                                isSmallMobile ? 'Stock Summary' : t(context, 'Stock Summary'), 
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold, 
-                                  fontSize: isSmallMobile ? 11 : 13,
-                                ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      isSmallMobile ? 'Stock Summary' : t(context, 'Stock Summary'), 
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold, 
+                                        fontSize: isSmallMobile ? 11 : 13,
+                                      ),
+                                    ),
+                                  ),
+                                  if (_valueReportRows.isNotEmpty)
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.purple[50],
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: Colors.purple[200]!),
+                                      ),
+                                      child: IconButton(
+                                        icon: Icon(Icons.picture_as_pdf, color: Colors.purple[600], size: 16),
+                                        onPressed: () => _exportStockSummaryToPdf(),
+                                        tooltip: 'Export Stock Summary to PDF',
+                                        padding: EdgeInsets.all(4),
+                                        constraints: BoxConstraints(
+                                          minWidth: 24,
+                                          minHeight: 24,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                               SizedBox(height: isSmallMobile ? 4 : 6),
                               _buildStockSummaryFilters(isSmallMobile),
@@ -2574,59 +2597,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
     required String fileName,
   }) async {
     try {
-      // Get current business ID from AuthProvider
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final businessId = authProvider.user?.businessId;
+      // Use the transactions passed to this method directly
+      List<Map<String, dynamic>> enhancedTransactions = transactions;
       
-      if (businessId == null) {
-        throw Exception('Business ID not found. Please log in again.');
-      }
-      
-      // Get enhanced transaction data for PDF export
-      List<Map<String, dynamic>> enhancedTransactions = [];
-      
-      // Determine which transactions to export based on the report title
-      Map<String, dynamic> filters = {};
-      
-      if (reportTitle.contains('Recent')) {
-        filters = {'limit': '10'};
-      } else if (reportTitle.contains('Today')) {
-        final today = DateTime.now();
-        final start = DateTime(today.year, today.month, today.day);
-        final end = start.add(Duration(days: 1)).subtract(Duration(milliseconds: 1));
-        filters = {
-          'start_date': start.toIso8601String(),
-          'end_date': end.toIso8601String(),
-        };
-      } else if (reportTitle.contains('Week')) {
-        final now = DateTime.now();
-        final start = now.subtract(Duration(days: now.weekday - 1));
-        final end = start.add(Duration(days: 7)).subtract(Duration(milliseconds: 1));
-        filters = {
-          'start_date': start.toIso8601String(),
-          'end_date': end.toIso8601String(),
-        };
-      } else if (reportTitle.contains('Filtered')) {
-        if (_filterStartDate != null && _filterEndDate != null) {
-          filters = {
-            'start_date': _filterStartDate!.toIso8601String(),
-            'end_date': _filterEndDate!.toIso8601String(),
-          };
-        }
-      }
-      
-      // Get enhanced transaction data
-      enhancedTransactions = await _apiService.getInventoryTransactionsForPdf(filters);
-      
-      // Get authentication token
-      final authToken = authProvider.token;
+      print('🔍 PDF Export: Using ${transactions.length} transactions directly');
       
       final result = await PdfExportService.exportTransactionsToPdf(
         transactions: enhancedTransactions,
         reportTitle: reportTitle,
         fileName: fileName,
-        businessId: businessId,
-        authToken: authToken,
       );
       
       if (mounted) {
@@ -2642,6 +2621,42 @@ class _InventoryScreenState extends State<InventoryScreen> {
     } catch (e) {
       if (mounted) {
         SuccessUtils.showOperationError(context, 'export PDF', e.toString());
+      }
+    }
+  }
+
+  Future<void> _exportStockSummaryToPdf() async {
+    try {
+      if (_valueReportRows.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No stock summary data to export'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+
+      final result = await PdfExportService.exportStockSummaryToPdf(
+        stockData: _valueReportRows,
+        reportTitle: 'Stock Summary Report',
+        fileName: 'stock_summary_${DateTime.now().millisecondsSinceEpoch}',
+      );
+      
+      if (mounted) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Stock Summary PDF exported successfully! $result'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        SuccessUtils.showOperationError(context, 'export stock summary PDF', e.toString());
       }
     }
   }
@@ -3468,6 +3483,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         const SizedBox(height: 8),
                                                 Text('Date: ${_formatTimestamp(tx['created_at'] ?? '')}', style: const TextStyle(fontSize: 12)),
                 Text('Qty: ${tx['quantity']?.toString() ?? ''}', style: const TextStyle(fontSize: 12)),
+                Text('Cost: \$${_safeToDouble(tx['product_cost_price']).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
                 Text('Amount: \$${_safeToDouble(tx['sale_total_price']).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
                 if (tx['notes'] != null && tx['notes'].toString().isNotEmpty)
                   Text('Notes: ${tx['notes']}', style: const TextStyle(fontSize: 12)),
@@ -3549,12 +3565,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
         // Table
         SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      child: DataTable(
+      child:         DataTable(
         columns: [
           DataColumn(label: Text('Date')),
           DataColumn(label: Text('Product')),
           DataColumn(label: Text('Type')),
           DataColumn(label: Text('Qty')),
+          DataColumn(label: Text('Cost Price')),
           DataColumn(label: Text('Sale Amount')),
           DataColumn(label: Text('Profit')),
           DataColumn(label: Text('Notes')),
@@ -3565,6 +3582,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           DataCell(Text(tx['product_name'] ?? '')),
           DataCell(Text(tx['transaction_type'] ?? '')),
           DataCell(Text(tx['quantity']?.toString() ?? '')),
+          DataCell(Text('\$${_safeToDouble(tx['product_cost_price']).toStringAsFixed(2)}')),
           DataCell(Text(_safeToDouble(tx['sale_total_price']).toStringAsFixed(2))),
           DataCell(Text(_safeToDouble(tx['profit']).toStringAsFixed(2))),
           DataCell(Text(tx['notes'] ?? '')),

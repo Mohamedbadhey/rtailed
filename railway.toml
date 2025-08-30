@@ -1,5 +1,6 @@
 [build]
 builder = "nixpacks"
+source = "backend"
 providers = ["nodejs"]
 
 [phases.setup]
@@ -7,42 +8,6 @@ nixPkgs = ["nodejs_18", "npm-9_x"]
 
 [phases.install]
 cmds = ["npm ci"]
-
-[phases.build]
-cmds = ["echo 'Building Node.js backend...'"]
-
-[start]
-cmd = "npm start"
-
-[phases.setup]
-nixPkgs = ["nodejs_22", "npm-9_x"]
-
-[phases.install]
-cmds = ["npm i"]
-
-[phases.build]
-cmds = ["echo 'Building Node.js backend...'"]
-
-[start]
-cmd = "npm start"
-
-[phases.setup]
-nixPkgs = ["nodejs_22", "npm-9_x"]
-
-[phases.install]
-cmds = ["npm i"]
-
-[phases.build]
-cmds = ["echo 'Building Node.js backend...'"]
-
-[start]
-cmd = "npm start"
-
-[phases.setup]
-nixPkgs = ["nodejs_22", "npm-9_x"]
-
-[phases.install]
-cmds = ["npm i"]
 
 [phases.build]
 cmds = ["echo 'Building Node.js backend...'"]

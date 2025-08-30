@@ -31,9 +31,18 @@ jobs:
         working-directory: frontend
         run: flutter pub get
 
-      - name: Build Flutter Web
+      - name: Build Flutter Web (Optimized)
         working-directory: frontend
-        run: flutter build web --release
+        run: |
+          flutter build web \
+            --release \
+            --dart-define=FLUTTER_WEB_USE_SKIA=true \
+            --dart-define=FLUTTER_WEB_USE_CANVASKIT=true \
+            --web-renderer canvaskit \
+            --tree-shake-icons \
+            --split-debug-info=build/debug-info \
+            --obfuscate \
+            --split-per-abi
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

@@ -10,22 +10,10 @@ build/
 .flutter-plugins
 .flutter-plugins-dependencies
 
-# Block Flutter web build files
-*.js
-*.html
-*.css
-*.png
-*.ico
-*.json
-!package.json
-!package-lock.json
-!railway.json
-!railway.toml
-
-# Block test and documentation files
-*.bat
+# Block documentation and test files
 *.md
-!README.md
+*.bat
+*.html
 .git/
 
 # Block database files
@@ -37,7 +25,10 @@ build/
 *.temp
 *.log
 
-# Allow backend source files
-!backend/src/
-!backend/package.json
-!backend/package-lock.json 
+# IMPORTANT: Allow essential Node.js files for Railway to build
+!package.json
+!package-lock.json
+!railway.json
+!railway.toml
+!backend/
+!backend/** 

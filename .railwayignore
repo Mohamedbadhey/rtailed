@@ -1,30 +1,24 @@
-# Ignore the entire frontend directory where Flutter is located
+# Only block Flutter/Dart files that cause Railway to detect Dart
 frontend/
-
-# Block specific Flutter files that might be in root
 pubspec.yaml
 pubspec.lock
 *.dart
 
-# Block documentation and test files
+# Block documentation files (but allow package.json and other essential files)
 *.md
 *.bat
 *.html
-
-# Block test and debug files
-test_*.js
-debug_*.js
-fix_*.js
-update_*.js
-
-# Block database files
+*.js
 *.sql
-!setup_railway_database.sql
-
-# Block temporary files
 *.tmp
 *.temp
 *.log
+.git/
 
-# Block git
-.git/ 
+# IMPORTANT: Allow essential Node.js files for Railway to build
+!package.json
+!package-lock.json
+!railway.json
+!railway.toml
+!backend/
+!backend/** 

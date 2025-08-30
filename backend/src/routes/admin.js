@@ -1147,6 +1147,60 @@ router.put('/users/:id', auth, adminOrSuperadminForCashier, async (req, res) => 
     const { id } = req.params;
     const { username, email, role, is_active } = req.body;
     
+    console.log('PUT /users/:id called', { id, username, email, role, is_active, user: req.user });
+    
+    // Validate required fields
+    if (!username || !email || !role) {
+      return res.status(400).json({ 
+        message: 'Username, email, and role are required',
+        missing: {
+          username: !username,
+          email: !email,
+          role: !role
+        }
+      });
+    }
+    
+    // Validate username format (alphanumeric and underscore only, 3-20 characters)
+    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+    if (!usernameRegex.test(username)) {
+      return res.status(400).json({ 
+        message: 'Username must be 3-20 characters long and contain only letters, numbers, and underscores' 
+      });
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+    
+    // Check if username already exists (excluding current user)
+    const [existingUsername] = await pool.query(
+      'SELECT id, username FROM users WHERE username = ? AND id != ? AND is_deleted = 0', 
+      [username, id]
+    );
+    if (existingUsername.length > 0) {
+      return res.status(400).json({ 
+        message: 'Username already exists',
+        field: 'username',
+        existingUser: existingUsername[0].username
+      });
+    }
+    
+    // Check if email already exists (excluding current user)
+    const [existingEmail] = await pool.query(
+      'SELECT id, email FROM users WHERE email = ? AND id != ? AND is_deleted = 0', 
+      [email, id]
+    );
+    if (existingEmail.length > 0) {
+      return res.status(400).json({ 
+        message: 'Email already exists',
+        field: 'email',
+        existingUser: existingEmail[0].email
+      });
+    }
+    
     // Verify the target user belongs to the same business (for non-superadmin users)
     if (req.user.role !== 'superadmin') {
       const [targetUser] = await pool.query(
@@ -1178,9 +1232,10 @@ router.put('/users/:id', auth, adminOrSuperadminForCashier, async (req, res) => 
       [req.user.id, 'UPDATE_USER', 'users', id, JSON.stringify({ username, email, role, is_active })]
     );
     
+    console.log('User updated successfully:', { id, username, email, role, is_active });
     res.json({ message: 'User updated' });
   } catch (error) {
-    console.error(error);
+    console.error('Error in PUT /users/:id:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

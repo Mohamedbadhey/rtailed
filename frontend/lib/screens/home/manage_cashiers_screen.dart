@@ -343,6 +343,12 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                   }
                 }
                 
+                print('🔍 Updating cashier:');
+                print('🔍 Endpoint: $endpoint');
+                print('🔍 Data: $data');
+                print('🔍 User role: ${user?.role}');
+                print('🔍 User businessId: ${user?.businessId}');
+                
                 if (isEdit) {
                   await ApiService.putStatic(endpoint, data);
                 } else {
@@ -358,16 +364,32 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                 );
               } catch (e) {
                 String errorMessage = 'Failed to save cashier';
-                if (e.toString().contains('Username already exists')) {
+                String errorDetails = e.toString();
+                
+                // Parse error message from API response
+                if (errorDetails.contains('Username already exists')) {
                   errorMessage = t(context, 'Username already exists');
-                } else if (e.toString().contains('Email already exists')) {
+                } else if (errorDetails.contains('Email already exists')) {
                   errorMessage = t(context, 'Email already exists');
+                } else if (errorDetails.contains('Username must be 3-20 characters')) {
+                  errorMessage = 'Username must be 3-20 characters long and contain only letters, numbers, and underscores';
+                } else if (errorDetails.contains('Invalid email format')) {
+                  errorMessage = 'Invalid email format';
+                } else if (errorDetails.contains('Username, email, and role are required')) {
+                  errorMessage = 'Username, email, and role are required';
+                } else if (errorDetails.contains('User not found')) {
+                  errorMessage = 'User not found';
+                } else if (errorDetails.contains('You can only update cashier accounts')) {
+                  errorMessage = 'You can only update cashier accounts';
                 }
+                
+                print('Error updating cashier: $errorDetails');
                 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('$errorMessage: $e'),
+                    content: Text(errorMessage),
                     backgroundColor: Colors.red,
+                    duration: Duration(seconds: 4),
                   ),
                 );
               } finally {

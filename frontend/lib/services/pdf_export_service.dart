@@ -26,6 +26,7 @@ class PdfExportService {
     
     if (businessInfo != null) {
       print('🔍 PDF: Using real business branding: ${businessInfo['name']}');
+      print('🔍 PDF: Business info full data: $businessInfo');
     } else {
       print('🔍 PDF: Using fallback business branding for consistency');
     }
@@ -47,7 +48,7 @@ class PdfExportService {
               pw.SizedBox(height: 15),
               
               // Compact Invoice Details
-              _buildCompactInvoiceDetails(businessData),
+              _buildCompactInvoiceDetails(businessData, reportTitle: reportTitle),
               
               pw.SizedBox(height: 15),
               
@@ -91,6 +92,7 @@ class PdfExportService {
     
     if (businessInfo != null) {
       print('🔍 PDF: Using real business branding: ${businessInfo['name']}');
+      print('🔍 PDF Stock Summary: Business info full data: $businessInfo');
     } else {
       print('🔍 PDF: Using fallback business branding for stock summary');
     }
@@ -112,7 +114,7 @@ class PdfExportService {
               pw.SizedBox(height: 15),
               
               // Compact Invoice Details
-              _buildCompactInvoiceDetails(businessData),
+              _buildCompactInvoiceDetails(businessData, reportTitle: reportTitle),
               
               pw.SizedBox(height: 15),
               
@@ -140,11 +142,15 @@ class PdfExportService {
   
 
   
-  // Build compact header
+    // Build compact header
   static pw.Widget _buildCompactHeader(Map<String, dynamic> businessInfo, String reportTitle) {
     final businessName = businessInfo['name'] ?? 'XXX';
     final primaryColor = _parseColor(businessInfo['primary_color'] ?? '#1976D2');
     final tagline = businessInfo['tagline'] ?? 'XXX';
+    
+    print('🔍 PDF Header: Business name: "$businessName"');
+    print('🔍 PDF Header: Business tagline: "$tagline"');
+    print('🔍 PDF Header: Report title: "$reportTitle"');
     
     return pw.Container(
       width: double.infinity,
@@ -153,60 +159,70 @@ class PdfExportService {
         color: primaryColor,
         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
       ),
-      child: pw.Row(
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          // Business Logo Placeholder
-          pw.Container(
-            width: 40,
-            height: 40,
-            decoration: pw.BoxDecoration(
-              color: PdfColors.white,
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-            ),
-            child: pw.Center(
-                           child: pw.Text(
-               businessName.isNotEmpty && businessName != 'XXX' 
-                 ? businessName.substring(0, 1).toUpperCase()
-                 : 'X',
-               style: pw.TextStyle(
-                 fontSize: 16,
-                 fontWeight: pw.FontWeight.bold,
-                 color: primaryColor,
-               ),
-             ),
-            ),
-          ),
-          
-          pw.SizedBox(width: 12),
-          
-          // Business Info
-          pw.Expanded(
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  businessName,
-                  style: pw.TextStyle(
-                    color: PdfColors.white,
-                    fontSize: 18,
-                    fontWeight: pw.FontWeight.bold,
+          // Top Row: Business Info and Logo
+          pw.Row(
+            children: [
+              // Business Logo Placeholder
+              pw.Container(
+                width: 40,
+                height: 40,
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.white,
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                ),
+                child: pw.Center(
+                  child: pw.Text(
+                    businessName.isNotEmpty && businessName != 'XXX' 
+                      ? businessName.substring(0, 1).toUpperCase()
+                      : 'X',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: primaryColor,
+                    ),
                   ),
                 ),
-                pw.Text(
-                  tagline,
-                  style: pw.TextStyle(
-                    color: PdfColors.grey300,
-                    fontSize: 10,
-                    fontWeight: pw.FontWeight.normal,
-                  ),
+              ),
+              
+              pw.SizedBox(width: 12),
+              
+              // Business Info
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      businessName,
+                      style: pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: 20,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                      maxLines: 2,
+                    ),
+                    pw.Text(
+                      tagline,
+                      style: pw.TextStyle(
+                        color: PdfColors.grey300,
+                        fontSize: 12,
+                        fontWeight: pw.FontWeight.normal,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
           
-          // Report Title
+          pw.SizedBox(height: 12),
+          
+          // Bottom Row: Report Title
           pw.Container(
-            padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            width: double.infinity,
+            padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: pw.BoxDecoration(
               color: PdfColors.grey300,
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
@@ -215,9 +231,10 @@ class PdfExportService {
               reportTitle,
               style: pw.TextStyle(
                 color: PdfColors.white,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: pw.FontWeight.bold,
               ),
+              textAlign: pw.TextAlign.center,
             ),
           ),
         ],
@@ -226,10 +243,26 @@ class PdfExportService {
   }
   
   // Build compact invoice details
-  static pw.Widget _buildCompactInvoiceDetails(Map<String, dynamic> businessInfo) {
+  static pw.Widget _buildCompactInvoiceDetails(Map<String, dynamic> businessInfo, {String? reportTitle}) {
     final contactEmail = businessInfo['contact_email'] ?? 'XXX';
     final contactPhone = businessInfo['contact_phone'] ?? 'XXX';
     final address = businessInfo['address'] ?? 'XXX';
+    
+    // Extract filter information from report title
+    String filterInfo = 'No filters applied';
+    if (reportTitle != null) {
+      if (reportTitle.contains('(') && reportTitle.contains(')')) {
+        // Extract filter info from parentheses
+        final startIndex = reportTitle.indexOf('(');
+        final endIndex = reportTitle.indexOf(')');
+        if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+          filterInfo = reportTitle.substring(startIndex + 1, endIndex);
+        }
+      } else {
+        // If no parentheses, show the full title as filter info
+        filterInfo = reportTitle;
+      }
+    }
     
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
@@ -289,7 +322,7 @@ class PdfExportService {
               crossAxisAlignment: pw.CrossAxisAlignment.end,
               children: [
                 pw.Text(
-                  'Invoice Details',
+                  'Report Details',
                   style: pw.TextStyle(
                     fontSize: 12,
                     fontWeight: pw.FontWeight.bold,
@@ -304,6 +337,12 @@ class PdfExportService {
                 pw.Text(
                   'Time: ${DateFormat('HH:mm').format(DateTime.now())}',
                   style: const pw.TextStyle(fontSize: 9),
+                ),
+                pw.SizedBox(height: 2),
+                pw.Text(
+                  'Filters: $filterInfo',
+                  style: const pw.TextStyle(fontSize: 9),
+                  textAlign: pw.TextAlign.right,
                 ),
               ],
             ),

@@ -1166,7 +1166,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                         onPressed: () => _exportTransactionsToPdf(
                                           transactions: _recentTransactions,
                                           reportTitle: _getFilteredReportTitle('Recent Transactions'),
-                                          fileName: 'recent_transactions_${DateTime.now().millisecondsSinceEpoch}',
+                                          fileName: _generatePdfFileName('recent_transactions'),
                                         ),
                                         tooltip: 'Export to PDF',
                                         padding: EdgeInsets.all(4),
@@ -1325,7 +1325,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                         onPressed: () => _exportTransactionsToPdf(
                                           transactions: _todayTransactions,
                                           reportTitle: _getFilteredReportTitle('Today\'s Transactions'),
-                                          fileName: 'today_transactions_${DateTime.now().millisecondsSinceEpoch}',
+                                          fileName: _generatePdfFileName('today_transactions'),
                                         ),
                                         tooltip: 'Export to PDF',
                                         padding: EdgeInsets.all(4),
@@ -1484,7 +1484,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                         onPressed: () => _exportTransactionsToPdf(
                                           transactions: _weekTransactions,
                                           reportTitle: _getFilteredReportTitle('This Week\'s Transactions'),
-                                          fileName: 'week_transactions_${DateTime.now().millisecondsSinceEpoch}',
+                                          fileName: _generatePdfFileName('week_transactions'),
                                         ),
                                         tooltip: 'Export to PDF',
                                         padding: EdgeInsets.all(4),
@@ -1643,7 +1643,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                         onPressed: () => _exportTransactionsToPdf(
                                           transactions: _filteredTransactions,
                                           reportTitle: _getFilteredReportTitle('Filtered Transactions'),
-                                          fileName: 'filtered_transactions_${DateTime.now().millisecondsSinceEpoch}',
+                                          fileName: _generatePdfFileName('filtered_transactions'),
                                         ),
                                         tooltip: 'Export to PDF',
                                         padding: EdgeInsets.all(4),
@@ -3214,9 +3214,55 @@ class _InventoryScreenState extends State<InventoryScreen> {
     return 0.0;
   }
 
+  // Generate descriptive PDF file name
+  String _generatePdfFileName(String baseName) {
+    final now = DateTime.now();
+    final dateStr = DateFormat('yyyy-MM-dd_HH-mm').format(now);
+    
+    final List<String> parts = [baseName];
+    
+    // Add date information
+    parts.add(dateStr);
+    
+    // Add category filter if applied
+    if (_selectedReportCategory != null && _selectedReportCategory != 'All') {
+      final categorySlug = _selectedReportCategory!.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+      parts.add('cat_$categorySlug');
+    }
+    
+    // Add product filter if applied
+    if (_selectedReportProduct != null && _selectedReportProduct != 'All') {
+      final productSlug = _selectedReportProduct!.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+      parts.add('prod_$productSlug');
+    }
+    
+    return parts.join('_');
+  }
+
   // Generate filtered report title
   String _getFilteredReportTitle(String baseTitle) {
     final List<String> filters = [];
+    
+    // Add date information based on the base title
+    if (baseTitle.contains('Today')) {
+      final today = DateTime.now();
+      final dateStr = DateFormat('MMM dd, yyyy').format(today);
+      filters.add('Date: $dateStr');
+    } else if (baseTitle.contains('Week')) {
+      final now = DateTime.now();
+      final start = now.subtract(Duration(days: now.weekday - 1));
+      final end = start.add(Duration(days: 6));
+      final startStr = DateFormat('MMM dd').format(start);
+      final endStr = DateFormat('MMM dd, yyyy').format(end);
+      filters.add('Date: $startStr - $endStr');
+    } else if (baseTitle.contains('Filtered')) {
+      // For custom date range, we'll add this later when we have the actual dates
+      if (_filterStartDate != null && _filterEndDate != null) {
+        final startStr = DateFormat('MMM dd, yyyy').format(_filterStartDate!);
+        final endStr = DateFormat('MMM dd, yyyy').format(_filterEndDate!);
+        filters.add('Date: $startStr - $endStr');
+      }
+    }
     
     if (_selectedReportCategory != null && _selectedReportCategory != 'All') {
       filters.add('Category: $_selectedReportCategory');
@@ -3307,8 +3353,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
       return List<Map<String, dynamic>>.from(data);
     } catch (e) {
       print('🔍 PDF Export: Error fetching filtered transactions: $e');
-      // Fallback to using the provided transactions
-      return transactions;
+      // Fallback to empty list if backend fetch fails
+      return [];
     }
   }
 
@@ -3346,6 +3392,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
       if (_businessDetails == null) {
         await _fetchBusinessDetails();
       }
+      
+      print('🔍 PDF Export: Business details being passed: $_businessDetails');
+      print('🔍 PDF Export: Business name: ${_businessDetails?['name']}');
+      print('🔍 PDF Export: Business tagline: ${_businessDetails?['tagline']}');
       
       final result = await PdfExportService.exportTransactionsToPdf(
         transactions: enhancedTransactions,
@@ -3429,10 +3479,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
         await _fetchBusinessDetails();
       }
 
+      print('🔍 Stock Summary PDF Export: Business details being passed: $_businessDetails');
+      print('🔍 Stock Summary PDF Export: Business name: ${_businessDetails?['name']}');
+      print('🔍 Stock Summary PDF Export: Business tagline: ${_businessDetails?['tagline']}');
+
       final result = await PdfExportService.exportStockSummaryToPdf(
         stockData: _filteredStockSummaryData,
         reportTitle: _buildFilteredReportTitle(),
-        fileName: 'stock_summary_${DateTime.now().millisecondsSinceEpoch}',
+        fileName: _generatePdfFileName('stock_summary'),
         businessInfo: _businessDetails,
       );
       
@@ -4158,6 +4212,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       });
       
       print('🔍 Business details loaded: ${businessData['name']}');
+      print('🔍 Business details full data: $businessData');
       
     } catch (e) {
       setState(() {
@@ -4225,6 +4280,31 @@ class _InventoryScreenState extends State<InventoryScreen> {
   // Build filtered report title for PDF export
   String _buildFilteredReportTitle() {
     final List<String> titleParts = ['Stock Summary Report'];
+    
+    // Add date information based on stock summary filter type
+    if (_stockSummaryFilterType == 'Today') {
+      final today = DateTime.now();
+      final dateStr = DateFormat('MMM dd, yyyy').format(today);
+      titleParts.add('Date: $dateStr');
+    } else if (_stockSummaryFilterType == 'This Week') {
+      final now = DateTime.now();
+      final start = now.subtract(Duration(days: now.weekday - 1));
+      final end = start.add(Duration(days: 6));
+      final startStr = DateFormat('MMM dd').format(start);
+      final endStr = DateFormat('MMM dd, yyyy').format(end);
+      titleParts.add('Date: $startStr - $endStr');
+    } else if (_stockSummaryFilterType == 'This Month') {
+      final now = DateTime.now();
+      final start = DateTime(now.year, now.month, 1);
+      final end = DateTime(now.year, now.month + 1, 0);
+      final startStr = DateFormat('MMM dd').format(start);
+      final endStr = DateFormat('MMM dd, yyyy').format(end);
+      titleParts.add('Date: $startStr - $endStr');
+    } else if (_stockSummaryFilterType == 'Custom' && _stockSummaryStartDate != null && _stockSummaryEndDate != null) {
+      final startStr = DateFormat('MMM dd, yyyy').format(_stockSummaryStartDate!);
+      final endStr = DateFormat('MMM dd, yyyy').format(_stockSummaryEndDate!);
+      titleParts.add('Date: $startStr - $endStr');
+    }
     
     if (_selectedReportCategory != null && _selectedReportCategory != 'All') {
       titleParts.add('Category: $_selectedReportCategory');

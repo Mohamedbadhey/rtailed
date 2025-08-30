@@ -12,9 +12,10 @@ class PdfExportService {
     required List<Map<String, dynamic>> transactions,
     required String reportTitle,
     required String fileName,
+    Map<String, dynamic>? businessInfo,
   }) async {
-    // Use fallback business branding for consistency
-    Map<String, dynamic> businessInfo = {
+    // Use provided business info or fallback for consistency
+    Map<String, dynamic> businessData = businessInfo ?? {
       'name': 'XXX',
       'tagline': 'XXX',
       'contact_email': 'XXX',
@@ -23,7 +24,11 @@ class PdfExportService {
       'primary_color': '#1976D2',
     };
     
-    print('🔍 PDF: Using fallback business branding for consistency');
+    if (businessInfo != null) {
+      print('🔍 PDF: Using real business branding: ${businessInfo['name']}');
+    } else {
+      print('🔍 PDF: Using fallback business branding for consistency');
+    }
     
     // Create PDF document
     final pdf = pw.Document();
@@ -37,12 +42,12 @@ class PdfExportService {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               // Compact Header
-              _buildCompactHeader(businessInfo, reportTitle),
+              _buildCompactHeader(businessData, reportTitle),
               
               pw.SizedBox(height: 15),
               
               // Compact Invoice Details
-              _buildCompactInvoiceDetails(businessInfo),
+              _buildCompactInvoiceDetails(businessData),
               
               pw.SizedBox(height: 15),
               
@@ -72,9 +77,10 @@ class PdfExportService {
     required List<Map<String, dynamic>> stockData,
     required String reportTitle,
     required String fileName,
+    Map<String, dynamic>? businessInfo,
   }) async {
-    // Use fallback business branding for consistency
-    Map<String, dynamic> businessInfo = {
+    // Use provided business info or fallback for consistency
+    Map<String, dynamic> businessData = businessInfo ?? {
       'name': 'XXX',
       'tagline': 'XXX',
       'contact_email': 'XXX',
@@ -83,7 +89,11 @@ class PdfExportService {
       'primary_color': '#1976D2',
     };
     
-    print('🔍 PDF: Using fallback business branding for stock summary');
+    if (businessInfo != null) {
+      print('🔍 PDF: Using real business branding: ${businessInfo['name']}');
+    } else {
+      print('🔍 PDF: Using fallback business branding for stock summary');
+    }
     
     // Create PDF document
     final pdf = pw.Document();
@@ -97,12 +107,12 @@ class PdfExportService {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               // Compact Header
-              _buildCompactHeader(businessInfo, reportTitle),
+              _buildCompactHeader(businessData, reportTitle),
               
               pw.SizedBox(height: 15),
               
               // Compact Invoice Details
-              _buildCompactInvoiceDetails(businessInfo),
+              _buildCompactInvoiceDetails(businessData),
               
               pw.SizedBox(height: 15),
               

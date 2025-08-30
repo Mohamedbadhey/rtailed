@@ -743,6 +743,26 @@ class ApiService {
     }
   }
 
+  // Get business details for PDF generation
+  Future<Map<String, dynamic>> getBusinessDetails(int businessId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/auth/business/$businessId'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return TypeConverter.safeToMap(data['data'] ?? {});
+      } else {
+        throw Exception('Failed to get business details: ${response.body}');
+      }
+    } catch (e) {
+      print('Get Business Details Error: $e');
+      rethrow;
+    }
+  }
+
   // Categories
   Future<List<Map<String, dynamic>>> getCategories() async {
     try {

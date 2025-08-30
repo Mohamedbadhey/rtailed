@@ -299,4 +299,72 @@ router.get('/users', auth, async (req, res) => {
   }
 });
 
+// Get business details for PDF generation
+router.get('/business/:businessId', [auth], async (req, res) => {
+  try {
+    const { businessId } = req.params;
+    
+    // Check if user has access to this business
+    if (req.user.role !== 'superadmin' && req.user.business_id != businessId) {
+      return res.status(403).json({ 
+        message: 'Access denied: You can only access your own business information' 
+      });
+    }
+    
+    // Fetch business details
+    const [businesses] = await pool.query(
+      `SELECT 
+        id,
+        name,
+        business_code,
+        description,
+        address,
+        phone,
+        email,
+        website,
+        logo_url,
+        logo,
+        favicon,
+        primary_color,
+        secondary_color,
+        accent_color,
+        theme,
+        branding_enabled,
+        contact_email,
+        contact_phone,
+        social_media,
+        business_hours,
+        tagline,
+        currency,
+        timezone,
+        language,
+        created_at,
+        updated_at
+      FROM businesses 
+      WHERE id = ? AND is_active = TRUE`,
+      [businessId]
+    );
+    
+    if (businesses.length === 0) {
+      return res.status(404).json({ 
+        message: 'Business not found or inactive' 
+      });
+    }
+    
+    const business = businesses[0];
+    
+    // Return business details
+    res.json({
+      success: true,
+      data: business
+    });
+    
+  } catch (error) {
+    console.error('Error fetching business details:', error);
+    res.status(500).json({ 
+      message: 'Server error while fetching business details' 
+    });
+  }
+});
+
 module.exports = router; 

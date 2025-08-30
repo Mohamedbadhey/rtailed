@@ -16,6 +16,7 @@ import 'package:retail_management/utils/api.dart';
 import 'package:retail_management/utils/translate.dart';
 import 'package:retail_management/utils/success_utils.dart';
 import 'package:retail_management/services/pdf_export_service.dart';
+import 'package:retail_management/providers/auth_provider.dart';
 import 'package:intl/intl.dart';
 
 class InventoryScreen extends StatefulWidget {
@@ -96,6 +97,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     _fetchRecentTransactions();
     _fetchTodayTransactions();
     _fetchWeekTransactions();
+    _fetchBusinessDetails(); // Load business details for PDF generation
   }
 
   @override
@@ -1020,14 +1022,32 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                   if (_valueReportRows.isNotEmpty)
                                     Container(
                                       decoration: BoxDecoration(
-                                        color: Colors.purple[50],
+                                        color: _selectedReportCategory != null && _selectedReportCategory != 'All' || 
+                                               _selectedReportProduct != null && _selectedReportProduct != 'All'
+                                               ? Colors.orange[50]
+                                               : Colors.purple[50],
                                         borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: Colors.purple[200]!),
+                                        border: Border.all(
+                                          color: _selectedReportCategory != null && _selectedReportCategory != 'All' || 
+                                                 _selectedReportProduct != null && _selectedReportProduct != 'All'
+                                                 ? Colors.orange[300]!
+                                                 : Colors.purple[200]!
+                                        ),
                                       ),
                                       child: IconButton(
-                                        icon: Icon(Icons.picture_as_pdf, color: Colors.purple[600], size: 16),
+                                        icon: Icon(
+                                          Icons.picture_as_pdf, 
+                                          color: _selectedReportCategory != null && _selectedReportCategory != 'All' || 
+                                                 _selectedReportProduct != null && _selectedReportProduct != 'All'
+                                                 ? Colors.orange[600]
+                                                 : Colors.purple[600], 
+                                          size: 16
+                                        ),
                                         onPressed: () => _exportStockSummaryToPdf(),
-                                        tooltip: 'Export Stock Summary to PDF',
+                                        tooltip: _selectedReportCategory != null && _selectedReportCategory != 'All' || 
+                                                 _selectedReportProduct != null && _selectedReportProduct != 'All'
+                                                 ? 'Export Filtered Stock Summary to PDF'
+                                                 : 'Export Stock Summary to PDF',
                                         padding: EdgeInsets.all(4),
                                         constraints: BoxConstraints(
                                           minWidth: 24,
@@ -1040,6 +1060,60 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               SizedBox(height: isSmallMobile ? 4 : 6),
                               _buildStockSummaryFilters(isSmallMobile),
                               SizedBox(height: isSmallMobile ? 6 : 8),
+                              
+                              // Filter Status Indicator
+                              if (_selectedReportCategory != null && _selectedReportCategory != 'All' || 
+                                  _selectedReportProduct != null && _selectedReportProduct != 'All')
+                                Container(
+                                  width: double.infinity,
+                                  padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+                                  margin: EdgeInsets.only(bottom: isSmallMobile ? 6 : 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue[50],
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.blue[200]!),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.filter_list,
+                                        size: isSmallMobile ? 14 : 16,
+                                        color: Colors.blue[600],
+                                      ),
+                                      SizedBox(width: isSmallMobile ? 6 : 8),
+                                      Expanded(
+                                        child: Text(
+                                          _buildFilterStatusText(),
+                                          style: TextStyle(
+                                            fontSize: isSmallMobile ? 10 : 12,
+                                            color: Colors.blue[700],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.clear,
+                                          size: isSmallMobile ? 14 : 16,
+                                          color: Colors.blue[600],
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            _selectedReportCategory = null;
+                                            _selectedReportProduct = null;
+                                            _stockSummaryCurrentPage = 0;
+                                          });
+                                        },
+                                        padding: EdgeInsets.all(4),
+                                        constraints: BoxConstraints(
+                                          minWidth: 20,
+                                          minHeight: 20,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              
                               _buildValueReportTable(isSmallMobile),
                               SizedBox(height: isSmallMobile ? 8 : 12),
                               Row(
@@ -2672,10 +2746,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
       
       print('🔍 PDF Export: Using ${transactions.length} transactions directly');
       
+      // Ensure business details are loaded
+      if (_businessDetails == null) {
+        await _fetchBusinessDetails();
+      }
+      
       final result = await PdfExportService.exportTransactionsToPdf(
         transactions: enhancedTransactions,
         reportTitle: reportTitle,
         fileName: fileName,
+        businessInfo: _businessDetails,
       );
       
       if (mounted) {
@@ -2697,10 +2777,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   Future<void> _exportStockSummaryToPdf() async {
     try {
-      if (_valueReportRows.isEmpty) {
+      if (_filteredStockSummaryData.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No stock summary data to export'),
+          SnackBar(
+            content: Text(_valueReportRows.isEmpty 
+              ? 'No stock summary data to export'
+              : 'No data matches the current filters. Try adjusting your filters or export all data.'),
             backgroundColor: Colors.orange,
             duration: Duration(seconds: 3),
           ),
@@ -2708,10 +2790,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
         return;
       }
 
+      // Ensure business details are loaded
+      if (_businessDetails == null) {
+        await _fetchBusinessDetails();
+      }
+
       final result = await PdfExportService.exportStockSummaryToPdf(
-        stockData: _valueReportRows,
-        reportTitle: 'Stock Summary Report',
+        stockData: _filteredStockSummaryData,
+        reportTitle: _buildFilteredReportTitle(),
         fileName: 'stock_summary_${DateTime.now().millisecondsSinceEpoch}',
+        businessInfo: _businessDetails,
       );
       
       if (mounted) {
@@ -3028,7 +3116,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             ))
                         .toList(),
                     onChanged: (val) {
-                      setState(() { _selectedReportCategory = val; });
+                      setState(() { 
+                        _selectedReportCategory = val; 
+                        _stockSummaryCurrentPage = 0; // Reset pagination
+                      });
                       // Refresh stock summary when category changes
                       _fetchInventoryValueReport();
                     },
@@ -3070,16 +3161,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             ))
                         .toList(),
                     onChanged: (val) {
-                      setState(() { _selectedReportProduct = val; });
+                      setState(() { 
+                        _selectedReportProduct = val; 
+                        _stockSummaryCurrentPage = 0; // Reset pagination
+                      });
                       // Refresh stock summary when product changes
                       _fetchInventoryValueReport();
                     },
                   ),
                 ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
         
         const SizedBox(height: 6),
         
@@ -3190,6 +3284,70 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
+  // Business details for PDF generation
+  Map<String, dynamic>? _businessDetails;
+  bool _businessDetailsLoading = false;
+  String? _businessDetailsError;
+
+  // Computed property for filtered stock summary data
+  List<Map<String, dynamic>> get _filteredStockSummaryData {
+    if (_selectedReportCategory == null && _selectedReportProduct == null) {
+      return _valueReportRows;
+    }
+    
+    return _valueReportRows.where((row) {
+      bool matchesCategory = true;
+      bool matchesProduct = true;
+      
+      // Apply category filter
+      if (_selectedReportCategory != null && _selectedReportCategory != 'All') {
+        final categoryName = row['category_name'] ?? '';
+        matchesCategory = categoryName == _selectedReportCategory;
+      }
+      
+      // Apply product filter
+      if (_selectedReportProduct != null && _selectedReportProduct != 'All') {
+        final productName = row['product_name'] ?? '';
+        matchesProduct = productName == _selectedReportProduct;
+      }
+      
+      return matchesCategory && matchesProduct;
+    }).toList();
+  }
+
+  // Fetch business details for PDF generation
+  Future<void> _fetchBusinessDetails() async {
+    if (_businessDetails != null) return; // Already loaded
+    
+    try {
+      setState(() {
+        _businessDetailsLoading = true;
+        _businessDetailsError = null;
+      });
+      
+      final businessId = Provider.of<AuthProvider>(context, listen: false).user?.businessId;
+      if (businessId == null) {
+        throw Exception('Business ID not available');
+      }
+      
+      final businessData = await _apiService.getBusinessDetails(businessId);
+      
+      setState(() {
+        _businessDetails = businessData;
+        _businessDetailsLoading = false;
+      });
+      
+      print('🔍 Business details loaded: ${businessData['name']}');
+      
+    } catch (e) {
+      setState(() {
+        _businessDetailsError = e.toString();
+        _businessDetailsLoading = false;
+      });
+      print('🔍 Error loading business details: $e');
+    }
+  }
+
   // Get filter status text for display
   String _getFilterStatusText() {
     final List<String> activeFilters = [];
@@ -3215,6 +3373,48 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
     
     return activeFilters.take(2).join(' | ');
+  }
+
+  // Get filter status text specifically for stock summary
+  String _buildFilterStatusText() {
+    final List<String> activeFilters = [];
+    
+    if (_selectedReportCategory != null && _selectedReportCategory != 'All') {
+      activeFilters.add('Category: $_selectedReportCategory');
+    }
+    
+    if (_selectedReportProduct != null && _selectedReportProduct != 'All') {
+      activeFilters.add('Product: $_selectedReportProduct');
+    }
+    
+    if (activeFilters.isEmpty) {
+      return 'No filters applied';
+    }
+    
+    final filterText = activeFilters.join(' | ');
+    final exportCount = _filteredStockSummaryData.length;
+    final totalCount = _valueReportRows.length;
+    
+    if (exportCount != totalCount) {
+      return '$filterText (Exporting $exportCount of $totalCount items)';
+    }
+    
+    return filterText;
+  }
+
+  // Build filtered report title for PDF export
+  String _buildFilteredReportTitle() {
+    final List<String> titleParts = ['Stock Summary Report'];
+    
+    if (_selectedReportCategory != null && _selectedReportCategory != 'All') {
+      titleParts.add('Category: $_selectedReportCategory');
+    }
+    
+    if (_selectedReportProduct != null && _selectedReportProduct != 'All') {
+      titleParts.add('Product: $_selectedReportProduct');
+    }
+    
+    return titleParts.join(' - ');
   }
 
   Widget _buildQuickDateButton(String text, VoidCallback onTap, {required bool isActive}) {
@@ -3261,7 +3461,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   ))
               .toList(),
           onChanged: (val) {
-            setState(() { _selectedReportCategory = val; });
+            setState(() { 
+              _selectedReportCategory = val; 
+              _stockSummaryCurrentPage = 0; // Reset pagination
+            });
             // Refresh stock summary when category changes
             _fetchInventoryValueReport();
           },
@@ -3276,7 +3479,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   ))
               .toList(),
           onChanged: (val) {
-            setState(() { _selectedReportProduct = val; });
+            setState(() { 
+              _selectedReportProduct = val; 
+              _stockSummaryCurrentPage = 0; // Reset pagination
+            });
             // Refresh stock summary when product changes
             _fetchInventoryValueReport();
           },
@@ -3569,10 +3775,39 @@ class _InventoryScreenState extends State<InventoryScreen> {
       );
     }
 
+    // Check if filtered data is empty
+    if (_filteredStockSummaryData.isEmpty) {
+      return Column(
+        children: [
+          Icon(
+            Icons.filter_list,
+            size: isSmallMobile ? 32 : 48,
+            color: Colors.grey[400],
+          ),
+          SizedBox(height: 8),
+          Text(
+            'No data matches the selected filters',
+            style: TextStyle(
+              fontSize: isSmallMobile ? 12 : 14,
+              color: Colors.grey[600],
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Try adjusting your category or product filters',
+            style: TextStyle(
+              fontSize: isSmallMobile ? 10 : 12,
+              color: Colors.grey[500],
+            ),
+          ),
+        ],
+      );
+    }
+
     if (isSmallMobile) {
       // Mobile layout - cards with pagination
-      final paginatedData = _getPaginatedData(_valueReportRows, _stockSummaryCurrentPage);
-      final totalPages = _getTotalPages(_valueReportRows.length);
+      final paginatedData = _getPaginatedData(_filteredStockSummaryData, _stockSummaryCurrentPage);
+      final totalPages = _getTotalPages(_filteredStockSummaryData.length);
       
       return Column(
         children: [
@@ -3603,7 +3838,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text('Sold: ${_valueReportRows.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt()}', 
+                          Text('Sold: ${_filteredStockSummaryData.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt()}', 
                                style: const TextStyle(fontWeight: FontWeight.bold)),
                           Text('Remaining: ${row['quantity_remaining']?.toString() ?? ''}'),
                         ],
@@ -3662,7 +3897,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         ),
                       ),
                       Text(
-                        '${(_stockSummaryCurrentPage * _itemsPerPage) + 1}-${(_stockSummaryCurrentPage + 1) * _itemsPerPage} of ${_valueReportRows.length}',
+                        '${(_stockSummaryCurrentPage * _itemsPerPage) + 1}-${(_stockSummaryCurrentPage + 1) * _itemsPerPage} of ${_filteredStockSummaryData.length}',
                         style: TextStyle(
                           fontSize: 10,
                           color: Colors.grey[600],
@@ -3690,8 +3925,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
 
     // Desktop layout - table with pagination
-    final paginatedData = _getPaginatedData(_valueReportRows, _stockSummaryCurrentPage);
-    final totalPages = _getTotalPages(_valueReportRows.length);
+    final paginatedData = _getPaginatedData(_filteredStockSummaryData, _stockSummaryCurrentPage);
+    final totalPages = _getTotalPages(_filteredStockSummaryData.length);
     
     return Column(
       children: [
@@ -3736,10 +3971,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
               DataCell(Text(t(context, 'TOTAL'), style: TextStyle(fontWeight: FontWeight.bold))),
               const DataCell(Text('')),
               const DataCell(Text('')),
-              DataCell(Text(_valueReportRows.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt().toString(), style: TextStyle(fontWeight: FontWeight.bold))),
+              DataCell(Text(_filteredStockSummaryData.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt().toString(), style: TextStyle(fontWeight: FontWeight.bold))),
               const DataCell(Text('')),
-              DataCell(Text(_valueReportRows.fold<double>(0, (sum, r) => sum + _safeToDouble(r['revenue'])).toStringAsFixed(2), style: TextStyle(fontWeight: FontWeight.bold))),
-              DataCell(Text(_valueReportRows.fold<double>(0, (sum, r) => sum + _safeToDouble(r['profit'])).toStringAsFixed(2), style: TextStyle(fontWeight: FontWeight.bold))),
+              DataCell(Text(_filteredStockSummaryData.fold<double>(0, (sum, r) => sum + _safeToDouble(r['revenue'])).toStringAsFixed(2), style: TextStyle(fontWeight: FontWeight.bold))),
+              DataCell(Text(_filteredStockSummaryData.fold<double>(0, (sum, r) => sum + _safeToDouble(r['profit'])).toStringAsFixed(2), style: TextStyle(fontWeight: FontWeight.bold))),
               const DataCell(Text('')),
             ],
           ),
@@ -3762,7 +3997,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Showing ${(_stockSummaryCurrentPage * _itemsPerPage) + 1} to ${(_stockSummaryCurrentPage + 1) * _itemsPerPage} of ${_valueReportRows.length} entries',
+                  'Showing ${(_stockSummaryCurrentPage * _itemsPerPage) + 1} to ${(_stockSummaryCurrentPage + 1) * _itemsPerPage} of ${_filteredStockSummaryData.length} entries',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: isSmallMobile ? 10 : 12,

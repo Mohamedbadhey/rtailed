@@ -2,7 +2,7 @@ name: Build & Deploy Flutter Web to GitHub Pages
 
 on:
   push:
-    branches: ["master"]   # or "main"
+    branches: ["master"]   # or change to "main" if that's your default branch
   workflow_dispatch:
 
 permissions:
@@ -12,12 +12,11 @@ permissions:
 
 concurrency:
   group: "pages"
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -41,8 +40,11 @@ jobs:
           path: frontend/build/web
 
   deploy:
-    runs-on: ubuntu-latest
     needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

@@ -1,6 +1,23 @@
 [build]
 builder = "nixpacks"
-source = "backend"
+source = "./backend"
+nixpacksConfigPath = "./backend/.nixpacks"
+ignore = [
+  "frontend/", 
+  "*.dart", 
+  "pubspec.yaml", 
+  "pubspec.lock",
+  "lib/", 
+  "web/",
+  "*.js",
+  "*.html", 
+  "*.css",
+  "*.png",
+  "*.ico",
+  "*.json",
+  "!backend/package.json",
+  "!backend/package-lock.json"
+]
 
 [deploy]
 startCommand = "npm start"

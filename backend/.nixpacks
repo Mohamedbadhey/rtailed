@@ -1,0 +1,15 @@
+[phases.setup]
+nixPkgs = ["nodejs_22", "npm-9_x"]
+
+[phases.install]
+cmds = ["npm i"]
+
+[phases.build]
+cmds = ["echo 'Building Node.js backend...'"]
+
+[start]
+cmd = "npm start"
+
+[variables]
+NIXPACKS_NODE_VERSION = "22"
+NIXPACKS_NPM_VERSION = "9"

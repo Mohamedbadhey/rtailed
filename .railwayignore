@@ -1,22 +1,38 @@
-# Frontend files (not needed for backend deployment)
+# Force Railway to use Node.js instead of Dart/Flutter
+pubspec.yaml
+pubspec.lock
+*.dart
 frontend/
+lib/
+web/
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Flutter web build files
+*.js
+*.html
+*.css
+*.png
+*.ico
+*.json
+!package.json
+!package-lock.json
+!railway.json
+!railway.toml
+
+# Test and documentation files
 *.bat
 *.md
-.git/
-node_modules/
-uploads/*
-!uploads/.gitkeep
-
-# Documentation files
-*.md
 !README.md
+.git/
 
-# Backup files
-backups/
+# Database files
 *.sql
 !setup_railway_database.sql
-!retail_management (3).sql
 
 # Temporary files
 *.tmp
-*.temp 
+*.temp
+*.log 

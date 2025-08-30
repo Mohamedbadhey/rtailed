@@ -352,11 +352,28 @@ class _ReportsScreenState extends State<ReportsScreen> {
           print('    Transaction Type: ${tx['transaction_type']}');
           print('    Reference ID: ${tx['reference_id']}');
           print('    Sale ID: ${tx['sale_id']}');
+          
+          // Check ALL available fields to see if there are any name mismatches
+          print('    🔍 ALL AVAILABLE FIELDS:');
+          tx.forEach((key, value) {
+            print('      $key: $value (type: ${value?.runtimeType})');
+          });
           print('    ---');
         }
       }
       
       setState(() => _productTransactions = List<Map<String, dynamic>>.from(data));
+      
+      // Test: Check if cost price field exists in the data
+      if (data.isNotEmpty) {
+        final firstTx = data.first;
+        print('🔍 REPORTS TEST: Checking field existence:');
+        print('  Has product_cost_price: ${firstTx.containsKey('product_cost_price')}');
+        print('  Has sale_unit_price: ${firstTx.containsKey('sale_unit_price')}');
+        print('  Has sale_total_price: ${firstTx.containsKey('sale_total_price')}');
+        print('  Has profit: ${firstTx.containsKey('profit')}');
+        print('  All keys: ${firstTx.keys.toList()}');
+      }
     } catch (e) {
       print('🔍 REPORTS: Error loading product transactions: $e');
       setState(() => _productTxError = e.toString());

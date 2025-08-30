@@ -337,6 +337,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
       
       final data = await _apiService.getInventoryTransactions(params);
       print('🔍 REPORTS: Received ${data.length} product transactions');
+      
+      // Debug: Log first few transactions to see the data structure
+      if (data.isNotEmpty) {
+        print('🔍 REPORTS: Sample transaction data:');
+        for (int i = 0; i < data.length && i < 3; i++) {
+          final tx = data[i];
+          print('  Transaction $i:');
+          print('    Product: ${tx['product_name']}');
+          print('    Cost Price: ${tx['product_cost_price']} (type: ${tx['product_cost_price']?.runtimeType})');
+          print('    Unit Price: ${tx['sale_unit_price']} (type: ${tx['sale_unit_price']?.runtimeType})');
+          print('    Total Price: ${tx['sale_total_price']} (type: ${tx['sale_total_price']?.runtimeType})');
+          print('    Profit: ${tx['profit']} (type: ${tx['profit']?.runtimeType})');
+          print('    Transaction Type: ${tx['transaction_type']}');
+          print('    Reference ID: ${tx['reference_id']}');
+          print('    Sale ID: ${tx['sale_id']}');
+          print('    ---');
+        }
+      }
+      
       setState(() => _productTransactions = List<Map<String, dynamic>>.from(data));
     } catch (e) {
       print('🔍 REPORTS: Error loading product transactions: $e');
@@ -404,6 +423,30 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return 0.0;
   }
 
+  String formatCostPrice(dynamic costPrice) {
+    if (costPrice == null) return '-';
+    
+    print('🔍 REPORTS FORMAT: Formatting cost price:');
+    print('  Raw value: $costPrice');
+    print('  Type: ${costPrice.runtimeType}');
+    
+    double? numericValue;
+    if (costPrice is num) {
+      numericValue = costPrice.toDouble();
+    } else if (costPrice is String) {
+      numericValue = double.tryParse(costPrice);
+    }
+    
+    if (numericValue != null) {
+      final formatted = '\$${numericValue.toStringAsFixed(2)}';
+      print('  Formatted result: $formatted');
+      return formatted;
+    }
+    
+    print('  Could not format, returning: -');
+    return '-';
+  }
+
   String _formatMetricValue(dynamic value) {
     if (value == null) return '0';
     if (value is num) {
@@ -468,6 +511,21 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Widget _buildMobileProductTransactionsCards(List<Map<String, dynamic>> transactions, bool isSmallMobile) {
     if (transactions.isEmpty) {
       return Text(t(context, 'no_transactions_found_for_product'));
+    }
+
+    // Debug: Log first transaction data for mobile view
+    if (transactions.isNotEmpty) {
+      final tx = transactions.first;
+      print('🔍 REPORTS MOBILE: First transaction data:');
+      print('  Product: ${tx['product_name']}');
+      print('  Cost Price: ${tx['product_cost_price']} (type: ${tx['product_cost_price']?.runtimeType})');
+      print('  Unit Price: ${tx['sale_unit_price']} (type: ${tx['sale_unit_price']?.runtimeType})');
+      print('  Total Price: ${tx['sale_total_price']} (type: ${tx['sale_total_price']?.runtimeType})');
+      print('  Profit: ${tx['profit']} (type: ${tx['profit']?.runtimeType})');
+      print('  Transaction Type: ${tx['transaction_type']}');
+      print('  Reference ID: ${tx['reference_id']}');
+      print('  Sale ID: ${tx['sale_id']}');
+      print('  ---');
     }
 
     return ListView.builder(
@@ -633,9 +691,33 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ),
                 SizedBox(height: isSmallMobile ? 8 : 12),
                 
-                // Unit Price + Total Price
+                // Cost Price + Unit Price
                 Row(
                   children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Cost Price:',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 10 : 11,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            formatCostPrice(tx['product_cost_price']),
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: isSmallMobile ? 8 : 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -659,7 +741,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         ],
                       ),
                     ),
-                    SizedBox(width: isSmallMobile ? 8 : 12),
+                  ],
+                ),
+                SizedBox(height: isSmallMobile ? 8 : 12),
+                
+                // Total Price + Profit
+                Row(
+                  children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -683,13 +771,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         ],
                       ),
                     ),
-                  ],
-                ),
-                SizedBox(height: isSmallMobile ? 8 : 12),
-                
-                // Profit + Customer
-                Row(
-                  children: [
+                    SizedBox(width: isSmallMobile ? 8 : 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -713,7 +795,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         ],
                       ),
                     ),
-                    SizedBox(width: isSmallMobile ? 8 : 12),
+                  ],
+                ),
+                SizedBox(height: isSmallMobile ? 8 : 12),
+                
+                // Customer + Payment Method
+                Row(
+                  children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -737,13 +825,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         ],
                       ),
                     ),
-                  ],
-                ),
-                SizedBox(height: isSmallMobile ? 8 : 12),
-                
-                // Payment Method + Sale ID
-                Row(
-                  children: [
+                    SizedBox(width: isSmallMobile ? 8 : 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -767,7 +849,69 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         ],
                       ),
                     ),
+                  ],
+                ),
+                SizedBox(height: isSmallMobile ? 8 : 12),
+                
+                // Sale Mode + Cashier
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Sale Mode:',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 10 : 11,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            (tx['sale_mode'] ?? '').toString().isNotEmpty 
+                              ? (tx['sale_mode'] == 'wholesale' ? 'Wholesale' : 'Retail')
+                              : '-',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     SizedBox(width: isSmallMobile ? 8 : 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Cashier:',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 10 : 11,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            tx['cashier_name'] ?? '-',
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.brown[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: isSmallMobile ? 8 : 12),
+                
+                // Sale ID + Status
+                Row(
+                  children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -785,19 +929,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             style: TextStyle(
                               fontSize: isSmallMobile ? 12 : 14,
                               fontWeight: FontWeight.bold,
-                              color: Colors.orange[700],
+                              color: Colors.cyan[700],
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-                SizedBox(height: isSmallMobile ? 8 : 12),
-                
-                // Status + Mode
-                Row(
-                  children: [
+                    SizedBox(width: isSmallMobile ? 8 : 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -821,58 +959,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         ],
                       ),
                     ),
-                    SizedBox(width: isSmallMobile ? 8 : 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Mode:',
-                            style: TextStyle(
-                              fontSize: isSmallMobile ? 10 : 11,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          Text(
-                            (tx['sale_mode'] ?? '').toString().isNotEmpty 
-                                ? (tx['sale_mode'] == 'wholesale' ? t(context, 'wholesale') : t(context, 'retail'))
-                                : '-',
-                            style: TextStyle(
-                              fontSize: isSmallMobile ? 12 : 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.amber[700],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
                 SizedBox(height: isSmallMobile ? 8 : 12),
                 
-                // Cashier
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Cashier:',
-                      style: TextStyle(
-                        fontSize: isSmallMobile ? 10 : 11,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      tx['cashier_name'] ?? '-',
-                      style: TextStyle(
-                        fontSize: isSmallMobile ? 12 : 14,
-                        fontWeight: FontWeight.bold,
-                        color: isDamaged ? Colors.orange[700] : Colors.grey[800],
-                      ),
-                    ),
-              ],
-            ),
+
+                
+                
           ],
         ),
       ),
@@ -1250,6 +1343,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                       DataColumn(label: Text(t(context, 'Type'))),
                                       DataColumn(label: Text(t(context, 'Quantity'))),
                                       DataColumn(label: Text(t(context, 'Notes'))),
+                                      DataColumn(label: Text(t(context, 'Cost Price'))),
                                       DataColumn(label: Text(t(context, 'Unit Price'))),
                                       DataColumn(label: Text(t(context, 'Total Price'))),
                                       DataColumn(label: Text(t(context, 'Profit'))),
@@ -1261,6 +1355,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                       DataColumn(label: Text(t(context, 'Cashier'))),
                                     ],
                                     rows: _productTransactions.map((tx) {
+                                      // Debug: Log transaction data being rendered
+                                      if (tx['product_name'] != null) {
+                                        print('🔍 REPORTS RENDER: Rendering transaction:');
+                                        print('  Product: ${tx['product_name']}');
+                                        print('  Cost Price: ${tx['product_cost_price']} (type: ${tx['product_cost_price']?.runtimeType})');
+                                        print('  Unit Price: ${tx['sale_unit_price']} (type: ${tx['sale_unit_price']?.runtimeType})');
+                                        print('  Total Price: ${tx['sale_total_price']} (type: ${tx['sale_total_price']?.runtimeType})');
+                                        print('  Profit: ${tx['profit']} (type: ${tx['profit']?.runtimeType})');
+                                        print('  ---');
+                                      }
+                                      
                                       // Check if this is a damaged product transaction
                                       final isDamaged = tx['transaction_type'] == 'adjustment' && 
                                                        tx['notes'] != null && 
@@ -1319,14 +1424,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                               ),
                                             ),
                                           ),
-                                          DataCell(Text(tx['sale_unit_price'] != null ? tx['sale_unit_price'].toString() : '')),
-                                          DataCell(Text(tx['sale_total_price'] != null ? tx['sale_total_price'].toString() : '')),
-                                          DataCell(Text(tx['profit'] != null ? tx['profit'].toString() : '')),
-                                          DataCell(Text(tx['customer_name'] ?? '')),
-                                          DataCell(Text(tx['payment_method'] ?? '')),
+                                          DataCell(Text(formatCostPrice(tx['product_cost_price']))),
+                                          DataCell(Text(tx['sale_unit_price'] != null ? '\$${tx['sale_unit_price']}' : '-')),
+                                          DataCell(Text(tx['sale_total_price'] != null ? '\$${tx['sale_total_price']}' : '-')),
+                                          DataCell(Text(tx['profit'] != null ? '\$${tx['profit']}' : '-')),
+                                          DataCell(Text(tx['customer_name'] ?? '-')),
+                                          DataCell(Text(tx['payment_method'] ?? '-')),
                                           DataCell(Text(tx['sale_id']?.toString() ?? '')),
-                                          DataCell(Text(tx['status'] ?? '')),
-                                          DataCell(Text((tx['sale_mode'] ?? '').toString().isNotEmpty ? (tx['sale_mode'] == 'wholesale' ? t(context, 'wholesale') : t(context, 'retail')) : '')),
+                                          DataCell(Text(tx['status'] ?? '-')),
+                                          DataCell(Text((tx['sale_mode'] ?? '').toString().isNotEmpty ? (tx['sale_mode'] == 'wholesale' ? t(context, 'wholesale') : t(context, 'retail')) : '-')),
                                           DataCell(
                                             Text(
                                               tx['cashier_name'] ?? '',

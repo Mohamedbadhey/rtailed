@@ -210,13 +210,44 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
       query = query.replace('WHERE it.business_id = ?', '');
       params = params.slice(1); // Remove business_id from params
       console.log('🔍 INVENTORY TRANSACTIONS: Superadmin - removed business_id filter');
+    } else {
+      console.log('🔍 INVENTORY TRANSACTIONS: Regular user - using business_id filter:', req.user.business_id);
     }
     
     console.log('🔍 INVENTORY TRANSACTIONS: Final query:', query);
     console.log('🔍 INVENTORY TRANSACTIONS: Final params:', params);
     
+    // Test: Check if products table has cost_price data
+    try {
+      const [testProducts] = await pool.query(
+        'SELECT id, name, cost_price FROM products WHERE business_id = ? LIMIT 3',
+        [req.user.business_id]
+      );
+      console.log('🔍 INVENTORY TRANSACTIONS: Test products with cost_price:', testProducts);
+    } catch (testError) {
+      console.log('🔍 INVENTORY TRANSACTIONS: Error testing products:', testError.message);
+    }
+    
     const [transactions] = await pool.query(query, params);
     console.log('🔍 INVENTORY TRANSACTIONS: Found', transactions.length, 'transactions');
+    
+    // Debug: Log first few transactions to see the data structure
+    if (transactions.length > 0) {
+      console.log('🔍 INVENTORY TRANSACTIONS: Sample transaction data:');
+      for (let i = 0; i < Math.min(3, transactions.length); i++) {
+        const tx = transactions[i];
+        console.log(`  Transaction ${i}:`);
+        console.log(`    Product: ${tx.product_name}`);
+        console.log(`    Cost Price: ${tx.product_cost_price} (type: ${typeof tx.product_cost_price})`);
+        console.log(`    Unit Price: ${tx.sale_unit_price} (type: ${typeof tx.sale_unit_price})`);
+        console.log(`    Total Price: ${tx.sale_total_price} (type: ${typeof tx.sale_total_price})`);
+        console.log(`    Profit: ${tx.profit} (type: ${typeof tx.profit})`);
+        console.log(`    Transaction Type: ${tx.transaction_type}`);
+        console.log(`    Reference ID: ${tx.reference_id}`);
+        console.log(`    Sale ID: ${tx.sale_id}`);
+        console.log(`    ---`);
+      }
+    }
     
     res.json(transactions);
   } catch (error) {

@@ -2759,14 +2759,52 @@ class _InventoryScreenState extends State<InventoryScreen> {
       );
       
       if (mounted) {
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('PDF exported successfully! $result'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        // Handle the new return type
+        if (result is Map<String, dynamic>) {
+          if (result['success'] == true) {
+            // Show success message with file location
+            String message = 'PDF exported successfully!';
+            if (result['userFriendlyPath'] != null) {
+              message += '\nSaved to: ${result['userFriendlyPath']}';
+            } else if (result['directory'] != null && result['directory'] != 'Browser Downloads') {
+              message += '\nSaved to: ${result['directory']}';
+            }
+            if (result['fileName'] != null) {
+              message += '\nFile: ${result['fileName']}';
+            }
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(message),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 5),
+                action: SnackBarAction(
+                  label: 'OK',
+                  textColor: Colors.white,
+                  onPressed: () {},
+                ),
+              ),
+            );
+          } else {
+            // Show error message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to export PDF: ${result['message'] ?? 'Unknown error'}'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+        } else {
+          // Fallback for old return type
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('PDF exported successfully! $result'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -2803,14 +2841,52 @@ class _InventoryScreenState extends State<InventoryScreen> {
       );
       
       if (mounted) {
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Stock Summary PDF exported successfully! $result'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        // Handle the new return type
+        if (result is Map<String, dynamic>) {
+          if (result['success'] == true) {
+            // Show success message with file location
+            String message = 'Stock Summary PDF exported successfully!';
+            if (result['userFriendlyPath'] != null) {
+              message += '\nSaved to: ${result['userFriendlyPath']}';
+            } else if (result['directory'] != null && result['directory'] != 'Browser Downloads') {
+              message += '\nSaved to: ${result['directory']}';
+            }
+            if (result['fileName'] != null) {
+              message += '\nFile: ${result['fileName']}';
+            }
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(message),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 5),
+                action: SnackBarAction(
+                  label: 'OK',
+                  textColor: Colors.white,
+                  onPressed: () {},
+                ),
+              ),
+            );
+          } else {
+            // Show error message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to export Stock Summary PDF: ${result['message'] ?? 'Unknown error'}'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+        } else {
+          // Fallback for old return type
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Stock Summary PDF exported successfully! $result'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

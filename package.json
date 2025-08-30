@@ -8,8 +8,6 @@
     "dev": "nodemon backend/src/index.js",
     "backend:start": "cd backend && npm start",
     "backend:dev": "cd backend && npm run dev",
-    "frontend:start": "cd frontend && flutter run -d chrome",
-    "frontend:build": "cd frontend && flutter build web",
     "setup": "cd backend && npm run setup"
   },
   "dependencies": {

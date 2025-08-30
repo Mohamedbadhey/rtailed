@@ -124,6 +124,80 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
     
     console.log('🔍 INVENTORY TRANSACTIONS: Request params:', { start_date, end_date, user_id });
     console.log('🔍 INVENTORY TRANSACTIONS: User:', req.user.id, req.user.role, req.user.business_id);
+    console.log('🔍 INVENTORY TRANSACTIONS: Business ID type:', typeof req.user.business_id);
+    console.log('🔍 INVENTORY TRANSACTIONS: Business ID value:', req.user.business_id);
+    
+    // Test: Run the exact working query to see if it works
+    try {
+      const [testWorkingQuery] = await pool.query(
+        `SELECT 
+          it.id,
+          it.created_at,
+          it.transaction_type,
+          it.quantity,
+          it.notes,
+          it.reference_id,
+          p.name AS product_name,
+          p.cost_price AS product_cost_price,
+          s.id AS sale_id,
+          s.status,
+          s.payment_method,
+          s.sale_mode,
+          COALESCE(s.user_id, dp.reported_by) AS cashier_id,
+          COALESCE(u.username, dp_reporter.username) AS cashier_name,
+          c.name AS customer_name,
+          si.unit_price AS sale_unit_price,
+          si.total_price AS sale_total_price,
+          (si.total_price - (si.quantity * p.cost_price)) AS profit
+        FROM inventory_transactions it
+        LEFT JOIN products p ON it.product_id = p.id
+        LEFT JOIN sales s ON it.reference_id = s.id
+        LEFT JOIN users u ON s.user_id = u.id
+        LEFT JOIN customers c ON s.customer_id = c.id
+        LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id
+        LEFT JOIN damaged_products dp ON it.notes LIKE CONCAT('%Damaged:%') AND dp.product_id = it.product_id AND dp.created_at = it.created_at
+        LEFT JOIN users dp_reporter ON dp.reported_by = dp_reporter.id
+        WHERE it.business_id = ?
+        ORDER BY it.created_at DESC
+        LIMIT 3`,
+        [req.user.business_id]
+      );
+      console.log('🔍 INVENTORY TRANSACTIONS: Test working query result:', testWorkingQuery);
+      
+      if (testWorkingQuery.length > 0) {
+        const firstResult = testWorkingQuery[0];
+        console.log('🔍 INVENTORY TRANSACTIONS: First result fields:', Object.keys(firstResult));
+        console.log('🔍 INVENTORY TRANSACTIONS: Has product_cost_price:', firstResult.hasOwnProperty('product_cost_price'));
+        console.log('🔍 INVENTORY TRANSACTIONS: product_cost_price value:', firstResult.product_cost_price);
+        
+        // Check for case sensitivity issues - look for any field that might contain 'cost'
+        const costRelatedFields = Object.keys(firstResult).filter(key => 
+          key.toLowerCase().includes('cost') || 
+          key.toLowerCase().includes('price')
+        );
+        console.log('🔍 INVENTORY TRANSACTIONS: Cost/price related fields:', costRelatedFields);
+        
+        // Check raw data for any field variations
+        console.log('🔍 INVENTORY TRANSACTIONS: Raw first result:', JSON.stringify(firstResult, null, 2));
+        
+        // Test: Check if MySQL is returning the field with different case
+        const allFields = Object.keys(firstResult);
+        const costFieldVariations = allFields.filter(key => 
+          key.toLowerCase().includes('cost') || 
+          key.toLowerCase().includes('price')
+        );
+        console.log('🔍 INVENTORY TRANSACTIONS: All fields with cost/price:', costFieldVariations);
+        
+        // Test: Check if the field exists with exact case match
+        console.log('🔍 INVENTORY TRANSACTIONS: Exact field checks:');
+        console.log('  product_cost_price:', firstResult.product_cost_price);
+        console.log('  PRODUCT_COST_PRICE:', firstResult.PRODUCT_COST_PRICE);
+        console.log('  Product_Cost_Price:', firstResult.Product_Cost_Price);
+        console.log('  productCostPrice:', firstResult.productCostPrice);
+      }
+    } catch (testError) {
+      console.log('🔍 INVENTORY TRANSACTIONS: Error testing working query:', testError.message);
+    }
     
     let query = `
       SELECT 
@@ -224,12 +298,72 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
         [req.user.business_id]
       );
       console.log('🔍 INVENTORY TRANSACTIONS: Test products with cost_price:', testProducts);
+      
+      // Test: Check inventory_transactions to see what product_ids we have
+      const [testTransactions] = await pool.query(
+        'SELECT id, product_id, transaction_type, reference_id FROM inventory_transactions WHERE business_id = ? LIMIT 5',
+        [req.user.business_id]
+      );
+      console.log('🔍 INVENTORY TRANSACTIONS: Test inventory_transactions:', testTransactions);
+      
+      // Test: Check if the JOIN is working by testing a specific transaction
+      if (testTransactions.length > 0) {
+        const testTx = testTransactions[0];
+        const [testJoin] = await pool.query(
+          `SELECT 
+            it.id,
+            it.product_id,
+            it.business_id AS transaction_business_id,
+            p.id AS product_table_id,
+            p.business_id AS product_business_id,
+            p.name AS product_name,
+            p.cost_price AS product_cost_price
+          FROM inventory_transactions it
+          LEFT JOIN products p ON it.product_id = p.id
+          WHERE it.id = ?`,
+          [testTx.id]
+        );
+        console.log('🔍 INVENTORY TRANSACTIONS: Test JOIN result:', testJoin);
+        
+        // Test: Check if products exist for this business
+        const [productsForBusiness] = await pool.query(
+          'SELECT id, name, cost_price, business_id FROM products WHERE business_id = ? LIMIT 3',
+          [req.user.business_id]
+        );
+        console.log('🔍 INVENTORY TRANSACTIONS: Products for business:', productsForBusiness);
+        
+        // Test: Check if the JOIN condition is working by testing the exact JOIN
+        const [testExactJoin] = await pool.query(
+          `SELECT 
+            it.id,
+            it.product_id,
+            it.business_id AS transaction_business_id,
+            p.id AS product_table_id,
+            p.business_id AS product_business_id,
+            p.name AS product_name,
+            p.cost_price AS product_cost_price
+          FROM inventory_transactions it
+          LEFT JOIN products p ON it.product_id = p.id
+          WHERE it.business_id = ?
+          LIMIT 3`,
+          [req.user.business_id]
+        );
+        console.log('🔍 INVENTORY TRANSACTIONS: Test exact JOIN with business filter:', testExactJoin);
+      }
     } catch (testError) {
       console.log('🔍 INVENTORY TRANSACTIONS: Error testing products:', testError.message);
     }
     
     const [transactions] = await pool.query(query, params);
     console.log('🔍 INVENTORY TRANSACTIONS: Found', transactions.length, 'transactions');
+    
+    // Test: Check what fields are actually returned
+    if (transactions.length > 0) {
+      const firstTx = transactions[0];
+      console.log('🔍 INVENTORY TRANSACTIONS: First transaction fields:');
+      console.log('  All keys:', Object.keys(firstTx));
+      console.log('  Raw data:', firstTx);
+    }
     
     // Debug: Log first few transactions to see the data structure
     if (transactions.length > 0) {

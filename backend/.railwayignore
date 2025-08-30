@@ -1,0 +1,32 @@
+# Flutter web build files (not needed for backend deployment)
+web-app/
+*.dart
+*.js
+*.html
+*.css
+*.png
+*.ico
+*.json
+!package.json
+!package-lock.json
+
+# Test and debug files
+test_*.js
+debug_*.js
+*.bat
+*.md
+!README.md
+
+# Database files
+*.sql
+!setup_railway_database.sql
+
+# Temporary and backup files
+*.tmp
+*.temp
+*.log
+uploads/*
+!uploads/.gitkeep
+
+# Node modules (will be installed by Railway)
+node_modules/

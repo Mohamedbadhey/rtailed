@@ -1,22 +1,18 @@
 [build]
 builder = "nixpacks"
-source = "backend"
-nixpacksConfigPath = "backend/.nixpacks"
-ignore = [
-  "pubspec.yaml",
-  "pubspec.lock", 
-  "*.dart",
-  "frontend/",
-  "lib/",
-  "web/",
-  "build/",
-  ".dart_tool/",
-  ".flutter-plugins",
-  ".flutter-plugins-dependencies",
-  "*"
-]
 providers = ["nodejs"]
-rootDir = "backend"
+
+[phases.setup]
+nixPkgs = ["nodejs_18", "npm-9_x"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["echo 'Building Node.js backend...'"]
+
+[start]
+cmd = "npm start"
 
 [phases.setup]
 nixPkgs = ["nodejs_22", "npm-9_x"]

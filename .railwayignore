@@ -1,38 +1,12 @@
 # Force Railway to use Node.js instead of Dart/Flutter
-pubspec.yaml
-pubspec.lock
-*.dart
-frontend/
-lib/
-web/
-build/
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
+# Completely ignore everything except backend
+*
+!backend/
+!backend/**
 
-# Flutter web build files
-*.js
-*.html
-*.css
-*.png
-*.ico
-*.json
-!package.json
-!package-lock.json
-!railway.json
-!railway.toml
-
-# Test and documentation files
-*.bat
-*.md
-!README.md
-.git/
-
-# Database files
-*.sql
-!setup_railway_database.sql
-
-# Temporary files
-*.tmp
-*.temp
-*.log 
+# Allow only essential backend files
+!backend/package.json
+!backend/package-lock.json
+!backend/src/
+!backend/.nixpacks
+!backend/railway.json 

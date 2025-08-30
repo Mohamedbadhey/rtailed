@@ -1,23 +1,58 @@
 [build]
 builder = "nixpacks"
-source = "./backend"
-nixpacksConfigPath = "./backend/.nixpacks"
+source = "backend"
+nixpacksConfigPath = "backend/.nixpacks"
 ignore = [
-  "frontend/", 
-  "*.dart", 
-  "pubspec.yaml", 
-  "pubspec.lock",
-  "lib/", 
+  "pubspec.yaml",
+  "pubspec.lock", 
+  "*.dart",
+  "frontend/",
+  "lib/",
   "web/",
-  "*.js",
-  "*.html", 
-  "*.css",
-  "*.png",
-  "*.ico",
-  "*.json",
-  "!backend/package.json",
-  "!backend/package-lock.json"
+  "build/",
+  ".dart_tool/",
+  ".flutter-plugins",
+  ".flutter-plugins-dependencies",
+  "*"
 ]
+providers = ["nodejs"]
+rootDir = "backend"
+
+[phases.setup]
+nixPkgs = ["nodejs_22", "npm-9_x"]
+
+[phases.install]
+cmds = ["npm i"]
+
+[phases.build]
+cmds = ["echo 'Building Node.js backend...'"]
+
+[start]
+cmd = "npm start"
+
+[phases.setup]
+nixPkgs = ["nodejs_22", "npm-9_x"]
+
+[phases.install]
+cmds = ["npm i"]
+
+[phases.build]
+cmds = ["echo 'Building Node.js backend...'"]
+
+[start]
+cmd = "npm start"
+
+[phases.setup]
+nixPkgs = ["nodejs_22", "npm-9_x"]
+
+[phases.install]
+cmds = ["npm i"]
+
+[phases.build]
+cmds = ["echo 'Building Node.js backend...'"]
+
+[start]
+cmd = "npm start"
 
 [deploy]
 startCommand = "npm start"

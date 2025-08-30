@@ -717,11 +717,19 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> getInventoryReport({String? startDate, String? endDate}) async {
+  Future<Map<String, dynamic>> getInventoryReport({
+    String? startDate, 
+    String? endDate, 
+    int? categoryId, 
+    int? productId
+  }) async {
     try {
       final queryParams = <String, String>{};
       if (startDate != null) queryParams['start_date'] = startDate;
       if (endDate != null) queryParams['end_date'] = endDate;
+      if (categoryId != null) queryParams['category_id'] = categoryId.toString();
+      if (productId != null) queryParams['product_id'] = productId.toString();
+      
       final uri = Uri.parse('$baseUrl/api/inventory/value-report').replace(queryParameters: queryParams);
       final response = await http.get(uri, headers: _headers);
       if (response.statusCode == 200) {

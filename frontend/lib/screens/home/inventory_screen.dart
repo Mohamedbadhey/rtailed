@@ -303,9 +303,79 @@ class _InventoryScreenState extends State<InventoryScreen> {
       _valueReportError = null;
     });
     try {
+      // Apply filter logic based on selected filter type
+      DateTime? startDate;
+      DateTime? endDate;
+      
+      final now = DateTime.now();
+      
+      switch (_stockSummaryFilterType) {
+        case 'Today':
+          startDate = DateTime(now.year, now.month, now.day);
+          endDate = startDate.add(Duration(days: 1)).subtract(Duration(milliseconds: 1));
+          break;
+        case 'This Week':
+          startDate = now.subtract(Duration(days: now.weekday - 1));
+          endDate = startDate.add(Duration(days: 7)).subtract(Duration(milliseconds: 1));
+          break;
+        case 'This Month':
+          startDate = DateTime(now.year, now.month, 1);
+          endDate = DateTime(now.year, now.month + 1, 1).subtract(Duration(milliseconds: 1));
+          break;
+        case 'Custom':
+          // Use existing custom date range
+          startDate = _stockSummaryStartDate;
+          endDate = _stockSummaryEndDate;
+          break;
+        default:
+          // Default to Today if no filter selected
+          startDate = DateTime(now.year, now.month, now.day);
+          endDate = startDate.add(Duration(days: 1)).subtract(Duration(milliseconds: 1));
+      }
+      
+      print('🔍 Stock Summary Filter: $_stockSummaryFilterType');
+      print('🔍 Start Date: $startDate');
+      print('🔍 End Date: $endDate');
+      
+      // Prepare filter parameters
+      final Map<String, dynamic> filterParams = {};
+      if (startDate != null) filterParams['start_date'] = startDate.toIso8601String();
+      if (endDate != null) filterParams['end_date'] = endDate.toIso8601String();
+      
+      // Add category filter
+      if (_selectedReportCategory != null && _selectedReportCategory != 'All') {
+        final cat = _categoryList.firstWhere(
+          (c) => c['name'] == _selectedReportCategory,
+          orElse: () => <String, dynamic>{},
+        );
+        if (cat.isNotEmpty) filterParams['category_id'] = cat['id'];
+      }
+      
+      // Add product filter
+      if (_selectedReportProduct != null && _selectedReportProduct != 'All') {
+        final prod = _products.firstWhere(
+          (p) => p.name == _selectedReportProduct,
+          orElse: () => Product(
+            id: -1,
+            name: '',
+            sku: '',
+            price: 0,
+            costPrice: 0,
+            stockQuantity: 0,
+            damagedQuantity: 0,
+            lowStockThreshold: 0,
+          ),
+        );
+        if (prod.id != -1) filterParams['product_id'] = prod.id;
+      }
+      
+      print('🔍 Stock Summary Filters: $filterParams');
+      
       final data = await _apiService.getInventoryReport(
-        startDate: _stockSummaryStartDate?.toIso8601String(),
-        endDate: _stockSummaryEndDate?.toIso8601String(),
+        startDate: startDate?.toIso8601String(),
+        endDate: endDate?.toIso8601String(),
+        categoryId: filterParams['category_id'],
+        productId: filterParams['product_id'],
       );
       setState(() {
         _valueReportRows = List<Map<String, dynamic>>.from(data['products'] ?? []);
@@ -940,11 +1010,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      isSmallMobile ? 'Stock Summary' : t(context, 'Stock Summary'), 
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold, 
-                                        fontSize: isSmallMobile ? 11 : 13,
-                                      ),
+                                isSmallMobile ? 'Stock Summary' : t(context, 'Stock Summary'), 
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: isSmallMobile ? 11 : 13,
+                                ),
                                     ),
                                   ),
                                   if (_valueReportRows.isNotEmpty)
@@ -976,11 +1046,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      isSmallMobile ? 'Recent Transactions' : t(context, 'Recent Transactions'), 
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold, 
-                                        fontSize: isSmallMobile ? 11 : 13,
-                                      ),
+                                isSmallMobile ? 'Recent Transactions' : t(context, 'Recent Transactions'), 
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: isSmallMobile ? 11 : 13,
+                                ),
                                     ),
                                   ),
                                   if (_recentTransactions.isNotEmpty)
@@ -1023,11 +1093,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      'Todays Transactions', 
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold, 
-                                        fontSize: isSmallMobile ? 11 : 13,
-                                      ),
+                                'Todays Transactions', 
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: isSmallMobile ? 11 : 13,
+                                ),
                                     ),
                                   ),
                                   if (_todayTransactions.isNotEmpty)
@@ -1070,11 +1140,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      'This Weeks Transactions', 
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold, 
-                                        fontSize: isSmallMobile ? 11 : 13,
-                                      ),
+                                'This Weeks Transactions', 
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: isSmallMobile ? 11 : 13,
+                                ),
                                     ),
                                   ),
                                   if (_weekTransactions.isNotEmpty)
@@ -1117,11 +1187,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      'Filter Transactions by Date', 
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold, 
-                                        fontSize: isSmallMobile ? 11 : 13,
-                                      ),
+                                'Filter Transactions by Date', 
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: isSmallMobile ? 11 : 13,
+                                ),
                                     ),
                                   ),
                                   if (_filteredTransactions.isNotEmpty)
@@ -2830,6 +2900,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         _filterStartDate = date;
                       });
                       _loadFilteredTransactions();
+                      _fetchInventoryValueReport(); // Also refresh stock summary
                     }
                   },
                   child: Padding(
@@ -2886,6 +2957,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         _filterEndDate = date;
                       });
                       _loadFilteredTransactions();
+                      _fetchInventoryValueReport(); // Also refresh stock summary
                     }
                   },
                   child: Padding(
@@ -2922,6 +2994,95 @@ class _InventoryScreenState extends State<InventoryScreen> {
         
         const SizedBox(height: 6),
         
+        // Category and Product Filters Row
+        Row(
+          children: [
+            // Category Dropdown
+            Expanded(
+              child: Container(
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedReportCategory ?? 'All',
+                    isExpanded: true,
+                    icon: Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Colors.grey[600],
+                      size: 14,
+                    ),
+                    items: ['All', ..._categories.where((c) => c != 'All')]
+                        .map((cat) => DropdownMenuItem(
+                              value: cat,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                child: Text(
+                                  cat,
+                                  style: const TextStyle(fontSize: 10),
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                    onChanged: (val) {
+                      setState(() { _selectedReportCategory = val; });
+                      // Refresh stock summary when category changes
+                      _fetchInventoryValueReport();
+                    },
+                  ),
+                ),
+              ),
+            ),
+            
+            const SizedBox(width: 6),
+            
+            // Product Dropdown
+            Expanded(
+              child: Container(
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedReportProduct ?? 'All',
+                    isExpanded: true,
+                    icon: Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Colors.grey[600],
+                      size: 14,
+                    ),
+                    items: ['All', ..._products.map((p) => p.name)]
+                        .map((prod) => DropdownMenuItem(
+                              value: prod,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                child: Text(
+                                  prod,
+                                  style: const TextStyle(fontSize: 10),
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                    onChanged: (val) {
+                      setState(() { _selectedReportProduct = val; });
+                      // Refresh stock summary when product changes
+                      _fetchInventoryValueReport();
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 6),
+        
         // Horizontal Quick Date Buttons
         Row(
           children: [
@@ -2936,6 +3097,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 print('🔍 INVENTORY: Set _filterStartDate: $_filterStartDate');
                 print('🔍 INVENTORY: Set _filterEndDate: $_filterEndDate');
                 _loadFilteredTransactions();
+                _fetchInventoryValueReport(); // Also refresh stock summary
               }, isActive: _filterStartDate?.day == DateTime.now().day && _filterEndDate?.day == DateTime.now().day),
             ),
             const SizedBox(width: 4),
@@ -2947,6 +3109,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   _filterEndDate = DateTime(now.year, now.month, now.day).add(Duration(days: 1)).subtract(Duration(milliseconds: 1)); // End of today
                 });
                 _loadFilteredTransactions();
+                _fetchInventoryValueReport(); // Also refresh stock summary
               }, isActive: _filterStartDate?.difference(DateTime.now()).inDays.abs() == 7),
             ),
             const SizedBox(width: 4),
@@ -2958,12 +3121,100 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   _filterEndDate = DateTime(now.year, now.month, now.day).add(Duration(days: 1)).subtract(Duration(milliseconds: 1)); // End of today
                 });
                 _loadFilteredTransactions();
+                _fetchInventoryValueReport(); // Also refresh stock summary
               }, isActive: _filterStartDate?.difference(DateTime.now()).inDays.abs() == 30),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 6),
+        
+        // Filter Status and Refresh Button
+        Row(
+          children: [
+            // Filter Status
+            Expanded(
+              child: Container(
+                height: 28,
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Center(
+                  child: Text(
+                    _getFilterStatusText(),
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: Colors.blue[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            
+            const SizedBox(width: 6),
+            
+            // Refresh Button
+            Container(
+              height: 28,
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: Theme.of(context).primaryColor.withOpacity(0.3),
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(4),
+                  onTap: () {
+                    _fetchInventoryValueReport();
+                    _loadFilteredTransactions();
+                  },
+                  child: Center(
+                    child: Icon(
+                      Icons.refresh,
+                      color: Theme.of(context).primaryColor,
+                      size: 14,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
       ],
     );
+  }
+
+  // Get filter status text for display
+  String _getFilterStatusText() {
+    final List<String> activeFilters = [];
+    
+    if (_selectedReportCategory != null && _selectedReportCategory != 'All') {
+      activeFilters.add('Category: $_selectedReportCategory');
+    }
+    
+    if (_selectedReportProduct != null && _selectedReportProduct != 'All') {
+      activeFilters.add('Product: $_selectedReportProduct');
+    }
+    
+    if (_filterStartDate != null) {
+      activeFilters.add('From: ${DateFormat('MMM dd').format(_filterStartDate!)}');
+    }
+    
+    if (_filterEndDate != null) {
+      activeFilters.add('To: ${DateFormat('MMM dd').format(_filterEndDate!)}');
+    }
+    
+    if (activeFilters.isEmpty) {
+      return 'No filters applied';
+    }
+    
+    return activeFilters.take(2).join(' | ');
   }
 
   Widget _buildQuickDateButton(String text, VoidCallback onTap, {required bool isActive}) {
@@ -3011,6 +3262,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
               .toList(),
           onChanged: (val) {
             setState(() { _selectedReportCategory = val; });
+            // Refresh stock summary when category changes
+            _fetchInventoryValueReport();
           },
           hint: Text(t(context, 'Category')),
         ),
@@ -3024,6 +3277,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
               .toList(),
           onChanged: (val) {
             setState(() { _selectedReportProduct = val; });
+            // Refresh stock summary when product changes
+            _fetchInventoryValueReport();
           },
           hint: Text(t(context, 'Product')),
         ),
@@ -3079,11 +3334,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
             Expanded(
               flex: 2,
               child: Container(
-                height: isSmallMobile ? 28 : 32,
+                height: isSmallMobile ? 36 : 40,
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
-                  border: Border.all(color: Colors.grey[200]!),
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 10),
+                  border: Border.all(color: Colors.grey[300]!),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
@@ -3092,21 +3347,20 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     icon: Icon(
                       Icons.keyboard_arrow_down,
                       color: Colors.grey[600],
-                      size: isSmallMobile ? 12 : 14,
+                      size: isSmallMobile ? 16 : 18,
                     ),
                     items: _stockSummaryFilterOptions.map((option) {
                       return DropdownMenuItem(
                         value: option,
                         child: Padding(
-                          padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 6 : 8),
+                          padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 12 : 16),
                           child: Text(
                             option,
                             style: TextStyle(
-                              fontSize: isSmallMobile ? 9 : 10,
+                              fontSize: isSmallMobile ? 12 : 14,
                               color: Colors.grey[800],
+                              fontWeight: FontWeight.w500,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       );
@@ -3115,21 +3369,117 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       setState(() {
                         _stockSummaryFilterType = value!;
                       });
-                      _fetchInventoryReport();
+                      if (value != 'Custom') {
+                        _applyStockSummaryPreset(value!);
+                      } else {
+                        // For custom, just refresh with current dates
+                        _fetchInventoryValueReport();
+                      }
                     },
                   ),
                 ),
               ),
             ),
             
-            SizedBox(width: isSmallMobile ? 4 : 6),
+            SizedBox(width: isSmallMobile ? 8 : 12),
+            
+            // Custom Date Range (only show when Custom is selected)
+            if (_stockSummaryFilterType == 'Custom') ...[
+              Expanded(
+                flex: 1,
+                child: Container(
+                  height: isSmallMobile ? 36 : 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 10),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 10),
+                      onTap: () => _showStockSummaryStartDatePicker(context),
+                      child: Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              size: isSmallMobile ? 14 : 16,
+                              color: Colors.grey[600],
+                            ),
+                            SizedBox(width: isSmallMobile ? 6 : 8),
+                            Text(
+                              _stockSummaryStartDate != null 
+                                ? '${_stockSummaryStartDate!.day}/${_stockSummaryStartDate!.month}/${_stockSummaryStartDate!.year}'
+                                : 'Start',
+                              style: TextStyle(
+                                fontSize: isSmallMobile ? 11 : 13,
+                                color: Colors.grey[800],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              
+              SizedBox(width: isSmallMobile ? 8 : 12),
+              
+              Expanded(
+                flex: 1,
+                child: Container(
+                  height: isSmallMobile ? 36 : 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 10),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 10),
+                      onTap: () => _showStockSummaryEndDatePicker(context),
+                      child: Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              size: isSmallMobile ? 14 : 16,
+                              color: Colors.grey[600],
+                            ),
+                            SizedBox(width: isSmallMobile ? 6 : 8),
+                            Text(
+                              _stockSummaryEndDate != null 
+                                ? '${_stockSummaryEndDate!.day}/${_stockSummaryEndDate!.month}/${_stockSummaryEndDate!.year}'
+                                : 'End',
+                              style: TextStyle(
+                                fontSize: isSmallMobile ? 11 : 13,
+                                color: Colors.grey[800],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              
+              SizedBox(width: isSmallMobile ? 8 : 12),
+            ],
             
             // Refresh Button
             Container(
-              height: isSmallMobile ? 28 : 32,
+              height: isSmallMobile ? 36 : 40,
               decoration: BoxDecoration(
                 color: Theme.of(context).primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 10),
                 border: Border.all(
                   color: Theme.of(context).primaryColor.withOpacity(0.3),
                 ),
@@ -3137,13 +3487,27 @@ class _InventoryScreenState extends State<InventoryScreen> {
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
-                  onTap: _fetchInventoryReport,
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 10),
+                  onTap: _fetchInventoryValueReport,
                   child: Center(
-                    child: Icon(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
                       Icons.refresh,
                       color: Theme.of(context).primaryColor,
-                      size: isSmallMobile ? 12 : 14,
+                          size: isSmallMobile ? 16 : 18,
+                        ),
+                        SizedBox(width: isSmallMobile ? 6 : 8),
+                        Text(
+                          'Refresh',
+                          style: TextStyle(
+                            fontSize: isSmallMobile ? 12 : 14,
+                            color: Theme.of(context).primaryColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -3153,6 +3517,37 @@ class _InventoryScreenState extends State<InventoryScreen> {
         ),
       ],
     );
+  }
+
+  // Custom date picker methods for stock summary
+  Future<void> _showStockSummaryStartDatePicker(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _stockSummaryStartDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _stockSummaryStartDate) {
+      setState(() {
+        _stockSummaryStartDate = picked;
+      });
+      _fetchInventoryValueReport();
+    }
+  }
+
+  Future<void> _showStockSummaryEndDatePicker(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _stockSummaryEndDate ?? DateTime.now(),
+      firstDate: _stockSummaryStartDate ?? DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _stockSummaryEndDate) {
+      setState(() {
+        _stockSummaryEndDate = picked;
+      });
+      _fetchInventoryValueReport();
+    }
   }
 
   Widget _buildValueReportTable(bool isSmallMobile) {

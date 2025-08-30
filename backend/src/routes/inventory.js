@@ -336,8 +336,8 @@ router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier']
 // Get inventory value report
 router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
   try {
-    const { start_date, end_date } = req.query;
-    // Get all products
+    const { start_date, end_date, category_id, product_id } = req.query;
+    // Get all products with optional filtering
     let query = `
       SELECT 
         p.id,
@@ -349,9 +349,23 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       WHERE p.business_id = ?
-      ORDER BY p.name
     `;
     let params = [req.user.business_id];
+    
+    // Add category filter
+    if (category_id && category_id !== 'All') {
+      query += ` AND p.category_id = ?`;
+      params.push(category_id);
+    }
+    
+    // Add product filter
+    if (product_id && product_id !== 'All') {
+      query += ` AND p.id = ?`;
+      params.push(product_id);
+    }
+    
+    query += ` ORDER BY p.name`;
+    
     if (req.user.role === 'superadmin') {
       query = `
         SELECT 
@@ -363,9 +377,23 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
           c.name as categoryName
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
-        ORDER BY p.name
+        WHERE 1=1
       `;
       params = [];
+      
+      // Add category filter for superadmin
+      if (category_id && category_id !== 'All') {
+        query += ` AND p.category_id = ?`;
+        params.push(category_id);
+      }
+      
+      // Add product filter for superadmin
+      if (product_id && product_id !== 'All') {
+        query += ` AND p.id = ?`;
+        params.push(product_id);
+      }
+      
+      query += ` ORDER BY p.name`;
     }
     const [products] = await pool.query(query, params);
 

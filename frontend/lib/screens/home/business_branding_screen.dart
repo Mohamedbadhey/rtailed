@@ -77,7 +77,9 @@ class _BusinessBrandingScreenState extends State<BusinessBrandingScreen> {
   }
 
   Future<void> _loadBrandingData() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
     
     setState(() {
       _isLoading = true;
@@ -85,11 +87,13 @@ class _BusinessBrandingScreenState extends State<BusinessBrandingScreen> {
     
     try {
       final brandingProvider = context.read<BrandingProvider>();
+      
       await brandingProvider.loadBusinessBranding(widget.businessId);
       await brandingProvider.loadThemes();
       
       if (mounted) {
         _populateForm();
+        
         setState(() {
           _isInitialized = true;
           _isLoading = false;

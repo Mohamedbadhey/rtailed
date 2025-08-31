@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
 // Conditional imports for different platforms
 import 'pdf_export_io.dart' if (dart.library.html) 'pdf_export_web.dart';
@@ -31,6 +32,9 @@ class PdfExportService {
     } else {
       print('🔍 PDF: Using fallback business branding for consistency');
     }
+    
+    // Pre-load business logo if available
+    await _preloadBusinessLogo(businessData);
     
     // Create PDF document
     final pdf = pw.Document();
@@ -220,6 +224,9 @@ class PdfExportService {
     } else {
       print('🔍 PDF: Using fallback business branding for stock summary');
     }
+    
+    // Pre-load business logo if available
+    await _preloadBusinessLogo(businessData);
     
     // Create PDF document
     final pdf = pw.Document();
@@ -1073,41 +1080,129 @@ class PdfExportService {
     );
   }
   
+  // Pre-load business logo to avoid async issues in PDF generation
+  static Future<void> _preloadBusinessLogo(Map<String, dynamic> businessData) async {
+    print('🔍 PDF: Starting logo pre-loading...');
+    final logoData = businessData['logo'];
+    print('🔍 PDF: Logo data type: ${logoData.runtimeType}');
+    print('🔍 PDF: Logo data value: $logoData');
+    
+    if (logoData != null && logoData.toString().isNotEmpty) {
+      String logoString = logoData.toString();
+      print('🔍 PDF: Logo string: $logoString');
+      print('🔍 PDF: Starts with /uploads/: ${logoString.startsWith('/uploads/')}');
+      
+      if (logoString.startsWith('/uploads/')) {
+        try {
+          // Use the same pattern as product images
+          final fullLogoUrl = 'https://rtailed-production.up.railway.app$logoString';
+          print('🔍 PDF: Pre-loading logo from: $fullLogoUrl');
+          final response = await http.get(Uri.parse(fullLogoUrl));
+          print('🔍 PDF: Response status: ${response.statusCode}');
+          if (response.statusCode == 200) {
+            final imageBytes = response.bodyBytes;
+            // Store the loaded image bytes in the business data for later use
+            businessData['_logoBytes'] = imageBytes;
+            print('🔍 PDF: Logo pre-loaded successfully, size: ${imageBytes.length} bytes');
+          } else {
+            print('🔍 PDF: Failed to pre-load logo, status: ${response.statusCode}');
+            print('🔍 PDF: Response body: ${response.body}');
+            print('🔍 PDF: Logo file does not exist on server - will use fallback');
+            // Mark that logo loading failed so we don't try again
+            businessData['_logoLoadFailed'] = true;
+          }
+        } catch (e) {
+          print('🔍 PDF: Error pre-loading logo: $e');
+          businessData['_logoLoadFailed'] = true;
+        }
+      } else {
+        print('🔍 PDF: Logo string does not start with /uploads/, skipping pre-load');
+      }
+    } else {
+      print('🔍 PDF: No logo data available for pre-loading');
+    }
+  }
+  
   // Build business logo widget
   static pw.Widget _buildBusinessLogo(Map<String, dynamic> businessInfo, PdfColor primaryColor) {
     final businessName = businessInfo['name'] ?? 'XXX';
     final logoUrl = businessInfo['logo_url'];
-    final logoData = businessInfo['logo']; // Base64 encoded logo data
+    final logoData = businessInfo['logo']; // Can be base64 data or file path
+    final preloadedBytes = businessInfo['_logoBytes'] as Uint8List?; // Pre-loaded image bytes
+    final logoLoadFailed = businessInfo['_logoLoadFailed'] == true; // Flag if logo loading failed
     
     print('🔍 PDF Logo: logo_url = $logoUrl');
     print('🔍 PDF Logo: logo data available = ${logoData != null}');
+    print('🔍 PDF Logo: pre-loaded bytes available = ${preloadedBytes != null}');
+    print('🔍 PDF Logo: logo load failed = $logoLoadFailed');
     
-    // Try to use actual logo if available
-    if (logoData != null && logoData.toString().isNotEmpty) {
+    // First check if we have pre-loaded bytes (for file path logos)
+    if (preloadedBytes != null) {
+      print('🔍 PDF Logo: Using pre-loaded image bytes');
+      return pw.Container(
+        width: 30,
+        height: 30,
+        decoration: pw.BoxDecoration(
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+        ),
+        child: pw.Image(
+          pw.MemoryImage(preloadedBytes),
+          fit: pw.BoxFit.cover,
+        ),
+      );
+    }
+    
+    // If logo loading failed, skip trying to process it and go straight to fallback
+    if (logoLoadFailed) {
+      print('🔍 PDF Logo: Logo loading failed, using fallback');
+      // Fall through to fallback
+    } else if (logoData != null && logoData.toString().isNotEmpty) {
       try {
-        // Handle base64 encoded logo
-        String base64Data = logoData.toString();
-        if (base64Data.startsWith('data:image/')) {
-          // Remove data URL prefix
-          base64Data = base64Data.split(',')[1];
-        }
+        String logoString = logoData.toString();
         
-        print('🔍 PDF Logo: Using base64 logo data');
-        return pw.Container(
-          width: 30,
-          height: 30,
-          decoration: pw.BoxDecoration(
-            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-          ),
-          child: pw.Image(
-            pw.MemoryImage(
-              base64Decode(base64Data)
+        // Check if it's base64 data URL
+        if (logoString.startsWith('data:image/')) {
+          // It's base64 data URL
+          String base64Data = logoString.split(',')[1];
+          print('🔍 PDF Logo: Using base64 logo data');
+          
+          return pw.Container(
+            width: 30,
+            height: 30,
+            decoration: pw.BoxDecoration(
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
             ),
-            fit: pw.BoxFit.cover,
-          ),
-        );
+            child: pw.Image(
+              pw.MemoryImage(
+                base64Decode(base64Data)
+              ),
+              fit: pw.BoxFit.cover,
+            ),
+          );
+        } else {
+          // Try to decode as base64 directly
+          print('🔍 PDF Logo: Trying to decode as base64');
+          try {
+            return pw.Container(
+              width: 30,
+              height: 30,
+              decoration: pw.BoxDecoration(
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+              ),
+              child: pw.Image(
+                pw.MemoryImage(
+                  base64Decode(logoString)
+                ),
+                fit: pw.BoxFit.cover,
+              ),
+            );
+          } catch (e) {
+            print('🔍 PDF Logo: Error decoding base64: $e');
+            // Fall back to text initials
+          }
+        }
       } catch (e) {
-        print('🔍 PDF Logo: Error loading base64 logo: $e');
+        print('🔍 PDF Logo: Error loading logo: $e');
         // Fall back to text initials
       }
     }

@@ -236,10 +236,12 @@ class BrandingProvider extends ChangeNotifier {
       } else {
         print('🎨 ❌ Error response: ${response.body}');
         print('🎨 ===== LOAD BUSINESS BRANDING END (ERROR) =====');
+        throw Exception('Failed to load business branding: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       print('🎨 ❌ Exception: $e');
       print('🎨 ===== LOAD BUSINESS BRANDING END (EXCEPTION) =====');
+      rethrow; // Re-throw the exception so the UI can handle it
     }
   }
   

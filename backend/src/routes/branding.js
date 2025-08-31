@@ -9,25 +9,33 @@ const { auth } = require('../middleware/auth');
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Use Railway's persistent storage directory
-    const uploadDir = process.env.RAILWAY_VOLUME_MOUNT_PATH 
-      ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'uploads', 'branding')
-      : path.join(__dirname, '../../uploads/branding');
+    // Use Railway's persistent storage directory (same pattern as products)
+    const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '../../uploads');
+    const uploadDir = path.join(baseDir, 'branding');
+    
+    console.log('🎨 Branding file upload destination:', uploadDir);
+    console.log('🎨 Railway volume path:', process.env.RAILWAY_VOLUME_MOUNT_PATH);
+    console.log('🎨 Environment:', process.env.RAILWAY_VOLUME_MOUNT_PATH ? 'Railway' : 'Local');
     
     try {
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
-        console.log('Created upload directory:', uploadDir);
+        console.log('🎨 Created uploads/branding directory for file upload:', uploadDir);
+      } else {
+        console.log('🎨 Upload directory already exists:', uploadDir);
       }
       cb(null, uploadDir);
     } catch (error) {
-      console.error('Error creating upload directory:', error);
+      console.error('🎨 Error creating upload directory:', error);
       cb(error);
     }
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    // Sanitize filename to prevent issues (same as products)
+    const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const finalFilename = `${Date.now()}-${sanitizedName}`;
+    console.log('🎨 File will be saved as:', finalFilename);
+    cb(null, finalFilename);
   }
 });
 

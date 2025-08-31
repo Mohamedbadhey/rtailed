@@ -1097,7 +1097,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: _showBusinessBrandingDialog,
                   style: ElevatedButton.styleFrom(
                     padding: EdgeInsets.symmetric(
                       vertical: isTiny ? 6 : 8,
@@ -1126,7 +1126,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                   SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: _showBusinessBrandingDialog,
                       style: ElevatedButton.styleFrom(
                         padding: EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                       ),
@@ -4059,26 +4059,38 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   }
 
   Future<List<Map<String, dynamic>>> _fetchBusinessesForSelection() async {
+    print('🔍 _fetchBusinessesForSelection: Starting...');
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     
+    print('🔍 Token available: ${token != null}');
+    
     try {
+      print('🔍 Making API call to fetch businesses...');
       final response = await http.get(
         Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
+      print('🔍 Response status: ${response.statusCode}');
+      print('🔍 Response body: ${response.body}');
+      
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final businesses = data['businesses'] ?? [];
         
+        print('🔍 Found ${businesses.length} businesses');
+        
         // Convert each business to Map<String, dynamic> safely
-        return TypeConverter.convertMySQLList(businesses);
+        final result = TypeConverter.convertMySQLList(businesses);
+        print('🔍 Converted businesses: $result');
+        return result;
       } else {
+        print('🔍 ❌ API Error: ${response.statusCode} - ${response.body}');
         throw Exception('Failed to fetch businesses: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error in _fetchBusinessesForSelection: $e');
+      print('🔍 ❌ Exception in _fetchBusinessesForSelection: $e');
       throw Exception('Failed to fetch businesses: $e');
     }
   }
@@ -7077,6 +7089,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   }
 
   void _showBusinessBrandingDialog() {
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -7089,31 +7102,49 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
             FutureBuilder<List<Map<String, dynamic>>>(
             future: _fetchBusinessesForSelection(),
             builder: (context, snapshot) {
+              
               if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
+
+                  return const SizedBox(
+                    height: 200,
                     child: Center(child: CircularProgressIndicator()),
                   );
               }
               if (snapshot.hasError) {
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.error, color: Colors.red, size: 48),
-                      const SizedBox(height: 8),
-                      Text('Error: ${snapshot.error}'),
-                    ],
+
+                  return SizedBox(
+                    height: 200,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error, color: Colors.red, size: 48),
+                        const SizedBox(height: 8),
+                        Text('Error: ${snapshot.error}'),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                          onPressed: () {
+
+                            Navigator.pop(context);
+                            _showBusinessBrandingDialog();
+                          },
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
                 );
               }
               final businesses = snapshot.data ?? [];
               if (businesses.isEmpty) {
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.business, color: Colors.grey, size: 48),
-                      SizedBox(height: 8),
-                      Text('No businesses found'),
-                    ],
+                  return const SizedBox(
+                    height: 200,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.business, color: Colors.grey, size: 48),
+                        SizedBox(height: 8),
+                        Text('No businesses found'),
+                      ],
+                    ),
                   );
                 }
                 // Dropdown for quick pick
@@ -7156,51 +7187,63 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                       }).toList(),
                     ),
                     const SizedBox(height: 12),
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(context).size.height * 0.4,
-                        maxWidth: MediaQuery.of(context).size.width * 0.8,
-                      ),
-                      child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: businesses.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final business = businesses[index];
-                          final id = TypeConverter.safeToInt(business['id']);
-                          final name = TypeConverter.safeToString(business['name'] ?? 'Unknown Business');
-                          final email = TypeConverter.safeToString(business['email'] ?? '');
-                          final isNarrow = MediaQuery.of(context).size.width < 380;
-                  return ListTile(
-                            dense: true,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    leading: CircleAvatar(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      child: Text(
+                    // Simple Column instead of ListView to avoid rendering issues
+                    ...businesses.map((business) {
+                      final id = TypeConverter.safeToInt(business['id']);
+                      final name = TypeConverter.safeToString(business['name'] ?? 'Unknown Business');
+                      final email = TypeConverter.safeToString(business['email'] ?? '');
+                      final isNarrow = MediaQuery.of(context).size.width < 380;
+                      
+                      return Container(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: Theme.of(context).primaryColor,
+                              child: Text(
                                 _getBusinessInitial(name),
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                            title: Text(
-                              name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              softWrap: false,
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              ),
                             ),
-                            subtitle: Text(
-                              email,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              softWrap: false,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  if (email.isNotEmpty)
+                                    Text(
+                                      email,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
-                            trailing: isNarrow
+                            const SizedBox(width: 8),
+                            isNarrow
                                 ? IconButton(
                                     tooltip: 'Brand',
                                     onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
+
+                                      Navigator.pop(context);
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
                                           builder: (context) => BusinessBrandingScreen(businessId: id),
                                         ),
                                       );
@@ -7209,6 +7252,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                                   )
                                 : ElevatedButton.icon(
                                     onPressed: () {
+
                                       Navigator.pop(context);
                                       Navigator.push(
                                         context,
@@ -7224,13 +7268,10 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                                       foregroundColor: Colors.white,
                                     ),
                                   ),
-                            onTap: () {
-                              setState(() => _brandingSelectedBusinessId = id);
-                    },
-                  );
-                },
-                      ),
-                    ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ],
               );
             },

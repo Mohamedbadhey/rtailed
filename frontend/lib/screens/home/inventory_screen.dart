@@ -1025,12 +1025,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                     ),
                                     SizedBox(height: 12),
                                     if (isSmallMobile) ...[
-                                      // Mobile layout - stacked vertically
-                                      _buildMobileReportFilters(),
-                                    ] else ...[
+                                // Mobile layout - stacked vertically
+                                _buildMobileReportFilters(),
+                              ] else ...[
                                       // Desktop/tablet layout - horizontal
-                                      _buildDesktopReportFilters(),
-                                    ],
+                                _buildDesktopReportFilters(),
+                              ],
                                   ],
                                 ),
                               ),

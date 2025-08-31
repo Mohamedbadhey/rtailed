@@ -274,22 +274,41 @@ class BrandingProvider extends ChangeNotifier {
     }
   }
   
-  // Upload business logo/favicon
+  // Upload business logo/favicon (using same logic as product images)
   Future<Map<String, dynamic>?> uploadBusinessFile(File file, String type, int businessId) async {
     try {
+      print('🎨 BrandingProvider.uploadBusinessFile called for type: $type');
+      
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('https://rtailed-production.up.railway.app/api/branding/business/$businessId/upload'),
       );
       
-      request.headers['Authorization'] = 'Bearer ${_apiService.token ?? ''}';
+      // Use same header logic as product images
+      final multipartHeaders = Map<String, String>.from({
+        'Authorization': 'Bearer ${_apiService.token ?? ''}',
+      });
+      request.headers.addAll(multipartHeaders);
+      
+      // Add type field
       request.fields['type'] = type;
+      
+      // Use 'image' field name like product images, with proper filename
+      final fileName = file.path.split('/').last;
       request.files.add(
-        await http.MultipartFile.fromPath('file', file.path),
+        await http.MultipartFile.fromPath(
+          'image', // Changed from 'file' to 'image' to match product logic
+          file.path,
+          filename: fileName, // Use actual filename instead of generic
+        ),
       );
+      
+      print('🎨 Uploading file: $fileName for type: $type');
       
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
+      
+      print('🎨 Upload response: ${response.statusCode} ${response.body}');
       
       if (response.statusCode == 200) {
         final result = TypeConverter.safeToMap(json.decode(response.body));
@@ -298,8 +317,10 @@ class BrandingProvider extends ChangeNotifier {
         if (result['fileUrl'] != null) {
           if (type == 'logo') {
             _businessBranding['logo'] = result['fileUrl'];
+            print('🎨 Updated logo URL: ${result['fileUrl']}');
           } else if (type == 'favicon') {
             _businessBranding['favicon'] = result['fileUrl'];
+            print('🎨 Updated favicon URL: ${result['fileUrl']}');
           }
         }
         
@@ -311,36 +332,51 @@ class BrandingProvider extends ChangeNotifier {
         return result;
       } else {
         final errorData = json.decode(response.body);
-        print('Upload failed with status ${response.statusCode}: ${errorData['message']}');
+        print('🎨 Upload failed with status ${response.statusCode}: ${errorData['message']}');
         throw Exception(errorData['message'] ?? 'Upload failed');
       }
     } catch (e) {
-      print('Error uploading business file: $e');
+      print('🎨 Error uploading business file: $e');
       rethrow;
     }
   }
 
-  // Upload business logo/favicon for web (using bytes)
+  // Upload business logo/favicon for web (using same logic as product images)
   Future<Map<String, dynamic>?> uploadBusinessFileBytes(Uint8List bytes, String type, int businessId) async {
     try {
+      print('🎨 BrandingProvider.uploadBusinessFileBytes called for type: $type');
+      
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('https://rtailed-production.up.railway.app/api/branding/business/$businessId/upload'),
       );
       
-      request.headers['Authorization'] = 'Bearer ${_apiService.token ?? ''}';
+      // Use same header logic as product images
+      final multipartHeaders = Map<String, String>.from({
+        'Authorization': 'Bearer ${_apiService.token ?? ''}',
+      });
+      request.headers.addAll(multipartHeaders);
+      
+      // Add type field
       request.fields['type'] = type;
+      
+      // Use 'image' field name like product images, with proper filename
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = '${type}_$timestamp.png';
       request.files.add(
         http.MultipartFile.fromBytes(
-          'file',
+          'image', // Changed from 'file' to 'image' to match product logic
           bytes,
-          filename: '${type}_${DateTime.now().millisecondsSinceEpoch}.png',
-          contentType: MediaType('image', 'png'),
+          filename: fileName, // Use proper filename instead of generic
         ),
       );
       
+      print('🎨 Uploading bytes for type: $type with filename: $fileName');
+      
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
+      
+      print('🎨 Upload response: ${response.statusCode} ${response.body}');
       
       if (response.statusCode == 200) {
         final result = TypeConverter.safeToMap(json.decode(response.body));
@@ -349,8 +385,10 @@ class BrandingProvider extends ChangeNotifier {
         if (result['fileUrl'] != null) {
           if (type == 'logo') {
             _businessBranding['logo'] = result['fileUrl'];
+            print('🎨 Updated logo URL: ${result['fileUrl']}');
           } else if (type == 'favicon') {
             _businessBranding['favicon'] = result['fileUrl'];
+            print('🎨 Updated favicon URL: ${result['fileUrl']}');
           }
         }
         
@@ -362,11 +400,11 @@ class BrandingProvider extends ChangeNotifier {
         return result;
       } else {
         final errorData = json.decode(response.body);
-        print('Upload failed with status ${response.statusCode}: ${errorData['message']}');
+        print('🎨 Upload failed with status ${response.statusCode}: ${errorData['message']}');
         throw Exception(errorData['message'] ?? 'Upload failed');
       }
     } catch (e) {
-      print('Error uploading business file bytes: $e');
+      print('🎨 Error uploading business file bytes: $e');
       rethrow;
     }
   }

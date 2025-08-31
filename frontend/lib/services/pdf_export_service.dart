@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
@@ -411,27 +412,8 @@ class PdfExportService {
           // Top Row: Business Info and Logo
           pw.Row(
             children: [
-              // Business Logo Placeholder
-              pw.Container(
-                width: 30, // Reduced size
-                height: 30, // Reduced size
-                decoration: pw.BoxDecoration(
-                  color: PdfColors.white,
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)), // Smaller radius
-                ),
-                child: pw.Center(
-                  child: pw.Text(
-                    businessName.isNotEmpty && businessName != 'XXX' 
-                      ? businessName.substring(0, 1).toUpperCase()
-                      : 'X',
-                    style: pw.TextStyle(
-                      fontSize: 12, // Reduced font size
-                      fontWeight: pw.FontWeight.bold,
-                      color: primaryColor,
-                    ),
-                  ),
-                ),
-              ),
+              // Business Logo
+              _buildBusinessLogo(businessInfo, primaryColor),
               
               pw.SizedBox(width: 8), // Reduced spacing
               
@@ -1091,13 +1073,75 @@ class PdfExportService {
     );
   }
   
+  // Build business logo widget
+  static pw.Widget _buildBusinessLogo(Map<String, dynamic> businessInfo, PdfColor primaryColor) {
+    final businessName = businessInfo['name'] ?? 'XXX';
+    final logoUrl = businessInfo['logo_url'];
+    final logoData = businessInfo['logo']; // Base64 encoded logo data
+    
+    print('🔍 PDF Logo: logo_url = $logoUrl');
+    print('🔍 PDF Logo: logo data available = ${logoData != null}');
+    
+    // Try to use actual logo if available
+    if (logoData != null && logoData.toString().isNotEmpty) {
+      try {
+        // Handle base64 encoded logo
+        String base64Data = logoData.toString();
+        if (base64Data.startsWith('data:image/')) {
+          // Remove data URL prefix
+          base64Data = base64Data.split(',')[1];
+        }
+        
+        print('🔍 PDF Logo: Using base64 logo data');
+        return pw.Container(
+          width: 30,
+          height: 30,
+          decoration: pw.BoxDecoration(
+            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+          ),
+          child: pw.Image(
+            pw.MemoryImage(
+              base64Decode(base64Data)
+            ),
+            fit: pw.BoxFit.cover,
+          ),
+        );
+      } catch (e) {
+        print('🔍 PDF Logo: Error loading base64 logo: $e');
+        // Fall back to text initials
+      }
+    }
+    
+    // Fallback to text initials
+    return pw.Container(
+      width: 30, // Reduced size
+      height: 30, // Reduced size
+      decoration: pw.BoxDecoration(
+        color: PdfColors.white,
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)), // Smaller radius
+      ),
+      child: pw.Center(
+        child: pw.Text(
+          businessName.isNotEmpty && businessName != 'XXX' 
+            ? businessName.substring(0, 1).toUpperCase()
+            : 'X',
+          style: pw.TextStyle(
+            fontSize: 12, // Reduced font size
+            fontWeight: pw.FontWeight.bold,
+            color: primaryColor,
+          ),
+        ),
+      ),
+    );
+  }
+
   // Helper methods
   static String _formatDate(String timestamp) {
     try {
       if (timestamp.isEmpty) return '';
       final dateTime = DateTime.parse(timestamp);
       final localDateTime = dateTime.toLocal();
-      return '${localDateTime.day.toString().padLeft(2, '0')}/${localDateTime.month.toString().padLeft(2, '0')}/${localDateTime.year}';
+      return '${localDateTime.day.toString().padLeft(2, '0')}/${localDateTime.month.toString().padLeft(2, '0')}/${localDateTime.year} ${localDateTime.hour.toString().padLeft(2, '0')}:${localDateTime.minute.toString().padLeft(2, '0')}';
     } catch (e) {
       return timestamp;
     }

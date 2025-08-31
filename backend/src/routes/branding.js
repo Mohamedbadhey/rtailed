@@ -240,17 +240,35 @@ router.put('/business/:businessId', auth, async (req, res) => {
   }
 });
 
-// Upload business logo/favicon
-router.post('/business/:businessId/upload', auth, upload.single('file'), async (req, res) => {
+// Upload business logo/favicon (supports both 'file' and 'image' field names)
+router.post('/business/:businessId/upload', auth, upload.single('image'), async (req, res) => {
   try {
     const { businessId } = req.params;
     
+    console.log('🎨 Business branding upload request:', {
+      businessId,
+      file: req.file ? {
+        filename: req.file.filename,
+        originalname: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      } : 'No file',
+      body: req.body
+    });
+    
     if (!req.file) {
+      console.log('🎨 No file uploaded');
       return res.status(400).json({ message: 'No file uploaded' });
     }
     
     const fileUrl = `/uploads/branding/${req.file.filename}`;
     const fileType = req.body.type; // 'logo' or 'favicon'
+    
+    console.log('🎨 Processing upload:', {
+      fileUrl,
+      fileType,
+      filename: req.file.filename
+    });
     
     // Save file info to branding_files table
     await pool.query(
@@ -275,13 +293,19 @@ router.post('/business/:businessId/upload', auth, upload.single('file'), async (
       [fileUrl, businessId]
     );
     
+    console.log('🎨 Successfully updated business branding:', {
+      businessId,
+      column,
+      fileUrl
+    });
+    
     res.json({ 
       message: 'File uploaded successfully',
       fileUrl: fileUrl,
       fileName: req.file.filename
     });
   } catch (error) {
-    console.error('Error uploading business file:', error);
+    console.error('🎨 Error uploading business file:', error);
     res.status(500).json({ message: 'Error uploading file' });
   }
 });

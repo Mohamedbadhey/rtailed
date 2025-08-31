@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -134,18 +135,24 @@ class _BusinessBrandingScreenState extends State<BusinessBrandingScreen> {
 
   Future<void> _pickImage(String type) async {
     try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: type == 'favicon' ? 256 : 512,
-        maxHeight: type == 'favicon' ? 256 : 512,
-        imageQuality: 85,
-      );
+      print('🎨 Picking image for type: $type');
       
-      if (image != null && mounted) {
-        if (kIsWeb) {
-          // For web, read bytes
+      if (kIsWeb) {
+        // For web, use the same logic as product images
+        final ImagePicker picker = ImagePicker();
+        final XFile? image = await picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: type == 'favicon' ? 256 : 512,
+          maxHeight: type == 'favicon' ? 256 : 512,
+          imageQuality: 85,
+        );
+        
+        if (image != null && mounted) {
           final bytes = await image.readAsBytes();
+          final base64String = base64Encode(bytes);
+          final mimeType = 'image/jpeg'; // Default to JPEG
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+          
           setState(() {
             if (type == 'logo') {
               _logoBytes = bytes;
@@ -155,8 +162,20 @@ class _BusinessBrandingScreenState extends State<BusinessBrandingScreen> {
               _faviconFile = null;
             }
           });
-        } else {
-          // For mobile, use file
+          
+          print('🎨 Web image picked: ${bytes.length} bytes for type: $type');
+        }
+      } else {
+        // For mobile, use file picker like products
+        final ImagePicker picker = ImagePicker();
+        final XFile? image = await picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: type == 'favicon' ? 256 : 512,
+          maxHeight: type == 'favicon' ? 256 : 512,
+          imageQuality: 85,
+        );
+        
+        if (image != null && mounted) {
           setState(() {
             if (type == 'logo') {
               _logoFile = File(image.path);
@@ -166,9 +185,12 @@ class _BusinessBrandingScreenState extends State<BusinessBrandingScreen> {
               _faviconBytes = null;
             }
           });
+          
+          print('🎨 Mobile image picked: ${image.path} for type: $type');
         }
       }
     } catch (e) {
+      print('🎨 Error picking image: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

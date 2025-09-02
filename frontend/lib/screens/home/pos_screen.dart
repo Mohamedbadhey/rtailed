@@ -1004,188 +1004,274 @@ class _POSScreenState extends State<POSScreen> {
                         bool isInvalid = false;
                         return StatefulBuilder(
                           builder: (context, setItemState) {
-                            return Card(
-                              margin: EdgeInsets.only(bottom: isSmallMobile ? 1 : (isMobile ? 2 : 8)),
-                              child: ListTile(
-                                contentPadding: EdgeInsets.all(isSmallMobile ? 3 : (isMobile ? 4 : 12)),
-                                leading: Container(
-                                  width: isSmallMobile ? 24 : (isMobile ? 32 : 50),
-                                  height: isSmallMobile ? 24 : (isMobile ? 32 : 50),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[200],
-                                    borderRadius: BorderRadius.circular(8),
+                                                        return Container(
+                              margin: EdgeInsets.only(bottom: isSmallMobile ? 2 : (isMobile ? 3 : 4)),
+                              padding: EdgeInsets.all(isSmallMobile ? 6 : (isMobile ? 8 : 10)),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                                border: Border.all(color: Colors.grey[300]!),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: isSmallMobile ? 1 : 2,
+                                    offset: Offset(0, isSmallMobile ? 0.5 : 1),
                                   ),
-                                  child: (item.product.imageUrl != null && item.product.imageUrl!.isNotEmpty)
-                                      ? ClipRRect(
-                                          borderRadius: BorderRadius.circular(8),
-                                          child: Image.network(
-                                            Api.getFullImageUrl(item.product.imageUrl),
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) {
-                                              return Icon(
-                                                Icons.image,
-                                                size: isSmallMobile ? 12 : (isMobile ? 16 : 20),
-                                                color: Colors.grey,
-                                              );
-                                            },
-                                          ),
-                                        )
-                                      : Icon(
-                                          Icons.image,
-                                          size: isSmallMobile ? 12 : (isMobile ? 16 : 20),
-                                          color: Colors.grey,
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Top row: Image, Name, and Delete
+                                  Row(
+                                    children: [
+                                      // Product Image
+                                      Container(
+                                        width: isSmallMobile ? 35 : (isMobile ? 45 : 50),
+                                        height: isSmallMobile ? 35 : (isMobile ? 45 : 50),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey[200],
+                                          borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
                                         ),
-                                ),
-                                title: Text(
-                                  item.product.name,
-                                  style: TextStyle(
-                                    fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '${t(context, 'cost')}: ${item.product.costPrice.toStringAsFixed(2)}',
-                                      style: TextStyle(
-                                        fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
-                                        color: Colors.green[700],
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${t(context, 'price')}: ${item.product.price.toStringAsFixed(2)}',
-                                      style: TextStyle(
-                                        fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
-                                        color: Colors.purple[700],
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(Icons.remove, size: isSmallMobile ? 14 : 18),
-                                      onPressed: () {
-                                        cart.removeItem(item.product);
-                                      },
-                                      padding: EdgeInsets.all(isSmallMobile ? 2 : (isMobile ? 4 : 8)),
-                                      constraints: BoxConstraints(
-                                        minWidth: isSmallMobile ? 24 : (isMobile ? 28 : 32),
-                                        minHeight: isSmallMobile ? 24 : (isMobile ? 28 : 32),
-                                      ),
-                                    ),
-                                    GestureDetector(
-                                      onTap: () async {
-                                        final newQuantity = await showDialog<int>(
-                                          context: context,
-                                          builder: (context) {
-                                            final controller = TextEditingController(text: item.quantity.toString());
-                                            return AlertDialog(
-                                              title: Text(t(context, 'set_quantity')),
-                                              content: TextField(
-                                                controller: controller,
-                                                keyboardType: TextInputType.number,
-                                                decoration: InputDecoration(
-                                                  labelText: t(context, 'quantity'),
-                                                  hintText: t(context, 'enter_quantity'),
-                                                ),
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () => Navigator.of(context).pop(),
-                                                  child: Text(t(context, 'cancel')),
-                                                ),
-                                                ElevatedButton(
-                                                  onPressed: () {
-                                                    final qty = int.tryParse(controller.text);
-                                                    if (qty != null && qty > 0 && qty <= item.product.stockQuantity) {
-                                                      Navigator.of(context).pop(qty);
-                                                    }
+                                        child: (item.product.imageUrl != null && item.product.imageUrl!.isNotEmpty)
+                                            ? ClipRRect(
+                                                borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                                                child: Image.network(
+                                                  Api.getFullImageUrl(item.product.imageUrl),
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (context, error, stackTrace) {
+                                                    return Icon(
+                                                      Icons.image,
+                                                      size: isSmallMobile ? 14 : (isMobile ? 18 : 20),
+                                                      color: Colors.grey,
+                                                    );
                                                   },
-                                                  child: Text(t(context, 'set')),
                                                 ),
-                                              ],
-                                            );
-                                          },
-                                        );
-                                        if (newQuantity != null && newQuantity > 0) {
-                                          // Use stock validation for quantity updates
-                                          final result = cart.updateQuantityWithValidation(
-                                            item.product, 
-                                            newQuantity, 
-                                            mode: item.mode
-                                          );
-                                          
-                                          if (!result['success']) {
-                                            // Show insufficient stock message
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text(result['message']),
-                                                backgroundColor: Colors.red,
-                                                duration: Duration(seconds: 3),
+                                              )
+                                            : Icon(
+                                                Icons.image,
+                                                size: isSmallMobile ? 14 : (isMobile ? 18 : 20),
+                                                color: Colors.grey,
                                               ),
-                                            );
-                                          }
-                                        }
-                                      },
-                                      child: Text(
-                                      '${item.quantity}',
-                                      style: TextStyle(
-                                        fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
-                                        fontWeight: FontWeight.bold,
-                                          decoration: TextDecoration.underline,
-                                          color: Colors.blue,
+                                      ),
+                                      SizedBox(width: isSmallMobile ? 6 : (isMobile ? 8 : 12)),
+                                      // Product Name
+                                      Expanded(
+                                        flex: 3,
+                                        child: Text(
+                                          item.product.name,
+                                          style: TextStyle(
+                                            fontSize: isSmallMobile ? 13 : (isMobile ? 15 : 17),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          maxLines: isSmallMobile ? 2 : 3,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(Icons.add, size: isSmallMobile ? 14 : 18),
-                                      onPressed: () {
-                                        // Use stock validation for adding more of the same item
-                                        final result = cart.addItemWithValidation(
-                                          item.product, 
-                                          mode: item.mode, 
-                                          quantity: 1
-                                        );
-                                        
-                                        if (!result['success']) {
-                                          // Show insufficient stock message
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text(result['message']),
-                                              backgroundColor: Colors.red,
-                                              duration: Duration(seconds: 3),
+                                      // Delete button
+                                      GestureDetector(
+                                        onTap: () => cart.removeItemCompletely(item.product),
+                                        child: Container(
+                                          padding: EdgeInsets.all(isSmallMobile ? 4 : (isMobile ? 6 : 8)),
+                                          child: Icon(
+                                            Icons.delete,
+                                            size: isSmallMobile ? 16 : (isMobile ? 18 : 20),
+                                            color: Colors.red[700],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
+                                  // Second row: Cost and Price below product name
+                                  Row(
+                                    children: [
+                                      SizedBox(width: isSmallMobile ? 41 : (isMobile ? 53 : 62)), // Space for image + gap
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Cost: \$${item.product.costPrice.toStringAsFixed(2)}',
+                                              style: TextStyle(
+                                                fontSize: isSmallMobile ? 10 : (isMobile ? 11 : 13),
+                                                color: Colors.green[700],
+                                                fontWeight: FontWeight.w500,
+                                              ),
                                             ),
-                                          );
-                                        }
-                                      },
-                                      padding: EdgeInsets.all(isSmallMobile ? 2 : (isMobile ? 4 : 8)),
-                                      constraints: BoxConstraints(
-                                        minWidth: isSmallMobile ? 24 : (isMobile ? 28 : 32),
-                                        minHeight: isSmallMobile ? 24 : (isMobile ? 28 : 32),
+                                            SizedBox(height: isSmallMobile ? 2 : 3),
+                                            Text(
+                                              'Price: \$${item.product.price.toStringAsFixed(2)}',
+                                              style: TextStyle(
+                                                fontSize: isSmallMobile ? 10 : (isMobile ? 11 : 13),
+                                                color: Colors.purple[700],
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                    SizedBox(width: isSmallMobile ? 2 : 4),
-                                    IconButton(
-                                      icon: Icon(Icons.delete, size: isSmallMobile ? 14 : 18, color: Colors.red),
-                                      onPressed: () {
-                                        cart.removeItemCompletely(item.product);
-                                      },
-                                      padding: EdgeInsets.all(isSmallMobile ? 2 : (isMobile ? 4 : 8)),
-                                      constraints: BoxConstraints(
-                                        minWidth: isSmallMobile ? 24 : (isMobile ? 28 : 32),
-                                        minHeight: isSmallMobile ? 24 : (isMobile ? 28 : 32),
+                                    ],
+                                  ),
+                                  SizedBox(height: isSmallMobile ? 4 : (isMobile ? 6 : 8)),
+                                  // Third row: Total and Quantity controls
+                                  Row(
+                                    children: [
+                                      SizedBox(width: isSmallMobile ? 41 : (isMobile ? 53 : 62)), // Space for image + gap
+                                      // Total
+                                      Expanded(
+                                        child: Text(
+                                          'Total: \$${(item.product.price * item.quantity).toStringAsFixed(2)}',
+                                          style: TextStyle(
+                                            fontSize: isSmallMobile ? 12 : (isMobile ? 13 : 15),
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.orange[700],
+                                          ),
+                                        ),
                                       ),
-                                      tooltip: t(context, 'remove_item'),
-                                    ),
-                                  ],
-                                ),
+                                      // Quantity controls
+                                      Row(
+                                        children: [
+                                          // Remove button
+                                          Container(
+                                            width: isSmallMobile ? 28 : (isMobile ? 32 : 36),
+                                            height: isSmallMobile ? 28 : (isMobile ? 32 : 36),
+                                            decoration: BoxDecoration(
+                                              color: Colors.red[50],
+                                              borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                                              border: Border.all(color: Colors.red[200]!),
+                                            ),
+                                            child: Material(
+                                              color: Colors.transparent,
+                                              child: InkWell(
+                                                borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                                                onTap: () => cart.removeItem(item.product),
+                                                child: Icon(
+                                                  Icons.remove,
+                                                  size: isSmallMobile ? 14 : (isMobile ? 16 : 18),
+                                                  color: Colors.red[700],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          SizedBox(width: isSmallMobile ? 3 : (isMobile ? 4 : 5)),
+                                          // Quantity display
+                                          Container(
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: isSmallMobile ? 10 : (isMobile ? 12 : 14),
+                                              vertical: isSmallMobile ? 4 : (isMobile ? 5 : 6),
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue[50],
+                                              borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                                              border: Border.all(color: Colors.blue[200]!),
+                                            ),
+                                            child: GestureDetector(
+                                              onTap: () async {
+                                                final newQuantity = await showDialog<int>(
+                                                  context: context,
+                                                  builder: (context) {
+                                                    final controller = TextEditingController(text: item.quantity.toString());
+                                                    return AlertDialog(
+                                                      title: Text(t(context, 'set_quantity')),
+                                                      content: TextField(
+                                                        controller: controller,
+                                                        keyboardType: TextInputType.number,
+                                                        decoration: InputDecoration(
+                                                          labelText: t(context, 'quantity'),
+                                                          hintText: t(context, 'enter_quantity'),
+                                                        ),
+                                                      ),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () => Navigator.of(context).pop(),
+                                                          child: Text(t(context, 'cancel')),
+                                                        ),
+                                                        ElevatedButton(
+                                                          onPressed: () {
+                                                            final qty = int.tryParse(controller.text);
+                                                            if (qty != null && qty > 0 && qty <= item.product.stockQuantity) {
+                                                              Navigator.of(context).pop(qty);
+                                                            }
+                                                          },
+                                                          child: Text(t(context, 'set')),
+                                                        ),
+                                                      ],
+                                                    );
+                                                  },
+                                                );
+                                                if (newQuantity != null && newQuantity > 0) {
+                                                  final result = cart.updateQuantityWithValidation(
+                                                    item.product, 
+                                                    newQuantity, 
+                                                    mode: item.mode
+                                                  );
+                                                  
+                                                  if (!result['success']) {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(result['message']),
+                                                        backgroundColor: Colors.red,
+                                                        duration: Duration(seconds: 3),
+                                                      ),
+                                                    );
+                                                  }
+                                                }
+                                              },
+                                              child: Text(
+                                                '${item.quantity}',
+                                                style: TextStyle(
+                                                  fontSize: isSmallMobile ? 12 : (isMobile ? 13 : 15),
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.blue[700],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          SizedBox(width: isSmallMobile ? 3 : (isMobile ? 4 : 5)),
+                                          // Add button
+                                          Container(
+                                            width: isSmallMobile ? 28 : (isMobile ? 32 : 36),
+                                            height: isSmallMobile ? 28 : (isMobile ? 32 : 36),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green[50],
+                                              borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                                              border: Border.all(color: Colors.green[200]!),
+                                            ),
+                                            child: Material(
+                                              color: Colors.transparent,
+                                              child: InkWell(
+                                                borderRadius: BorderRadius.circular(isSmallMobile ? 4 : 6),
+                                                onTap: () {
+                                                  final result = cart.addItemWithValidation(
+                                                    item.product, 
+                                                    mode: item.mode, 
+                                                    quantity: 1
+                                                  );
+                                                  
+                                                  if (!result['success']) {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(result['message']),
+                                                        backgroundColor: Colors.red,
+                                                        duration: Duration(seconds: 3),
+                                                      ),
+                                                    );
+                                                  }
+                                                },
+                                                child: Icon(
+                                                  Icons.add,
+                                                  size: isSmallMobile ? 14 : (isMobile ? 16 : 18),
+                                                  color: Colors.green[700],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             );
                           },
@@ -1196,57 +1282,95 @@ class _POSScreenState extends State<POSScreen> {
             
             // Ultra-compact Total and Checkout for mobile
             Container(
-              padding: EdgeInsets.all(isSmallMobile ? 6 : (isMobile ? 8 : 16)),
+              padding: EdgeInsets.all(isSmallMobile ? 8 : (isMobile ? 12 : 16)),
               decoration: BoxDecoration(
                 color: Colors.white,
                 border: Border(
-                  top: BorderSide(color: Colors.grey[300]!),
+                  top: BorderSide(color: Colors.grey[300]!, width: 1),
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: Offset(0, -2),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        t(context, 'total'),
-                        style: TextStyle(
-                          fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 18),
-                          fontWeight: FontWeight.bold,
+                  Container(
+                    padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                      border: Border.all(color: Colors.green[200]!),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.shopping_cart,
+                              size: isSmallMobile ? 16 : (isMobile ? 18 : 20),
+                              color: Colors.green[700],
+                            ),
+                            SizedBox(width: isSmallMobile ? 4 : 8),
+                            Text(
+                              t(context, 'total'),
+                              style: TextStyle(
+                                fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green[800],
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      Text(
-                        '\$${cart.total.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 20),
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green[700],
+                        Text(
+                          '\$${cart.total.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: isSmallMobile ? 16 : (isMobile ? 18 : 20),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green[700],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   SizedBox(height: isSmallMobile ? 8 : 12),
                   SizedBox(
                     width: double.infinity,
+                    height: isSmallMobile ? 44 : (isMobile ? 48 : 52),
                     child: ElevatedButton(
                       onPressed: cart.items.isEmpty ? null : () {
                         _showCheckoutDialog(context, cart);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
+                        backgroundColor: Colors.green[600],
                         foregroundColor: Colors.white,
                         padding: EdgeInsets.symmetric(vertical: isSmallMobile ? 8 : (isMobile ? 10 : 16)),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
                         ),
-                        elevation: 1,
+                        elevation: 2,
+                        shadowColor: Colors.green.withOpacity(0.3),
                       ),
-                      child: Text(
-                        t(context, 'checkout'),
-                        style: TextStyle(
-                          fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 18),
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.shopping_cart_checkout,
+                            size: isSmallMobile ? 16 : (isMobile ? 18 : 20),
+                          ),
+                          SizedBox(width: isSmallMobile ? 6 : 8),
+                          Text(
+                            t(context, 'checkout'),
+                            style: TextStyle(
+                              fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -1908,6 +2032,19 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                                     child: TextFormField(
                                                       controller: controller,
                                                       keyboardType: TextInputType.numberWithOptions(decimal: true),
+                                                      enableInteractiveSelection: true,
+                                                      textInputAction: TextInputAction.done,
+                                                      cursorWidth: 2.0,
+                                                      inputFormatters: [
+                                                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                                                        TextInputFormatter.withFunction((oldValue, newValue) {
+                                                          // Prevent multiple decimal points
+                                                          if (newValue.text.split('.').length > 2) {
+                                                            return oldValue;
+                                                          }
+                                                          return newValue;
+                                                        }),
+                                                      ],
                                                       decoration: InputDecoration(
                                                         labelText: 'Total Price',
                                                         hintText: 'Enter total price for all quantities',
@@ -1932,13 +2069,16 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                                         final totalPrice = double.tryParse(value);
                                                         final minTotal = item.product.costPrice * item.quantity;
                                                         final valid = totalPrice != null && totalPrice >= minTotal;
+                                                        
+                                                        // Update local state first
                                                         setItemState(() => isInvalid = !valid);
+                                                        
+                                                        // Update cart only if valid
                                                         if (valid && totalPrice != null) {
-                                                          setState(() {
-                                                            widget.cart.updateCustomTotalPrice(item.product, totalPrice);
-                                                          });
+                                                          widget.cart.updateCustomTotalPrice(item.product, totalPrice);
                                                         }
-                                                        // Force rebuild to update validation state
+                                                        
+                                                        // Update parent state only once
                                                         setState(() {});
                                                       },
                                                     ),
@@ -1985,6 +2125,19 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                                     child: TextFormField(
                                                       controller: controller,
                                                       keyboardType: TextInputType.numberWithOptions(decimal: true),
+                                                      enableInteractiveSelection: true,
+                                                      textInputAction: TextInputAction.done,
+                                                      cursorWidth: 2.0,
+                                                      inputFormatters: [
+                                                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                                                        TextInputFormatter.withFunction((oldValue, newValue) {
+                                                          // Prevent multiple decimal points
+                                                          if (newValue.text.split('.').length > 2) {
+                                                            return oldValue;
+                                                          }
+                                                          return newValue;
+                                                        }),
+                                                      ],
                                                       decoration: InputDecoration(
                                                         labelText: 'Total Price',
                                                         hintText: 'Enter total price for all quantities',
@@ -2009,13 +2162,16 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                                         final totalPrice = double.tryParse(value);
                                                         final minTotal = item.product.costPrice * item.quantity;
                                                         final valid = totalPrice != null && totalPrice >= minTotal;
+                                                        
+                                                        // Update local state first
                                                         setState(() => isInvalid = !valid);
+                                                        
+                                                        // Update cart only if valid
                                                         if (valid && totalPrice != null) {
-                                                          setState(() {
-                                                            widget.cart.updateCustomTotalPrice(item.product, totalPrice);
-                                                          });
+                                                          widget.cart.updateCustomTotalPrice(item.product, totalPrice);
                                                         }
-                                                        // Force rebuild to update validation state
+                                                        
+                                                        // Update parent state only once
                                                         setState(() {});
                                                       },
                                                     ),

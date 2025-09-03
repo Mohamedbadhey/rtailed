@@ -371,21 +371,45 @@ final ThemeData darkTheme = ThemeData(
     onError: Colors.white,
   ),
   textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
+  
+  // App Bar Theme
   appBarTheme: AppBarTheme(
     elevation: 0,
     backgroundColor: const Color(0xFF1E1E1E),
-      foregroundColor: Colors.white,
+    foregroundColor: Colors.white,
     titleTextStyle: GoogleFonts.poppins(
       fontSize: 20,
       fontWeight: FontWeight.bold,
       color: Colors.white,
     ),
+    iconTheme: const IconThemeData(color: Colors.white, size: 24),
   ),
+  
+  // Elevated Button Theme
+  elevatedButtonTheme: ElevatedButtonThemeData(
+    style: ElevatedButton.styleFrom(
+      elevation: 8,
+      shadowColor: primaryGradientStart.withOpacity(0.3),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+      textStyle: GoogleFonts.poppins(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.5,
+      ),
+    ),
+  ),
+  
+  // Card Theme
   cardTheme: CardThemeData(
     elevation: 8,
     color: const Color(0xFF2D2D2D),
+    shadowColor: Colors.black.withOpacity(0.3),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
   ),
+  
+  // Input Decoration Theme
   inputDecorationTheme: InputDecorationTheme(
     filled: true,
     fillColor: const Color(0xFF2D2D2D),
@@ -401,9 +425,143 @@ final ThemeData darkTheme = ThemeData(
       borderRadius: BorderRadius.circular(16),
       borderSide: BorderSide(color: primaryGradientStart, width: 2),
     ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: errorColor, width: 2),
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    labelStyle: GoogleFonts.poppins(
+      color: Colors.grey[300],
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+    ),
+    hintStyle: GoogleFonts.poppins(
+      color: Colors.grey[400],
+      fontSize: 14,
+    ),
   ),
+  
+  // Floating Action Button Theme
+  floatingActionButtonTheme: FloatingActionButtonThemeData(
+    backgroundColor: primaryGradientStart,
+    foregroundColor: Colors.white,
+    elevation: 12,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+  ),
+  
+  // Bottom Navigation Bar Theme
+  bottomNavigationBarTheme: BottomNavigationBarThemeData(
+    backgroundColor: const Color(0xFF1E1E1E),
+    selectedItemColor: primaryGradientStart,
+    unselectedItemColor: Colors.grey[400],
+    type: BottomNavigationBarType.fixed,
+    elevation: 20,
+    selectedLabelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+    unselectedLabelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+  ),
+  
+  // Tab Bar Theme
+  tabBarTheme: TabBarThemeData(
+    labelColor: primaryGradientStart,
+    unselectedLabelColor: Colors.grey[400],
+    indicatorColor: primaryGradientStart,
+    labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+    unselectedLabelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+  ),
+  
+  // Chip Theme
+  chipTheme: ChipThemeData(
+    backgroundColor: Colors.grey[800],
+    selectedColor: primaryGradientStart,
+    disabledColor: Colors.grey[700],
+    labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    elevation: 2,
+  ),
+  
+  // Divider Theme
+  dividerTheme: DividerThemeData(
+    color: Colors.grey[700],
+    thickness: 1,
+    space: 1,
+  ),
+  
+  // Icon Theme
+  iconTheme: IconThemeData(
+    color: Colors.white,
+    size: 24,
+  ),
+  
+  // Scaffold Background
   scaffoldBackgroundColor: const Color(0xFF121212),
 );
+
+// Theme-aware color helpers
+class ThemeAwareColors {
+  static Color getTextColor(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    return brightness == Brightness.dark ? Colors.white : textPrimary;
+  }
+  
+  static Color getSecondaryTextColor(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    return brightness == Brightness.dark ? Colors.grey[300]! : textSecondary;
+  }
+  
+  static Color getBackgroundColor(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    return brightness == Brightness.dark ? const Color(0xFF121212) : backgroundColor;
+  }
+  
+  static Color getSurfaceColor(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    return brightness == Brightness.dark ? const Color(0xFF1E1E1E) : surfaceColor;
+  }
+  
+  static Color getCardColor(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    return brightness == Brightness.dark ? const Color(0xFF2D2D2D) : surfaceColor;
+  }
+  
+  static Color getBorderColor(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    return brightness == Brightness.dark ? Colors.grey[700]! : Colors.grey[200]!;
+  }
+  
+  static Color getInputFillColor(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    return brightness == Brightness.dark ? const Color(0xFF2D2D2D) : Colors.grey[50]!;
+  }
+  
+  static Color getShadowColor(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    return brightness == Brightness.dark 
+        ? Colors.black.withOpacity(0.3) 
+        : Colors.black.withOpacity(0.1);
+  }
+  
+  static Color getGreyColor(BuildContext context, int shade) {
+    final brightness = Theme.of(context).brightness;
+    if (brightness == Brightness.dark) {
+      // Map light grey shades to dark grey shades
+      switch (shade) {
+        case 50: return Colors.grey[800]!;
+        case 100: return Colors.grey[800]!;
+        case 200: return Colors.grey[700]!;
+        case 300: return Colors.grey[600]!;
+        case 400: return Colors.grey[500]!;
+        case 500: return Colors.grey[400]!;
+        case 600: return Colors.grey[300]!;
+        case 700: return Colors.grey[200]!;
+        case 800: return Colors.grey[100]!;
+        case 900: return Colors.grey[50]!;
+        default: return Colors.grey[300]!;
+      }
+    } else {
+      return Colors.grey[shade]!;
+    }
+  }
+}
 
 // Custom Widget Styles
 class AppStyles {

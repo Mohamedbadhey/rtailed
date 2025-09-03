@@ -175,7 +175,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: ThemeAwareColors.getCardColor(context),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: primaryGradientStart.withOpacity(0.2),
@@ -231,7 +231,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     onPressed: () => Navigator.of(context).pop(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryGradientStart,
-                      foregroundColor: Colors.white,
+                      foregroundColor: ThemeAwareColors.getTextColor(context),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),

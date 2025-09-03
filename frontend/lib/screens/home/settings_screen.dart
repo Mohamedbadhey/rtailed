@@ -7,6 +7,7 @@ import 'package:retail_management/services/api_service.dart';
 
 import 'package:retail_management/widgets/branded_header.dart';
 import 'package:retail_management/utils/translate.dart';
+import 'package:retail_management/utils/theme.dart';
 
 import 'manage_cashiers_screen.dart';
 
@@ -319,11 +320,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Container(
                 padding: EdgeInsets.all(isSmallMobile ? 10 : (isMobile ? 12 : 16)),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: ThemeAwareColors.getCardColor(context),
                   borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: ThemeAwareColors.getShadowColor(context),
                       blurRadius: isSmallMobile ? 6 : 10,
                       offset: Offset(0, isSmallMobile ? 1 : 2),
                     ),
@@ -481,7 +482,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           style: TextStyle(
             fontSize: isSmallMobile ? 14 : 16,
             fontWeight: FontWeight.bold,
-            color: Colors.grey[700],
+            color: ThemeAwareColors.getSecondaryTextColor(context),
           ),
         ),
         SizedBox(height: isSmallMobile ? 8 : 12),
@@ -674,7 +675,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               '📱 ${customer['phone'] ?? 'No phone'}',
                               style: TextStyle(
                                 fontSize: isSmallMobile ? 11 : 12,
-                                color: Colors.grey[600],
+                                color: ThemeAwareColors.getSecondaryTextColor(context),
                               ),
                             ),
                             SizedBox(height: isSmallMobile ? 2 : 4),
@@ -682,7 +683,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               '📧 ${customer['email'] ?? 'No email'}',
                               style: TextStyle(
                                 fontSize: isSmallMobile ? 11 : 12,
-                                color: Colors.grey[600],
+                                color: ThemeAwareColors.getSecondaryTextColor(context),
                               ),
                             ),
                           ],
@@ -729,9 +730,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Container(
                     padding: EdgeInsets.all(isSmallMobile ? 8 : 10),
                     decoration: BoxDecoration(
-                      color: Colors.grey[50],
+                      color: ThemeAwareColors.getInputFillColor(context),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.grey[200]!),
+                      border: Border.all(color: ThemeAwareColors.getBorderColor(context)),
                     ),
                     child: Row(
                       children: [
@@ -742,7 +743,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 'Credit Sales',
                                 style: TextStyle(
                                   fontSize: isSmallMobile ? 9 : 10,
-                                  color: Colors.grey[600],
+                                  color: ThemeAwareColors.getSecondaryTextColor(context),
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -770,7 +771,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 'Total Credit',
                                 style: TextStyle(
                                   fontSize: isSmallMobile ? 9 : 10,
-                                  color: Colors.grey[600],
+                                  color: ThemeAwareColors.getSecondaryTextColor(context),
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -798,7 +799,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 'Total Paid',
                                 style: TextStyle(
                                   fontSize: isSmallMobile ? 9 : 10,
-                                  color: Colors.grey[600],
+                                  color: ThemeAwareColors.getSecondaryTextColor(context),
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -826,7 +827,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 'Outstanding',
                                 style: TextStyle(
                                   fontSize: isSmallMobile ? 9 : 10,
-                                  color: Colors.grey[600],
+                                  color: ThemeAwareColors.getSecondaryTextColor(context),
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),

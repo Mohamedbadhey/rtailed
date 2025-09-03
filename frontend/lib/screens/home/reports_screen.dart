@@ -13,6 +13,7 @@ import 'dart:ui';
 import 'package:retail_management/utils/translate.dart';
 import 'package:retail_management/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:retail_management/utils/theme.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});

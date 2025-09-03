@@ -455,7 +455,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: isDamaged ? Colors.orange[100] : Colors.grey[100],
+                                        color: isDamaged ? Colors.orange[100] : ThemeAwareColors.getGreyColor(context, 100),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
@@ -463,7 +463,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                         style: TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.bold,
-                                          color: isDamaged ? Colors.orange[800] : Colors.grey[700],
+                                          color: isDamaged ? Colors.orange[800] : ThemeAwareColors.getGreyColor(context, 700),
                                         ),
                                       ),
                                     ),
@@ -486,7 +486,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                         tx['notes'] ?? '',
                                         style: TextStyle(
                                           fontSize: 10,
-                                          color: isDamaged ? Colors.orange[700] : Colors.grey[600],
+                                          color: isDamaged ? Colors.orange[700] : ThemeAwareColors.getGreyColor(context, 600),
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -528,7 +528,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final isSmallMobile = screenWidth <= 480;
     
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: ThemeAwareColors.getBackgroundColor(context),
       body: SafeArea(
           child: SingleChildScrollView(
             child: Column(
@@ -919,7 +919,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             style: TextStyle(
                               fontSize: isSmallMobile ? 12 : 14,
                               fontWeight: FontWeight.bold,
-                              color: Colors.grey[800],
+                              color: ThemeAwareColors.getTextColor(context),
                             ),
                           ),
                         ],
@@ -944,11 +944,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
               Container(
                 margin: EdgeInsets.symmetric(horizontal: isSmallMobile ? 4 : 8),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: ThemeAwareColors.getCardColor(context),
                   borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: ThemeAwareColors.getShadowColor(context),
                       blurRadius: 12,
                       offset: const Offset(0, 2),
                     ),
@@ -988,7 +988,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           ),
                           trailing: Icon(
                             isExpanded ? Icons.expand_less : Icons.expand_more,
-                            color: Colors.grey[600],
+                            color: ThemeAwareColors.getSecondaryTextColor(context),
                             size: isSmallMobile ? 16 : 18,
                           ),
                         );
@@ -1008,9 +1008,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 padding: EdgeInsets.all(12),
                                 margin: EdgeInsets.only(bottom: 12),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[50],
+                                  color: ThemeAwareColors.getInputFillColor(context),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.grey[300]!),
+                                  border: Border.all(color: ThemeAwareColors.getBorderColor(context)),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,

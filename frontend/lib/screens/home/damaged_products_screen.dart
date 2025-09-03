@@ -98,7 +98,7 @@ class _DamagedProductsScreenState extends State<DamagedProductsScreen>
             height: isSmallMobile ? 50 : (isMobile ? 55 : 60),
             child: TabBar(
               controller: _tabController,
-              indicatorColor: Colors.white,
+              indicatorColor: ThemeAwareColors.getTextColor(context),
               indicatorWeight: isSmallMobile ? 2 : 3,
               indicatorSize: TabBarIndicatorSize.tab,
               isScrollable: false, // Make tabs fill the entire width
@@ -109,12 +109,12 @@ class _DamagedProductsScreenState extends State<DamagedProductsScreen>
               labelStyle: TextStyle(
                 fontSize: isSmallMobile ? 10 : (isMobile ? 11 : 12),
                 fontWeight: FontWeight.w600,
-                color: Colors.white,
+                color: ThemeAwareColors.getTextColor(context),
               ),
               unselectedLabelStyle: TextStyle(
                 fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 11),
                 fontWeight: FontWeight.normal,
-                color: Colors.white70,
+                color: ThemeAwareColors.getTextColor(context).withOpacity(0.7),
               ),
               dividerColor: Colors.transparent,
               indicatorPadding: EdgeInsets.symmetric(
@@ -126,7 +126,7 @@ class _DamagedProductsScreenState extends State<DamagedProductsScreen>
                   icon: Icon(
                     Icons.list,
                     size: isSmallMobile ? 16 : (isMobile ? 18 : 20),
-                    color: Colors.white,
+                    color: ThemeAwareColors.getTextColor(context),
                   ),
                 ),
                 Tab(
@@ -134,7 +134,7 @@ class _DamagedProductsScreenState extends State<DamagedProductsScreen>
                   icon: Icon(
                     Icons.analytics,
                     size: isSmallMobile ? 16 : (isMobile ? 18 : 20),
-                    color: Colors.white,
+                    color: ThemeAwareColors.getTextColor(context),
                   ),
                 ),
                 Tab(
@@ -142,7 +142,7 @@ class _DamagedProductsScreenState extends State<DamagedProductsScreen>
                   icon: Icon(
                     Icons.add,
                     size: isSmallMobile ? 16 : (isMobile ? 18 : 20),
-                    color: Colors.white,
+                    color: ThemeAwareColors.getTextColor(context),
                   ),
                 ),
               ],

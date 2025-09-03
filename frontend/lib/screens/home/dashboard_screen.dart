@@ -10,6 +10,7 @@ import 'package:retail_management/utils/translate.dart';
 import 'package:retail_management/providers/auth_provider.dart'; // Added import for AuthProvider
 import 'package:provider/provider.dart'; // Added import for Provider
 import 'package:retail_management/widgets/branded_header.dart';
+import 'package:retail_management/utils/theme.dart';
 import 'manage_cashiers_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -276,11 +277,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 actions: [
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: ThemeAwareColors.getTextColor(context).withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.refresh, color: Colors.white),
+                        icon: Icon(Icons.refresh, color: ThemeAwareColors.getTextColor(context)),
                         onPressed: _loadDashboardData,
                         tooltip: t(context, 'Refresh Data'),
                         padding: EdgeInsets.all(isMobile ? 8 : 12),
@@ -293,11 +294,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(width: 8),
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: ThemeAwareColors.getTextColor(context).withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.credit_card, color: Colors.white),
+                        icon: Icon(Icons.credit_card, color: ThemeAwareColors.getTextColor(context)),
                         onPressed: () {
                           setState(() {
                             _showCreditSection = !_showCreditSection;
@@ -479,11 +480,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Container(
             padding: EdgeInsets.all(isSmallMobile ? 10 : (isMobile ? 12 : 16)),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: ThemeAwareColors.getCardColor(context),
               borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: ThemeAwareColors.getShadowColor(context),
                   blurRadius: isSmallMobile ? 6 : 10,
                   offset: Offset(0, isSmallMobile ? 1 : 2),
                 ),
@@ -501,6 +502,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       style: TextStyle(
                         fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18),
                         fontWeight: FontWeight.bold,
+                        color: ThemeAwareColors.getTextColor(context),
                       ),
                     ),
                   ],
@@ -757,7 +759,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               t(context, '${_lowStockProducts.length} products are running low on stock'),
               style: TextStyle(
                 fontSize: isSmallMobile ? 12 : 14,
-                color: Colors.grey[600],
+                color: ThemeAwareColors.getSecondaryTextColor(context),
               ),
             ),
             SizedBox(height: isSmallMobile ? 8 : 12),
@@ -799,7 +801,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     t(context, 'And ${_lowStockProducts.length - 3} more...'),
                     style: TextStyle(
                       fontSize: isSmallMobile ? 10 : 12,
-                      color: Colors.grey[500],
+                      color: ThemeAwareColors.getSecondaryTextColor(context),
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -816,11 +818,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: EdgeInsets.all(isSmallMobile ? 10 : (isMobile ? 12 : 16)),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ThemeAwareColors.getCardColor(context),
         borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: ThemeAwareColors.getShadowColor(context),
             blurRadius: isSmallMobile ? 6 : 10,
             offset: Offset(0, isSmallMobile ? 1 : 2),
           ),
@@ -838,6 +840,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: TextStyle(
                   fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18),
                   fontWeight: FontWeight.bold,
+                  color: ThemeAwareColors.getTextColor(context),
                 ),
               ),
             ],

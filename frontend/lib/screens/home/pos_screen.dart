@@ -13,6 +13,7 @@ import 'package:retail_management/widgets/branded_header.dart';
 import 'package:retail_management/utils/api.dart';
 import 'package:retail_management/utils/translate.dart';
 import 'package:retail_management/utils/success_utils.dart';
+import 'package:retail_management/utils/theme.dart';
 
 class POSScreen extends StatefulWidget {
   const POSScreen({super.key});
@@ -190,7 +191,7 @@ class _POSScreenState extends State<POSScreen> {
                             Center(
                               child: Icon(
                                 Icons.shopping_cart,
-                                color: Colors.white,
+                                color: ThemeAwareColors.getTextColor(context),
                                 size: isSmallMobile ? 24 : 28,
                               ),
                             ),
@@ -204,12 +205,12 @@ class _POSScreenState extends State<POSScreen> {
                                         decoration: BoxDecoration(
                                           color: Colors.red,
                                           borderRadius: BorderRadius.circular(10),
-                                          border: Border.all(color: Colors.white, width: 2),
+                                          border: Border.all(color: ThemeAwareColors.getTextColor(context), width: 2),
                                         ),
                                         child: Text(
                                           '${cart.items.length}',
-                                          style: const TextStyle(
-                                            color: Colors.white,
+                                          style: TextStyle(
+                                            color: ThemeAwareColors.getTextColor(context),
                                             fontSize: 10,
                                             fontWeight: FontWeight.bold,
                                           ),
@@ -268,7 +269,7 @@ class _POSScreenState extends State<POSScreen> {
                     ),
                     child: Icon(
                       Icons.point_of_sale,
-                      color: Colors.white,
+                      color: ThemeAwareColors.getTextColor(context),
                       size: isSmallMobile ? 16 : (isMobile ? 20 : 40),
                     ),
                   ),

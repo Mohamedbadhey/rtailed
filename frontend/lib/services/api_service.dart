@@ -763,6 +763,27 @@ class ApiService {
     }
   }
 
+  // Get all businesses (for superadmin)
+  Future<List<Map<String, dynamic>>> getBusinesses() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/businesses'),
+        headers: _headers,
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data['businesses'] ?? []);
+      } else {
+        print('GET BUSINESSES ERROR: ${response.statusCode} ${response.body}');
+        throw Exception('Error: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      print('Get Businesses Error: $e');
+      rethrow;
+    }
+  }
+
   // Categories
   Future<List<Map<String, dynamic>>> getCategories() async {
     try {
@@ -1348,5 +1369,343 @@ class ApiService {
       throw Exception('Error: ${response.statusCode} ${response.body}');
     }
     return json.decode(response.body);
+  }
+
+  // =====================================================
+  // STORE MANAGEMENT API METHODS
+  // =====================================================
+
+  // Get all stores
+  Future<List<Map<String, dynamic>>> getStores({
+    int limit = 10,
+    int offset = 0,
+    String search = '',
+    String storeType = '',
+    bool? isActive,
+  }) async {
+    final queryParams = <String, String>{
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+    };
+    
+    if (search.isNotEmpty) queryParams['search'] = search;
+    if (storeType.isNotEmpty) queryParams['store_type'] = storeType;
+    if (isActive != null) queryParams['is_active'] = isActive.toString();
+    
+    final uri = Uri.parse('$baseUrl/api/stores').replace(queryParameters: queryParams);
+    
+    final response = await http.get(uri, headers: _headers);
+    
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return List<Map<String, dynamic>>.from(data['stores'] ?? []);
+    } else {
+      print('GET STORES ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Get store details by ID
+  Future<Map<String, dynamic>> getStoreDetails(int storeId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/stores/$storeId'),
+      headers: _headers,
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      print('GET STORE DETAILS ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Create a new store (superadmin only)
+  Future<Map<String, dynamic>> createStore(Map<String, dynamic> storeData) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/stores'),
+      headers: _headers,
+      body: json.encode(storeData),
+    );
+    
+    if (response.statusCode == 201) {
+      return json.decode(response.body);
+    } else {
+      print('CREATE STORE ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Update store (superadmin only)
+  Future<Map<String, dynamic>> updateStore(int storeId, Map<String, dynamic> storeData) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/api/stores/$storeId'),
+      headers: _headers,
+      body: json.encode(storeData),
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      print('UPDATE STORE ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Assign business to store (superadmin only)
+  Future<Map<String, dynamic>> assignBusinessToStore(int storeId, int businessId, {String? notes}) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/stores/$storeId/assign-business'),
+      headers: _headers,
+      body: json.encode({
+        'business_id': businessId,
+        'notes': notes,
+      }),
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      print('ASSIGN BUSINESS ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Remove business from store (superadmin only)
+  Future<Map<String, dynamic>> removeBusinessFromStore(int storeId, int businessId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/api/stores/$storeId/assign-business/$businessId'),
+      headers: _headers,
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      print('REMOVE BUSINESS ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Get businesses assigned to a store
+  Future<List<Map<String, dynamic>>> getStoreBusinesses(int storeId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/stores/$storeId/businesses'),
+      headers: _headers,
+    );
+    
+    if (response.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(json.decode(response.body));
+    } else {
+      print('GET STORE BUSINESSES ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // =====================================================
+  // STORE TRANSFER API METHODS
+  // =====================================================
+
+  // Get all store transfers
+  Future<List<Map<String, dynamic>>> getStoreTransfers({
+    int limit = 10,
+    int offset = 0,
+    String search = '',
+    String status = '',
+    String transferType = '',
+  }) async {
+    final queryParams = <String, String>{
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+    };
+    
+    if (search.isNotEmpty) queryParams['search'] = search;
+    if (status.isNotEmpty) queryParams['status'] = status;
+    if (transferType.isNotEmpty) queryParams['transfer_type'] = transferType;
+    
+    final uri = Uri.parse('$baseUrl/api/store-transfers').replace(queryParameters: queryParams);
+    
+    final response = await http.get(uri, headers: _headers);
+    
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return List<Map<String, dynamic>>.from(data['transfers'] ?? []);
+    } else {
+      print('GET TRANSFERS ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Get transfer details by ID
+  Future<Map<String, dynamic>> getTransferDetails(int transferId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/store-transfers/$transferId'),
+      headers: _headers,
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      print('GET TRANSFER DETAILS ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Create a new transfer request
+  Future<Map<String, dynamic>> createTransfer(Map<String, dynamic> transferData) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/store-transfers'),
+      headers: _headers,
+      body: json.encode(transferData),
+    );
+    
+    if (response.statusCode == 201) {
+      return json.decode(response.body);
+    } else {
+      print('CREATE TRANSFER ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Approve transfer
+  Future<Map<String, dynamic>> approveTransfer(int transferId, List<Map<String, dynamic>> approvedQuantities) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/api/store-transfers/$transferId/approve'),
+      headers: _headers,
+      body: json.encode({
+        'approved_quantities': approvedQuantities,
+      }),
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      print('APPROVE TRANSFER ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Reject transfer
+  Future<Map<String, dynamic>> rejectTransfer(int transferId, String rejectionReason) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/api/store-transfers/$transferId/reject'),
+      headers: _headers,
+      body: json.encode({
+        'rejection_reason': rejectionReason,
+      }),
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      print('REJECT TRANSFER ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // =====================================================
+  // STORE INVENTORY API METHODS
+  // =====================================================
+
+  // Add products to store inventory (with increment tracking)
+  Future<Map<String, dynamic>> addProductsToStore(int storeId, int businessId, List<Map<String, dynamic>> products) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/store-inventory/$storeId/add-products'),
+      headers: _headers,
+      body: json.encode({
+        'business_id': businessId,
+        'products': products,
+      }),
+    );
+    
+    if (response.statusCode == 201) {
+      return json.decode(response.body);
+    } else {
+      print('ADD PRODUCTS TO STORE ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Transfer products from store to business
+  Future<Map<String, dynamic>> transferStoreToBusiness(int storeId, int toBusinessId, List<Map<String, dynamic>> products, {String? notes}) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/store-inventory/$storeId/transfer-to-business'),
+      headers: _headers,
+      body: json.encode({
+        'to_business_id': toBusinessId,
+        'products': products,
+        'notes': notes,
+      }),
+    );
+    
+    if (response.statusCode == 201) {
+      return json.decode(response.body);
+    } else {
+      print('TRANSFER STORE TO BUSINESS ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Get store inventory for a specific business
+  Future<List<Map<String, dynamic>>> getStoreInventory(int storeId, int businessId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/store-inventory/$storeId/inventory/$businessId'),
+      headers: _headers,
+    );
+    
+    if (response.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(json.decode(response.body));
+    } else {
+      print('GET STORE INVENTORY ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Get inventory movement history
+  Future<List<Map<String, dynamic>>> getStoreInventoryMovements(int storeId, int businessId, {
+    int limit = 50,
+    int offset = 0,
+    String movementType = '',
+    String productId = '',
+  }) async {
+    final queryParams = <String, String>{
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+    };
+    
+    if (movementType.isNotEmpty) queryParams['movement_type'] = movementType;
+    if (productId.isNotEmpty) queryParams['product_id'] = productId;
+    
+    final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/movements/$businessId').replace(queryParameters: queryParams);
+    
+    final response = await http.get(uri, headers: _headers);
+    
+    if (response.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(json.decode(response.body));
+    } else {
+      print('GET STORE INVENTORY MOVEMENTS ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Get store inventory reports
+  Future<Map<String, dynamic>> getStoreInventoryReports(int storeId, int businessId, {
+    String? startDate,
+    String? endDate,
+  }) async {
+    final queryParams = <String, String>{};
+    
+    if (startDate != null) queryParams['start_date'] = startDate;
+    if (endDate != null) queryParams['end_date'] = endDate;
+    
+    final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/reports/$businessId').replace(queryParameters: queryParams);
+    
+    final response = await http.get(uri, headers: _headers);
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      print('GET STORE INVENTORY REPORTS ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
   }
 } 

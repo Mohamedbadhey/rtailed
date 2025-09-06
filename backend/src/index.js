@@ -433,6 +433,9 @@ app.use('/api/businesses', require('./routes/businesses'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/branding', require('./routes/branding'));
 app.use('/api/business-payments', require('./routes/business_payments'));
+app.use('/api/stores', require('./routes/stores'));
+app.use('/api/store-transfers', require('./routes/store_transfers'));
+app.use('/api/store-inventory', require('./routes/store_inventory'));
 
 // 404 handler for API routes only
 app.use('/api/*', (req, res) => {

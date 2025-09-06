@@ -1394,6 +1394,9 @@ class ApiService {
     
     final uri = Uri.parse('$baseUrl/api/stores').replace(queryParameters: queryParams);
     
+    print('GET STORES REQUEST: $uri');
+    print('GET STORES HEADERS: $_headers');
+    
     final response = await http.get(uri, headers: _headers);
     
     if (response.statusCode == 200) {
@@ -1523,6 +1526,9 @@ class ApiService {
     if (transferType.isNotEmpty) queryParams['transfer_type'] = transferType;
     
     final uri = Uri.parse('$baseUrl/api/store-transfers').replace(queryParameters: queryParams);
+    
+    print('GET STORE TRANSFERS REQUEST: $uri');
+    print('GET STORE TRANSFERS HEADERS: $_headers');
     
     final response = await http.get(uri, headers: _headers);
     

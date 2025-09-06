@@ -15,11 +15,18 @@ router.get('/', auth, checkRole(['admin', 'manager', 'superadmin']), async (req,
     const search = req.query.search || '';
     const store_type = req.query.store_type || '';
     const is_active = req.query.is_active !== undefined ? req.query.is_active === 'true' : null;
+    const user = req.user;
     
     let whereClause = '';
     let params = [];
     
     const conditions = [];
+    
+    // Filter by business assignment for non-superadmin users
+    if (user.role !== 'superadmin') {
+      conditions.push('sba.business_id = ?');
+      params.push(user.business_id);
+    }
     
     if (search) {
       conditions.push('(s.name LIKE ? OR s.store_code LIKE ? OR s.address LIKE ?)');
@@ -48,7 +55,7 @@ router.get('/', auth, checkRole(['admin', 'manager', 'superadmin']), async (req,
               COUNT(DISTINCT spi.product_id) as total_products
        FROM stores s
        LEFT JOIN users u ON s.created_by = u.id
-       LEFT JOIN store_business_assignments sba ON s.id = sba.store_id AND sba.is_active = 1
+       ${user.role !== 'superadmin' ? 'INNER' : 'LEFT'} JOIN store_business_assignments sba ON s.id = sba.store_id AND sba.is_active = 1
        LEFT JOIN store_product_inventory spi ON s.id = spi.store_id
        ${whereClause}
        GROUP BY s.id
@@ -59,7 +66,10 @@ router.get('/', auth, checkRole(['admin', 'manager', 'superadmin']), async (req,
     
     // Get total count for pagination
     const [countResult] = await pool.query(
-      `SELECT COUNT(*) as total FROM stores s ${whereClause}`,
+      `SELECT COUNT(DISTINCT s.id) as total 
+       FROM stores s
+       ${user.role !== 'superadmin' ? 'INNER' : 'LEFT'} JOIN store_business_assignments sba ON s.id = sba.store_id AND sba.is_active = 1
+       ${whereClause}`,
       params
     );
     

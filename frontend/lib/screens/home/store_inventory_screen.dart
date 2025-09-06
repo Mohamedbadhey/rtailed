@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:retail_management/providers/auth_provider.dart';
 import 'package:retail_management/services/api_service.dart';
 import 'package:retail_management/utils/translate.dart';
+import 'package:retail_management/utils/success_utils.dart';
 import 'package:retail_management/widgets/branded_app_bar.dart';
 
 class StoreInventoryScreen extends StatefulWidget {
@@ -86,6 +87,10 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       });
       
     } catch (e) {
+      print('Store Inventory Error: $e');
+      if (mounted) {
+        SuccessUtils.showOperationError(context, 'load store inventory', e.toString());
+      }
       setState(() {
         _error = e.toString();
       });

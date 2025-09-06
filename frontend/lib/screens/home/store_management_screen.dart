@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:retail_management/providers/auth_provider.dart';
 import 'package:retail_management/services/api_service.dart';
 import 'package:retail_management/utils/translate.dart';
+import 'package:retail_management/utils/success_utils.dart';
 import 'package:retail_management/widgets/branded_app_bar.dart';
 import 'package:retail_management/screens/home/store_inventory_screen.dart';
 
@@ -79,6 +80,10 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
       }
       
     } catch (e) {
+      print('Store Management Error: $e');
+      if (mounted) {
+        SuccessUtils.showOperationError(context, 'load store data', e.toString());
+      }
       setState(() {
         _error = e.toString();
       });
@@ -413,8 +418,236 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
   }
 
   Widget _buildAssignmentsTab() {
-    return const Center(
-      child: Text('Assignments Tab - Coming Soon'),
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+            const SizedBox(height: 16),
+            Text(
+              t(context, 'Error loading assignments'),
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadData,
+              child: Text(t(context, 'Retry')),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Header with Add Assignment button
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  t(context, 'Store-Business Assignments'),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _showCreateAssignmentDialog,
+                icon: const Icon(Icons.add),
+                label: Text(t(context, 'Assign Store')),
+              ),
+            ],
+          ),
+        ),
+        
+        // Assignments List
+        Expanded(
+          child: _buildAssignmentsList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAssignmentsList() {
+    // Create a list of all possible store-business combinations
+    List<Map<String, dynamic>> allAssignments = [];
+    
+    for (var store in _stores) {
+      for (var business in _businesses) {
+        allAssignments.add({
+          'store': store,
+          'business': business,
+          'is_assigned': _isStoreAssignedToBusiness(store['id'], business['id']),
+        });
+      }
+    }
+
+    if (allAssignments.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.assignment_outlined, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              t(context, 'No assignments found'),
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              t(context, 'Create stores and businesses first'),
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: allAssignments.length,
+      itemBuilder: (context, index) {
+        final assignment = allAssignments[index];
+        return _buildAssignmentCard(assignment);
+      },
+    );
+  }
+
+  Widget _buildAssignmentCard(Map<String, dynamic> assignment) {
+    final store = assignment['store'];
+    final business = assignment['business'];
+    final isAssigned = assignment['is_assigned'];
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    store['name'] ?? '',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${t(context, 'Store Code')}: ${store['store_code'] ?? ''}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    business['name'] ?? '',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${t(context, 'Business Code')}: ${business['business_code'] ?? ''}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isAssigned ? Colors.green : Colors.grey,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    isAssigned ? t(context, 'Assigned') : t(context, 'Not Assigned'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (isAssigned)
+                  ElevatedButton(
+                    onPressed: () => _removeAssignment(store['id'], business['id']),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text(t(context, 'Remove')),
+                  )
+                else
+                  ElevatedButton(
+                    onPressed: () => _assignStoreToBusiness(store['id'], business['id']),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text(t(context, 'Assign')),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _isStoreAssignedToBusiness(int storeId, int businessId) {
+    // This would need to be implemented based on your data structure
+    // For now, return false as a placeholder
+    return false;
+  }
+
+  void _showCreateAssignmentDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t(context, 'Assign Store to Business')),
+        content: Text(t(context, 'This feature will be implemented soon')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(t(context, 'OK')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _assignStoreToBusiness(int storeId, int businessId) {
+    // TODO: Implement store assignment
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(t(context, 'Store assignment feature coming soon'))),
+    );
+  }
+
+  void _removeAssignment(int storeId, int businessId) {
+    // TODO: Implement assignment removal
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(t(context, 'Assignment removal feature coming soon'))),
     );
   }
 

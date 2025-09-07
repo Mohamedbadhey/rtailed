@@ -372,6 +372,30 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           children: [
             Row(
               children: [
+                if (item['image_url'] != null && item['image_url'].toString().isNotEmpty) ...[
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        '${_apiService.baseUrl}${item['image_url']}',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey[200],
+                            child: Icon(Icons.image, color: Colors.grey[400]),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,6 +406,17 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      if (item['description'] != null && item['description'].toString().isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          item['description'],
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                       const SizedBox(height: 4),
                       Text(
                         'SKU: ${item['sku'] ?? ''}',
@@ -421,22 +456,22 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
               children: [
                 Expanded(
                   child: _buildQuantityInfo(
-                    t(context,'Available'),
-                    item['available_quantity'] ?? 0,
+                    t(context,'Store Quantity'),
+                    item['store_quantity'] ?? item['quantity'] ?? 0,
                     Colors.blue,
                   ),
                 ),
                 Expanded(
                   child: _buildQuantityInfo(
-                    t(context,'Reserved'),
-                    item['reserved_quantity'] ?? 0,
+                    t(context,'Min Level'),
+                    item['min_stock_level'] ?? 0,
                     Colors.orange,
                   ),
                 ),
                 Expanded(
                   child: _buildQuantityInfo(
-                    t(context,'Total'),
-                    item['quantity'] ?? 0,
+                    t(context,'Inventory ID'),
+                    item['inventory_id'] ?? 0,
                     Colors.green,
                   ),
                 ),
@@ -445,19 +480,41 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.attach_money, size: 16, color: Colors.grey[600]),
+                Icon(Icons.inventory, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
-                  '${t(context,'Cost')}: ₦${(item['cost_price'] ?? 0).toStringAsFixed(2)}',
+                  '${t(context,'Store Quantity')}: ${item['store_quantity'] ?? item['quantity'] ?? 0}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.grey[600],
                   ),
                 ),
                 const SizedBox(width: 16),
-                Icon(Icons.sell, size: 16, color: Colors.grey[600]),
+                Icon(Icons.warning, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
-                  '${t(context,'Price')}: ₦${(item['price'] ?? 0).toStringAsFixed(2)}',
+                  '${t(context,'Min Level')}: ${item['min_stock_level'] ?? 0}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.update, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  '${t(context,'Last Updated')}: ${_formatDate(item['last_updated'])}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Icon(Icons.person, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  '${t(context,'Updated By')}: ${item['updated_by'] ?? 'N/A'}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.grey[600],
                   ),
@@ -510,6 +567,16 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         return t(context,'In Stock');
       default:
         return t(context,'Unknown');
+    }
+  }
+
+  String _formatDate(String? dateString) {
+    if (dateString == null || dateString.isEmpty) return 'N/A';
+    try {
+      final date = DateTime.parse(dateString);
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (e) {
+      return 'N/A';
     }
   }
 

@@ -282,14 +282,21 @@ router.get('/:storeId/inventory/:businessId', auth, checkRole(['admin', 'manager
     let query, params;
     
     if (hasCategoriesTable) {
-      // Use the full query with categories
+      // Store-focused query - show store inventory data with basic product info
       query = `SELECT 
-         spi.*,
+         spi.id as inventory_id,
+         spi.store_id,
+         spi.business_id,
+         spi.product_id,
+         spi.quantity as store_quantity,
+         spi.min_stock_level,
+         spi.updated_by,
+         spi.last_updated,
          p.name as product_name,
          p.sku,
          p.barcode,
-         p.price,
-         p.cost_price,
+         p.description,
+         p.image_url,
          c.name as category_name,
          CASE 
            WHEN spi.quantity <= spi.min_stock_level THEN 'LOW_STOCK'
@@ -302,14 +309,21 @@ router.get('/:storeId/inventory/:businessId', auth, checkRole(['admin', 'manager
        WHERE spi.store_id = ? AND spi.business_id = ?
        ORDER BY p.name`;
     } else {
-      // Use simplified query without categories
+      // Store-focused query - show store inventory data with basic product info
       query = `SELECT 
-         spi.*,
+         spi.id as inventory_id,
+         spi.store_id,
+         spi.business_id,
+         spi.product_id,
+         spi.quantity as store_quantity,
+         spi.min_stock_level,
+         spi.updated_by,
+         spi.last_updated,
          p.name as product_name,
          p.sku,
          p.barcode,
-         p.price,
-         p.cost_price,
+         p.description,
+         p.image_url,
          p.category as category_name,
          CASE 
            WHEN spi.quantity <= spi.min_stock_level THEN 'LOW_STOCK'

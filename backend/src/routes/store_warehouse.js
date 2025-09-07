@@ -328,9 +328,9 @@ router.get('/:storeId/inventory', auth, checkRole(['admin', 'manager', 'superadm
        FROM store_product_inventory spi
        JOIN products p ON spi.product_id = p.id
        LEFT JOIN categories c ON p.category_id = c.id
-       WHERE spi.store_id = ? AND spi.business_id IS NULL
+       WHERE spi.store_id = ? AND spi.business_id = ?
        ORDER BY p.name`,
-      [storeId]
+      [storeId, user.business_id]
     );
     
     res.json({

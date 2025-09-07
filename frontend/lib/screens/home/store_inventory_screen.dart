@@ -35,12 +35,44 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   String _searchQuery = '';
   String _selectedMovementType = '';
   String _selectedProductId = '';
+  
+  // Business selection for superadmin
+  List<Map<String, dynamic>> _businesses = [];
+  int? _selectedBusinessId;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _loadData();
+    // Load data after the widget is built to avoid setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeData();
+    });
+  }
+  
+  Future<void> _initializeData() async {
+    final user = context.read<AuthProvider>().user;
+    
+    // If superadmin, load businesses first
+    if (user?.role == 'superadmin') {
+      await _loadBusinesses();
+    } else {
+      _loadData();
+    }
+  }
+  
+  Future<void> _loadBusinesses() async {
+    try {
+      final businesses = await _apiService.getBusinesses();
+      setState(() {
+        _businesses = businesses;
+      });
+    } catch (e) {
+      print('Error loading businesses: $e');
+      setState(() {
+        _error = 'Failed to load businesses: $e';
+      });
+    }
   }
 
   @override
@@ -57,10 +89,22 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
 
     try {
       final user = context.read<AuthProvider>().user;
-      final businessId = user?.businessId;
+      int? businessId;
       
-      if (businessId == null) {
-        throw Exception('Business ID not found');
+      if (user?.role == 'superadmin') {
+        businessId = _selectedBusinessId;
+        if (businessId == null) {
+          setState(() {
+            _error = 'Please select a business to view inventory.';
+            _loading = false;
+          });
+          return;
+        }
+      } else {
+        businessId = user?.businessId;
+        if (businessId == null) {
+          throw Exception('Business ID not found');
+        }
       }
       
       // Load inventory
@@ -103,10 +147,44 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
 
   @override
   Widget build(BuildContext context) {
+    final user = context.read<AuthProvider>().user;
+    final isSuperAdmin = user?.role == 'superadmin';
+    
     return Scaffold(
       appBar: BrandedAppBar(
         title: '${t(context,'Store Inventory')} - ${widget.storeName}',
         actions: [
+          // Business selection for superadmin
+          if (isSuperAdmin && _businesses.isNotEmpty)
+            Container(
+              width: 200,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: DropdownButtonFormField<int>(
+                value: _selectedBusinessId,
+                decoration: InputDecoration(
+                  labelText: t(context, 'Select Business'),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                items: _businesses.map((business) {
+                  return DropdownMenuItem<int>(
+                    value: business['id'],
+                    child: Text(
+                      business['name'] ?? 'Business ${business['id']}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedBusinessId = value;
+                  });
+                  _loadData();
+                },
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: _showAddProductsDialog,

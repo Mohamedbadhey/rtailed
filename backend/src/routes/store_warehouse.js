@@ -1,0 +1,404 @@
+const express = require('express');
+const router = express.Router();
+const pool = require('../config/database');
+const { auth, checkRole } = require('../middleware/auth');
+
+// =====================================================
+// STORE WAREHOUSE MANAGEMENT API
+// This handles the first tier: Products stored in stores (warehouses)
+// =====================================================
+
+// Add products to store warehouse (first tier - bulk storage)
+router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
+  try {
+    const { storeId } = req.params;
+    const { products } = req.body; // products: [{product_id, quantity, unit_cost, supplier, batch_number, expiry_date, notes}]
+    const user = req.user;
+    
+    if (!products || products.length === 0) {
+      return res.status(400).json({ message: 'Products are required' });
+    }
+    
+    // Check if user has access to this store
+    if (user.role !== 'superadmin') {
+      // For non-superadmin, check if they have access to any business assigned to this store
+      const [accessCheck] = await pool.query(
+        `SELECT 1 FROM store_business_assignments sba 
+         WHERE sba.store_id = ? AND sba.business_id = ? AND sba.is_active = 1`,
+        [storeId, user.business_id]
+      );
+      
+      if (accessCheck.length === 0) {
+        return res.status(403).json({ message: 'Access denied: No permission for this store' });
+      }
+    }
+    
+    // Start transaction
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+    
+    try {
+      const results = [];
+      
+      for (const product of products) {
+        const { 
+          product_id, 
+          quantity, 
+          unit_cost, 
+          supplier, 
+          batch_number, 
+          expiry_date, 
+          notes 
+        } = product;
+        
+        if (!product_id || !quantity || !unit_cost) {
+          throw new Error('Product ID, quantity, and unit cost are required for each product');
+        }
+        
+        // Verify product exists in the products table
+        const [productCheck] = await connection.query(
+          'SELECT id, name, sku FROM products WHERE id = ? AND is_deleted = 0',
+          [product_id]
+        );
+        
+        if (productCheck.length === 0) {
+          throw new Error(`Product with ID ${product_id} not found`);
+        }
+        
+        // Check if inventory record already exists for this store
+        const [existing] = await connection.query(
+          'SELECT id, quantity FROM store_product_inventory WHERE store_id = ? AND product_id = ?',
+          [storeId, product_id]
+        );
+        
+        if (existing.length > 0) {
+          // Update existing inventory (increment)
+          const currentQuantity = existing[0].quantity;
+          const newQuantity = currentQuantity + quantity;
+          
+          await connection.query(
+            `UPDATE store_product_inventory 
+             SET quantity = ?, unit_cost = ?, last_restocked_at = NOW(), updated_by = ?
+             WHERE store_id = ? AND product_id = ?`,
+            [newQuantity, unit_cost, user.id, storeId, product_id]
+          );
+          
+          // Record the increment movement
+          await connection.query(
+            `INSERT INTO store_inventory_movements 
+             (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, unit_cost, reference_type, notes, created_by)
+             VALUES (?, NULL, ?, 'in', ?, ?, ?, ?, 'restock', ?, ?)`,
+            [storeId, product_id, quantity, currentQuantity, newQuantity, unit_cost, notes || 'Bulk restock', user.id]
+          );
+          
+          results.push({
+            product_id,
+            product_name: productCheck[0].name,
+            sku: productCheck[0].sku,
+            previous_quantity: currentQuantity,
+            added_quantity: quantity,
+            new_quantity: newQuantity,
+            action: 'incremented'
+          });
+        } else {
+          // Create new inventory record
+          await connection.query(
+            `INSERT INTO store_product_inventory 
+             (store_id, business_id, product_id, quantity, unit_cost, min_stock_level, updated_by)
+             VALUES (?, NULL, ?, ?, ?, 10, ?)`,
+            [storeId, product_id, quantity, unit_cost, user.id]
+          );
+          
+          // Record the initial movement
+          await connection.query(
+            `INSERT INTO store_inventory_movements 
+             (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, unit_cost, reference_type, notes, created_by)
+             VALUES (?, NULL, ?, 'in', ?, 0, ?, ?, 'restock', ?, ?)`,
+            [storeId, product_id, quantity, quantity, unit_cost, notes || 'Initial stock', user.id]
+          );
+          
+          results.push({
+            product_id,
+            product_name: productCheck[0].name,
+            sku: productCheck[0].sku,
+            previous_quantity: 0,
+            added_quantity: quantity,
+            new_quantity: quantity,
+            action: 'created'
+          });
+        }
+      }
+      
+      await connection.commit();
+      
+      res.json({
+        message: 'Products added to store warehouse successfully',
+        results,
+        total_products: results.length
+      });
+      
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error adding products to store warehouse:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+});
+
+// Get store warehouse inventory (all products in store, not assigned to specific business)
+router.get('/:storeId/inventory', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
+  try {
+    const { storeId } = req.params;
+    const user = req.user;
+    
+    // Check access
+    if (user.role !== 'superadmin') {
+      const [accessCheck] = await pool.query(
+        `SELECT 1 FROM store_business_assignments sba 
+         WHERE sba.store_id = ? AND sba.business_id = ? AND sba.is_active = 1`,
+        [storeId, user.business_id]
+      );
+      
+      if (accessCheck.length === 0) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+    }
+    
+    const [inventory] = await pool.query(
+      `SELECT 
+         spi.*,
+         p.name as product_name,
+         p.sku,
+         p.barcode,
+         p.price,
+         p.cost_price,
+         p.stock_quantity as business_stock,
+         c.name as category_name,
+         CASE 
+           WHEN spi.quantity <= spi.min_stock_level THEN 'LOW_STOCK'
+           WHEN spi.quantity = 0 THEN 'OUT_OF_STOCK'
+           ELSE 'IN_STOCK'
+         END as stock_status
+       FROM store_product_inventory spi
+       JOIN products p ON spi.product_id = p.id
+       LEFT JOIN categories c ON p.category_id = c.id
+       WHERE spi.store_id = ? AND spi.business_id IS NULL
+       ORDER BY p.name`,
+      [storeId]
+    );
+    
+    res.json({
+      store_id: parseInt(storeId),
+      inventory,
+      total_products: inventory.length,
+      total_quantity: inventory.reduce((sum, item) => sum + item.quantity, 0)
+    });
+    
+  } catch (error) {
+    console.error('Error getting store warehouse inventory:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+});
+
+// Transfer products from store warehouse to business (second tier)
+router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
+  try {
+    const { storeId } = req.params;
+    const { business_id, products } = req.body; // products: [{product_id, quantity, notes}]
+    const user = req.user;
+    
+    if (!business_id || !products || products.length === 0) {
+      return res.status(400).json({ message: 'Business ID and products are required' });
+    }
+    
+    // Check if user has access to this store and business
+    if (user.role !== 'superadmin') {
+      const [accessCheck] = await pool.query(
+        `SELECT 1 FROM store_business_assignments sba 
+         WHERE sba.store_id = ? AND sba.business_id = ? AND sba.is_active = 1`,
+        [storeId, business_id]
+      );
+      
+      if (accessCheck.length === 0) {
+        return res.status(403).json({ message: 'Access denied: No permission for this store-business combination' });
+      }
+    }
+    
+    // Start transaction
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+    
+    try {
+      const results = [];
+      
+      for (const product of products) {
+        const { product_id, quantity, notes } = product;
+        
+        if (!product_id || !quantity) {
+          throw new Error('Product ID and quantity are required for each product');
+        }
+        
+        // Check store warehouse inventory
+        const [storeInventory] = await connection.query(
+          'SELECT id, quantity, unit_cost FROM store_product_inventory WHERE store_id = ? AND product_id = ? AND business_id IS NULL',
+          [storeId, product_id]
+        );
+        
+        if (storeInventory.length === 0) {
+          throw new Error(`Product ${product_id} not found in store warehouse`);
+        }
+        
+        const availableQuantity = storeInventory[0].quantity;
+        if (availableQuantity < quantity) {
+          throw new Error(`Insufficient stock in store warehouse. Available: ${availableQuantity}, Requested: ${quantity}`);
+        }
+        
+        // Update store warehouse inventory (reduce)
+        const newStoreQuantity = availableQuantity - quantity;
+        await connection.query(
+          'UPDATE store_product_inventory SET quantity = ?, updated_by = ? WHERE store_id = ? AND product_id = ? AND business_id IS NULL',
+          [newStoreQuantity, user.id, storeId, product_id]
+        );
+        
+        // Update or create business inventory
+        const [businessInventory] = await connection.query(
+          'SELECT id, quantity FROM store_product_inventory WHERE store_id = ? AND business_id = ? AND product_id = ?',
+          [storeId, business_id, product_id]
+        );
+        
+        if (businessInventory.length > 0) {
+          // Update existing business inventory
+          const currentBusinessQuantity = businessInventory[0].quantity;
+          const newBusinessQuantity = currentBusinessQuantity + quantity;
+          
+          await connection.query(
+            'UPDATE store_product_inventory SET quantity = ?, updated_by = ? WHERE store_id = ? AND business_id = ? AND product_id = ?',
+            [newBusinessQuantity, user.id, storeId, business_id, product_id]
+          );
+          
+          // Update business products table stock
+          await connection.query(
+            'UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ? AND business_id = ?',
+            [quantity, product_id, business_id]
+          );
+          
+          results.push({
+            product_id,
+            previous_business_quantity: currentBusinessQuantity,
+            transferred_quantity: quantity,
+            new_business_quantity: newBusinessQuantity,
+            action: 'incremented'
+          });
+        } else {
+          // Create new business inventory record
+          await connection.query(
+            `INSERT INTO store_product_inventory 
+             (store_id, business_id, product_id, quantity, unit_cost, min_stock_level, updated_by)
+             VALUES (?, ?, ?, ?, ?, 10, ?)`,
+            [storeId, business_id, product_id, quantity, storeInventory[0].unit_cost, user.id]
+          );
+          
+          // Update business products table stock
+          await connection.query(
+            'UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ? AND business_id = ?',
+            [quantity, product_id, business_id]
+          );
+          
+          results.push({
+            product_id,
+            previous_business_quantity: 0,
+            transferred_quantity: quantity,
+            new_business_quantity: quantity,
+            action: 'created'
+          });
+        }
+        
+        // Record movements
+        await connection.query(
+          `INSERT INTO store_inventory_movements 
+           (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, unit_cost, reference_type, notes, created_by)
+           VALUES (?, NULL, ?, 'transfer_out', ?, ?, ?, ?, 'transfer', ?, ?)`,
+          [storeId, product_id, quantity, availableQuantity, newStoreQuantity, storeInventory[0].unit_cost, notes || 'Transfer to business', user.id]
+        );
+        
+        await connection.query(
+          `INSERT INTO store_inventory_movements 
+           (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, unit_cost, reference_type, notes, created_by)
+           VALUES (?, ?, ?, 'transfer_in', ?, ?, ?, ?, 'transfer', ?, ?)`,
+          [storeId, business_id, product_id, quantity, businessInventory.length > 0 ? businessInventory[0].quantity : 0, businessInventory.length > 0 ? businessInventory[0].quantity + quantity : quantity, storeInventory[0].unit_cost, notes || 'Transfer from store', user.id]
+        );
+      }
+      
+      await connection.commit();
+      
+      res.json({
+        message: 'Products transferred from store warehouse to business successfully',
+        results,
+        total_products: results.length
+      });
+      
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error transferring products to business:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+});
+
+// Get business inventory (products assigned to specific business from this store)
+router.get('/:storeId/business-inventory/:businessId', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
+  try {
+    const { storeId, businessId } = req.params;
+    const user = req.user;
+    
+    // Check access
+    if (user.role !== 'superadmin' && user.business_id != businessId) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    const [inventory] = await pool.query(
+      `SELECT 
+         spi.*,
+         p.name as product_name,
+         p.sku,
+         p.barcode,
+         p.price,
+         p.cost_price,
+         p.stock_quantity as business_stock,
+         c.name as category_name,
+         CASE 
+           WHEN spi.quantity <= spi.min_stock_level THEN 'LOW_STOCK'
+           WHEN spi.quantity = 0 THEN 'OUT_OF_STOCK'
+           ELSE 'IN_STOCK'
+         END as stock_status
+       FROM store_product_inventory spi
+       JOIN products p ON spi.product_id = p.id
+       LEFT JOIN categories c ON p.category_id = c.id
+       WHERE spi.store_id = ? AND spi.business_id = ?
+       ORDER BY p.name`,
+      [storeId, businessId]
+    );
+    
+    res.json({
+      store_id: parseInt(storeId),
+      business_id: parseInt(businessId),
+      inventory,
+      total_products: inventory.length,
+      total_quantity: inventory.reduce((sum, item) => sum + item.quantity, 0)
+    });
+    
+  } catch (error) {
+    console.error('Error getting business inventory:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+});
+
+module.exports = router;

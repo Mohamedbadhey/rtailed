@@ -1399,8 +1399,12 @@ class ApiService {
     
     final response = await http.get(uri, headers: _headers);
     
+    print('GET STORES RESPONSE STATUS: ${response.statusCode}');
+    print('GET STORES RESPONSE BODY: ${response.body}');
+    
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
+      print('GET STORES PARSED DATA: $data');
       return List<Map<String, dynamic>>.from(data['stores'] ?? []);
     } else {
       print('GET STORES ERROR: ${response.statusCode} ${response.body}');
@@ -1711,6 +1715,73 @@ class ApiService {
       return json.decode(response.body);
     } else {
       print('GET STORE INVENTORY REPORTS ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // =====================================================
+  // STORE WAREHOUSE MANAGEMENT (Two-Tier System)
+  // =====================================================
+
+  // Add products to store warehouse (first tier - bulk storage)
+  Future<Map<String, dynamic>> addProductsToStoreWarehouse(int storeId, List<Map<String, dynamic>> products) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/store-warehouse/$storeId/add-products'),
+      headers: _headers,
+      body: json.encode({
+        'products': products,
+      }),
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Get store warehouse inventory (all products in store, not assigned to specific business)
+  Future<Map<String, dynamic>> getStoreWarehouseInventory(int storeId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/store-warehouse/$storeId/inventory'),
+      headers: _headers,
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Transfer products from store warehouse to business (second tier)
+  Future<Map<String, dynamic>> transferFromWarehouseToBusiness(int storeId, int businessId, List<Map<String, dynamic>> products) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/store-warehouse/$storeId/transfer-to-business'),
+      headers: _headers,
+      body: json.encode({
+        'business_id': businessId,
+        'products': products,
+      }),
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Get business inventory (products assigned to specific business from this store)
+  Future<Map<String, dynamic>> getBusinessInventoryFromStore(int storeId, int businessId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/store-warehouse/$storeId/business-inventory/$businessId'),
+      headers: _headers,
+    );
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
       throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }

@@ -93,7 +93,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 7, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     
     // Load data after the widget is built to avoid setState during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -603,7 +603,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         Tab(icon: Icon(Icons.business), text: t(context, 'Businesses')),
         Tab(icon: Icon(Icons.people), text: t(context, 'Users')),
         Tab(icon: Icon(Icons.analytics), text: t(context, 'Analytics')),
-        Tab(icon: Icon(Icons.store), text: t(context, 'Store Management')),
         Tab(icon: Icon(Icons.settings), text: t(context, 'Settings')),
         Tab(icon: Icon(Icons.storage), text: t(context, 'Data')),
       ],
@@ -621,7 +620,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         Tab(icon: Icon(Icons.business), text: t(context, 'Businesses')),
         Tab(icon: Icon(Icons.people), text: t(context, 'Users & Security')),
         Tab(icon: Icon(Icons.analytics), text: t(context, 'Analytics')),
-        Tab(icon: Icon(Icons.store), text: t(context, 'Store Management')),
         Tab(icon: Icon(Icons.settings), text: t(context, 'Settings')),
         Tab(icon: Icon(Icons.storage), text: t(context, 'Data Management')),
       ],
@@ -636,7 +634,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         _buildBusinessesTabMobile(),
         _buildUsersAndSecurityTabMobile(),
         _buildAnalyticsTabMobile(),
-        const StoreManagementScreen(),
         _buildSettingsTabMobile(),
         _buildDataManagementTabMobile(),
       ],
@@ -651,7 +648,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         _buildBusinessesTab(),
         _buildUsersAndSecurityTab(),
         _buildAnalyticsTab(),
-        const StoreManagementScreen(),
         _buildSettingsTab(),
         _buildDataManagementTab(),
       ],
@@ -666,7 +662,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         _buildBusinessesTab(),
         _buildUsersAndSecurityTab(),
         _buildAnalyticsTab(),
-        const StoreManagementScreen(),
         _buildSettingsTab(),
         _buildDataManagementTab(),
       ],
@@ -1423,7 +1418,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
   Widget _buildSettingsTabMobile() {
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Column(
         children: [
           Container(
@@ -1437,6 +1432,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 Tab(icon: Icon(Icons.settings), text: 'System'),
                 Tab(icon: Icon(Icons.admin_panel_settings), text: 'Admin'),
                 Tab(icon: Icon(Icons.palette), text: 'Branding'),
+                Tab(icon: Icon(Icons.store), text: 'Store'),
                 Tab(icon: Icon(Icons.backup), text: 'Backups'),
               ],
             ),
@@ -1447,6 +1443,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 _buildSystemSettingsSubTab(),
                 _buildAdminCodesSubTab(),
                 _buildBrandingSubTab(),
+                const StoreManagementScreen(),
                 _buildBackupsSubTab(),
               ],
             ),
@@ -6459,7 +6456,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   // --- Settings Tab with Sub-tabs ---
   Widget _buildSettingsTab() {
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Column(
         children: [
           Container(
@@ -6480,6 +6477,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                     Tab(icon: Icon(Icons.settings, size: isTiny ? 16 : 20), text: isTiny ? 'System' : 'System Settings'),
                     Tab(icon: Icon(Icons.admin_panel_settings, size: isTiny ? 16 : 20), text: isTiny ? 'Admin' : 'Admin Codes'),
                     Tab(icon: Icon(Icons.palette, size: isTiny ? 16 : 20), text: 'Branding'),
+                    Tab(icon: Icon(Icons.store, size: isTiny ? 16 : 20), text: isTiny ? 'Store' : 'Store Management'),
                     Tab(icon: Icon(Icons.backup, size: isTiny ? 16 : 20), text: 'Backups'),
                   ],
                 );
@@ -6492,6 +6490,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 _buildSystemSettingsSubTab(),
                 _buildAdminCodesSubTab(),
                 _buildBrandingSubTab(),
+                const StoreManagementScreen(),
                 _buildBackupsSubTab(),
               ],
             ),

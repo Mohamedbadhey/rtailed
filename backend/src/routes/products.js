@@ -77,7 +77,7 @@ router.get('/', auth, async (req, res) => {
              END as category_name 
       FROM products p 
       LEFT JOIN categories c ON p.category_id = c.id 
-      WHERE p.business_id = ? AND p.is_deleted = 0
+      WHERE (p.business_id = ? OR p.business_id IS NULL) AND p.is_deleted = 0
       ORDER BY p.name
     `;
     let params = [req.user.business_id];
@@ -196,7 +196,7 @@ router.get('/:id', auth, async (req, res) => {
              END as category_name 
       FROM products p 
       LEFT JOIN categories c ON p.category_id = c.id 
-      WHERE p.id = ? AND p.business_id = ?
+      WHERE p.id = ? AND (p.business_id = ? OR p.business_id IS NULL)
     `;
     let params = [req.params.id, req.user.business_id];
     if (req.user.role === 'superadmin') {
@@ -278,9 +278,9 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
 
 
     const image_url = req.file ? `/uploads/products/${req.file.filename}` : null;
-    // For store management system, products belong to the business that creates them
+    // For store management system, products are global (business_id = NULL)
     // They get assigned to stores via store_product_inventory table
-    const businessId = req.user.business_id;
+    const businessId = null;
     
     const insertValues = [
       name, 
@@ -320,8 +320,77 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
       insertValues
     );
 
-    // Note: Products are created with business_id for ownership tracking
-    // They should be added to store warehouse first, then transferred to business
+    const productId = result.insertId;
+    console.log('Product created with ID:', productId);
+
+    // If storeId is provided, immediately add product to store inventory
+    const { storeId } = req.body;
+    if (storeId && parseInt(stock_quantity) > 0) {
+      console.log('Adding product to store inventory - Store ID:', storeId, 'Product ID:', productId, 'Quantity:', stock_quantity);
+      
+      // Check if user has access to this store
+      if (req.user.role !== 'superadmin') {
+        const [accessCheck] = await connection.query(
+          `SELECT 1 FROM store_business_assignments sba 
+           WHERE sba.store_id = ? AND sba.business_id = ? AND sba.is_active = 1`,
+          [storeId, req.user.business_id]
+        );
+        
+        if (accessCheck.length === 0) {
+          throw new Error('Access denied: No permission for this store');
+        }
+      }
+
+      // Check if inventory record already exists for this store and business
+      const [existing] = await connection.query(
+        'SELECT id, quantity FROM store_product_inventory WHERE store_id = ? AND product_id = ? AND business_id = ?',
+        [storeId, productId, req.user.business_id]
+      );
+      
+      if (existing.length > 0) {
+        // Update existing inventory (increment)
+        const currentQuantity = existing[0].quantity;
+        const newQuantity = currentQuantity + parseInt(stock_quantity);
+        
+        await connection.query(
+          `UPDATE store_product_inventory 
+           SET quantity = ?, unit_cost = ?, last_restocked_at = NOW(), updated_by = ?
+           WHERE store_id = ? AND product_id = ? AND business_id = ?`,
+          [newQuantity, parseFloat(cost_price), req.user.id, storeId, productId, req.user.business_id]
+        );
+        
+        // Record the increment movement
+        await connection.query(
+          `INSERT INTO store_inventory_movements 
+           (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, unit_cost, reference_type, notes, created_by)
+           VALUES (?, ?, ?, 'in', ?, ?, ?, ?, 'restock', ?, ?)`,
+          [storeId, req.user.business_id, productId, parseInt(stock_quantity), currentQuantity, newQuantity, parseFloat(cost_price), 'Product created and added to store', req.user.id]
+        );
+        
+        console.log('Updated existing store inventory - previous:', currentQuantity, 'added:', stock_quantity, 'new:', newQuantity);
+      } else {
+        // Create new inventory record
+        await connection.query(
+          `INSERT INTO store_product_inventory 
+           (store_id, business_id, product_id, quantity, unit_cost, min_stock_level, updated_by)
+           VALUES (?, ?, ?, ?, ?, 10, ?)`,
+          [storeId, req.user.business_id, productId, parseInt(stock_quantity), parseFloat(cost_price), req.user.id]
+        );
+        
+        // Record the initial movement
+        await connection.query(
+          `INSERT INTO store_inventory_movements 
+           (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, unit_cost, reference_type, notes, created_by)
+           VALUES (?, ?, ?, 'in', ?, 0, ?, ?, 'restock', ?, ?)`,
+          [storeId, req.user.business_id, productId, parseInt(stock_quantity), parseInt(stock_quantity), parseFloat(cost_price), 'Initial product addition to store', req.user.id]
+        );
+        
+        console.log('Created new store inventory record - quantity:', stock_quantity);
+      }
+    }
+
+    // Note: Products are created as global entities (business_id = NULL)
+    // If storeId is provided, they are immediately added to store inventory
     // This follows the two-tier inventory system: Store Warehouse → Business Inventory
 
     await connection.commit();

@@ -812,42 +812,27 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       context: context,
       builder: (context) => _ProductDialog(
         apiService: _apiService,
-        onSave: (productData, imageFile, {webImageBytes, webImageName}) async {
-          try {
-            // Step 1: Create the product (without inventory)
-            final product = await _apiService.createProduct(productData, imageFile: imageFile, webImageBytes: webImageBytes, webImageName: webImageName);
-            
-            // Step 2: Add product to this store's inventory
-            final quantity = int.parse(productData['stock_quantity'] ?? '0');
-            if (quantity > 0 && product.id != null) {
-              print('=== ADDING TO STORE INVENTORY ===');
-              print('Store ID: ${widget.storeId}');
-              print('Product ID: ${product.id}');
-              print('Quantity: $quantity');
-              print('Unit Cost: ${double.parse(productData['cost_price'] ?? '0')}');
-              
-              await _apiService.addProductToStoreInventory(
-                widget.storeId, 
-                product.id!, 
-                quantity, 
-                double.parse(productData['cost_price'] ?? '0'),
-                notes: 'Product created and added to store inventory'
-              );
-            }
-            
-            _loadData();
-            if (mounted) {
-              Navigator.of(context).pop();
-              SuccessUtils.showProductSuccess(context, 'added to ${widget.storeName} warehouse');
-            }
-          } catch (e, stack) {
-            print('Error adding product to store: $e');
-            print('Stack trace: $stack');
-            if (mounted) {
-              SuccessUtils.showOperationError(context, 'add product to store', e.toString());
-            }
-          }
-        },
+                  onSave: (productData, imageFile, {webImageBytes, webImageName}) async {
+                    try {
+                      // Add storeId to productData so it gets added to store inventory immediately
+                      productData['storeId'] = widget.storeId;
+                      
+                      // Create the product (it will automatically be added to store inventory)
+                      final product = await _apiService.createProduct(productData, imageFile: imageFile, webImageBytes: webImageBytes, webImageName: webImageName);
+                      
+                      _loadData();
+                      if (mounted) {
+                        Navigator.of(context).pop();
+                        SuccessUtils.showProductSuccess(context, 'added to ${widget.storeName} warehouse');
+                      }
+                    } catch (e, stack) {
+                      print('Error adding product to store: $e');
+                      print('Stack trace: $stack');
+                      if (mounted) {
+                        SuccessUtils.showOperationError(context, 'add product to store', e.toString());
+                      }
+                    }
+                  },
       ),
     );
   }

@@ -80,7 +80,7 @@ router.post('/:storeId/add-product', auth, checkRole(['admin', 'manager', 'super
         await connection.query(
           `INSERT INTO store_inventory_movements 
            (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, reference_type, notes, created_by)
-           VALUES (?, ?, ?, 'in', ?, ?, ?, 'restock', ?, ?)`,
+           VALUES (?, ?, ?, 'in', ?, ?, ?, 'purchase', ?, ?)`,
           [storeId, user.business_id, product_id, quantity, currentQuantity, newQuantity, notes || 'Product added to store', user.id]
         );
         
@@ -98,7 +98,7 @@ router.post('/:storeId/add-product', auth, checkRole(['admin', 'manager', 'super
         await connection.query(
           `INSERT INTO store_inventory_movements 
            (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, reference_type, notes, created_by)
-           VALUES (?, ?, ?, 'in', ?, 0, ?, 'restock', ?, ?)`,
+           VALUES (?, ?, ?, 'in', ?, 0, ?, 'purchase', ?, ?)`,
           [storeId, user.business_id, product_id, quantity, quantity, notes || 'Initial product addition', user.id]
         );
         
@@ -225,7 +225,7 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
           await connection.query(
             `INSERT INTO store_inventory_movements 
              (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, reference_type, notes, created_by)
-             VALUES (?, ?, ?, 'in', ?, ?, ?, 'restock', ?, ?)`,
+             VALUES (?, ?, ?, 'in', ?, ?, ?, 'purchase', ?, ?)`,
             [storeId, user.business_id, product_id, quantity, currentQuantity, newQuantity, notes || 'Bulk restock', user.id]
           );
           
@@ -253,7 +253,7 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
           await connection.query(
             `INSERT INTO store_inventory_movements 
              (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, reference_type, notes, created_by)
-             VALUES (?, ?, ?, 'in', ?, 0, ?, 'restock', ?, ?)`,
+             VALUES (?, ?, ?, 'in', ?, 0, ?, 'purchase', ?, ?)`,
             [storeId, user.business_id, product_id, quantity, quantity, notes || 'Initial stock', user.id]
           );
           
@@ -463,14 +463,14 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
         await connection.query(
           `INSERT INTO store_inventory_movements 
            (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, reference_type, notes, created_by)
-           VALUES (?, NULL, ?, 'transfer_out', ?, ?, ?, 'transfer', ?, ?)`,
+           VALUES (?, NULL, ?, 'out', ?, ?, ?, 'transfer', ?, ?)`,
           [storeId, product_id, quantity, availableQuantity, newStoreQuantity, notes || 'Transfer to business', user.id]
         );
         
         await connection.query(
           `INSERT INTO store_inventory_movements 
            (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, reference_type, notes, created_by)
-           VALUES (?, ?, ?, 'transfer_in', ?, ?, ?, 'transfer', ?, ?)`,
+           VALUES (?, ?, ?, 'in', ?, ?, ?, 'transfer', ?, ?)`,
           [storeId, business_id, product_id, quantity, businessInventory.length > 0 ? businessInventory[0].quantity : 0, businessInventory.length > 0 ? businessInventory[0].quantity + quantity : quantity, notes || 'Transfer from store', user.id]
         );
       }

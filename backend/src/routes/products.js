@@ -363,7 +363,7 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
         await connection.query(
           `INSERT INTO store_inventory_movements 
            (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, reference_type, notes, created_by)
-           VALUES (?, ?, ?, 'in', ?, ?, ?, 'restock', ?, ?)`,
+           VALUES (?, ?, ?, 'in', ?, ?, ?, 'purchase', ?, ?)`,
           [storeId, req.user.business_id, productId, parseInt(stock_quantity), currentQuantity, newQuantity, 'Product created and added to store', req.user.id]
         );
         
@@ -381,7 +381,7 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
         await connection.query(
           `INSERT INTO store_inventory_movements 
            (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, reference_type, notes, created_by)
-           VALUES (?, ?, ?, 'in', ?, 0, ?, 'restock', ?, ?)`,
+           VALUES (?, ?, ?, 'in', ?, 0, ?, 'purchase', ?, ?)`,
           [storeId, req.user.business_id, productId, parseInt(stock_quantity), parseInt(stock_quantity), 'Initial product addition to store', req.user.id]
         );
         

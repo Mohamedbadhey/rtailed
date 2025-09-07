@@ -354,17 +354,17 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
         
         await connection.query(
           `UPDATE store_product_inventory 
-           SET quantity = ?, unit_cost = ?, last_restocked_at = NOW(), updated_by = ?
+           SET quantity = ?, last_restocked_at = NOW(), updated_by = ?
            WHERE store_id = ? AND product_id = ? AND business_id = ?`,
-          [newQuantity, parseFloat(cost_price), req.user.id, storeId, productId, req.user.business_id]
+          [newQuantity, req.user.id, storeId, productId, req.user.business_id]
         );
         
         // Record the increment movement
         await connection.query(
           `INSERT INTO store_inventory_movements 
-           (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, unit_cost, reference_type, notes, created_by)
-           VALUES (?, ?, ?, 'in', ?, ?, ?, ?, 'restock', ?, ?)`,
-          [storeId, req.user.business_id, productId, parseInt(stock_quantity), currentQuantity, newQuantity, parseFloat(cost_price), 'Product created and added to store', req.user.id]
+           (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, reference_type, notes, created_by)
+           VALUES (?, ?, ?, 'in', ?, ?, ?, 'restock', ?, ?)`,
+          [storeId, req.user.business_id, productId, parseInt(stock_quantity), currentQuantity, newQuantity, 'Product created and added to store', req.user.id]
         );
         
         console.log('Updated existing store inventory - previous:', currentQuantity, 'added:', stock_quantity, 'new:', newQuantity);
@@ -372,17 +372,17 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
         // Create new inventory record
         await connection.query(
           `INSERT INTO store_product_inventory 
-           (store_id, business_id, product_id, quantity, unit_cost, min_stock_level, updated_by)
-           VALUES (?, ?, ?, ?, ?, 10, ?)`,
-          [storeId, req.user.business_id, productId, parseInt(stock_quantity), parseFloat(cost_price), req.user.id]
+           (store_id, business_id, product_id, quantity, min_stock_level, updated_by)
+           VALUES (?, ?, ?, ?, 10, ?)`,
+          [storeId, req.user.business_id, productId, parseInt(stock_quantity), req.user.id]
         );
         
         // Record the initial movement
         await connection.query(
           `INSERT INTO store_inventory_movements 
-           (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, unit_cost, reference_type, notes, created_by)
-           VALUES (?, ?, ?, 'in', ?, 0, ?, ?, 'restock', ?, ?)`,
-          [storeId, req.user.business_id, productId, parseInt(stock_quantity), parseInt(stock_quantity), parseFloat(cost_price), 'Initial product addition to store', req.user.id]
+           (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, reference_type, notes, created_by)
+           VALUES (?, ?, ?, 'in', ?, 0, ?, 'restock', ?, ?)`,
+          [storeId, req.user.business_id, productId, parseInt(stock_quantity), parseInt(stock_quantity), 'Initial product addition to store', req.user.id]
         );
         
         console.log('Created new store inventory record - quantity:', stock_quantity);

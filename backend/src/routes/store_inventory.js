@@ -188,7 +188,7 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
         
         console.log(`Processing product ${product_id} with quantity ${quantity}`);
         
-        // Check if store has enough inventory
+        // Check if store has enough inventory for the source business (warehouse stock)
         const [storeInventory] = await connection.query(
           'SELECT quantity FROM store_product_inventory WHERE store_id = ? AND business_id = ? AND product_id = ?',
           [storeId, from_business_id, product_id]
@@ -203,13 +203,13 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
         const currentQuantity = storeInventory[0].quantity;
         const newQuantity = currentQuantity - quantity;
         
-        // Update store inventory (reduce)
+        // Update store inventory (reduce for source business)
         await connection.query(
           'UPDATE store_product_inventory SET quantity = ?, updated_by = ?, last_updated = CURRENT_TIMESTAMP WHERE store_id = ? AND business_id = ? AND product_id = ?',
           [newQuantity, user.id, storeId, from_business_id, product_id]
         );
         
-        // Record store inventory movement (out)
+        // Record store inventory movement (transfer_out from source business)
         await connection.query(
           `INSERT INTO store_inventory_movements (
             store_id, business_id, product_id, movement_type, 
@@ -255,32 +255,9 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
           );
         }
         
-        // Create or update store_product_inventory for target business
-        const [targetStoreInventory] = await connection.query(
-          'SELECT id, quantity FROM store_product_inventory WHERE store_id = ? AND business_id = ? AND product_id = ?',
-          [storeId, to_business_id, product_id]
-        );
-        
-        if (targetStoreInventory.length === 0) {
-          // Create new store inventory record for target business
-          console.log(`Creating new store inventory record for business ${to_business_id}, product ${product_id}`);
-          await connection.query(
-            `INSERT INTO store_product_inventory 
-             (store_id, business_id, product_id, quantity, min_stock_level, updated_by)
-             VALUES (?, ?, ?, ?, 10, ?)`,
-            [storeId, to_business_id, product_id, quantity, user.id]
-          );
-        } else {
-          // Update existing store inventory record for target business
-          const currentTargetQuantity = targetStoreInventory[0].quantity;
-          const newTargetQuantity = currentTargetQuantity + quantity;
-          console.log(`Updating target business store inventory: ${currentTargetQuantity} -> ${newTargetQuantity}`);
-          
-          await connection.query(
-            'UPDATE store_product_inventory SET quantity = ?, updated_by = ? WHERE store_id = ? AND business_id = ? AND product_id = ?',
-            [newTargetQuantity, user.id, storeId, to_business_id, product_id]
-          );
-        }
+        // No need to create store inventory for target business
+        // The product is now assigned to the target business in the products table
+        // and the business inventory is tracked in inventory_transactions
         
         // No need to create transfer_in record for store-to-business transfers
         // The transfer_out record above already tracks the movement from store to business
@@ -300,8 +277,6 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
           from_store_quantity_before: currentQuantity,
           from_store_quantity_after: newQuantity,
           to_business_id: to_business_id,
-          to_store_quantity_before: targetStoreInventory.length > 0 ? targetStoreInventory[0].quantity : 0,
-          to_store_quantity_after: targetStoreInventory.length > 0 ? targetStoreInventory[0].quantity + quantity : quantity,
           business_id_before: currentBusinessId,
           business_id_after: to_business_id,
           stock_quantity_before: currentStockQuantity,

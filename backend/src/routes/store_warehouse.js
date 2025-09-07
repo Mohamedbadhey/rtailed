@@ -71,7 +71,7 @@ router.post('/:storeId/add-product', auth, checkRole(['admin', 'manager', 'super
         
         await connection.query(
           `UPDATE store_product_inventory 
-           SET quantity = ?, last_restocked_at = NOW(), updated_by = ?
+           SET quantity = ?, updated_by = ?
            WHERE store_id = ? AND product_id = ? AND business_id = ?`,
           [newQuantity, user.id, storeId, product_id, user.business_id]
         );
@@ -216,7 +216,7 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
           
           await connection.query(
             `UPDATE store_product_inventory 
-             SET quantity = ?, last_restocked_at = NOW(), updated_by = ?
+             SET quantity = ?, updated_by = ?
              WHERE store_id = ? AND product_id = ? AND business_id = ?`,
             [newQuantity, user.id, storeId, product_id, user.business_id]
           );

@@ -383,7 +383,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.network(
-                        '${_apiService.baseUrl}${item['image_url']}',
+                        'https://rtailed-production.up.railway.app${item['image_url']}',
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
@@ -521,6 +521,35 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showIncrementDialog(item),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: Text(t(context,'Add Stock')),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showTransferDialog(),
+                    icon: const Icon(Icons.swap_horiz, size: 18),
+                    label: Text(t(context,'Transfer')),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -570,11 +599,11 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     }
   }
 
-  String _formatDate(String? dateString) {
-    if (dateString == null || dateString.isEmpty) return 'N/A';
+  String _formatDate(dynamic date) {
+    if (date == null) return 'N/A';
     try {
-      final date = DateTime.parse(dateString);
-      return '${date.day}/${date.month}/${date.year}';
+      final dateTime = DateTime.parse(date.toString());
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
     } catch (e) {
       return 'N/A';
     }
@@ -859,15 +888,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     );
   }
 
-  String _formatDate(dynamic date) {
-    if (date == null) return '';
-    try {
-      final dateTime = DateTime.parse(date.toString());
-      return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return date.toString();
-    }
-  }
 
   void _showAddProductsDialog() {
     // Use the exact same add product dialog from inventory screen
@@ -908,6 +928,36 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     // TODO: Implement transfer dialog
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(t(context,'Transfer dialog coming soon'))),
+    );
+  }
+
+  void _showIncrementDialog(Map<String, dynamic> item) {
+    showDialog(
+      context: context,
+      builder: (context) => _IncrementDialog(
+        item: item,
+        onIncrement: (quantity, notes) async {
+          try {
+            await _apiService.incrementProductQuantity(
+              widget.storeId,
+              item['product_id'],
+              quantity,
+              notes: notes,
+            );
+            
+            _loadData();
+            if (mounted) {
+              Navigator.of(context).pop();
+              SuccessUtils.showProductSuccess(context, 'stock incremented');
+            }
+          } catch (e) {
+            print('Error incrementing product: $e');
+            if (mounted) {
+              SuccessUtils.showOperationError(context, 'increment stock', e.toString());
+            }
+          }
+        },
+      ),
     );
   }
 }
@@ -1836,6 +1886,183 @@ class _ProductDialogState extends State<_ProductDialog> {
             color: Colors.grey[500],
             fontSize: isMobile ? 8 : 10,
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _IncrementDialog extends StatefulWidget {
+  final Map<String, dynamic> item;
+  final Function(int quantity, String? notes) onIncrement;
+
+  const _IncrementDialog({
+    required this.item,
+    required this.onIncrement,
+  });
+
+  @override
+  State<_IncrementDialog> createState() => _IncrementDialogState();
+}
+
+class _IncrementDialogState extends State<_IncrementDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _quantityController = TextEditingController();
+  final _notesController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _quantityController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  void _save() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final quantity = int.parse(_quantityController.text.trim());
+      final notes = _notesController.text.trim().isEmpty ? null : _notesController.text.trim();
+      
+      await widget.onIncrement(quantity, notes);
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        SuccessUtils.showOperationError(context, 'increment stock', e.toString());
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Row(
+        children: [
+          Icon(Icons.add_circle, color: Colors.green[600]),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              t(context, 'Add Stock'),
+              style: const TextStyle(fontSize: 18),
+            ),
+          ),
+        ],
+      ),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Product info
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.item['product_name'] ?? '',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'SKU: ${widget.item['sku'] ?? ''}',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Current Stock: ${widget.item['store_quantity'] ?? widget.item['quantity'] ?? 0}',
+                    style: TextStyle(
+                      color: Colors.blue[600],
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Quantity input
+            TextFormField(
+              controller: _quantityController,
+              decoration: InputDecoration(
+                labelText: t(context, 'Quantity to Add'),
+                hintText: t(context, 'Enter quantity'),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                prefixIcon: const Icon(Icons.inventory),
+              ),
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return t(context, 'Please enter quantity');
+                }
+                final quantity = int.tryParse(value.trim());
+                if (quantity == null || quantity <= 0) {
+                  return t(context, 'Please enter a valid quantity');
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            
+            // Notes input
+            TextFormField(
+              controller: _notesController,
+              decoration: InputDecoration(
+                labelText: t(context, 'Notes (Optional)'),
+                hintText: t(context, 'e.g., New purchase, Restock'),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                prefixIcon: const Icon(Icons.note),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+          child: Text(t(context, 'Cancel')),
+        ),
+        ElevatedButton(
+          onPressed: _isLoading ? null : _save,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+          ),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : Text(t(context, 'Add Stock')),
         ),
       ],
     );

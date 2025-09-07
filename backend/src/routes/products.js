@@ -354,7 +354,7 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
         
         await connection.query(
           `UPDATE store_product_inventory 
-           SET quantity = ?, last_restocked_at = NOW(), updated_by = ?
+           SET quantity = ?, updated_by = ?
            WHERE store_id = ? AND product_id = ? AND business_id = ?`,
           [newQuantity, req.user.id, storeId, productId, req.user.business_id]
         );

@@ -296,9 +296,9 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
         await connection.query(
           `INSERT INTO inventory_transactions (
             business_id, product_id, transaction_type, quantity, 
-            quantity_before, quantity_after, notes, created_by
-          ) VALUES (?, ?, 'transfer_in', ?, ?, ?, ?, ?)`,
-          [to_business_id, product_id, quantity, currentStockQuantity, currentBusinessId === null ? quantity : currentStockQuantity + quantity, notes || 'Transfer from store', user.id]
+            notes, created_at
+          ) VALUES (?, ?, 'transfer_in', ?, ?, NOW())`,
+          [to_business_id, product_id, quantity, notes || 'Transfer from store']
         );
         
         results.push({

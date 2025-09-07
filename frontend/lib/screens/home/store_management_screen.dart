@@ -958,8 +958,151 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
   }
 
   Widget _buildInventoryTab() {
-    return const Center(
-      child: Text('Inventory Tab - Coming Soon'),
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+            const SizedBox(height: 16),
+            Text(
+              t(context, 'Error loading inventory'),
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadData,
+              child: Text(t(context, 'Retry')),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Header
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  t(context, 'Store Inventory Management'),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _showAddProductsDialog,
+                icon: const Icon(Icons.add),
+                label: Text(t(context, 'Add Products')),
+              ),
+            ],
+          ),
+        ),
+        
+        // Inventory List
+        Expanded(
+          child: _buildInventoryList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInventoryList() {
+    if (_stores.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              t(context, 'No stores found'),
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              t(context, 'Create stores first to manage inventory'),
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _stores.length,
+      itemBuilder: (context, index) {
+        final store = _stores[index];
+        return _buildStoreInventoryCard(store);
+      },
+    );
+  }
+
+  Widget _buildStoreInventoryCard(Map<String, dynamic> store) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Theme.of(context).primaryColor,
+          child: Icon(
+            Icons.store,
+            color: Colors.white,
+          ),
+        ),
+        title: Text(
+          store['name'] ?? '',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${t(context, 'Store Code')}: ${store['store_code'] ?? ''}'),
+            Text('${t(context, 'Type')}: ${store['store_type'] ?? ''}'),
+            Text('${t(context, 'Status')}: ${store['is_active'] == 1 ? t(context, 'Active') : t(context, 'Inactive')}'),
+          ],
+        ),
+        trailing: ElevatedButton(
+          onPressed: () => _navigateToStoreInventory(store),
+          child: Text(t(context, 'Manage')),
+        ),
+        onTap: () => _navigateToStoreInventory(store),
+      ),
+    );
+  }
+
+  void _navigateToStoreInventory(Map<String, dynamic> store) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StoreInventoryScreen(
+          storeId: store['id'],
+          storeName: store['name'],
+        ),
+      ),
+    );
+  }
+
+  void _showAddProductsDialog() {
+    // TODO: Implement add products dialog
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(t(context, 'Add products feature coming soon'))),
     );
   }
 

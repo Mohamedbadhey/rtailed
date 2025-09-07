@@ -65,7 +65,7 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
           await connection.query(
             `INSERT INTO store_inventory_movements (
               store_id, business_id, product_id, movement_type, 
-              quantity_change, quantity_before, quantity_after,
+              quantity, previous_quantity, new_quantity,
               reference_type, notes, created_by
             ) VALUES (?, ?, ?, 'in', ?, ?, ?, 'manual', ?, ?)`,
             [storeId, business_id, product_id, quantity, currentQuantity, newQuantity, notes || 'Product increment', user.id]
@@ -91,7 +91,7 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
           await connection.query(
             `INSERT INTO store_inventory_movements (
               store_id, business_id, product_id, movement_type, 
-              quantity_change, quantity_before, quantity_after,
+              quantity, previous_quantity, new_quantity,
               reference_type, notes, created_by
             ) VALUES (?, ?, ?, 'in', ?, 0, ?, 'manual', ?, ?)`,
             [storeId, business_id, product_id, quantity, quantity, notes || 'Initial product addition', user.id]
@@ -189,7 +189,7 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
         await connection.query(
           `INSERT INTO store_inventory_movements (
             store_id, business_id, product_id, movement_type, 
-            quantity_change, quantity_before, quantity_after,
+            quantity, previous_quantity, new_quantity,
             reference_type, notes, created_by
           ) VALUES (?, ?, ?, 'transfer_out', ?, ?, ?, 'transfer', ?, ?)`,
           [storeId, from_business_id, product_id, -quantity, currentQuantity, newQuantity, notes || 'Transfer to business', user.id]
@@ -364,8 +364,11 @@ router.get('/:storeId/movements/:businessId', auth, checkRole(['admin', 'manager
     const { limit = 50, offset = 0, movement_type = '', product_id = '' } = req.query;
     const user = req.user;
     
+    console.log(`🔍 Store Movements Request: storeId=${storeId}, businessId=${businessId}, userRole=${user.role}`);
+    
     // Check access
     if (user.role !== 'superadmin' && user.business_id != businessId) {
+      console.log('❌ Access denied: user.business_id != businessId');
       return res.status(403).json({ message: 'Access denied' });
     }
     
@@ -387,20 +390,31 @@ router.get('/:storeId/movements/:businessId', auth, checkRole(['admin', 'manager
          sim.*,
          p.name as product_name,
          p.sku,
-         u.username as created_by_username
+         COALESCE(u.name, u.email, 'Unknown') as created_by_username
        FROM store_inventory_movements sim
        JOIN products p ON sim.product_id = p.id
-       JOIN users u ON sim.created_by = u.id
+       LEFT JOIN users u ON sim.created_by = u.id
        ${whereClause}
        ORDER BY sim.created_at DESC
        LIMIT ? OFFSET ?`,
       [...params, parseInt(limit), parseInt(offset)]
     );
     
+    console.log(`✅ Movements query successful! Found ${movements.length} movement records`);
     res.json(movements);
   } catch (error) {
-    console.error('Error fetching inventory movements:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('❌ Error fetching inventory movements:', error);
+    console.error('❌ Error details:', {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState
+    });
+    res.status(500).json({ 
+      message: 'Server error',
+      error: error.message,
+      code: error.code
+    });
   }
 });
 
@@ -411,8 +425,11 @@ router.get('/:storeId/reports/:businessId', auth, checkRole(['admin', 'manager',
     const { start_date, end_date } = req.query;
     const user = req.user;
     
+    console.log(`🔍 Store Reports Request: storeId=${storeId}, businessId=${businessId}, userRole=${user.role}`);
+    
     // Check access
     if (user.role !== 'superadmin' && user.business_id != businessId) {
+      console.log('❌ Access denied: user.business_id != businessId');
       return res.status(403).json({ message: 'Access denied' });
     }
     
@@ -428,9 +445,9 @@ router.get('/:storeId/reports/:businessId', auth, checkRole(['admin', 'manager',
     const [summary] = await pool.query(
       `SELECT 
          COUNT(DISTINCT sim.product_id) as total_products,
-         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity_change ELSE 0 END) as total_in,
-         SUM(CASE WHEN sim.movement_type = 'out' THEN ABS(sim.quantity_change) ELSE 0 END) as total_out,
-         SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN ABS(sim.quantity_change) ELSE 0 END) as total_transferred,
+         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as total_in,
+         SUM(CASE WHEN sim.movement_type = 'out' THEN ABS(sim.quantity) ELSE 0 END) as total_out,
+         SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN ABS(sim.quantity) ELSE 0 END) as total_transferred,
          COUNT(CASE WHEN sim.movement_type = 'in' THEN 1 END) as in_movements,
          COUNT(CASE WHEN sim.movement_type = 'out' THEN 1 END) as out_movements,
          COUNT(CASE WHEN sim.movement_type = 'transfer_out' THEN 1 END) as transfer_movements
@@ -444,8 +461,8 @@ router.get('/:storeId/reports/:businessId', auth, checkRole(['admin', 'manager',
       `SELECT 
          p.name as product_name,
          p.sku,
-         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity_change ELSE 0 END) as total_in,
-         SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN ABS(sim.quantity_change) ELSE 0 END) as total_transferred,
+         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as total_in,
+         SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN ABS(sim.quantity) ELSE 0 END) as total_transferred,
          COUNT(sim.id) as movement_count
        FROM store_inventory_movements sim
        JOIN products p ON sim.product_id = p.id
@@ -462,8 +479,8 @@ router.get('/:storeId/reports/:businessId', auth, checkRole(['admin', 'manager',
          DATE(sim.created_at) as date,
          COUNT(CASE WHEN sim.movement_type = 'in' THEN 1 END) as in_count,
          COUNT(CASE WHEN sim.movement_type = 'transfer_out' THEN 1 END) as transfer_count,
-         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity_change ELSE 0 END) as in_quantity,
-         SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN ABS(sim.quantity_change) ELSE 0 END) as transfer_quantity
+         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as in_quantity,
+         SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN ABS(sim.quantity) ELSE 0 END) as transfer_quantity
        FROM store_inventory_movements sim
        WHERE sim.store_id = ? AND sim.business_id = ? ${dateFilter}
        GROUP BY DATE(sim.created_at)
@@ -472,14 +489,25 @@ router.get('/:storeId/reports/:businessId', auth, checkRole(['admin', 'manager',
       params
     );
     
+    console.log(`✅ Reports query successful! Summary: ${JSON.stringify(summary[0])}`);
     res.json({
       summary: summary[0],
       top_products: topProducts,
       daily_trends: dailyTrends
     });
   } catch (error) {
-    console.error('Error fetching store reports:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('❌ Error fetching store reports:', error);
+    console.error('❌ Error details:', {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState
+    });
+    res.status(500).json({ 
+      message: 'Server error',
+      error: error.message,
+      code: error.code
+    });
   }
 });
 

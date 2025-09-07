@@ -43,6 +43,29 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   String _selectedMovementType = '';
   String _selectedProductId = '';
   
+  // Stock Summary Report fields (matching inventory_screen.dart)
+  bool _showInventoryReport = false;
+  String? _selectedReportCategory;
+  String? _selectedReportProduct;
+  String? _reportSku;
+  DateTime? _reportStartDate;
+  DateTime? _reportEndDate;
+  List<Map<String, dynamic>> _reportTransactions = [];
+  bool _reportLoading = false;
+  // Inventory Value Report fields
+  List<Map<String, dynamic>> _valueReportRows = [];
+  bool _valueReportLoading = false;
+  String? _valueReportError;
+  // Add separate state for stock summary date filters
+  DateTime? _stockSummaryStartDate;
+  DateTime? _stockSummaryEndDate;
+  // Add state for stock summary filter type
+  String _stockSummaryFilterType = 'Today';
+  final List<String> _stockSummaryFilterOptions = ['Today', 'This Week', 'This Month', 'Custom'];
+  // Pagination state variables
+  static const int _itemsPerPage = 10;
+  int _stockSummaryCurrentPage = 0;
+  
   // Business selection for superadmin
   List<Map<String, dynamic>> _businesses = [];
   int? _selectedBusinessId;
@@ -51,10 +74,16 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _initializeDateFilters();
     // Load data after the widget is built to avoid setState during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeData();
     });
+  }
+
+  void _initializeDateFilters() {
+    _stockSummaryFilterType = 'Today';
+    _applyStockSummaryPreset('Today');
   }
   
   Future<void> _initializeData() async {
@@ -795,75 +824,188 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildReportsTab() {
-    if (_reports.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    final summary = _reports['summary'] as Map<String, dynamic>? ?? {};
-    final topProducts = _reports['top_products'] as List<dynamic>? ?? [];
-    final dailyTrends = _reports['daily_trends'] as List<dynamic>? ?? [];
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Summary Cards
-          Row(
-            children: [
-              Expanded(
-                child: _buildSummaryCard(
-                  t(context,'Total Products'),
-                  summary['total_products']?.toString() ?? '0',
-                  Icons.inventory,
-                  Colors.blue,
+          // Inventory Report Section (matching inventory_screen.dart exactly)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildSummaryCard(
-                  t(context,'Total In'),
-                  summary['total_in']?.toString() ?? '0',
-                  Icons.arrow_downward,
-                  Colors.green,
+              ],
+            ),
+            child: ExpansionPanelList(
+              expansionCallback: (int index, bool isExpanded) {
+                setState(() { _showInventoryReport = !_showInventoryReport; });
+              },
+              children: [
+                ExpansionPanel(
+                  isExpanded: _showInventoryReport,
+                  headerBuilder: (context, isExpanded) {
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.analytics,
+                          color: Theme.of(context).primaryColor,
+                          size: 20,
+                        ),
+                      ),
+                      title: Text(
+                        t(context, 'Store Inventory Report'), 
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                      trailing: Icon(
+                        isExpanded ? Icons.expand_less : Icons.expand_more,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    );
+                  },
+                  body: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Report Filters
+                        _buildStoreReportFilters(),
+                        const SizedBox(height: 8),
+                        
+                        // Stock Summary Section
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                t(context, 'Stock Summary'), 
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            if (_valueReportRows.isNotEmpty)
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: _selectedReportCategory != null && _selectedReportCategory != 'All' ||
+                                         _selectedReportProduct != null && _selectedReportProduct != 'All'
+                                         ? Colors.orange[50]
+                                         : Colors.purple[50],
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: _selectedReportCategory != null && _selectedReportCategory != 'All' || 
+                                           _selectedReportProduct != null && _selectedReportProduct != 'All'
+                                           ? Colors.orange[300]!
+                                           : Colors.purple[200]!
+                                  ),
+                                ),
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.picture_as_pdf,
+                                    color: _selectedReportCategory != null && _selectedReportCategory != 'All' || 
+                                           _selectedReportProduct != null && _selectedReportProduct != 'All'
+                                           ? Colors.orange[600]
+                                           : Colors.purple[600],
+                                    size: 16
+                                  ),
+                                  onPressed: () => _exportStockSummaryToPdf(),
+                                  tooltip: _selectedReportCategory != null && _selectedReportCategory != 'All' || 
+                                           _selectedReportProduct != null && _selectedReportProduct != 'All'
+                                           ? 'Export Filtered Stock Summary to PDF'
+                                           : 'Export Stock Summary to PDF',
+                                  padding: const EdgeInsets.all(4),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 24,
+                                    minHeight: 24,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        _buildStockSummaryFilters(false),
+                        const SizedBox(height: 8),
+                        
+                        // Filter Status Indicator
+                        if (_selectedReportCategory != null && _selectedReportCategory != 'All' || 
+                            _selectedReportProduct != null && _selectedReportProduct != 'All')
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.blue[50],
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.blue[200]!),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.filter_list,
+                                  size: 16,
+                                  color: Colors.blue[600],
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _buildFilterStatusText(),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.blue[700],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.clear,
+                                    size: 16,
+                                    color: Colors.blue[600],
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedReportCategory = null;
+                                      _selectedReportProduct = null;
+                                      _stockSummaryCurrentPage = 0;
+                                    });
+                                  },
+                                  padding: const EdgeInsets.all(4),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 20,
+                                    minHeight: 20,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        
+                        // Stock Summary Table
+                        _buildValueReportTable(false),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _buildSummaryCard(
-                  t(context,'Total Transferred'),
-                  summary['total_transferred']?.toString() ?? '0',
-                  Icons.send,
-                  Colors.orange,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildSummaryCard(
-                  t(context,'Total Movements'),
-                  (summary['in_movements'] ?? 0 + summary['transfer_movements'] ?? 0).toString(),
-                  Icons.history,
-                  Colors.purple,
-                ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Top Products
-          Text(
-            t(context,'Top Products by Movement'),
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          ...topProducts.map((product) => _buildTopProductCard(product)).toList(),
         ],
       ),
     );
@@ -920,6 +1062,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       ),
     );
   }
+
 
 
   void _showAddProductsDialog() {
@@ -1022,6 +1165,873 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       ),
     );
   }
+
+
+  // Stock Summary methods (copied from inventory_screen.dart)
+  Widget _buildStoreReportFilters() {
+    return Row(
+      children: [
+        // Category Filter
+        Expanded(
+          child: Container(
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedReportCategory,
+                isExpanded: true,
+                hint: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Text('All Categories'),
+                ),
+                icon: Icon(
+                  Icons.keyboard_arrow_down,
+                  color: Colors.grey[600],
+                  size: 18,
+                ),
+                items: [
+                  const DropdownMenuItem(
+                    value: null,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('All Categories'),
+                    ),
+                  ),
+                  ...['Electronics', 'Clothing', 'Food', 'Books'].map((category) {
+                    return DropdownMenuItem(
+                      value: category,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(category),
+                      ),
+                    );
+                  }).toList(),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedReportCategory = value;
+                    _stockSummaryCurrentPage = 0;
+                  });
+                  _fetchInventoryValueReport();
+                },
+              ),
+            ),
+          ),
+        ),
+        
+        const SizedBox(width: 12),
+        
+        // Product Filter
+        Expanded(
+          child: Container(
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedReportProduct,
+                isExpanded: true,
+                hint: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Text('All Products'),
+                ),
+                icon: Icon(
+                  Icons.keyboard_arrow_down,
+                  color: Colors.grey[600],
+                  size: 18,
+                ),
+                items: [
+                  const DropdownMenuItem(
+                    value: null,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('All Products'),
+                    ),
+                  ),
+                  ..._inventory.map((item) {
+                    return DropdownMenuItem(
+                      value: item['product_name']?.toString(),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(item['product_name']?.toString() ?? ''),
+                      ),
+                    );
+                  }).toList(),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedReportProduct = value;
+                    _stockSummaryCurrentPage = 0;
+                  });
+                  _fetchInventoryValueReport();
+                },
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStockSummaryFilters(bool isSmallMobile) {
+    return Column(
+      children: [
+        // Horizontal Filter Row
+        Row(
+          children: [
+            // Filter Type Dropdown
+            Expanded(
+              flex: 2,
+              child: Container(
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _stockSummaryFilterType,
+                    isExpanded: true,
+                    icon: Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Colors.grey[600],
+                      size: 18,
+                    ),
+                    items: _stockSummaryFilterOptions.map((option) {
+                      return DropdownMenuItem(
+                        value: option,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            option,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[800],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _stockSummaryFilterType = value!;
+                      });
+                      if (value != 'Custom') {
+                        _applyStockSummaryPreset(value!);
+                      } else {
+                        // For custom, just refresh with current dates
+                        _fetchInventoryValueReport();
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ),
+            
+            const SizedBox(width: 12),
+            
+            // Custom Date Range (only show when Custom is selected)
+            if (_stockSummaryFilterType == 'Custom') ...[
+              Expanded(
+                flex: 1,
+                child: Container(
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () => _showStockSummaryStartDatePicker(context),
+                      child: Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              size: 16,
+                              color: Colors.grey[600],
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _stockSummaryStartDate != null 
+                                ? '${_stockSummaryStartDate!.day}/${_stockSummaryStartDate!.month}/${_stockSummaryStartDate!.year}'
+                                : 'Start',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[800],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(width: 12),
+              
+              Expanded(
+                flex: 1,
+                child: Container(
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () => _showStockSummaryEndDatePicker(context),
+                      child: Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              size: 16,
+                              color: Colors.grey[600],
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _stockSummaryEndDate != null 
+                                ? '${_stockSummaryEndDate!.day}/${_stockSummaryEndDate!.month}/${_stockSummaryEndDate!.year}'
+                                : 'End',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[800],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(width: 12),
+            ],
+            
+            // Refresh Button
+            Container(
+              height: 40,
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Theme.of(context).primaryColor.withOpacity(0.3),
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: _fetchInventoryValueReport,
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.refresh,
+                          color: Theme.of(context).primaryColor,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Refresh',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).primaryColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ),
+          ),
+        ],
+        ),
+      ],
+    );
+  }
+
+  // Custom date picker methods for stock summary
+  Future<void> _showStockSummaryStartDatePicker(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _stockSummaryStartDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _stockSummaryStartDate) {
+      setState(() {
+        _stockSummaryStartDate = picked;
+      });
+      _fetchInventoryValueReport();
+    }
+  }
+
+  Future<void> _showStockSummaryEndDatePicker(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _stockSummaryEndDate ?? DateTime.now(),
+      firstDate: _stockSummaryStartDate ?? DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _stockSummaryEndDate) {
+      setState(() {
+        _stockSummaryEndDate = picked;
+      });
+      _fetchInventoryValueReport();
+    }
+  }
+
+  void _applyStockSummaryPreset(String filterType) {
+    final now = DateTime.now();
+    
+    switch (filterType) {
+      case 'Today':
+        _stockSummaryStartDate = DateTime(now.year, now.month, now.day);
+        _stockSummaryEndDate = _stockSummaryStartDate!.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+        break;
+      case 'This Week':
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        _stockSummaryStartDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+        _stockSummaryEndDate = _stockSummaryStartDate!.add(const Duration(days: 7)).subtract(const Duration(milliseconds: 1));
+        break;
+      case 'This Month':
+        _stockSummaryStartDate = DateTime(now.year, now.month, 1);
+        _stockSummaryEndDate = DateTime(now.year, now.month + 1, 1).subtract(const Duration(milliseconds: 1));
+        break;
+      case 'Custom':
+        // Keep existing dates
+        break;
+    }
+    
+    _fetchInventoryValueReport();
+  }
+
+  Future<void> _fetchInventoryValueReport() async {
+    setState(() {
+      _valueReportLoading = true;
+      _valueReportError = null;
+    });
+    try {
+      // Apply filter logic based on selected filter type
+      DateTime? startDate;
+      DateTime? endDate;
+
+      final now = DateTime.now();
+      
+      switch (_stockSummaryFilterType) {
+        case 'Today':
+          startDate = DateTime(now.year, now.month, now.day);
+          endDate = startDate.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+          break;
+        case 'This Week':
+          final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+          startDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+          endDate = startDate.add(const Duration(days: 7)).subtract(const Duration(milliseconds: 1));
+          break;
+        case 'This Month':
+          startDate = DateTime(now.year, now.month, 1);
+          endDate = DateTime(now.year, now.month + 1, 1).subtract(const Duration(milliseconds: 1));
+          break;
+        case 'Custom':
+          // Use existing custom date range
+          startDate = _stockSummaryStartDate;
+          endDate = _stockSummaryEndDate;
+          break;
+        default:
+          // Default to Today if no filter selected
+          startDate = DateTime(now.year, now.month, now.day);
+          endDate = startDate.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+      }
+      
+      print('🔍 Stock Summary Filter: $_stockSummaryFilterType');
+      print('🔍 Start Date: $startDate');
+      print('🔍 End Date: $endDate');
+      print('🔍 Store ID: ${widget.storeId}');
+      print('🔍 Selected Business ID: $_selectedBusinessId');
+      
+      // Prepare filter parameters
+      final Map<String, dynamic> filterParams = {};
+      if (startDate != null) filterParams['start_date'] = startDate.toIso8601String();
+      if (endDate != null) filterParams['end_date'] = endDate.toIso8601String();
+      
+      // Add category filter
+      if (_selectedReportCategory != null && _selectedReportCategory != 'All') {
+        filterParams['category'] = _selectedReportCategory;
+      }
+      
+      // Add product filter
+      if (_selectedReportProduct != null && _selectedReportProduct != 'All') {
+        filterParams['product_name'] = _selectedReportProduct;
+      }
+      
+      print('🔍 Stock Summary Filters: $filterParams');
+      
+      // Get store inventory report data
+      final businessId = _selectedBusinessId ?? context.read<AuthProvider>().user?.businessId;
+      if (businessId == null) {
+        throw Exception('Business ID not found');
+      }
+
+      final data = await _apiService.getStoreInventoryReport(
+        widget.storeId,
+        businessId,
+        startDate ?? DateTime.now().subtract(const Duration(days: 1)),
+        endDate ?? DateTime.now(),
+      );
+      
+      print('🔍 API Response Data: $data');
+      print('🔍 Top Products: ${data['top_products']}');
+      print('🔍 Summary: ${data['summary']}');
+      
+      // Convert the report data to match the expected format
+      final List<Map<String, dynamic>> reportRows = [];
+      
+      // Add top products data (products with movements)
+      if (data['top_products'] != null && data['top_products'].isNotEmpty) {
+        for (var product in data['top_products']) {
+          reportRows.add({
+            'product_id': product['product_id'],
+            'product_name': product['product_name'],
+            'sku': product['sku'],
+            'category_name': 'Store Product',
+            'quantity_sold': product['total_out'] ?? 0,
+            'quantity_remaining': product['current_stock'] ?? 0,
+            'revenue': (product['total_out'] ?? 0) * (double.tryParse(product['price']?.toString() ?? '0') ?? 0.0),
+            'profit': ((product['total_out'] ?? 0) * (double.tryParse(product['price']?.toString() ?? '0') ?? 0.0)) - 
+                     ((product['total_out'] ?? 0) * (double.tryParse(product['cost_price']?.toString() ?? '0') ?? 0.0)),
+            'sale_mode': 'retail',
+          });
+        }
+      } else {
+        // If no movements, show current inventory data
+        print('🔍 No top products found, showing current inventory data');
+        
+        // Get current inventory data from the main inventory
+        try {
+          final businessId = _selectedBusinessId ?? context.read<AuthProvider>().user?.businessId;
+          if (businessId != null) {
+            final inventoryData = await _apiService.getStoreInventory(widget.storeId, businessId);
+            print('🔍 Current inventory data: $inventoryData');
+            
+            if (inventoryData is Map && inventoryData['inventory'] != null) {
+              final inventory = inventoryData['inventory'] as List;
+              for (var item in inventory) {
+                reportRows.add({
+                  'product_id': item['product_id'],
+                  'product_name': item['product_name'],
+                  'sku': item['sku'] ?? '',
+                  'category_name': item['category_name'] ?? 'Store Product',
+                  'quantity_sold': 0, // No movements in this period
+                  'quantity_remaining': item['store_quantity'] ?? 0,
+                  'revenue': 0.0, // No sales in this period
+                  'profit': 0.0, // No profit in this period
+                  'sale_mode': 'retail',
+                });
+              }
+            } else if (inventoryData is List) {
+              for (var item in inventoryData) {
+                reportRows.add({
+                  'product_id': item['product_id'],
+                  'product_name': item['product_name'],
+                  'sku': item['sku'] ?? '',
+                  'category_name': item['category_name'] ?? 'Store Product',
+                  'quantity_sold': 0, // No movements in this period
+                  'quantity_remaining': item['store_quantity'] ?? 0,
+                  'revenue': 0.0, // No sales in this period
+                  'profit': 0.0, // No profit in this period
+                  'sale_mode': 'retail',
+                });
+              }
+            }
+          }
+        } catch (e) {
+          print('🔍 Error getting current inventory: $e');
+        }
+      }
+      
+      print('🔍 Final Report Rows: ${reportRows.length} items');
+      print('🔍 Report Rows Data: $reportRows');
+      
+      setState(() {
+        _valueReportRows = reportRows;
+        _resetStockSummaryPagination();
+      });
+    } catch (e) {
+      setState(() {
+        _valueReportError = 'Failed to load value report: $e';
+      });
+    } finally {
+      setState(() {
+        _valueReportLoading = false;
+      });
+    }
+  }
+
+  void _resetStockSummaryPagination() {
+    _stockSummaryCurrentPage = 0;
+  }
+
+  String _buildFilterStatusText() {
+    List<String> filters = [];
+    if (_selectedReportCategory != null && _selectedReportCategory != 'All') {
+      filters.add('Category: $_selectedReportCategory');
+    }
+    if (_selectedReportProduct != null && _selectedReportProduct != 'All') {
+      filters.add('Product: $_selectedReportProduct');
+    }
+    return filters.isNotEmpty ? 'Filters: ${filters.join(', ')}' : 'No filters applied';
+  }
+
+  List<Map<String, dynamic>> get _filteredStockSummaryData {
+    return _valueReportRows;
+  }
+
+  List<Map<String, dynamic>> _getPaginatedData(List<Map<String, dynamic>> data, int page) {
+    final startIndex = page * _itemsPerPage;
+    final endIndex = (startIndex + _itemsPerPage).clamp(0, data.length);
+    return data.sublist(startIndex, endIndex);
+  }
+
+  int _getTotalPages(int totalItems) {
+    return (totalItems / _itemsPerPage).ceil();
+  }
+
+  double _safeToDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  void _exportStockSummaryToPdf() {
+    // TODO: Implement PDF export
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(t(context, 'PDF export functionality coming soon'))),
+    );
+  }
+
+  Widget _buildValueReportTable(bool isSmallMobile) {
+    if (_valueReportLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    
+    if (_valueReportError != null) {
+      return Text(
+        _valueReportError!,
+        style: TextStyle(color: Colors.red, fontSize: isSmallMobile ? 12 : 14),
+      );
+    }
+    
+    if (_valueReportRows.isEmpty) {
+      return Text(
+        t(context, 'No stock summary data'),
+        style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+      );
+    }
+
+    // Check if filtered data is empty
+    if (_filteredStockSummaryData.isEmpty) {
+      return Column(
+        children: [
+          Icon(
+            Icons.filter_list,
+            size: isSmallMobile ? 32 : 48,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'No data matches the selected filters',
+            style: TextStyle(
+              fontSize: isSmallMobile ? 12 : 14,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Try adjusting your category or product filters',
+            style: TextStyle(
+              fontSize: isSmallMobile ? 10 : 12,
+              color: Colors.grey[500],
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (isSmallMobile) {
+      // Mobile layout - cards with pagination
+      final paginatedData = _getPaginatedData(_filteredStockSummaryData, _stockSummaryCurrentPage);
+      final totalPages = _getTotalPages(_filteredStockSummaryData.length);
+      
+      return Column(
+        children: [
+          ...paginatedData.map((row) => Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    row['product_name'] ?? '',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('SKU: ${row['sku'] ?? ''}', style: const TextStyle(fontSize: 12)),
+                            Text('Category: ${row['category_name'] ?? ''}', style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text('Sold: ${_filteredStockSummaryData.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt()}', 
+                                 style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text('Remaining: ${row['quantity_remaining']?.toString() ?? ''}'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text('Revenue: ₦${_safeToDouble(row['revenue']).toStringAsFixed(2)}'),
+                      ),
+                      Expanded(
+                        child: Text('Profit: ₦${_safeToDouble(row['profit']).toStringAsFixed(2)}'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          )).toList(),
+          
+          // Mobile Pagination Controls
+          if (totalPages > 1) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Page ${_stockSummaryCurrentPage + 1} of $totalPages',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left, size: 20),
+                        onPressed: _stockSummaryCurrentPage > 0
+                          ? () => setState(() => _stockSummaryCurrentPage--)
+                          : null,
+                        padding: const EdgeInsets.all(8),
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
+                      ),
+                      Text(
+                        '${(_stockSummaryCurrentPage * _itemsPerPage) + 1}-${(_stockSummaryCurrentPage + 1) * _itemsPerPage} of ${_filteredStockSummaryData.length}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right, size: 20),
+                        onPressed: _stockSummaryCurrentPage < totalPages - 1
+                          ? () => setState(() => _stockSummaryCurrentPage++)
+                          : null,
+                        padding: const EdgeInsets.all(8),
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+
+    // Desktop layout - table with pagination
+    final paginatedData = _getPaginatedData(_filteredStockSummaryData, _stockSummaryCurrentPage);
+    final totalPages = _getTotalPages(_filteredStockSummaryData.length);
+    
+    return Column(
+      children: [
+        // Table
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            columns: [
+              DataColumn(label: Text(t(context, 'Product'))),
+              DataColumn(label: Text(t(context, 'SKU'))),
+              DataColumn(label: Text(t(context, 'Category'))),
+              DataColumn(label: Text(t(context, 'Sold Qty'))),
+              DataColumn(label: Text(t(context, 'Qty Remaining'))),
+              DataColumn(label: Text(t(context, 'Revenue'))),
+              DataColumn(label: Text(t(context, 'Profit'))),
+              DataColumn(label: Text(t(context, 'Mode'))),
+            ],
+            rows: [
+              ...paginatedData.map((row) => DataRow(
+                cells: [
+                  DataCell(
+                    InkWell(
+                      child: Text(row['product_name'] ?? '', style: TextStyle(color: Theme.of(context).primaryColor, decoration: TextDecoration.underline)),
+                      onTap: () => _showProductTransactionsDialog(row['product_id'], row['product_name'] ?? ''),
+                    ),
+                  ),
+                  DataCell(Text(row['sku'] ?? '')),
+                  DataCell(Text(row['category_name'] ?? '')),
+                  DataCell(Text(_valueReportRows.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt().toString(), style: const TextStyle(fontWeight: FontWeight.bold))),
+                  DataCell(Text(row['quantity_remaining']?.toString() ?? '')),
+                  DataCell(Text('₦${_safeToDouble(row['revenue']).toStringAsFixed(2)}')),
+                  DataCell(Text('₦${_safeToDouble(row['profit']).toStringAsFixed(2)}')),
+                  DataCell(Text((row['sale_mode'] ?? '').toString().isNotEmpty ? (row['sale_mode'] == 'wholesale' ? 'Wholesale' : 'Retail') : '')),
+                ],
+              )),
+              // Totals row
+              DataRow(
+                color: MaterialStateProperty.resolveWith<Color?>((Set<MaterialState> states) {
+                  return Colors.grey[200];
+                }),
+                cells: [
+                  DataCell(Text(t(context, 'TOTAL'), style: const TextStyle(fontWeight: FontWeight.bold))),
+                  const DataCell(Text('')),
+                  const DataCell(Text('')),
+                  DataCell(Text(_filteredStockSummaryData.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt().toString(), style: const TextStyle(fontWeight: FontWeight.bold))),
+                  const DataCell(Text('')),
+                  DataCell(Text('₦${_filteredStockSummaryData.fold<double>(0, (sum, r) => sum + _safeToDouble(r['revenue'])).toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))),
+                  DataCell(Text('₦${_filteredStockSummaryData.fold<double>(0, (sum, r) => sum + _safeToDouble(r['profit'])).toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))),
+                  const DataCell(Text('')),
+                ],
+              ),
+            ],
+          ),
+        ),
+        
+        // Desktop Pagination Controls
+        if (totalPages > 1)
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(top: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              border: Border(
+                top: BorderSide(color: Colors.grey[300]!),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Showing ${(_stockSummaryCurrentPage * _itemsPerPage) + 1} to ${(_stockSummaryCurrentPage + 1) * _itemsPerPage} of ${_filteredStockSummaryData.length} entries',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                  ),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left, size: 20),
+                      onPressed: _stockSummaryCurrentPage > 0
+                        ? () => setState(() => _stockSummaryCurrentPage--)
+                        : null,
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Page ${_stockSummaryCurrentPage + 1} of $totalPages',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right, size: 20),
+                      onPressed: _stockSummaryCurrentPage < totalPages - 1
+                        ? () => setState(() => _stockSummaryCurrentPage++)
+                        : null,
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _showProductTransactionsDialog(int productId, String productName) {
+    // TODO: Implement product transactions dialog
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Product transactions for $productName (ID: $productId)')),
+    );
+  }
+
 }
 class _ProductDialog extends StatefulWidget {
   final ApiService apiService;

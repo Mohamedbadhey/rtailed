@@ -1933,4 +1933,40 @@ class ApiService {
       throw Exception('API Error: ${response.statusCode} - ${response.body}');
     }
   }
+
+  // Get store inventory report
+  Future<Map<String, dynamic>> getStoreInventoryReport(int storeId, int businessId, DateTime startDate, DateTime endDate) async {
+    print('=== API SERVICE: GET STORE INVENTORY REPORT ===');
+    print('Store ID: $storeId');
+    print('Business ID: $businessId');
+    print('Start Date: $startDate');
+    print('End Date: $endDate');
+    
+    final startDateStr = startDate.toIso8601String().split('T')[0];
+    final endDateStr = endDate.toIso8601String().split('T')[0];
+    
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/store-inventory/$storeId/reports/$businessId?start_date=$startDateStr&end_date=$endDateStr'),
+      headers: _headers,
+    );
+    
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+    
+    if (response.statusCode == 200) {
+      try {
+        final result = json.decode(response.body);
+        print('Successfully retrieved store inventory report: $result');
+        return result;
+      } catch (e) {
+        print('JSON decode error: $e');
+        print('Response body that failed to decode: ${response.body}');
+        throw Exception('Failed to parse response: $e');
+      }
+    } else {
+      print('API call failed with status: ${response.statusCode}');
+      print('Error response body: ${response.body}');
+      throw Exception('API Error: ${response.statusCode} - ${response.body}');
+    }
+  }
 } 

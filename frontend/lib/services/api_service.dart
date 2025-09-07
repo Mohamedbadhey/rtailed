@@ -1663,7 +1663,15 @@ class ApiService {
     );
     
     if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(json.decode(response.body));
+      final data = json.decode(response.body);
+      // Handle both old format (direct array) and new format (object with inventory property)
+      if (data is List) {
+        return List<Map<String, dynamic>>.from(data);
+      } else if (data is Map && data.containsKey('inventory')) {
+        return List<Map<String, dynamic>>.from(data['inventory'] ?? []);
+      } else {
+        return [];
+      }
     } else {
       print('GET STORE INVENTORY ERROR: ${response.statusCode} ${response.body}');
       throw Exception('Error: ${response.statusCode} ${response.body}');

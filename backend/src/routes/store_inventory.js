@@ -262,13 +262,28 @@ router.get('/:storeId/inventory/:businessId', auth, checkRole(['admin', 'manager
     const { storeId, businessId } = req.params;
     const user = req.user;
     
+    console.log(`🔍 Store Inventory Request: storeId=${storeId}, businessId=${businessId}, userRole=${user.role}, userBusinessId=${user.business_id}`);
+    
     // Check access
     if (user.role !== 'superadmin' && user.business_id != businessId) {
+      console.log('❌ Access denied: user.business_id != businessId');
       return res.status(403).json({ message: 'Access denied' });
     }
     
-    const [inventory] = await pool.query(
-      `SELECT 
+    // Check if categories table exists first
+    let hasCategoriesTable = false;
+    try {
+      const [catCheck] = await pool.query("SHOW TABLES LIKE 'categories'");
+      hasCategoriesTable = catCheck.length > 0;
+    } catch (error) {
+      console.log('Categories table check failed:', error.message);
+    }
+    
+    let query, params;
+    
+    if (hasCategoriesTable) {
+      // Use the full query with categories
+      query = `SELECT 
          spi.*,
          p.name as product_name,
          p.sku,
@@ -285,14 +300,60 @@ router.get('/:storeId/inventory/:businessId', auth, checkRole(['admin', 'manager
        JOIN products p ON spi.product_id = p.id
        LEFT JOIN categories c ON p.category_id = c.id
        WHERE spi.store_id = ? AND spi.business_id = ?
-       ORDER BY p.name`,
-      [storeId, businessId]
-    );
+       ORDER BY p.name`;
+    } else {
+      // Use simplified query without categories
+      query = `SELECT 
+         spi.*,
+         p.name as product_name,
+         p.sku,
+         p.barcode,
+         p.price,
+         p.cost_price,
+         p.category as category_name,
+         CASE 
+           WHEN spi.quantity <= spi.min_stock_level THEN 'LOW_STOCK'
+           WHEN spi.quantity = 0 THEN 'OUT_OF_STOCK'
+           ELSE 'IN_STOCK'
+         END as stock_status
+       FROM store_product_inventory spi
+       JOIN products p ON spi.product_id = p.id
+       WHERE spi.store_id = ? AND spi.business_id = ?
+       ORDER BY p.name`;
+    }
     
-    res.json(inventory);
+    params = [storeId, businessId];
+    
+    console.log(`🔍 Executing query: ${query}`);
+    console.log(`🔍 With params: [${params.join(', ')}]`);
+    
+    const [inventory] = await pool.query(query, params);
+    
+    console.log(`✅ Query successful! Found ${inventory.length} inventory records`);
+    if (inventory.length > 0) {
+      console.log(`📊 Sample record:`, inventory[0]);
+    }
+    
+    res.json({
+      store_id: parseInt(storeId),
+      business_id: parseInt(businessId),
+      inventory,
+      total_products: inventory.length,
+      total_quantity: inventory.reduce((sum, item) => sum + item.quantity, 0)
+    });
   } catch (error) {
     console.error('Error fetching store inventory:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState
+    });
+    res.status(500).json({ 
+      message: 'Server error',
+      error: error.message,
+      code: error.code
+    });
   }
 });
 

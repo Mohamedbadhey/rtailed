@@ -278,7 +278,9 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
 
 
     const image_url = req.file ? `/uploads/products/${req.file.filename}` : null;
-    const businessId = req.user.business_id;
+    // For store management system, products are global (business_id = NULL)
+    // They get assigned to stores via store_product_inventory table
+    const businessId = null;
     
     const insertValues = [
       name, 

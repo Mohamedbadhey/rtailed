@@ -13,6 +13,120 @@ router.get('/test', (req, res) => {
   res.json({ message: 'Store warehouse API is working', timestamp: new Date().toISOString() });
 });
 
+// Add product directly to store inventory (simplified approach)
+router.post('/:storeId/add-product', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
+  try {
+    const { storeId } = req.params;
+    const { product_id, quantity, unit_cost, notes } = req.body;
+    const user = req.user;
+    
+    console.log('=== ADD PRODUCT TO STORE INVENTORY ===');
+    console.log('Store ID:', storeId);
+    console.log('Product ID:', product_id);
+    console.log('Quantity:', quantity);
+    console.log('User:', { id: user.id, role: user.role, business_id: user.business_id });
+    
+    if (!product_id || !quantity || !unit_cost) {
+      return res.status(400).json({ message: 'Product ID, quantity, and unit cost are required' });
+    }
+    
+    // Check if user has access to this store
+    if (user.role !== 'superadmin') {
+      const [accessCheck] = await pool.query(
+        `SELECT 1 FROM store_business_assignments sba 
+         WHERE sba.store_id = ? AND sba.business_id = ? AND sba.is_active = 1`,
+        [storeId, user.business_id]
+      );
+      
+      if (accessCheck.length === 0) {
+        return res.status(403).json({ message: 'Access denied: No permission for this store' });
+      }
+    }
+    
+    // Start transaction
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+    
+    try {
+      // Check if product exists
+      const [productCheck] = await connection.query(
+        'SELECT id, name, sku FROM products WHERE id = ? AND is_deleted = 0',
+        [product_id]
+      );
+      
+      if (productCheck.length === 0) {
+        throw new Error(`Product with ID ${product_id} not found`);
+      }
+      
+      // Check if inventory record already exists for this store and business
+      const [existing] = await connection.query(
+        'SELECT id, quantity FROM store_product_inventory WHERE store_id = ? AND product_id = ? AND business_id = ?',
+        [storeId, product_id, user.business_id]
+      );
+      
+      if (existing.length > 0) {
+        // Update existing inventory (increment)
+        const currentQuantity = existing[0].quantity;
+        const newQuantity = currentQuantity + quantity;
+        
+        await connection.query(
+          `UPDATE store_product_inventory 
+           SET quantity = ?, unit_cost = ?, last_restocked_at = NOW(), updated_by = ?
+           WHERE store_id = ? AND product_id = ? AND business_id = ?`,
+          [newQuantity, unit_cost, user.id, storeId, product_id, user.business_id]
+        );
+        
+        // Record the increment movement
+        await connection.query(
+          `INSERT INTO store_inventory_movements 
+           (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, unit_cost, reference_type, notes, created_by)
+           VALUES (?, ?, ?, 'in', ?, ?, ?, ?, 'restock', ?, ?)`,
+          [storeId, user.business_id, product_id, quantity, currentQuantity, newQuantity, unit_cost, notes || 'Product added to store', user.id]
+        );
+        
+        console.log('Updated existing inventory - previous:', currentQuantity, 'added:', quantity, 'new:', newQuantity);
+      } else {
+        // Create new inventory record
+        await connection.query(
+          `INSERT INTO store_product_inventory 
+           (store_id, business_id, product_id, quantity, unit_cost, min_stock_level, updated_by)
+           VALUES (?, ?, ?, ?, ?, 10, ?)`,
+          [storeId, user.business_id, product_id, quantity, unit_cost, user.id]
+        );
+        
+        // Record the initial movement
+        await connection.query(
+          `INSERT INTO store_inventory_movements 
+           (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, unit_cost, reference_type, notes, created_by)
+           VALUES (?, ?, ?, 'in', ?, 0, ?, ?, 'restock', ?, ?)`,
+          [storeId, user.business_id, product_id, quantity, quantity, unit_cost, notes || 'Initial product addition', user.id]
+        );
+        
+        console.log('Created new inventory record - quantity:', quantity);
+      }
+      
+      await connection.commit();
+      
+      res.json({
+        message: 'Product added to store inventory successfully',
+        product_id: product_id,
+        store_id: storeId,
+        quantity: quantity
+      });
+      
+    } catch (error) {
+      console.error('Database transaction error:', error);
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error adding product to store inventory:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+});
+
 // Add products to store warehouse (first tier - bulk storage)
 router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
   try {
@@ -88,11 +202,11 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
           throw new Error(`Product with ID ${product_id} not found`);
         }
         
-        // Check if inventory record already exists for this store (warehouse only - business_id IS NULL)
-        console.log('Checking existing inventory for store:', storeId, 'product:', product_id);
+        // Check if inventory record already exists for this store and business
+        console.log('Checking existing inventory for store:', storeId, 'product:', product_id, 'business:', user.business_id);
         const [existing] = await connection.query(
-          'SELECT id, quantity FROM store_product_inventory WHERE store_id = ? AND product_id = ? AND business_id IS NULL',
-          [storeId, product_id]
+          'SELECT id, quantity FROM store_product_inventory WHERE store_id = ? AND product_id = ? AND business_id = ?',
+          [storeId, product_id, user.business_id]
         );
         console.log('Existing inventory found:', existing);
         
@@ -104,16 +218,16 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
           await connection.query(
             `UPDATE store_product_inventory 
              SET quantity = ?, unit_cost = ?, last_restocked_at = NOW(), updated_by = ?
-             WHERE store_id = ? AND product_id = ?`,
-            [newQuantity, unit_cost, user.id, storeId, product_id]
+             WHERE store_id = ? AND product_id = ? AND business_id = ?`,
+            [newQuantity, unit_cost, user.id, storeId, product_id, user.business_id]
           );
           
           // Record the increment movement
           await connection.query(
             `INSERT INTO store_inventory_movements 
              (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, unit_cost, reference_type, notes, created_by)
-             VALUES (?, NULL, ?, 'in', ?, ?, ?, ?, 'restock', ?, ?)`,
-            [storeId, product_id, quantity, currentQuantity, newQuantity, unit_cost, notes || 'Bulk restock', user.id]
+             VALUES (?, ?, ?, 'in', ?, ?, ?, ?, 'restock', ?, ?)`,
+            [storeId, user.business_id, product_id, quantity, currentQuantity, newQuantity, unit_cost, notes || 'Bulk restock', user.id]
           );
           
           results.push({
@@ -127,12 +241,12 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
           });
         } else {
           // Create new inventory record
-          console.log('Creating new inventory record for store:', storeId, 'product:', product_id, 'quantity:', quantity);
+          console.log('Creating new inventory record for store:', storeId, 'product:', product_id, 'quantity:', quantity, 'business:', user.business_id);
           await connection.query(
             `INSERT INTO store_product_inventory 
              (store_id, business_id, product_id, quantity, unit_cost, min_stock_level, updated_by)
-             VALUES (?, NULL, ?, ?, ?, 10, ?)`,
-            [storeId, product_id, quantity, unit_cost, user.id]
+             VALUES (?, ?, ?, ?, ?, 10, ?)`,
+            [storeId, user.business_id, product_id, quantity, unit_cost, user.id]
           );
           console.log('New inventory record created successfully');
           
@@ -140,8 +254,8 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
           await connection.query(
             `INSERT INTO store_inventory_movements 
              (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, unit_cost, reference_type, notes, created_by)
-             VALUES (?, NULL, ?, 'in', ?, 0, ?, ?, 'restock', ?, ?)`,
-            [storeId, product_id, quantity, quantity, unit_cost, notes || 'Initial stock', user.id]
+             VALUES (?, ?, ?, 'in', ?, 0, ?, ?, 'restock', ?, ?)`,
+            [storeId, user.business_id, product_id, quantity, quantity, unit_cost, notes || 'Initial stock', user.id]
           );
           
           results.push({

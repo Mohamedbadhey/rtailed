@@ -278,9 +278,9 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
 
 
     const image_url = req.file ? `/uploads/products/${req.file.filename}` : null;
-    // For store management system, products are global (business_id = NULL)
+    // For store management system, products belong to the business that creates them
     // They get assigned to stores via store_product_inventory table
-    const businessId = null;
+    const businessId = req.user.business_id;
     
     const insertValues = [
       name, 
@@ -320,7 +320,7 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
       insertValues
     );
 
-    // Note: Products are now created without direct business inventory
+    // Note: Products are created with business_id for ownership tracking
     // They should be added to store warehouse first, then transferred to business
     // This follows the two-tier inventory system: Store Warehouse → Business Inventory
 

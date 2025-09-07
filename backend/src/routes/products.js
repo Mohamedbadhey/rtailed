@@ -318,15 +318,9 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
       insertValues
     );
 
-    // Add inventory transaction for initial stock
-    if (parseInt(stock_quantity) > 0) {
-      console.log('=== INVENTORY TRANSACTION ===');
-      console.log('Adding inventory transaction for product_id:', result.insertId, 'quantity:', parseInt(stock_quantity), 'business_id:', businessId);
-      await connection.query(
-        'INSERT INTO inventory_transactions (product_id, quantity, transaction_type, notes, business_id) VALUES (?, ?, ?, ?, ?)',
-        [result.insertId, parseInt(stock_quantity), 'purchase', 'Initial stock', businessId]
-      );
-    }
+    // Note: Products are now created without direct business inventory
+    // They should be added to store warehouse first, then transferred to business
+    // This follows the two-tier inventory system: Store Warehouse → Business Inventory
 
     await connection.commit();
     console.log('=== PRODUCT CREATED SUCCESSFULLY ===');

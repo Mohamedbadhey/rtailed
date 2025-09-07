@@ -7,6 +7,13 @@ import 'package:retail_management/utils/success_utils.dart';
 import 'package:retail_management/widgets/branded_app_bar.dart';
 import 'package:retail_management/screens/home/store_inventory_screen.dart';
 import 'package:retail_management/widgets/custom_text_field.dart';
+import 'package:retail_management/models/product.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:retail_management/utils/api.dart';
 
 class StoreManagementScreen extends StatefulWidget {
   const StoreManagementScreen({super.key});
@@ -1100,9 +1107,223 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
   }
 
   void _showAddProductsDialog() {
-    // TODO: Implement add products dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(t(context, 'Add products feature coming soon'))),
+    // For now, show a simple dialog to select a store
+    if (_stores.isEmpty) {
+      SuccessUtils.showOperationError(context, 'add products', 'No stores available');
+      return;
+    }
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Icon(
+                      Icons.store,
+                      color: Theme.of(context).primaryColor,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        t(context, 'Select Store'),
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Store List
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _stores.length,
+                    itemBuilder: (context, index) {
+                      final store = _stores[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: Icon(
+                            Icons.store,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                          title: Text(store['name'] ?? 'Store ${store['id']}'),
+                          subtitle: Text(store['address'] ?? 'No address'),
+                          trailing: const Icon(Icons.arrow_forward_ios),
+                          onTap: () {
+                            Navigator.of(context).pop(); // Close dialog
+                            // Call the exact same add product dialog from inventory screen
+                            _showAddProductDialog();
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Cancel Button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(t(context, 'Cancel')),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAddProductDialog() {
+    // First show store selection dialog
+    if (_stores.isEmpty) {
+      SuccessUtils.showOperationError(context, 'add products', 'No stores available');
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Icon(
+                      Icons.store,
+                      color: Theme.of(context).primaryColor,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        t(context, 'Select Store for Product'),
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Store List
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _stores.length,
+                    itemBuilder: (context, index) {
+                      final store = _stores[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: Icon(
+                            Icons.store,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                          title: Text(store['name'] ?? 'Store ${store['id']}'),
+                          subtitle: Text(store['address'] ?? 'No address'),
+                          trailing: const Icon(Icons.arrow_forward_ios),
+                          onTap: () {
+                            Navigator.of(context).pop(); // Close store selection
+                            _showProductDialogForStore(store['id'], store['name']);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Cancel Button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(t(context, 'Cancel')),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showProductDialogForStore(int storeId, String storeName) {
+    showDialog(
+      context: context,
+      builder: (context) => _ProductDialog(
+        apiService: _apiService,
+        onSave: (productData, imageFile, {webImageBytes, webImageName}) async {
+          try {
+            // Step 1: Create the product (without inventory)
+            final product = await _apiService.createProduct(productData, imageFile: imageFile, webImageBytes: webImageBytes, webImageName: webImageName);
+            
+            // Step 2: Add product to store warehouse
+            final quantity = int.parse(productData['stock_quantity'] ?? '0');
+            if (quantity > 0) {
+              await _apiService.addProductsToStoreWarehouse(storeId, [
+                {
+                  'product_id': product.id,
+                  'quantity': quantity,
+                  'unit_cost': double.parse(productData['cost_price'] ?? '0'),
+                  'notes': 'Product created and added to store warehouse'
+                }
+              ]);
+            }
+            
+            _loadData();
+            if (mounted) {
+              Navigator.of(context).pop();
+              SuccessUtils.showOperationSuccess(context, 'Product added to $storeName warehouse');
+            }
+          } catch (e, stack) {
+            print('Error adding product to store: $e');
+            print('Stack trace: $stack');
+            if (mounted) {
+              SuccessUtils.showOperationError(context, 'add product to store', e.toString());
+            }
+          }
+        },
+      ),
     );
   }
 
@@ -2012,3 +2233,933 @@ class _CreateAssignmentDialogState extends State<CreateAssignmentDialog> {
     }
   }
 }
+class _ProductDialog extends StatefulWidget {
+  final ApiService apiService;
+  final Product? product;
+  final Function(Map<String, dynamic>, File?, {Uint8List? webImageBytes, String? webImageName}) onSave;
+
+  const _ProductDialog({
+    required this.apiService,
+    this.product,
+    required this.onSave,
+  });
+
+  @override
+  State<_ProductDialog> createState() => _ProductDialogState();
+}
+
+class _ProductDialogState extends State<_ProductDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _priceController = TextEditingController();
+  final _costController = TextEditingController();
+  final _stockController = TextEditingController();
+  final _skuController = TextEditingController();
+  
+  File? _imageFile;
+  String? _imageUrl;
+  String? _webImageDataUrl;
+  String? _webImageName;
+  bool _isLoading = false;
+  int? _selectedCategoryId;
+  List<Map<String, dynamic>> _categories = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+    if (widget.product != null) {
+      _nameController.text = widget.product!.name;
+      _descriptionController.text = widget.product!.description ?? '';
+      _priceController.text = widget.product!.price.toString();
+      _costController.text = widget.product!.costPrice.toString();
+      _stockController.text = widget.product!.stockQuantity.toString();
+      _skuController.text = widget.product!.sku ?? '';
+      _imageUrl = widget.product!.imageUrl;
+      _selectedCategoryId = widget.product!.categoryId;
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _priceController.dispose();
+    _costController.dispose();
+    _stockController.dispose();
+    _skuController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await ApiService().getCategories();
+      setState(() {
+        _categories = categories;
+      });
+    } catch (e) {
+      print('Error loading categories: $e');
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      // Show dialog to choose between camera and gallery
+      final ImageSource? source = await showDialog<ImageSource>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Icon(Icons.add_a_photo, color: Theme.of(context).primaryColor),
+                const SizedBox(width: 8),
+                Text(t(context, 'Select Image Source')),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.camera_alt, color: Colors.blue),
+                        ),
+                        title: Text(
+                          t(context, 'Camera'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(t(context, 'Take a new photo')),
+                        onTap: () => Navigator.of(context).pop(ImageSource.camera),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      ),
+                      Divider(height: 1, color: Colors.grey[300]),
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.green[50],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.photo_library, color: Colors.green),
+                        ),
+                        title: Text(
+                          t(context, 'Gallery'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(t(context, 'Choose from gallery')),
+                        onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(t(context, 'Cancel')),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (source != null) {
+        final ImagePicker picker = ImagePicker();
+        final XFile? image = await picker.pickImage(
+          source: source,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85,
+        );
+        
+        if (image != null) {
+          setState(() {
+            _imageFile = File(image.path);
+          });
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking image: $e')),
+      );
+    }
+  }
+
+  Future<void> _pickImageWeb() async {
+    try {
+      // Show dialog to choose between camera and file picker
+      final bool? useCamera = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Icon(Icons.add_a_photo, color: Theme.of(context).primaryColor),
+                const SizedBox(width: 8),
+                Text(t(context, 'Select Image Source')),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.camera_alt, color: Colors.blue),
+                        ),
+                        title: Text(
+                          t(context, 'Camera'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(t(context, 'Take a new photo')),
+                        onTap: () => Navigator.of(context).pop(true),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      ),
+                      Divider(height: 1, color: Colors.grey[300]),
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.green[50],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.photo_library, color: Colors.green),
+                        ),
+                        title: Text(
+                          t(context, 'File Picker'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(t(context, 'Choose from files')),
+                        onTap: () => Navigator.of(context).pop(false),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(t(context, 'Cancel')),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (useCamera == null) return;
+
+      if (useCamera) {
+        // Use camera for web
+        final ImagePicker picker = ImagePicker();
+        final XFile? image = await picker.pickImage(
+          source: ImageSource.camera,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85,
+        );
+        
+        if (image != null) {
+          final bytes = await image.readAsBytes();
+          final base64String = base64Encode(bytes);
+          final mimeType = 'image/jpeg'; // Camera typically returns JPEG
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+          
+          setState(() {
+            _webImageDataUrl = 'data:$mimeType;base64,$base64String';
+            _webImageName = 'camera_$timestamp.jpg';
+          });
+        }
+      } else {
+        // Use file picker
+        FilePickerResult? result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['png', 'jpg', 'jpeg'],
+          allowMultiple: false,
+          withData: true,
+        );
+
+        if (result != null && result.files.isNotEmpty) {
+          final file = result.files.first;
+          if (file.bytes != null) {
+            // Determine MIME type and force lowercase extension
+            String? ext = file.extension?.toLowerCase();
+            String mimeType =
+                ext == 'png' ? 'image/png' :
+                (ext == 'jpg' || ext == 'jpeg') ? 'image/jpeg' : 'image/jpeg';
+            String forcedExt = (ext == 'png' || ext == 'jpg' || ext == 'jpeg') ? ext! : 'jpg';
+            String baseName = file.name.contains('.') ? file.name.substring(0, file.name.lastIndexOf('.')) : file.name;
+            setState(() {
+              _webImageDataUrl = 'data:$mimeType;base64,${base64Encode(file.bytes!)}';
+              _webImageName = baseName + '.' + forcedExt;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking image: $e')),
+      );
+    }
+  }
+
+  void _save() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final productData = {
+        'name': _nameController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'price': double.parse(_priceController.text),
+        'cost_price': double.parse(_costController.text),
+        'stock_quantity': int.parse(_stockController.text),
+        'category_id': _selectedCategoryId,
+        'sku': _skuController.text.trim(),
+        'low_stock_threshold': 10, // Default value
+      };
+
+      widget.onSave(productData, _imageFile, webImageBytes: kIsWeb && _webImageDataUrl != null ? base64Decode(_webImageDataUrl!.split(',').last) : null, webImageName: kIsWeb ? _webImageName : null);
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${t(context, 'Error: ')}$e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth <= 480;
+          
+          return Container(
+            width: MediaQuery.of(context).size.width * (isMobile ? 0.95 : 0.9),
+            constraints: BoxConstraints(
+              maxWidth: isMobile ? 400 : 600,
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
+            ),
+            padding: EdgeInsets.all(isMobile ? 16 : 24),
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Container(
+                      padding: EdgeInsets.all(isMobile ? 12 : 16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Theme.of(context).primaryColor,
+                            Theme.of(context).primaryColor.withOpacity(0.8),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(isMobile ? 6 : 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              widget.product == null ? Icons.add_box : Icons.edit,
+                              color: Colors.white,
+                              size: isMobile ? 20 : 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.product == null ? t(context, 'Add New Product') : t(context, 'Edit Product'),
+                                  style: TextStyle(
+                                    fontSize: isMobile ? 16 : 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  widget.product == null 
+                                      ? t(context, 'Create a new product in your inventory')
+                                      : t(context, 'Update product information'),
+                                  style: TextStyle(
+                                    fontSize: isMobile ? 11 : 14,
+                                    color: Colors.white.withOpacity(0.9),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            padding: EdgeInsets.all(isMobile ? 4 : 8),
+                            constraints: BoxConstraints(
+                              minWidth: isMobile ? 32 : 40,
+                              minHeight: isMobile ? 32 : 40,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Image Section
+                    Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          if (kIsWeb) {
+                            _pickImageWeb();
+                          } else {
+                            _pickImage();
+                          }
+                        },
+                        child: Container(
+                          width: isMobile ? 100 : 120,
+                          height: isMobile ? 100 : 120,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.grey[300]!,
+                              width: 2,
+                              style: BorderStyle.solid,
+                            ),
+                          ),
+                          child: kIsWeb
+                              ? (_webImageDataUrl != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: Image.network(
+                                        _webImageDataUrl!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) =>
+                                            _buildImagePlaceholder(isMobile),
+                                      ),
+                                    )
+                                  : (_imageUrl != null && _imageUrl!.isNotEmpty)
+                                      ? ClipRRect(
+                                          borderRadius: BorderRadius.circular(14),
+                                          child: Image.network(
+                                            Api.getFullImageUrl(_imageUrl),
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) =>
+                                                _buildImagePlaceholder(isMobile),
+                                          ),
+                                        )
+                                      : _buildImagePlaceholder(isMobile))
+                              : _imageFile != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: Image.file(
+                                        _imageFile!,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    )
+                                  : (_imageUrl != null && _imageUrl!.isNotEmpty)
+                                      ? ClipRRect(
+                                          borderRadius: BorderRadius.circular(14),
+                                          child: Image.network(
+                                            Api.getFullImageUrl(_imageUrl),
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) =>
+                                                _buildImagePlaceholder(isMobile),
+                                          ),
+                                        )
+                                      : _buildImagePlaceholder(isMobile),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Form Fields
+                    if (isMobile) ...[
+                      // Mobile layout - stacked vertically
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Product Name *'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.inventory_2),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return t(context, 'Product name is required');
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _skuController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'SKU *'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.qr_code),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return t(context, 'SKU is required');
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _descriptionController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Description'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.description),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _priceController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Price *'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.attach_money),
+                          filled: true,
+                          fillColor: Colors.green[50],
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return t(context, 'Price is required');
+                          }
+                          if (double.tryParse(value) == null) {
+                            return t(context, 'Please enter a valid number');
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _costController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Cost *'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.account_balance_wallet),
+                          filled: true,
+                          fillColor: Colors.orange[50],
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return t(context, 'Cost is required');
+                          }
+                          if (double.tryParse(value) == null) {
+                            return t(context, 'Please enter a valid number');
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _stockController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Stock Quantity'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.inventory),
+                          filled: true,
+                          fillColor: Colors.blue[50],
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return t(context, 'Stock quantity is required');
+                          }
+                          if (int.tryParse(value) == null) {
+                            return t(context, 'Please enter a valid number');
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<int>(
+                        value: _categories.any((cat) => cat['id'] == _selectedCategoryId) ? _selectedCategoryId : null,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Category'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.category),
+                          filled: true,
+                          fillColor: Colors.purple[50],
+                          helperText: t(context, 'Select a category for this product (optional)'),
+                        ),
+                        items: [
+                          DropdownMenuItem<int>(
+                            value: null,
+                            child: Text(t(context, 'Select Category')),
+                          ),
+                          ..._categories.map((category) {
+                            return DropdownMenuItem<int>(
+                              value: category['id'] as int,
+                              child: Text(category['name'] as String),
+                            );
+                          }).toList(),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedCategoryId = value;
+                          });
+                        },
+
+                      ),
+                    ] else ...[
+                      // Desktop/Tablet layout - horizontal rows
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _nameController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'Product Name *'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.inventory_2),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return t(context, 'Product name is required');
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _skuController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'SKU *'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.qr_code),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return t(context, 'SKU is required');
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _descriptionController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Description'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.description),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _priceController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'Price *'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.attach_money),
+                                filled: true,
+                                fillColor: Colors.green[50],
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return t(context, 'Price is required');
+                                }
+                                if (double.tryParse(value) == null) {
+                                  return t(context, 'Please enter a valid number');
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _costController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'Cost *'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.account_balance_wallet),
+                                filled: true,
+                                fillColor: Colors.orange[50],
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return t(context, 'Cost is required');
+                                }
+                                if (double.tryParse(value) == null) {
+                                  return t(context, 'Please enter a valid number');
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _stockController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'Stock Quantity'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.inventory),
+                                filled: true,
+                                fillColor: Colors.blue[50],
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return t(context, 'Stock quantity is required');
+                                }
+                                if (int.tryParse(value) == null) {
+                                  return t(context, 'Please enter a valid number');
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              value: _categories.any((cat) => cat['id'] == _selectedCategoryId) ? _selectedCategoryId : null,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'Category'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.category),
+                                filled: true,
+                                fillColor: Colors.purple[50],
+                              ),
+                              items: [
+                                DropdownMenuItem<int>(
+                                  value: null,
+                                  child: Text(t(context, 'Select Category')),
+                                ),
+                                ..._categories.map((category) {
+                                  return DropdownMenuItem<int>(
+                                    value: category['id'] as int,
+                                    child: Text(category['name'] as String),
+                                  );
+                                }).toList(),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedCategoryId = value;
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                            style: OutlinedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(vertical: isMobile ? 12 : 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              t(context, 'Cancel'),
+                              style: TextStyle(fontSize: isMobile ? 14 : 16),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _save,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(vertical: isMobile ? 12 : 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 2,
+                            ),
+                            child: _isLoading
+                                ? SizedBox(
+                                    height: isMobile ? 16 : 20,
+                                    width: isMobile ? 16 : 20,
+                                    child: const CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  )
+                                : Text(
+                                    widget.product == null ? 'Add Product' : 'Update Product',
+                                    style: TextStyle(
+                                      fontSize: isMobile ? 14 : 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildImagePlaceholder(bool isMobile) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.camera_alt,
+              size: isMobile ? 16 : 20,
+              color: Colors.blue[600],
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.add,
+              size: isMobile ? 12 : 16,
+              color: Colors.grey[600],
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.photo_library,
+              size: isMobile ? 16 : 20,
+              color: Colors.green[600],
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          t(context, 'Add Image'),
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: isMobile ? 10 : 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          t(context, 'Camera or Gallery'),
+          style: TextStyle(
+            color: Colors.grey[500],
+            fontSize: isMobile ? 8 : 10,
+          ),
+        ),
+      ],
+    );
+  }
+} 

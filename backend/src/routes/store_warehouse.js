@@ -21,7 +21,8 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
     const user = req.user;
     
     console.log('=== STORE WAREHOUSE ADD PRODUCTS DEBUG ===');
-    console.log('Store ID:', storeId);
+    console.log('Store ID (from params):', storeId);
+    console.log('Store ID type:', typeof storeId);
     console.log('User:', { id: user.id, role: user.role, business_id: user.business_id });
     console.log('Products:', products);
     console.log('Request body:', req.body);
@@ -37,11 +38,13 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
     if (user.role !== 'superadmin') {
       // For non-superadmin, check if they have access to any business assigned to this store
       console.log('User is not superadmin, checking store access for business:', user.business_id, 'store:', storeId);
-      const [accessCheck] = await pool.query(
-        `SELECT 1 FROM store_business_assignments sba 
-         WHERE sba.store_id = ? AND sba.business_id = ? AND sba.is_active = 1`,
-        [storeId, user.business_id]
-      );
+      const query = `SELECT 1 FROM store_business_assignments sba 
+         WHERE sba.store_id = ? AND sba.business_id = ? AND sba.is_active = 1`;
+      const params = [storeId, user.business_id];
+      console.log('Executing query:', query);
+      console.log('With parameters:', params);
+      
+      const [accessCheck] = await pool.query(query, params);
       
       console.log('Access check result:', accessCheck);
       

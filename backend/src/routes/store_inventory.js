@@ -146,6 +146,7 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
     console.log('Products:', JSON.stringify(products, null, 2));
     console.log('Notes:', notes);
     console.log('User:', { id: user.id, role: user.role, business_id: user.business_id });
+    console.log('Transfer Type:', from_business_id === to_business_id ? 'SAME BUSINESS' : 'DIFFERENT BUSINESS');
     
     if (!to_business_id || !products || products.length === 0) {
       return res.status(400).json({ message: 'To business ID and products are required' });
@@ -215,7 +216,7 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
             quantity, previous_quantity, new_quantity,
             reference_type, notes, created_by
           ) VALUES (?, ?, ?, 'transfer_out', ?, ?, ?, 'transfer', ?, ?)`,
-          [storeId, from_business_id, product_id, -quantity, currentQuantity, newQuantity, notes || 'Transfer to business', user.id]
+          [storeId, from_business_id, product_id, quantity, currentQuantity, newQuantity, notes || 'Transfer to business', user.id]
         );
         
         // Update product business_id from NULL to target business
@@ -281,16 +282,9 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
           );
         }
         
-        // Record store inventory movement (transfer_in) for target business
-        await connection.query(
-          `INSERT INTO store_inventory_movements 
-           (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, reference_type, notes, created_by)
-           VALUES (?, ?, ?, 'transfer_in', ?, ?, ?, 'transfer', ?, ?)`,
-          [storeId, to_business_id, product_id, quantity, 
-           targetStoreInventory.length > 0 ? targetStoreInventory[0].quantity : 0,
-           targetStoreInventory.length > 0 ? targetStoreInventory[0].quantity + quantity : quantity,
-           notes || 'Transfer from store to business', user.id]
-        );
+        // No need to create transfer_in record for store-to-business transfers
+        // The transfer_out record above already tracks the movement from store to business
+        console.log(`Transfer completed: ${quantity} units of product ${product_id} transferred from store to business ${to_business_id}`);
         
         // Record business inventory movement (in)
         await connection.query(

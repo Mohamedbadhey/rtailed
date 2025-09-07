@@ -8,6 +8,11 @@ const { auth, checkRole } = require('../middleware/auth');
 // This handles the first tier: Products stored in stores (warehouses)
 // =====================================================
 
+// Test endpoint to verify the API is working
+router.get('/test', (req, res) => {
+  res.json({ message: 'Store warehouse API is working', timestamp: new Date().toISOString() });
+});
+
 // Add products to store warehouse (first tier - bulk storage)
 router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
   try {
@@ -15,22 +20,37 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
     const { products } = req.body; // products: [{product_id, quantity, unit_cost, supplier, batch_number, expiry_date, notes}]
     const user = req.user;
     
+    console.log('=== STORE WAREHOUSE ADD PRODUCTS DEBUG ===');
+    console.log('Store ID:', storeId);
+    console.log('User:', { id: user.id, role: user.role, business_id: user.business_id });
+    console.log('Products:', products);
+    console.log('Request body:', req.body);
+    
     if (!products || products.length === 0) {
+      console.log('ERROR: No products provided');
       return res.status(400).json({ message: 'Products are required' });
     }
     
     // Check if user has access to this store
+    console.log('Checking user access - Role:', user.role, 'Business ID:', user.business_id);
+    
     if (user.role !== 'superadmin') {
       // For non-superadmin, check if they have access to any business assigned to this store
+      console.log('User is not superadmin, checking store access for business:', user.business_id, 'store:', storeId);
       const [accessCheck] = await pool.query(
         `SELECT 1 FROM store_business_assignments sba 
          WHERE sba.store_id = ? AND sba.business_id = ? AND sba.is_active = 1`,
         [storeId, user.business_id]
       );
       
+      console.log('Access check result:', accessCheck);
+      
       if (accessCheck.length === 0) {
+        console.log('ACCESS DENIED: Business', user.business_id, 'not assigned to store', storeId);
         return res.status(403).json({ message: 'Access denied: No permission for this store' });
       }
+    } else {
+      console.log('User is superadmin, access granted');
     }
     
     // Start transaction
@@ -65,11 +85,13 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
           throw new Error(`Product with ID ${product_id} not found`);
         }
         
-        // Check if inventory record already exists for this store
+        // Check if inventory record already exists for this store (warehouse only - business_id IS NULL)
+        console.log('Checking existing inventory for store:', storeId, 'product:', product_id);
         const [existing] = await connection.query(
-          'SELECT id, quantity FROM store_product_inventory WHERE store_id = ? AND product_id = ?',
+          'SELECT id, quantity FROM store_product_inventory WHERE store_id = ? AND product_id = ? AND business_id IS NULL',
           [storeId, product_id]
         );
+        console.log('Existing inventory found:', existing);
         
         if (existing.length > 0) {
           // Update existing inventory (increment)
@@ -102,12 +124,14 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
           });
         } else {
           // Create new inventory record
+          console.log('Creating new inventory record for store:', storeId, 'product:', product_id, 'quantity:', quantity);
           await connection.query(
             `INSERT INTO store_product_inventory 
              (store_id, business_id, product_id, quantity, unit_cost, min_stock_level, updated_by)
              VALUES (?, NULL, ?, ?, ?, 10, ?)`,
             [storeId, product_id, quantity, unit_cost, user.id]
           );
+          console.log('New inventory record created successfully');
           
           // Record the initial movement
           await connection.query(
@@ -138,6 +162,7 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
       });
       
     } catch (error) {
+      console.error('Database transaction error:', error);
       await connection.rollback();
       throw error;
     } finally {
@@ -145,6 +170,7 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
     }
   } catch (error) {
     console.error('Error adding products to store warehouse:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ message: error.message || 'Server error' });
   }
 });

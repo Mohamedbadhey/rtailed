@@ -819,21 +819,29 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             
             // Step 2: Add product to this store's warehouse
             final quantity = int.parse(productData['stock_quantity'] ?? '0');
-            if (quantity > 0) {
-              await _apiService.addProductsToStoreWarehouse(widget.storeId, [
-                {
-                  'product_id': product.id,
-                  'quantity': quantity,
-                  'unit_cost': double.parse(productData['cost_price'] ?? '0'),
-                  'notes': 'Product created and added to store warehouse'
-                }
-              ]);
+            if (quantity > 0 && product.id != null) {
+              print('=== ADDING TO STORE WAREHOUSE ===');
+              print('Store ID: ${widget.storeId}');
+              print('Product ID: ${product.id}');
+              print('Quantity: $quantity');
+              print('Unit Cost: ${double.parse(productData['cost_price'] ?? '0')}');
+              
+              final warehouseData = {
+                'product_id': product.id!,
+                'quantity': quantity,
+                'unit_cost': double.parse(productData['cost_price'] ?? '0'),
+                'notes': 'Product created and added to store warehouse'
+              };
+              
+              print('Warehouse data: $warehouseData');
+              
+              await _apiService.addProductsToStoreWarehouse(widget.storeId, [warehouseData]);
             }
             
             _loadData();
             if (mounted) {
               Navigator.of(context).pop();
-              SuccessUtils.showOperationSuccess(context, 'Product added to ${widget.storeName} warehouse');
+              SuccessUtils.showProductSuccess(context, 'added to ${widget.storeName} warehouse');
             }
           } catch (e, stack) {
             print('Error adding product to store: $e');

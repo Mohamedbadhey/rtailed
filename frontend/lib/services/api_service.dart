@@ -1733,18 +1733,38 @@ class ApiService {
 
   // Add products to store warehouse (first tier - bulk storage)
   Future<Map<String, dynamic>> addProductsToStoreWarehouse(int storeId, List<Map<String, dynamic>> products) async {
+    print('=== API SERVICE: ADD TO STORE WAREHOUSE ===');
+    print('Store ID: $storeId');
+    print('Products: $products');
+    
+    final requestBody = {
+      'products': products,
+    };
+    print('Request body: ${json.encode(requestBody)}');
+    
     final response = await http.post(
       Uri.parse('$baseUrl/api/store-warehouse/$storeId/add-products'),
       headers: _headers,
-      body: json.encode({
-        'products': products,
-      }),
+      body: json.encode(requestBody),
     );
     
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      try {
+        final result = json.decode(response.body);
+        print('Successfully decoded response: $result');
+        return result;
+      } catch (e) {
+        print('JSON decode error: $e');
+        print('Response body that failed to decode: ${response.body}');
+        throw Exception('Failed to parse response: $e');
+      }
     } else {
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+      print('API call failed with status: ${response.statusCode}');
+      print('Error response body: ${response.body}');
+      throw Exception('API Error: ${response.statusCode} - ${response.body}');
     }
   }
 

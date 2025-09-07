@@ -89,9 +89,12 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   Future<void> _initializeData() async {
     final user = context.read<AuthProvider>().user;
     
-    // If superadmin, load businesses first
+    // Load businesses for all users (needed for transfer dialog)
+    await _loadBusinesses();
+    
+    // If superadmin, wait for business selection
     if (user?.role == 'superadmin') {
-      await _loadBusinesses();
+      // Don't load data yet, wait for business selection
     } else {
       _loadData();
     }
@@ -99,14 +102,15 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   
   Future<void> _loadBusinesses() async {
     try {
-      final businesses = await _apiService.getBusinesses();
+      // Get businesses assigned to this store
+      final businesses = await _apiService.getBusinessesAssignedToStore(widget.storeId);
       setState(() {
         _businesses = businesses;
       });
     } catch (e) {
-      print('Error loading businesses: $e');
+      print('Error loading businesses for store: $e');
       setState(() {
-        _error = 'Failed to load businesses: $e';
+        _error = 'Failed to load businesses for this store: $e';
       });
     }
   }
@@ -3391,11 +3395,14 @@ class _TransferDialogState extends State<_TransferDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 600;
+    
     return Dialog(
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
-        height: MediaQuery.of(context).size.height * 0.8,
-        padding: const EdgeInsets.all(24),
+        width: isSmallScreen ? screenSize.width * 0.95 : screenSize.width * 0.8,
+        height: isSmallScreen ? screenSize.height * 0.9 : screenSize.height * 0.8,
+        padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -3473,114 +3480,174 @@ class _TransferDialogState extends State<_TransferDialog> {
 
             // Products List
             Expanded(
-              child: ListView.builder(
-                itemCount: widget.inventory.length,
-                itemBuilder: (context, index) {
-                  final item = widget.inventory[index];
-                  final productId = item['product_id'];
-                  final currentQuantity = _selectedQuantities[productId] ?? 0;
-                  final availableQuantity = item['store_quantity'] ?? 0;
-
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
+              child: widget.inventory.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Product Image
-                          if (item['image_url'] != null && item['image_url'].toString().isNotEmpty)
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                'https://rtailed-production.up.railway.app${item['image_url']}',
-                                width: 50,
-                                height: 50,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    width: 50,
-                                    height: 50,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[200],
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(Icons.image, color: Colors.grey),
-                                  );
-                                },
-                              ),
-                            )
-                          else
-                            Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(Icons.image, color: Colors.grey),
-                            ),
-                          const SizedBox(width: 12),
-
-                          // Product Details
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item['product_name'] ?? 'Unknown Product',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'SKU: ${item['sku'] ?? 'N/A'}',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  'Available: $availableQuantity',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          Icon(
+                            Icons.inventory_2_outlined,
+                            size: 64,
+                            color: Colors.grey[400],
                           ),
-
-                          // Quantity Input
-                          SizedBox(
-                            width: 100,
-                            child: TextFormField(
-                              initialValue: currentQuantity.toString(),
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                labelText: 'Qty',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              ),
-                              onChanged: (value) {
-                                final quantity = int.tryParse(value) ?? 0;
-                                if (quantity <= availableQuantity) {
-                                  setState(() {
-                                    _selectedQuantities[productId] = quantity;
-                                  });
-                                }
-                              },
+                          const SizedBox(height: 16),
+                          Text(
+                            'No products available for transfer',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
                             ),
                           ),
                         ],
                       ),
+                    )
+                  : ListView.builder(
+                      itemCount: widget.inventory.length,
+                      itemBuilder: (context, index) {
+                        final item = widget.inventory[index];
+                        final productId = item['product_id'];
+                        final currentQuantity = _selectedQuantities[productId] ?? 0;
+                        final availableQuantity = item['store_quantity'] ?? 0;
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          elevation: 2,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: isSmallScreen
+                                ? Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // Mobile layout
+                                      Row(
+                                        children: [
+                                          // Product Image
+                                          _buildProductImage(item, isSmallScreen),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  item['product_name'] ?? 'Unknown Product',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 14,
+                                                  ),
+                                                  maxLines: 2,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'SKU: ${item['sku'] ?? 'N/A'}',
+                                                  style: TextStyle(
+                                                    color: Colors.grey[600],
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  'Available: $availableQuantity',
+                                                  style: TextStyle(
+                                                    color: Colors.grey[600],
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      // Quantity Input (full width on mobile)
+                                      TextFormField(
+                                        initialValue: currentQuantity.toString(),
+                                        keyboardType: TextInputType.number,
+                                        decoration: InputDecoration(
+                                          labelText: 'Quantity to Transfer',
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          suffixText: 'Max: $availableQuantity',
+                                        ),
+                                        onChanged: (value) {
+                                          final quantity = int.tryParse(value) ?? 0;
+                                          if (quantity <= availableQuantity) {
+                                            setState(() {
+                                              _selectedQuantities[productId] = quantity;
+                                            });
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  )
+                                : Row(
+                                    children: [
+                                      // Desktop layout
+                                      _buildProductImage(item, isSmallScreen),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              item['product_name'] ?? 'Unknown Product',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'SKU: ${item['sku'] ?? 'N/A'}',
+                                              style: TextStyle(
+                                                color: Colors.grey[600],
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            Text(
+                                              'Available: $availableQuantity',
+                                              style: TextStyle(
+                                                color: Colors.grey[600],
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      // Quantity Input
+                                      SizedBox(
+                                        width: 120,
+                                        child: TextFormField(
+                                          initialValue: currentQuantity.toString(),
+                                          keyboardType: TextInputType.number,
+                                          decoration: InputDecoration(
+                                            labelText: 'Qty',
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            suffixText: 'Max: $availableQuantity',
+                                          ),
+                                          onChanged: (value) {
+                                            final quantity = int.tryParse(value) ?? 0;
+                                            if (quantity <= availableQuantity) {
+                                              setState(() {
+                                                _selectedQuantities[productId] = quantity;
+                                              });
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
 
             const SizedBox(height: 16),
@@ -3633,6 +3700,43 @@ class _TransferDialogState extends State<_TransferDialog> {
 
   int _getTotalSelectedQuantity() {
     return _selectedQuantities.values.fold(0, (sum, quantity) => sum + quantity);
+  }
+
+  Widget _buildProductImage(Map<String, dynamic> item, bool isSmallScreen) {
+    final imageSize = isSmallScreen ? 60.0 : 50.0;
+    
+    if (item['image_url'] != null && item['image_url'].toString().isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          'https://rtailed-production.up.railway.app${item['image_url']}',
+          width: imageSize,
+          height: imageSize,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              width: imageSize,
+              height: imageSize,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.image, color: Colors.grey),
+            );
+          },
+        ),
+      );
+    } else {
+      return Container(
+        width: imageSize,
+        height: imageSize,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Icon(Icons.image, color: Colors.grey),
+      );
+    }
   }
 
   Future<void> _performTransfer() async {

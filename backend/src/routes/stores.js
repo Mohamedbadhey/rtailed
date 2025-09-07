@@ -286,4 +286,44 @@ router.post('/:storeId/assign-business', auth, checkRole(['superadmin']), async 
   }
 });
 
+// Get businesses assigned to a specific store
+router.get('/:storeId/businesses', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
+  try {
+    const { storeId } = req.params;
+    const user = req.user;
+    
+    console.log(`Getting businesses for store ${storeId}, user role: ${user.role}`);
+    
+    // Check if user has access to this store
+    if (user.role !== 'superadmin') {
+      const [accessCheck] = await pool.query(
+        `SELECT 1 FROM store_business_assignments sba 
+         WHERE sba.store_id = ? AND sba.business_id = ? AND sba.is_active = 1`,
+        [storeId, user.business_id]
+      );
+      
+      if (accessCheck.length === 0) {
+        return res.status(403).json({ message: 'Access denied: No permission for this store' });
+      }
+    }
+    
+    // Get businesses assigned to this store
+    const [businesses] = await pool.query(
+      `SELECT DISTINCT b.id, b.name, b.business_code, b.description, b.address, b.phone, b.email, b.website, b.logo_url, b.is_active
+       FROM businesses b
+       INNER JOIN store_business_assignments sba ON b.id = sba.business_id
+       WHERE sba.store_id = ? AND sba.is_active = 1 AND b.is_active = 1
+       ORDER BY b.name ASC`,
+      [storeId]
+    );
+    
+    console.log(`Found ${businesses.length} businesses assigned to store ${storeId}`);
+    
+    res.json({ businesses });
+  } catch (error) {
+    console.error('Error getting businesses for store:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;

@@ -784,6 +784,27 @@ class ApiService {
     }
   }
 
+  // Get businesses assigned to a specific store
+  Future<List<Map<String, dynamic>>> getBusinessesAssignedToStore(int storeId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/stores/$storeId/businesses'),
+        headers: _headers,
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data['businesses'] ?? []);
+      } else {
+        print('GET STORE BUSINESSES ERROR: ${response.statusCode} ${response.body}');
+        throw Exception('Error: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      print('Get Store Businesses Error: $e');
+      rethrow;
+    }
+  }
+
   // Categories
   Future<List<Map<String, dynamic>>> getCategories() async {
     try {

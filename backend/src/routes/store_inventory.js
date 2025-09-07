@@ -390,7 +390,7 @@ router.get('/:storeId/movements/:businessId', auth, checkRole(['admin', 'manager
          sim.*,
          p.name as product_name,
          p.sku,
-         COALESCE(u.name, u.email, 'Unknown') as created_by_username
+         COALESCE(u.email, CONCAT('User ', u.id), 'Unknown') as created_by_username
        FROM store_inventory_movements sim
        JOIN products p ON sim.product_id = p.id
        LEFT JOIN users u ON sim.created_by = u.id

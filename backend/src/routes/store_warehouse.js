@@ -17,13 +17,14 @@ router.get('/test', (req, res) => {
 router.post('/:storeId/add-product', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
   try {
     const { storeId } = req.params;
-    const { product_id, quantity, notes } = req.body;
+    const { product_id, quantity, cost_price, notes } = req.body;
     const user = req.user;
     
     console.log('=== ADD PRODUCT TO STORE INVENTORY ===');
     console.log('Store ID:', storeId);
     console.log('Product ID:', product_id);
     console.log('Quantity:', quantity);
+    console.log('Cost Price:', cost_price);
     console.log('User:', { id: user.id, role: user.role, business_id: user.business_id });
     
     if (!product_id || !quantity) {
@@ -76,6 +77,15 @@ router.post('/:storeId/add-product', auth, checkRole(['admin', 'manager', 'super
           [newQuantity, user.id, storeId, product_id, user.business_id]
         );
         
+        // Update cost price in products table if provided
+        if (cost_price !== undefined && cost_price !== null) {
+          await connection.query(
+            'UPDATE products SET cost_price = ? WHERE id = ?',
+            [cost_price, product_id]
+          );
+          console.log('Updated product cost price to:', cost_price);
+        }
+        
         // Record the increment movement
         await connection.query(
           `INSERT INTO store_inventory_movements 
@@ -93,6 +103,15 @@ router.post('/:storeId/add-product', auth, checkRole(['admin', 'manager', 'super
            VALUES (?, ?, ?, ?, 10, ?)`,
           [storeId, user.business_id, product_id, quantity, user.id]
         );
+        
+        // Update cost price in products table if provided
+        if (cost_price !== undefined && cost_price !== null) {
+          await connection.query(
+            'UPDATE products SET cost_price = ? WHERE id = ?',
+            [cost_price, product_id]
+          );
+          console.log('Updated product cost price to:', cost_price);
+        }
         
         // Record the initial movement
         await connection.query(

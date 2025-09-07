@@ -1857,7 +1857,7 @@ class ApiService {
   }
 
   // Increment existing product quantity in store inventory
-  Future<Map<String, dynamic>> incrementProductQuantity(int storeId, int productId, int quantity, {String? notes}) async {
+  Future<Map<String, dynamic>> incrementProductQuantity(int storeId, int productId, int quantity, {double? costPrice, String? notes}) async {
     print('=== API SERVICE: INCREMENT PRODUCT QUANTITY ===');
     print('Store ID: $storeId');
     print('Product ID: $productId');
@@ -1866,6 +1866,7 @@ class ApiService {
     final requestBody = {
       'product_id': productId,
       'quantity': quantity,
+      if (costPrice != null) 'cost_price': costPrice,
       if (notes != null) 'notes': notes,
     };
     print('Request body: ${json.encode(requestBody)}');
@@ -1883,6 +1884,43 @@ class ApiService {
       try {
         final result = json.decode(response.body);
         print('Successfully incremented product: $result');
+        return result;
+      } catch (e) {
+        print('JSON decode error: $e');
+        print('Response body that failed to decode: ${response.body}');
+        throw Exception('Failed to parse response: $e');
+      }
+    } else {
+      print('API call failed with status: ${response.statusCode}');
+      print('Error response body: ${response.body}');
+      throw Exception('API Error: ${response.statusCode} - ${response.body}');
+    }
+  }
+
+  // Update product cost price
+  Future<Map<String, dynamic>> updateProductCostPrice(int productId, double costPrice) async {
+    print('=== API SERVICE: UPDATE PRODUCT COST PRICE ===');
+    print('Product ID: $productId');
+    print('New Cost Price: $costPrice');
+    
+    final requestBody = {
+      'cost_price': costPrice,
+    };
+    print('Request body: ${json.encode(requestBody)}');
+    
+    final response = await http.put(
+      Uri.parse('$baseUrl/api/products/$productId'),
+      headers: _headers,
+      body: json.encode(requestBody),
+    );
+    
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+    
+    if (response.statusCode == 200) {
+      try {
+        final result = json.decode(response.body);
+        print('Successfully updated product cost price: $result');
         return result;
       } catch (e) {
         print('JSON decode error: $e');

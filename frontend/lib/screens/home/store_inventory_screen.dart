@@ -502,6 +502,28 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             const SizedBox(height: 8),
             Row(
               children: [
+                Icon(Icons.attach_money, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  '${t(context,'Cost Price')}: ₦${(double.tryParse(item['cost_price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Icon(Icons.sell, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  '${t(context,'Selling Price')}: ₦${(double.tryParse(item['price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
                 Icon(Icons.update, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
@@ -528,23 +550,34 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => _showIncrementDialog(item),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: Text(t(context,'Add Stock')),
+                    icon: const Icon(Icons.add, size: 16),
+                    label: Text(t(context,'Add Stock'), style: const TextStyle(fontSize: 12)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showEditCostPriceDialog(item),
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: Text(t(context,'Edit Cost'), style: const TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _showTransferDialog(),
-                    icon: const Icon(Icons.swap_horiz, size: 18),
-                    label: Text(t(context,'Transfer')),
+                    icon: const Icon(Icons.swap_horiz, size: 16),
+                    label: Text(t(context,'Transfer'), style: const TextStyle(fontSize: 12)),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                     ),
                   ),
                 ),
@@ -936,12 +969,13 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       context: context,
       builder: (context) => _IncrementDialog(
         item: item,
-        onIncrement: (quantity, notes) async {
+        onIncrement: (quantity, costPrice, notes) async {
           try {
             await _apiService.incrementProductQuantity(
               widget.storeId,
               item['product_id'],
               quantity,
+              costPrice: costPrice,
               notes: notes,
             );
             
@@ -954,6 +988,34 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             print('Error incrementing product: $e');
             if (mounted) {
               SuccessUtils.showOperationError(context, 'increment stock', e.toString());
+            }
+          }
+        },
+      ),
+    );
+  }
+
+  void _showEditCostPriceDialog(Map<String, dynamic> item) {
+    showDialog(
+      context: context,
+      builder: (context) => _EditCostPriceDialog(
+        item: item,
+        onUpdate: (newCostPrice) async {
+          try {
+            await _apiService.updateProductCostPrice(
+              item['product_id'],
+              newCostPrice,
+            );
+            
+            _loadData();
+            if (mounted) {
+              Navigator.of(context).pop();
+              SuccessUtils.showProductSuccess(context, 'cost price updated');
+            }
+          } catch (e) {
+            print('Error updating cost price: $e');
+            if (mounted) {
+              SuccessUtils.showOperationError(context, 'update cost price', e.toString());
             }
           }
         },
@@ -1894,7 +1956,7 @@ class _ProductDialogState extends State<_ProductDialog> {
 
 class _IncrementDialog extends StatefulWidget {
   final Map<String, dynamic> item;
-  final Function(int quantity, String? notes) onIncrement;
+  final Function(int quantity, double costPrice, String? notes) onIncrement;
 
   const _IncrementDialog({
     required this.item,
@@ -1908,12 +1970,24 @@ class _IncrementDialog extends StatefulWidget {
 class _IncrementDialogState extends State<_IncrementDialog> {
   final _formKey = GlobalKey<FormState>();
   final _quantityController = TextEditingController();
+  final _costPriceController = TextEditingController();
   final _notesController = TextEditingController();
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Pre-fill with current cost price if available
+    final currentCostPrice = widget.item['cost_price'];
+    if (currentCostPrice != null) {
+      _costPriceController.text = currentCostPrice.toString();
+    }
+  }
+
+  @override
   void dispose() {
     _quantityController.dispose();
+    _costPriceController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -1927,9 +2001,10 @@ class _IncrementDialogState extends State<_IncrementDialog> {
 
     try {
       final quantity = int.parse(_quantityController.text.trim());
+      final costPrice = double.tryParse(_costPriceController.text.trim()) ?? 0.0;
       final notes = _notesController.text.trim().isEmpty ? null : _notesController.text.trim();
       
-      await widget.onIncrement(quantity, notes);
+      await widget.onIncrement(quantity, costPrice, notes);
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -2026,6 +2101,32 @@ class _IncrementDialogState extends State<_IncrementDialog> {
             ),
             const SizedBox(height: 16),
             
+            // Cost price input
+            TextFormField(
+              controller: _costPriceController,
+              decoration: InputDecoration(
+                labelText: t(context, 'Cost Price'),
+                hintText: t(context, 'Enter cost price per unit'),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                prefixIcon: const Icon(Icons.attach_money),
+                prefixText: '₦ ',
+              ),
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return t(context, 'Please enter cost price');
+                }
+                final costPrice = double.tryParse(value.trim());
+                if (costPrice == null || costPrice < 0) {
+                  return t(context, 'Please enter a valid cost price');
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            
             // Notes input
             TextFormField(
               controller: _notesController,
@@ -2063,6 +2164,175 @@ class _IncrementDialogState extends State<_IncrementDialog> {
                   ),
                 )
               : Text(t(context, 'Add Stock')),
+        ),
+      ],
+    );
+  }
+}
+
+class _EditCostPriceDialog extends StatefulWidget {
+  final Map<String, dynamic> item;
+  final Function(double costPrice) onUpdate;
+
+  const _EditCostPriceDialog({
+    required this.item,
+    required this.onUpdate,
+  });
+
+  @override
+  State<_EditCostPriceDialog> createState() => _EditCostPriceDialogState();
+}
+
+class _EditCostPriceDialogState extends State<_EditCostPriceDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _costPriceController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill with current cost price
+    final currentCostPrice = widget.item['cost_price'];
+    if (currentCostPrice != null) {
+      _costPriceController.text = currentCostPrice.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _costPriceController.dispose();
+    super.dispose();
+  }
+
+  void _save() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final costPrice = double.parse(_costPriceController.text.trim());
+      await widget.onUpdate(costPrice);
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        SuccessUtils.showOperationError(context, 'update cost price', e.toString());
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Row(
+        children: [
+          Icon(Icons.edit, color: Colors.blue[600]),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              t(context, 'Edit Cost Price'),
+              style: const TextStyle(fontSize: 18),
+            ),
+          ),
+        ],
+      ),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Product info
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.item['product_name'] ?? '',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'SKU: ${widget.item['sku'] ?? ''}',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Current Cost: ₦${(double.tryParse(widget.item['cost_price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2)}',
+                    style: TextStyle(
+                      color: Colors.blue[600],
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Cost price input
+            TextFormField(
+              controller: _costPriceController,
+              decoration: InputDecoration(
+                labelText: t(context, 'New Cost Price'),
+                hintText: t(context, 'Enter new cost price per unit'),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                prefixIcon: const Icon(Icons.attach_money),
+                prefixText: '₦ ',
+              ),
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return t(context, 'Please enter cost price');
+                }
+                final costPrice = double.tryParse(value.trim());
+                if (costPrice == null || costPrice < 0) {
+                  return t(context, 'Please enter a valid cost price');
+                }
+                return null;
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+          child: Text(t(context, 'Cancel')),
+        ),
+        ElevatedButton(
+          onPressed: _isLoading ? null : _save,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+          ),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : Text(t(context, 'Update Cost Price')),
         ),
       ],
     );

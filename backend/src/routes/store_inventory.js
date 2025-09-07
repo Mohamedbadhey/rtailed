@@ -297,6 +297,8 @@ router.get('/:storeId/inventory/:businessId', auth, checkRole(['admin', 'manager
          p.barcode,
          p.description,
          p.image_url,
+         p.price,
+         p.cost_price,
          c.name as category_name,
          CASE 
            WHEN spi.quantity <= spi.min_stock_level THEN 'LOW_STOCK'
@@ -324,6 +326,8 @@ router.get('/:storeId/inventory/:businessId', auth, checkRole(['admin', 'manager
          p.barcode,
          p.description,
          p.image_url,
+         p.price,
+         p.cost_price,
          p.category as category_name,
          CASE 
            WHEN spi.quantity <= spi.min_stock_level THEN 'LOW_STOCK'

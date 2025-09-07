@@ -1101,9 +1101,18 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   void _showTransferDialog() {
-    // TODO: Implement transfer dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(t(context,'Transfer dialog coming soon'))),
+    showDialog(
+      context: context,
+      builder: (context) => _TransferDialog(
+        storeId: widget.storeId,
+        storeName: widget.storeName,
+        inventory: _inventory,
+        businesses: _businesses,
+        apiService: _apiService,
+        onTransfer: () {
+          _loadData(); // Refresh inventory after transfer
+        },
+      ),
     );
   }
 
@@ -1638,34 +1647,23 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             final inventoryData = await _apiService.getStoreInventory(widget.storeId, businessId);
             print('🔍 Current inventory data: $inventoryData');
             
-            if (inventoryData is Map && inventoryData['inventory'] != null) {
-              final inventory = inventoryData['inventory'] as List;
-              for (var item in inventory) {
-                reportRows.add({
-                  'product_id': item['product_id'],
-                  'product_name': item['product_name'],
-                  'sku': item['sku'] ?? '',
-                  'category_name': item['category_name'] ?? 'Store Product',
-                  'quantity_sold': 0, // No movements in this period
-                  'quantity_remaining': item['store_quantity'] ?? 0,
-                  'revenue': 0.0, // No sales in this period
-                  'profit': 0.0, // No profit in this period
-                  'sale_mode': 'retail',
-                });
-              }
-            } else if (inventoryData is List) {
+            // getStoreInventory returns List<Map<String, dynamic>> directly
+            if (inventoryData is List) {
+              // Direct list of inventory items
               for (var item in inventoryData) {
-                reportRows.add({
-                  'product_id': item['product_id'],
-                  'product_name': item['product_name'],
-                  'sku': item['sku'] ?? '',
-                  'category_name': item['category_name'] ?? 'Store Product',
-                  'quantity_sold': 0, // No movements in this period
-                  'quantity_remaining': item['store_quantity'] ?? 0,
-                  'revenue': 0.0, // No sales in this period
-                  'profit': 0.0, // No profit in this period
-                  'sale_mode': 'retail',
-                });
+                if (item is Map<String, dynamic>) {
+                  reportRows.add({
+                    'product_id': item['product_id'],
+                    'product_name': item['product_name'],
+                    'sku': item['sku'] ?? '',
+                    'category_name': item['category_name'] ?? 'Store Product',
+                    'quantity_sold': 0, // No movements in this period
+                    'quantity_remaining': item['store_quantity'] ?? 0,
+                    'revenue': 0.0, // No sales in this period
+                    'profit': 0.0, // No profit in this period
+                    'sale_mode': 'retail',
+                  });
+                }
               }
             }
           }
@@ -3346,5 +3344,343 @@ class _EditCostPriceDialogState extends State<_EditCostPriceDialog> {
         ),
       ],
     );
+  }
+}
+
+class _TransferDialog extends StatefulWidget {
+  final int storeId;
+  final String storeName;
+  final List<Map<String, dynamic>> inventory;
+  final List<Map<String, dynamic>> businesses;
+  final ApiService apiService;
+  final VoidCallback onTransfer;
+
+  const _TransferDialog({
+    required this.storeId,
+    required this.storeName,
+    required this.inventory,
+    required this.businesses,
+    required this.apiService,
+    required this.onTransfer,
+  });
+
+  @override
+  State<_TransferDialog> createState() => _TransferDialogState();
+}
+
+class _TransferDialogState extends State<_TransferDialog> {
+  int? _selectedBusinessId;
+  final Map<int, int> _selectedQuantities = {};
+  final TextEditingController _notesController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize quantities to 0 for all products
+    for (var item in widget.inventory) {
+      _selectedQuantities[item['product_id']] = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.9,
+        height: MediaQuery.of(context).size.height * 0.8,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(
+                  Icons.send,
+                  color: Theme.of(context).primaryColor,
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Transfer Products to Business',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'From: ${widget.storeName}',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Business Selection
+            Text(
+              'Select Business:',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int>(
+              value: _selectedBusinessId,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              items: widget.businesses.map((business) {
+                return DropdownMenuItem<int>(
+                  value: business['id'],
+                  child: Text(business['name'] ?? 'Business ${business['id']}'),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedBusinessId = value;
+                });
+              },
+            ),
+            const SizedBox(height: 24),
+
+            // Products Selection
+            Text(
+              'Select Products and Quantities:',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Products List
+            Expanded(
+              child: ListView.builder(
+                itemCount: widget.inventory.length,
+                itemBuilder: (context, index) {
+                  final item = widget.inventory[index];
+                  final productId = item['product_id'];
+                  final currentQuantity = _selectedQuantities[productId] ?? 0;
+                  final availableQuantity = item['store_quantity'] ?? 0;
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          // Product Image
+                          if (item['image_url'] != null && item['image_url'].toString().isNotEmpty)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                'https://rtailed-production.up.railway.app${item['image_url']}',
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    width: 50,
+                                    height: 50,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.image, color: Colors.grey),
+                                  );
+                                },
+                              ),
+                            )
+                          else
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.image, color: Colors.grey),
+                            ),
+                          const SizedBox(width: 12),
+
+                          // Product Details
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item['product_name'] ?? 'Unknown Product',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'SKU: ${item['sku'] ?? 'N/A'}',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  'Available: $availableQuantity',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Quantity Input
+                          SizedBox(
+                            width: 100,
+                            child: TextFormField(
+                              initialValue: currentQuantity.toString(),
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: 'Qty',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              ),
+                              onChanged: (value) {
+                                final quantity = int.tryParse(value) ?? 0;
+                                if (quantity <= availableQuantity) {
+                                  setState(() {
+                                    _selectedQuantities[productId] = quantity;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Notes
+            TextFormField(
+              controller: _notesController,
+              decoration: InputDecoration(
+                labelText: 'Notes (Optional)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              maxLines: 2,
+            ),
+
+            const SizedBox(height: 24),
+
+            // Action Buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                  child: Text(t(context, 'Cancel')),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: _isLoading || _selectedBusinessId == null || _getTotalSelectedQuantity() == 0
+                      ? null
+                      : _performTransfer,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text(t(context, 'Transfer')),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  int _getTotalSelectedQuantity() {
+    return _selectedQuantities.values.fold(0, (sum, quantity) => sum + quantity);
+  }
+
+  Future<void> _performTransfer() async {
+    if (_selectedBusinessId == null) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Prepare products for transfer
+      final products = <Map<String, dynamic>>[];
+      for (var entry in _selectedQuantities.entries) {
+        if (entry.value > 0) {
+          products.add({
+            'product_id': entry.key,
+            'quantity': entry.value,
+          });
+        }
+      }
+
+      if (products.isEmpty) {
+        throw Exception('No products selected for transfer');
+      }
+
+      // Perform the transfer
+      await widget.apiService.transferStoreToBusiness(
+        widget.storeId,
+        _selectedBusinessId!,
+        products,
+        notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
+      );
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        SuccessUtils.showBusinessSuccess(context, 'Products transferred successfully');
+        widget.onTransfer();
+      }
+    } catch (e) {
+      if (mounted) {
+        SuccessUtils.showOperationError(context, 'transfer products', e.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 } 

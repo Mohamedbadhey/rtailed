@@ -139,6 +139,14 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
     const user = req.user;
     const from_business_id = user.business_id;
     
+    console.log('=== TRANSFER STORE TO BUSINESS ===');
+    console.log('Store ID:', storeId);
+    console.log('From Business ID:', from_business_id);
+    console.log('To Business ID:', to_business_id);
+    console.log('Products:', JSON.stringify(products, null, 2));
+    console.log('Notes:', notes);
+    console.log('User:', { id: user.id, role: user.role, business_id: user.business_id });
+    
     if (!to_business_id || !products || products.length === 0) {
       return res.status(400).json({ message: 'To business ID and products are required' });
     }
@@ -156,6 +164,17 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
       }
     }
     
+    // Check if target business has access to this store
+    const [targetAccessCheck] = await pool.query(
+      `SELECT 1 FROM store_business_assignments sba 
+       WHERE sba.store_id = ? AND sba.business_id = ? AND sba.is_active = 1`,
+      [storeId, to_business_id]
+    );
+    
+    if (targetAccessCheck.length === 0) {
+      return res.status(403).json({ message: 'Target business does not have access to this store' });
+    }
+    
     // Start transaction
     const connection = await pool.getConnection();
     await connection.beginTransaction();
@@ -166,11 +185,15 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
       for (const product of products) {
         const { product_id, quantity, unit_cost } = product;
         
+        console.log(`Processing product ${product_id} with quantity ${quantity}`);
+        
         // Check if store has enough inventory
         const [storeInventory] = await connection.query(
           'SELECT quantity FROM store_product_inventory WHERE store_id = ? AND business_id = ? AND product_id = ?',
           [storeId, from_business_id, product_id]
         );
+        
+        console.log(`Store inventory check for product ${product_id}:`, storeInventory);
         
         if (storeInventory.length === 0 || storeInventory[0].quantity < quantity) {
           throw new Error(`Insufficient inventory for product ID ${product_id}. Available: ${storeInventory[0]?.quantity || 0}, Requested: ${quantity}`);
@@ -195,44 +218,108 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
           [storeId, from_business_id, product_id, -quantity, currentQuantity, newQuantity, notes || 'Transfer to business', user.id]
         );
         
-        // Update business product inventory (increase)
-        const [businessInventory] = await connection.query(
-          'SELECT id, stock_quantity FROM products WHERE id = ? AND business_id = ?',
-          [product_id, to_business_id]
+        // Update product business_id from NULL to target business
+        // This assigns the product to the target business
+        const [productCheck] = await connection.query(
+          'SELECT id, business_id, stock_quantity FROM products WHERE id = ?',
+          [product_id]
         );
         
-        if (businessInventory.length === 0) {
-          throw new Error(`Product ID ${product_id} not found in target business`);
+        console.log(`Product check for product ${product_id}:`, productCheck);
+        
+        if (productCheck.length === 0) {
+          throw new Error(`Product ID ${product_id} not found`);
         }
         
-        const currentBusinessQuantity = businessInventory[0].stock_quantity;
-        const newBusinessQuantity = currentBusinessQuantity + quantity;
+        const currentBusinessId = productCheck[0].business_id;
+        const currentStockQuantity = productCheck[0].stock_quantity;
         
+        // Update product business_id and increment stock_quantity
+        if (currentBusinessId === null) {
+          // Product is global, assign to business and set initial stock
+          console.log(`Updating product ${product_id} business_id: NULL -> ${to_business_id}, stock: ${currentStockQuantity} -> ${quantity}`);
+          
+          await connection.query(
+            'UPDATE products SET business_id = ?, stock_quantity = ? WHERE id = ?',
+            [to_business_id, quantity, product_id]
+          );
+        } else {
+          // Product already belongs to a business, increment stock quantity
+          const newStockQuantity = currentStockQuantity + quantity;
+          console.log(`Updating product ${product_id} stock: ${currentStockQuantity} -> ${newStockQuantity}`);
+          
+          await connection.query(
+            'UPDATE products SET stock_quantity = ? WHERE id = ?',
+            [newStockQuantity, product_id]
+          );
+        }
+        
+        // Create or update store_product_inventory for target business
+        const [targetStoreInventory] = await connection.query(
+          'SELECT id, quantity FROM store_product_inventory WHERE store_id = ? AND business_id = ? AND product_id = ?',
+          [storeId, to_business_id, product_id]
+        );
+        
+        if (targetStoreInventory.length === 0) {
+          // Create new store inventory record for target business
+          console.log(`Creating new store inventory record for business ${to_business_id}, product ${product_id}`);
+          await connection.query(
+            `INSERT INTO store_product_inventory 
+             (store_id, business_id, product_id, quantity, min_stock_level, updated_by)
+             VALUES (?, ?, ?, ?, 10, ?)`,
+            [storeId, to_business_id, product_id, quantity, user.id]
+          );
+        } else {
+          // Update existing store inventory record for target business
+          const currentTargetQuantity = targetStoreInventory[0].quantity;
+          const newTargetQuantity = currentTargetQuantity + quantity;
+          console.log(`Updating target business store inventory: ${currentTargetQuantity} -> ${newTargetQuantity}`);
+          
+          await connection.query(
+            'UPDATE store_product_inventory SET quantity = ?, updated_by = ? WHERE store_id = ? AND business_id = ? AND product_id = ?',
+            [newTargetQuantity, user.id, storeId, to_business_id, product_id]
+          );
+        }
+        
+        // Record store inventory movement (transfer_in) for target business
         await connection.query(
-          'UPDATE products SET stock_quantity = ? WHERE id = ?',
-          [newBusinessQuantity, product_id]
+          `INSERT INTO store_inventory_movements 
+           (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, reference_type, notes, created_by)
+           VALUES (?, ?, ?, 'transfer_in', ?, ?, ?, 'transfer', ?, ?)`,
+          [storeId, to_business_id, product_id, quantity, 
+           targetStoreInventory.length > 0 ? targetStoreInventory[0].quantity : 0,
+           targetStoreInventory.length > 0 ? targetStoreInventory[0].quantity + quantity : quantity,
+           notes || 'Transfer from store to business', user.id]
         );
         
         // Record business inventory movement (in)
         await connection.query(
           `INSERT INTO inventory_transactions (
-            product_id, transaction_type, quantity, 
+            business_id, product_id, transaction_type, quantity, 
             quantity_before, quantity_after, notes, created_by
-          ) VALUES (?, 'transfer_in', ?, ?, ?, ?, ?)`,
-          [product_id, quantity, currentBusinessQuantity, newBusinessQuantity, notes || 'Transfer from store', user.id]
+          ) VALUES (?, ?, 'transfer_in', ?, ?, ?, ?, ?)`,
+          [to_business_id, product_id, quantity, currentStockQuantity, currentBusinessId === null ? quantity : currentStockQuantity + quantity, notes || 'Transfer from store', user.id]
         );
         
         results.push({
           product_id,
-          store_quantity_before: currentQuantity,
-          store_quantity_after: newQuantity,
-          business_quantity_before: currentBusinessQuantity,
-          business_quantity_after: newBusinessQuantity,
+          from_store_quantity_before: currentQuantity,
+          from_store_quantity_after: newQuantity,
+          to_business_id: to_business_id,
+          to_store_quantity_before: targetStoreInventory.length > 0 ? targetStoreInventory[0].quantity : 0,
+          to_store_quantity_after: targetStoreInventory.length > 0 ? targetStoreInventory[0].quantity + quantity : quantity,
+          business_id_before: currentBusinessId,
+          business_id_after: to_business_id,
+          stock_quantity_before: currentStockQuantity,
+          stock_quantity_after: currentBusinessId === null ? quantity : currentStockQuantity + quantity,
           transferred_quantity: quantity
         });
       }
       
       await connection.commit();
+      
+      console.log('✅ Transfer completed successfully');
+      console.log('Results:', JSON.stringify(results, null, 2));
       
       // Log the action
       await pool.query(

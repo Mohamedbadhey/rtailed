@@ -363,13 +363,13 @@ router.get('/:storeId/inventory/:businessId', auth, checkRole(['admin', 'manager
     let query, params;
     
     if (hasCategoriesTable) {
-      // Store-focused query - show store inventory data with basic product info
+      // Store-focused query - show store inventory data with current quantity from last movement
       query = `SELECT 
          spi.id as inventory_id,
          spi.store_id,
          spi.business_id,
          spi.product_id,
-         spi.quantity as store_quantity,
+         COALESCE(last_movement.new_quantity, spi.quantity) as store_quantity,
          spi.min_stock_level,
          spi.updated_by,
          spi.last_updated,
@@ -382,23 +382,32 @@ router.get('/:storeId/inventory/:businessId', auth, checkRole(['admin', 'manager
          p.cost_price,
          c.name as category_name,
          CASE 
-           WHEN spi.quantity <= spi.min_stock_level THEN 'LOW_STOCK'
-           WHEN spi.quantity = 0 THEN 'OUT_OF_STOCK'
+           WHEN COALESCE(last_movement.new_quantity, spi.quantity) <= spi.min_stock_level THEN 'LOW_STOCK'
+           WHEN COALESCE(last_movement.new_quantity, spi.quantity) = 0 THEN 'OUT_OF_STOCK'
            ELSE 'IN_STOCK'
          END as stock_status
        FROM store_product_inventory spi
        JOIN products p ON spi.product_id = p.id
        LEFT JOIN categories c ON p.category_id = c.id
+       LEFT JOIN (
+         SELECT 
+           store_id, business_id, product_id, new_quantity,
+           ROW_NUMBER() OVER (PARTITION BY store_id, business_id, product_id ORDER BY created_at DESC) as rn
+         FROM store_inventory_movements
+       ) last_movement ON spi.store_id = last_movement.store_id 
+                       AND spi.business_id = last_movement.business_id 
+                       AND spi.product_id = last_movement.product_id 
+                       AND last_movement.rn = 1
        WHERE spi.store_id = ? AND spi.business_id = ?
        ORDER BY p.name`;
     } else {
-      // Store-focused query - show store inventory data with basic product info
+      // Store-focused query - show store inventory data with current quantity from last movement
       query = `SELECT 
          spi.id as inventory_id,
          spi.store_id,
          spi.business_id,
          spi.product_id,
-         spi.quantity as store_quantity,
+         COALESCE(last_movement.new_quantity, spi.quantity) as store_quantity,
          spi.min_stock_level,
          spi.updated_by,
          spi.last_updated,
@@ -411,12 +420,21 @@ router.get('/:storeId/inventory/:businessId', auth, checkRole(['admin', 'manager
          p.cost_price,
          p.category as category_name,
          CASE 
-           WHEN spi.quantity <= spi.min_stock_level THEN 'LOW_STOCK'
-           WHEN spi.quantity = 0 THEN 'OUT_OF_STOCK'
+           WHEN COALESCE(last_movement.new_quantity, spi.quantity) <= spi.min_stock_level THEN 'LOW_STOCK'
+           WHEN COALESCE(last_movement.new_quantity, spi.quantity) = 0 THEN 'OUT_OF_STOCK'
            ELSE 'IN_STOCK'
          END as stock_status
        FROM store_product_inventory spi
        JOIN products p ON spi.product_id = p.id
+       LEFT JOIN (
+         SELECT 
+           store_id, business_id, product_id, new_quantity,
+           ROW_NUMBER() OVER (PARTITION BY store_id, business_id, product_id ORDER BY created_at DESC) as rn
+         FROM store_inventory_movements
+       ) last_movement ON spi.store_id = last_movement.store_id 
+                       AND spi.business_id = last_movement.business_id 
+                       AND spi.product_id = last_movement.product_id 
+                       AND last_movement.rn = 1
        WHERE spi.store_id = ? AND spi.business_id = ?
        ORDER BY p.name`;
     }

@@ -1133,4 +1133,153 @@ router.get('/:storeId/increments/:businessId', auth, checkRole(['admin', 'manage
   }
 });
 
+// Get business transfers report
+router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
+  try {
+    const { storeId, businessId } = req.params;
+    const { 
+      start_date, 
+      end_date, 
+      product_id, 
+      target_business_id, 
+      status,
+      page = 1, 
+      limit = 50 
+    } = req.query;
+
+    console.log('🔍 BUSINESS TRANSFERS REPORT REQUEST:', {
+      storeId,
+      businessId,
+      start_date,
+      end_date,
+      product_id,
+      target_business_id,
+      status,
+      page,
+      limit,
+      userRole: req.user.role,
+      userBusinessId: req.user.business_id
+    });
+
+    // Access control
+    if (req.user.role !== 'superadmin' && req.user.business_id != businessId) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Check if store exists and user has access
+    const storeCheckQuery = `
+      SELECT s.*, sba.business_id 
+      FROM stores s
+      LEFT JOIN store_business_assignments sba ON s.id = sba.store_id
+      WHERE s.id = ? AND (sba.business_id = ? OR ? = 'superadmin')
+    `;
+    
+    const [storeRows] = await db.execute(storeCheckQuery, [storeId, req.user.business_id, req.user.role]);
+    if (storeRows.length === 0) {
+      return res.status(404).json({ message: 'Store not found or access denied' });
+    }
+
+    // Build WHERE conditions
+    let whereConditions = ['st.store_id = ?'];
+    let queryParams = [storeId];
+
+    // Date range filter
+    if (start_date) {
+      whereConditions.push('DATE(st.transfer_date) >= ?');
+      queryParams.push(start_date);
+    }
+    if (end_date) {
+      whereConditions.push('DATE(st.transfer_date) <= ?');
+      queryParams.push(end_date);
+    }
+
+    // Product filter
+    if (product_id) {
+      whereConditions.push('st.product_id = ?');
+      queryParams.push(product_id);
+    }
+
+    // Target business filter
+    if (target_business_id) {
+      whereConditions.push('st.to_business_id = ?');
+      queryParams.push(target_business_id);
+    }
+
+    // Status filter
+    if (status) {
+      whereConditions.push('st.status = ?');
+      queryParams.push(status);
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    // Get transfers with pagination
+    const offset = (page - 1) * limit;
+    const transfersQuery = `
+      SELECT 
+        st.*,
+        p.name as product_name,
+        p.sku,
+        b.name as target_business_name,
+        u.email as created_by_email
+      FROM store_transfers st
+      LEFT JOIN products p ON st.product_id = p.id
+      LEFT JOIN businesses b ON st.to_business_id = b.id
+      LEFT JOIN users u ON st.created_by = u.id
+      ${whereClause}
+      ORDER BY st.transfer_date DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const [transfers] = await db.execute(transfersQuery, [...queryParams, parseInt(limit), offset]);
+
+    // Get summary statistics
+    const summaryQuery = `
+      SELECT 
+        COUNT(*) as total_transfers,
+        COALESCE(SUM(st.quantity), 0) as total_quantity_transferred,
+        COUNT(DISTINCT st.to_business_id) as unique_businesses,
+        COUNT(DISTINCT st.product_id) as unique_products
+      FROM store_transfers st
+      ${whereClause}
+    `;
+
+    const [summaryRows] = await db.execute(summaryQuery, queryParams);
+    const summary = summaryRows[0] || {};
+
+    // Get total count for pagination
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM store_transfers st
+      ${whereClause}
+    `;
+    const [countRows] = await db.execute(countQuery, queryParams);
+    const total = countRows[0]?.total || 0;
+
+    console.log('✅ Business transfers report generated:', {
+      transfersCount: transfers.length,
+      summary,
+      total,
+      page,
+      limit
+    });
+
+    res.json({
+      success: true,
+      transfers,
+      summary,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting business transfers report:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+});
+
 module.exports = router;

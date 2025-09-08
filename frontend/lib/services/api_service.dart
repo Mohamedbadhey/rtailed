@@ -2103,4 +2103,41 @@ class ApiService {
       throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
+
+  // Get business transfers report
+  Future<Map<String, dynamic>> getBusinessTransfersReport(int storeId, int businessId, {
+    String? startDate,
+    String? endDate,
+    int? productId,
+    int? targetBusinessId,
+    String? status,
+    int page = 1,
+    int limit = 50,
+  }) async {
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+    
+    if (startDate != null) queryParams['start_date'] = startDate;
+    if (endDate != null) queryParams['end_date'] = endDate;
+    if (productId != null) queryParams['product_id'] = productId.toString();
+    if (targetBusinessId != null) queryParams['target_business_id'] = targetBusinessId.toString();
+    if (status != null) queryParams['status'] = status;
+    
+    final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/business-transfers/$businessId').replace(queryParameters: queryParams);
+    
+    print('🔍 GET BUSINESS TRANSFERS REPORT: $uri');
+    
+    final response = await http.get(uri, headers: _headers);
+    
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      print('✅ Business transfers report loaded successfully');
+      return data;
+    } else {
+      print('GET BUSINESS TRANSFERS REPORT ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
 } 

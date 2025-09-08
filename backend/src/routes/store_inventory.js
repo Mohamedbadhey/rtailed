@@ -1179,36 +1179,30 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       return res.status(404).json({ message: 'Store not found or access denied' });
     }
 
-    // Build WHERE conditions
-    let whereConditions = ['st.store_id = ?'];
-    let queryParams = [storeId];
+    // Build WHERE conditions for store-to-business transfers
+    let whereConditions = ['sim.store_id = ?', 'sim.movement_type = ?', 'sim.reference_type = ?'];
+    let queryParams = [storeId, 'out', 'transfer'];
 
     // Date range filter
     if (start_date) {
-      whereConditions.push('DATE(st.transfer_date) >= ?');
+      whereConditions.push('DATE(sim.created_at) >= ?');
       queryParams.push(start_date);
     }
     if (end_date) {
-      whereConditions.push('DATE(st.transfer_date) <= ?');
+      whereConditions.push('DATE(sim.created_at) <= ?');
       queryParams.push(end_date);
     }
 
     // Product filter
     if (product_id) {
-      whereConditions.push('st.product_id = ?');
+      whereConditions.push('sim.product_id = ?');
       queryParams.push(product_id);
     }
 
-    // Target business filter
+    // Target business filter (for superadmin)
     if (target_business_id) {
-      whereConditions.push('st.to_business_id = ?');
+      whereConditions.push('sim.business_id = ?');
       queryParams.push(target_business_id);
-    }
-
-    // Status filter
-    if (status) {
-      whereConditions.push('st.status = ?');
-      queryParams.push(status);
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
@@ -1217,17 +1211,21 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     const offset = (page - 1) * limit;
     const transfersQuery = `
       SELECT 
-        st.*,
+        sim.id,
+        sim.product_id,
+        sim.quantity,
+        sim.created_at as transfer_date,
+        sim.reference_type as status,
         p.name as product_name,
         p.sku,
         b.name as target_business_name,
         u.email as created_by_email
-      FROM store_transfers st
-      LEFT JOIN products p ON st.product_id = p.id
-      LEFT JOIN businesses b ON st.to_business_id = b.id
-      LEFT JOIN users u ON st.created_by = u.id
+      FROM store_inventory_movements sim
+      LEFT JOIN products p ON sim.product_id = p.id
+      LEFT JOIN businesses b ON sim.business_id = b.id
+      LEFT JOIN users u ON sim.created_by = u.id
       ${whereClause}
-      ORDER BY st.transfer_date DESC
+      ORDER BY sim.created_at DESC
       LIMIT ? OFFSET ?
     `;
 
@@ -1237,10 +1235,10 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     const summaryQuery = `
       SELECT 
         COUNT(*) as total_transfers,
-        COALESCE(SUM(st.quantity), 0) as total_quantity_transferred,
-        COUNT(DISTINCT st.to_business_id) as unique_businesses,
-        COUNT(DISTINCT st.product_id) as unique_products
-      FROM store_transfers st
+        COALESCE(SUM(sim.quantity), 0) as total_quantity_transferred,
+        COUNT(DISTINCT sim.business_id) as unique_businesses,
+        COUNT(DISTINCT sim.product_id) as unique_products
+      FROM store_inventory_movements sim
       ${whereClause}
     `;
 
@@ -1250,7 +1248,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     // Get total count for pagination
     const countQuery = `
       SELECT COUNT(*) as total
-      FROM store_transfers st
+      FROM store_inventory_movements sim
       ${whereClause}
     `;
     const [countRows] = await pool.execute(countQuery, queryParams);

@@ -1209,6 +1209,24 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
 
     // Get transfers with pagination
     const offset = (page - 1) * limit;
+    
+    console.log('🔍 Business Transfers Query Debug:', {
+      whereClause,
+      queryParams,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      totalParams: queryParams.length + 2
+    });
+
+    // First, let's check what data exists in store_inventory_movements
+    try {
+      const testQuery = `SELECT COUNT(*) as total FROM store_inventory_movements WHERE store_id = ?`;
+      const [testResult] = await pool.execute(testQuery, [storeId]);
+      console.log('🔍 Test query result:', testResult);
+    } catch (testError) {
+      console.log('🔍 Test query error:', testError.message);
+    }
+    // Simplified query first to test
     const transfersQuery = `
       SELECT 
         sim.id,
@@ -1224,12 +1242,12 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       LEFT JOIN products p ON sim.product_id = p.id
       LEFT JOIN businesses b ON sim.business_id = b.id
       LEFT JOIN users u ON sim.created_by = u.id
-      ${whereClause}
+      WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
       ORDER BY sim.created_at DESC
       LIMIT ? OFFSET ?
     `;
 
-    const [transfers] = await pool.execute(transfersQuery, [...queryParams, parseInt(limit), offset]);
+    const [transfers] = await pool.execute(transfersQuery, [storeId, parseInt(limit), parseInt(offset)]);
 
     // Get summary statistics
     const summaryQuery = `
@@ -1239,19 +1257,19 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
         COUNT(DISTINCT sim.business_id) as unique_businesses,
         COUNT(DISTINCT sim.product_id) as unique_products
       FROM store_inventory_movements sim
-      ${whereClause}
+      WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
     `;
 
-    const [summaryRows] = await pool.execute(summaryQuery, queryParams);
+    const [summaryRows] = await pool.execute(summaryQuery, [storeId]);
     const summary = summaryRows[0] || {};
 
     // Get total count for pagination
     const countQuery = `
       SELECT COUNT(*) as total
       FROM store_inventory_movements sim
-      ${whereClause}
+      WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
     `;
-    const [countRows] = await pool.execute(countQuery, queryParams);
+    const [countRows] = await pool.execute(countQuery, [storeId]);
     const total = countRows[0]?.total || 0;
 
     console.log('✅ Business transfers report generated:', {

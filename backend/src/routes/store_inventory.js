@@ -1213,7 +1213,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       queryParams.push(target_business_id);
     }
 
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
 
     // Get transfers with pagination
     const offset = (page - 1) * limit;
@@ -1224,7 +1224,9 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       offset: parseInt(offset),
       whereClause,
       queryParams,
+      queryParamsLength: queryParams.length,
       transfersQueryParams: [...queryParams, parseInt(limit), parseInt(offset)],
+      transfersQueryParamsLength: queryParams.length + 2,
       summaryQueryParams: queryParams,
       countQueryParams: queryParams
     });
@@ -1237,6 +1239,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     } catch (testError) {
       console.log('🔍 Test query error:', testError.message);
     }
+
     // Query for business transfers with dynamic filters
     const transfersQuery = `
       SELECT 
@@ -1258,6 +1261,15 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       ORDER BY sim.created_at DESC
       LIMIT ? OFFSET ?
     `;
+
+    // Test the actual query structure
+    console.log('🔍 Final Query Structure:', {
+      transfersQuery: transfersQuery,
+      whereClause: whereClause,
+      queryParams: queryParams,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
 
     const [transfers] = await pool.execute(transfersQuery, [...queryParams, parseInt(limit), parseInt(offset)]);
 

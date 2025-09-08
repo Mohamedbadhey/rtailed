@@ -1174,7 +1174,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       WHERE s.id = ? AND (sba.business_id = ? OR ? = 'superadmin')
     `;
     
-    const [storeRows] = await db.execute(storeCheckQuery, [storeId, req.user.business_id, req.user.role]);
+    const [storeRows] = await pool.execute(storeCheckQuery, [storeId, req.user.business_id, req.user.role]);
     if (storeRows.length === 0) {
       return res.status(404).json({ message: 'Store not found or access denied' });
     }
@@ -1231,7 +1231,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       LIMIT ? OFFSET ?
     `;
 
-    const [transfers] = await db.execute(transfersQuery, [...queryParams, parseInt(limit), offset]);
+    const [transfers] = await pool.execute(transfersQuery, [...queryParams, parseInt(limit), offset]);
 
     // Get summary statistics
     const summaryQuery = `
@@ -1244,7 +1244,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       ${whereClause}
     `;
 
-    const [summaryRows] = await db.execute(summaryQuery, queryParams);
+    const [summaryRows] = await pool.execute(summaryQuery, queryParams);
     const summary = summaryRows[0] || {};
 
     // Get total count for pagination
@@ -1253,7 +1253,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       FROM store_transfers st
       ${whereClause}
     `;
-    const [countRows] = await db.execute(countQuery, queryParams);
+    const [countRows] = await pool.execute(countQuery, queryParams);
     const total = countRows[0]?.total || 0;
 
     console.log('✅ Business transfers report generated:', {

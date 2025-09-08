@@ -754,4 +754,383 @@ router.get('/:storeId/reports/:businessId', auth, checkRole(['admin', 'manager',
   }
 });
 
+// =====================================================
+// DETAILED REPORTS ENDPOINTS
+// =====================================================
+
+// 1. DETAILED MOVEMENTS REPORT
+router.get('/:storeId/detailed-movements/:businessId', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
+  try {
+    const { storeId, businessId } = req.params;
+    const { 
+      start_date, 
+      end_date, 
+      product_id, 
+      movement_type, 
+      reference_type,
+      page = 1, 
+      limit = 50 
+    } = req.query;
+    const user = req.user;
+    
+    console.log(`🔍 Detailed Movements Report: storeId=${storeId}, businessId=${businessId}`);
+    
+    // Check access
+    if (user.role !== 'superadmin' && user.business_id != businessId) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    // Build dynamic filters
+    let whereConditions = ['sim.store_id = ?', 'sim.business_id = ?'];
+    let params = [storeId, businessId];
+    
+    if (start_date && end_date) {
+      whereConditions.push('sim.created_at BETWEEN ? AND ?');
+      params.push(start_date, end_date);
+    }
+    
+    if (product_id) {
+      whereConditions.push('sim.product_id = ?');
+      params.push(product_id);
+    }
+    
+    if (movement_type) {
+      whereConditions.push('sim.movement_type = ?');
+      params.push(movement_type);
+    }
+    
+    if (reference_type) {
+      whereConditions.push('sim.reference_type = ?');
+      params.push(reference_type);
+    }
+    
+    const whereClause = whereConditions.join(' AND ');
+    
+    // Get total count for pagination
+    const [countResult] = await pool.query(
+      `SELECT COUNT(*) as total FROM store_inventory_movements sim WHERE ${whereClause}`,
+      params
+    );
+    
+    const totalRecords = countResult[0].total;
+    const offset = (page - 1) * limit;
+    
+    // Get detailed movements with pagination
+    const [movements] = await pool.query(
+      `SELECT 
+         sim.id,
+         sim.product_id,
+         p.name as product_name,
+         p.sku,
+         p.barcode,
+         p.cost_price,
+         p.price,
+         sim.movement_type,
+         sim.quantity,
+         sim.previous_quantity,
+         sim.new_quantity,
+         sim.reference_type,
+         sim.reference_id,
+         sim.notes,
+         sim.created_at,
+         COALESCE(u.email, CONCAT('User ', u.id), 'Unknown') as created_by_name,
+         s.name as store_name,
+         b.name as business_name
+       FROM store_inventory_movements sim
+       JOIN products p ON sim.product_id = p.id
+       JOIN stores s ON sim.store_id = s.id
+       JOIN businesses b ON sim.business_id = b.id
+       LEFT JOIN users u ON sim.created_by = u.id
+       WHERE ${whereClause}
+       ORDER BY sim.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [...params, parseInt(limit), offset]
+    );
+    
+    // Get summary statistics
+    const [summary] = await pool.query(
+      `SELECT 
+         COUNT(*) as total_movements,
+         COUNT(DISTINCT sim.product_id) as unique_products,
+         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as total_stock_in,
+         SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN sim.quantity ELSE 0 END) as total_transferred_out,
+         SUM(CASE WHEN sim.movement_type = 'adjustment' THEN sim.quantity ELSE 0 END) as total_adjustments,
+         MIN(sim.created_at) as first_movement,
+         MAX(sim.created_at) as last_movement
+       FROM store_inventory_movements sim
+       WHERE ${whereClause}`,
+      params
+    );
+    
+    res.json({
+      report_metadata: {
+        store_id: parseInt(storeId),
+        business_id: parseInt(businessId),
+        generated_at: new Date().toISOString(),
+        filters: {
+          start_date,
+          end_date,
+          product_id,
+          movement_type,
+          reference_type
+        },
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total_records: totalRecords,
+          total_pages: Math.ceil(totalRecords / limit)
+        }
+      },
+      summary: summary[0],
+      movements: movements
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching detailed movements report:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 2. PURCHASES REPORT
+router.get('/:storeId/purchases/:businessId', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
+  try {
+    const { storeId, businessId } = req.params;
+    const { 
+      start_date, 
+      end_date, 
+      product_id,
+      page = 1, 
+      limit = 50 
+    } = req.query;
+    const user = req.user;
+    
+    console.log(`🔍 Purchases Report: storeId=${storeId}, businessId=${businessId}`);
+    
+    // Check access
+    if (user.role !== 'superadmin' && user.business_id != businessId) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    // Build dynamic filters
+    let whereConditions = ['sim.store_id = ?', 'sim.business_id = ?', 'sim.movement_type = "in"'];
+    let params = [storeId, businessId];
+    
+    if (start_date && end_date) {
+      whereConditions.push('sim.created_at BETWEEN ? AND ?');
+      params.push(start_date, end_date);
+    }
+    
+    if (product_id) {
+      whereConditions.push('sim.product_id = ?');
+      params.push(product_id);
+    }
+    
+    const whereClause = whereConditions.join(' AND ');
+    
+    // Get total count for pagination
+    const [countResult] = await pool.query(
+      `SELECT COUNT(*) as total FROM store_inventory_movements sim WHERE ${whereClause}`,
+      params
+    );
+    
+    const totalRecords = countResult[0].total;
+    const offset = (page - 1) * limit;
+    
+    // Get purchases with pagination
+    const [purchases] = await pool.query(
+      `SELECT 
+         sim.id,
+         sim.product_id,
+         p.name as product_name,
+         p.sku,
+         p.barcode,
+         p.cost_price,
+         p.price,
+         sim.quantity as units_purchased,
+         sim.previous_quantity,
+         sim.new_quantity,
+         sim.reference_type,
+         sim.notes,
+         sim.created_at as purchase_date,
+         COALESCE(u.email, CONCAT('User ', u.id), 'Unknown') as purchased_by,
+         s.name as store_name,
+         b.name as business_name,
+         (sim.quantity * p.cost_price) as total_cost,
+         (sim.quantity * p.price) as total_selling_value
+       FROM store_inventory_movements sim
+       JOIN products p ON sim.product_id = p.id
+       JOIN stores s ON sim.store_id = s.id
+       JOIN businesses b ON sim.business_id = b.id
+       LEFT JOIN users u ON sim.created_by = u.id
+       WHERE ${whereClause}
+       ORDER BY sim.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [...params, parseInt(limit), offset]
+    );
+    
+    // Get summary statistics
+    const [summary] = await pool.query(
+      `SELECT 
+         COUNT(*) as total_purchases,
+         COUNT(DISTINCT sim.product_id) as unique_products_purchased,
+         SUM(sim.quantity) as total_units_purchased,
+         SUM(sim.quantity * p.cost_price) as total_purchase_cost,
+         SUM(sim.quantity * p.price) as total_purchase_value,
+         AVG(p.cost_price) as average_cost_price,
+         MIN(sim.created_at) as first_purchase,
+         MAX(sim.created_at) as last_purchase
+       FROM store_inventory_movements sim
+       JOIN products p ON sim.product_id = p.id
+       WHERE ${whereClause}`,
+      params
+    );
+    
+    res.json({
+      report_metadata: {
+        store_id: parseInt(storeId),
+        business_id: parseInt(businessId),
+        generated_at: new Date().toISOString(),
+        filters: {
+          start_date,
+          end_date,
+          product_id
+        },
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total_records: totalRecords,
+          total_pages: Math.ceil(totalRecords / limit)
+        }
+      },
+      summary: summary[0],
+      purchases: purchases
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching purchases report:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// 3. INCREMENTS REPORT (Stock additions)
+router.get('/:storeId/increments/:businessId', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
+  try {
+    const { storeId, businessId } = req.params;
+    const { 
+      start_date, 
+      end_date, 
+      product_id,
+      page = 1, 
+      limit = 50 
+    } = req.query;
+    const user = req.user;
+    
+    console.log(`🔍 Increments Report: storeId=${storeId}, businessId=${businessId}`);
+    
+    // Check access
+    if (user.role !== 'superadmin' && user.business_id != businessId) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    // Build dynamic filters
+    let whereConditions = ['sim.store_id = ?', 'sim.business_id = ?', 'sim.movement_type = "in"'];
+    let params = [storeId, businessId];
+    
+    if (start_date && end_date) {
+      whereConditions.push('sim.created_at BETWEEN ? AND ?');
+      params.push(start_date, end_date);
+    }
+    
+    if (product_id) {
+      whereConditions.push('sim.product_id = ?');
+      params.push(product_id);
+    }
+    
+    const whereClause = whereConditions.join(' AND ');
+    
+    // Get total count for pagination
+    const [countResult] = await pool.query(
+      `SELECT COUNT(*) as total FROM store_inventory_movements sim WHERE ${whereClause}`,
+      params
+    );
+    
+    const totalRecords = countResult[0].total;
+    const offset = (page - 1) * limit;
+    
+    // Get increments with pagination
+    const [increments] = await pool.query(
+      `SELECT 
+         sim.id,
+         sim.product_id,
+         p.name as product_name,
+         p.sku,
+         p.barcode,
+         p.cost_price,
+         p.price,
+         sim.quantity as units_added,
+         sim.previous_quantity as stock_before,
+         sim.new_quantity as stock_after,
+         sim.reference_type,
+         sim.notes,
+         sim.created_at as increment_date,
+         COALESCE(u.email, CONCAT('User ', u.id), 'Unknown') as added_by,
+         s.name as store_name,
+         b.name as business_name,
+         (sim.quantity * p.cost_price) as total_cost_added,
+         (sim.quantity * p.price) as total_value_added
+       FROM store_inventory_movements sim
+       JOIN products p ON sim.product_id = p.id
+       JOIN stores s ON sim.store_id = s.id
+       JOIN businesses b ON sim.business_id = b.id
+       LEFT JOIN users u ON sim.created_by = u.id
+       WHERE ${whereClause}
+       ORDER BY sim.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [...params, parseInt(limit), offset]
+    );
+    
+    // Get summary statistics
+    const [summary] = await pool.query(
+      `SELECT 
+         COUNT(*) as total_increments,
+         COUNT(DISTINCT sim.product_id) as unique_products_incremented,
+         SUM(sim.quantity) as total_units_added,
+         SUM(sim.quantity * p.cost_price) as total_cost_added,
+         SUM(sim.quantity * p.price) as total_value_added,
+         AVG(sim.quantity) as average_increment_size,
+         MIN(sim.created_at) as first_increment,
+         MAX(sim.created_at) as last_increment
+       FROM store_inventory_movements sim
+       JOIN products p ON sim.product_id = p.id
+       WHERE ${whereClause}`,
+      params
+    );
+    
+    res.json({
+      report_metadata: {
+        store_id: parseInt(storeId),
+        business_id: parseInt(businessId),
+        generated_at: new Date().toISOString(),
+        filters: {
+          start_date,
+          end_date,
+          product_id
+        },
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total_records: totalRecords,
+          total_pages: Math.ceil(totalRecords / limit)
+        }
+      },
+      summary: summary[0],
+      increments: increments
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching increments report:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 module.exports = router;

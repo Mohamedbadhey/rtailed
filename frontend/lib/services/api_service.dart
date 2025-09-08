@@ -1996,4 +1996,111 @@ class ApiService {
       throw Exception('API Error: ${response.statusCode} - ${response.body}');
     }
   }
+
+  // =====================================================
+  // DETAILED REPORTS API METHODS
+  // =====================================================
+
+  // Get detailed movements report
+  Future<Map<String, dynamic>> getDetailedMovementsReport(int storeId, int businessId, {
+    String? startDate,
+    String? endDate,
+    int? productId,
+    String? movementType,
+    String? referenceType,
+    int page = 1,
+    int limit = 50,
+  }) async {
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+    
+    if (startDate != null) queryParams['start_date'] = startDate;
+    if (endDate != null) queryParams['end_date'] = endDate;
+    if (productId != null) queryParams['product_id'] = productId.toString();
+    if (movementType != null) queryParams['movement_type'] = movementType;
+    if (referenceType != null) queryParams['reference_type'] = referenceType;
+    
+    final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/detailed-movements/$businessId').replace(queryParameters: queryParams);
+    
+    print('🔍 GET DETAILED MOVEMENTS REPORT: $uri');
+    
+    final response = await http.get(uri, headers: _headers);
+    
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      print('✅ Detailed movements report loaded successfully');
+      return data;
+    } else {
+      print('GET DETAILED MOVEMENTS REPORT ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Get purchases report
+  Future<Map<String, dynamic>> getPurchasesReport(int storeId, int businessId, {
+    String? startDate,
+    String? endDate,
+    int? productId,
+    int page = 1,
+    int limit = 50,
+  }) async {
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+    
+    if (startDate != null) queryParams['start_date'] = startDate;
+    if (endDate != null) queryParams['end_date'] = endDate;
+    if (productId != null) queryParams['product_id'] = productId.toString();
+    
+    final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/purchases/$businessId').replace(queryParameters: queryParams);
+    
+    print('🔍 GET PURCHASES REPORT: $uri');
+    
+    final response = await http.get(uri, headers: _headers);
+    
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      print('✅ Purchases report loaded successfully');
+      return data;
+    } else {
+      print('GET PURCHASES REPORT ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Get increments report
+  Future<Map<String, dynamic>> getIncrementsReport(int storeId, int businessId, {
+    String? startDate,
+    String? endDate,
+    int? productId,
+    int page = 1,
+    int limit = 50,
+  }) async {
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+    
+    if (startDate != null) queryParams['start_date'] = startDate;
+    if (endDate != null) queryParams['end_date'] = endDate;
+    if (productId != null) queryParams['product_id'] = productId.toString();
+    
+    final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/increments/$businessId').replace(queryParameters: queryParams);
+    
+    print('🔍 GET INCREMENTS REPORT: $uri');
+    
+    final response = await http.get(uri, headers: _headers);
+    
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      print('✅ Increments report loaded successfully');
+      return data;
+    } else {
+      print('GET INCREMENTS REPORT ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
 } 

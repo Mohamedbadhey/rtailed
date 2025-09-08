@@ -69,11 +69,28 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   // Business selection for superadmin
   List<Map<String, dynamic>> _businesses = [];
   int? _selectedBusinessId;
+  
+  // Detailed Reports state variables
+  Map<String, dynamic> _detailedMovementsData = {};
+  Map<String, dynamic> _purchasesData = {};
+  Map<String, dynamic> _incrementsData = {};
+  bool _detailedMovementsLoading = false;
+  bool _purchasesLoading = false;
+  bool _incrementsLoading = false;
+  
+  // Detailed Reports filter variables
+  DateTime? _detailedMovementsStartDate;
+  DateTime? _detailedMovementsEndDate;
+  String? _selectedDetailedMovementType;
+  String? _selectedReferenceType;
+  int? _selectedProductForDetailed;
+  int _detailedMovementsPage = 1;
+  static const int _detailedReportsPageSize = 50;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     _initializeDateFilters();
     // Load data after the widget is built to avoid setState during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -165,7 +182,12 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       });
       
       // Load reports
+      print('🔍 Loading reports for storeId: ${widget.storeId}, businessId: $businessId');
       final reports = await _apiService.getStoreInventoryReports(widget.storeId, businessId);
+      print('📊 Reports loaded: ${reports.keys}');
+      print('📊 Current stock data: ${reports['current_stock']}');
+      print('📊 Current stock summary: ${reports['current_stock']?['summary']}');
+      print('📊 Current stock products: ${reports['current_stock']?['products']?.length ?? 0} products');
       setState(() {
         _reports = reports;
       });
@@ -181,6 +203,158 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     } finally {
       setState(() {
         _loading = false;
+      });
+    }
+  }
+
+  // Load detailed movements data
+  Future<void> _loadDetailedMovements() async {
+    if (_detailedMovementsLoading) return;
+    
+    setState(() {
+      _detailedMovementsLoading = true;
+    });
+
+    try {
+      final user = context.read<AuthProvider>().user;
+      int? businessId;
+      
+      if (user?.role == 'superadmin') {
+        businessId = _selectedBusinessId;
+        if (businessId == null) {
+          throw Exception('Please select a business to view detailed movements.');
+        }
+      } else {
+        businessId = user?.businessId;
+        if (businessId == null) {
+          throw Exception('Business ID not found');
+        }
+      }
+
+      final data = await _apiService.getDetailedMovementsReport(
+        widget.storeId,
+        businessId,
+        startDate: _detailedMovementsStartDate?.toIso8601String().split('T')[0],
+        endDate: _detailedMovementsEndDate?.toIso8601String().split('T')[0],
+        productId: _selectedProductForDetailed,
+        movementType: _selectedDetailedMovementType,
+        referenceType: _selectedReferenceType,
+        page: _detailedMovementsPage,
+        limit: _detailedReportsPageSize,
+      );
+
+      setState(() {
+        _detailedMovementsData = data;
+      });
+      
+    } catch (e) {
+      print('Detailed Movements Error: $e');
+      if (mounted) {
+        SuccessUtils.showOperationError(context, 'load detailed movements', e.toString());
+      }
+    } finally {
+      setState(() {
+        _detailedMovementsLoading = false;
+      });
+    }
+  }
+
+  // Load purchases data
+  Future<void> _loadPurchases() async {
+    if (_purchasesLoading) return;
+    
+    setState(() {
+      _purchasesLoading = true;
+    });
+
+    try {
+      final user = context.read<AuthProvider>().user;
+      int? businessId;
+      
+      if (user?.role == 'superadmin') {
+        businessId = _selectedBusinessId;
+        if (businessId == null) {
+          throw Exception('Please select a business to view purchases.');
+        }
+      } else {
+        businessId = user?.businessId;
+        if (businessId == null) {
+          throw Exception('Business ID not found');
+        }
+      }
+
+      final data = await _apiService.getPurchasesReport(
+        widget.storeId,
+        businessId,
+        startDate: _detailedMovementsStartDate?.toIso8601String().split('T')[0],
+        endDate: _detailedMovementsEndDate?.toIso8601String().split('T')[0],
+        productId: _selectedProductForDetailed,
+        page: 1,
+        limit: _detailedReportsPageSize,
+      );
+
+      setState(() {
+        _purchasesData = data;
+      });
+      
+    } catch (e) {
+      print('Purchases Error: $e');
+      if (mounted) {
+        SuccessUtils.showOperationError(context, 'load purchases', e.toString());
+      }
+    } finally {
+      setState(() {
+        _purchasesLoading = false;
+      });
+    }
+  }
+
+  // Load increments data
+  Future<void> _loadIncrements() async {
+    if (_incrementsLoading) return;
+    
+    setState(() {
+      _incrementsLoading = true;
+    });
+
+    try {
+      final user = context.read<AuthProvider>().user;
+      int? businessId;
+      
+      if (user?.role == 'superadmin') {
+        businessId = _selectedBusinessId;
+        if (businessId == null) {
+          throw Exception('Please select a business to view increments.');
+        }
+      } else {
+        businessId = user?.businessId;
+        if (businessId == null) {
+          throw Exception('Business ID not found');
+        }
+      }
+
+      final data = await _apiService.getIncrementsReport(
+        widget.storeId,
+        businessId,
+        startDate: _detailedMovementsStartDate?.toIso8601String().split('T')[0],
+        endDate: _detailedMovementsEndDate?.toIso8601String().split('T')[0],
+        productId: _selectedProductForDetailed,
+        page: 1,
+        limit: _detailedReportsPageSize,
+      );
+
+      setState(() {
+        _incrementsData = data;
+      });
+      
+    } catch (e) {
+      print('Increments Error: $e');
+      if (mounted) {
+        SuccessUtils.showOperationError(context, 'load increments', e.toString());
+      }
+    } finally {
+      setState(() {
+        _incrementsLoading = false;
       });
     }
   }
@@ -256,6 +430,9 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 Tab(text: t(context,'Inventory')),
                 Tab(text: t(context,'Movements')),
                 Tab(text: t(context,'Reports')),
+                Tab(text: t(context,'Detailed Movements')),
+                Tab(text: t(context,'Purchases')),
+                Tab(text: t(context,'Increments')),
               ],
             ),
           ),
@@ -268,6 +445,9 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 _buildInventoryTab(),
                 _buildMovementsTab(),
                 _buildReportsTab(),
+                _buildDetailedMovementsTab(),
+                _buildPurchasesTab(),
+                _buildIncrementsTab(),
               ],
             ),
           ),
@@ -828,6 +1008,10 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildReportsTab() {
+    print('🔍 Building reports tab - _reports: ${_reports.keys}');
+    print('🔍 _reports isEmpty: ${_reports.isEmpty}');
+    print('🔍 _reports current_stock: ${_reports['current_stock']}');
+    
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -945,6 +1129,1157 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           _buildTopProducts(),
         ],
       ),
+    );
+  }
+
+  // =====================================================
+  // NEW DETAILED REPORT TABS
+  // =====================================================
+
+  Widget _buildDetailedMovementsTab() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Header with filters
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Detailed Movements Report',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: _loadDetailedMovements,
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Refresh Data',
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Filters Row
+          _buildDetailedMovementsFilters(),
+          const SizedBox(height: 16),
+          
+          // Data Display
+          Expanded(
+            child: _detailedMovementsLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _detailedMovementsData.isEmpty
+                    ? _buildEmptyDetailedMovements()
+                    : _buildDetailedMovementsTable(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPurchasesTab() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Header with filters
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Purchases Report',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: _loadPurchases,
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Refresh Data',
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Filters Row
+          _buildPurchasesFilters(),
+          const SizedBox(height: 16),
+          
+          // Data Display
+          Expanded(
+            child: _purchasesLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _purchasesData.isEmpty
+                    ? _buildEmptyPurchases()
+                    : _buildPurchasesTable(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIncrementsTab() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Header with filters
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Increments Report',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: _loadIncrements,
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Refresh Data',
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Filters Row
+          _buildIncrementsFilters(),
+          const SizedBox(height: 16),
+          
+          // Data Display
+          Expanded(
+            child: _incrementsLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _incrementsData.isEmpty
+                    ? _buildEmptyIncrements()
+                    : _buildIncrementsTable(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =====================================================
+  // DETAILED MOVEMENTS HELPER METHODS
+  // =====================================================
+
+  Widget _buildDetailedMovementsFilters() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Filters',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                // Date Range
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _showDetailedMovementsStartDatePicker(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  _detailedMovementsStartDate != null
+                                      ? '${_detailedMovementsStartDate!.day}/${_detailedMovementsStartDate!.month}/${_detailedMovementsStartDate!.year}'
+                                      : 'Start Date',
+                                  style: TextStyle(
+                                    color: _detailedMovementsStartDate != null ? Colors.black : Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('to'),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _showDetailedMovementsEndDatePicker(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  _detailedMovementsEndDate != null
+                                      ? '${_detailedMovementsEndDate!.day}/${_detailedMovementsEndDate!.month}/${_detailedMovementsEndDate!.year}'
+                                      : 'End Date',
+                                  style: TextStyle(
+                                    color: _detailedMovementsEndDate != null ? Colors.black : Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Movement Type Filter
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Movement Type:', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 4),
+                      DropdownButtonFormField<String>(
+                        value: _selectedDetailedMovementType,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        items: [
+                          const DropdownMenuItem(value: null, child: Text('All Types')),
+                          const DropdownMenuItem(value: 'in', child: Text('Stock In')),
+                          const DropdownMenuItem(value: 'transfer_out', child: Text('Transfer Out')),
+                          const DropdownMenuItem(value: 'adjustment', child: Text('Adjustment')),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedDetailedMovementType = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Apply Filters Button
+                ElevatedButton(
+                  onPressed: () {
+                    _detailedMovementsPage = 1;
+                    _loadDetailedMovements();
+                  },
+                  child: const Text('Apply Filters'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyDetailedMovements() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            'No detailed movements found',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try adjusting your filters or add some inventory movements',
+            style: TextStyle(color: Colors.grey[600]),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadDetailedMovements,
+            child: const Text('Load Data'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailedMovementsTable() {
+    final movements = _detailedMovementsData['movements'] as List<dynamic>? ?? [];
+    final summary = _detailedMovementsData['summary'] as Map<String, dynamic>? ?? {};
+    final pagination = _detailedMovementsData['report_metadata']?['pagination'] as Map<String, dynamic>? ?? {};
+
+    return Column(
+      children: [
+        // Summary Cards
+        if (summary.isNotEmpty) _buildDetailedMovementsSummary(summary),
+        const SizedBox(height: 16),
+        
+        // Data Table
+        Expanded(
+          child: Card(
+            child: Column(
+              children: [
+                // Table Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(8),
+                      topRight: Radius.circular(8),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(flex: 2, child: Text('Product', style: TextStyle(fontWeight: FontWeight.bold))),
+                      Expanded(child: Text('Type', style: TextStyle(fontWeight: FontWeight.bold))),
+                      Expanded(child: Text('Quantity', style: TextStyle(fontWeight: FontWeight.bold))),
+                      Expanded(child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
+                      Expanded(child: Text('User', style: TextStyle(fontWeight: FontWeight.bold))),
+                    ],
+                  ),
+                ),
+                
+                // Table Body
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: movements.length,
+                    itemBuilder: (context, index) {
+                      final movement = movements[index] as Map<String, dynamic>;
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Colors.grey[200]!),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    movement['product_name'] ?? 'Unknown',
+                                    style: const TextStyle(fontWeight: FontWeight.w600),
+                                  ),
+                                  Text(
+                                    'SKU: ${movement['sku'] ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _getMovementTypeColor(movement['movement_type']).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  _getMovementTypeLabel(movement['movement_type']),
+                                  style: TextStyle(
+                                    color: _getMovementTypeColor(movement['movement_type']),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                '${movement['quantity'] ?? 0}',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                _formatDate(movement['created_at']),
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                movement['created_by_name'] ?? 'Unknown',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailedMovementsSummary(Map<String, dynamic> summary) {
+    return Row(
+      children: [
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.inventory, color: Colors.blue[600]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${summary['total_movements'] ?? 0}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('Total Movements'),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.category, color: Colors.green[600]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${summary['unique_products'] ?? 0}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('Products'),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.arrow_downward, color: Colors.orange[600]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${summary['total_stock_in'] ?? 0}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('Stock In'),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.arrow_upward, color: Colors.red[600]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${summary['total_transferred_out'] ?? 0}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('Transferred Out'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Color _getMovementTypeColor(String? type) {
+    switch (type) {
+      case 'in':
+        return Colors.green;
+      case 'transfer_out':
+        return Colors.orange;
+      case 'adjustment':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getMovementTypeLabel(String? type) {
+    switch (type) {
+      case 'in':
+        return 'Stock In';
+      case 'transfer_out':
+        return 'Transfer Out';
+      case 'adjustment':
+        return 'Adjustment';
+      default:
+        return 'Unknown';
+    }
+  }
+
+  Future<void> _showDetailedMovementsStartDatePicker(BuildContext context) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _detailedMovementsStartDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (date != null) {
+      setState(() {
+        _detailedMovementsStartDate = date;
+      });
+    }
+  }
+
+  Future<void> _showDetailedMovementsEndDatePicker(BuildContext context) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _detailedMovementsEndDate ?? DateTime.now(),
+      firstDate: _detailedMovementsStartDate ?? DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (date != null) {
+      setState(() {
+        _detailedMovementsEndDate = date;
+      });
+    }
+  }
+
+  // =====================================================
+  // PURCHASES REPORT HELPER METHODS
+  // =====================================================
+
+  Widget _buildPurchasesFilters() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Filters',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                // Date Range
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _showDetailedMovementsStartDatePicker(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  _detailedMovementsStartDate != null
+                                      ? '${_detailedMovementsStartDate!.day}/${_detailedMovementsStartDate!.month}/${_detailedMovementsStartDate!.year}'
+                                      : 'Start Date',
+                                  style: TextStyle(
+                                    color: _detailedMovementsStartDate != null ? Colors.black : Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('to'),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _showDetailedMovementsEndDatePicker(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  _detailedMovementsEndDate != null
+                                      ? '${_detailedMovementsEndDate!.day}/${_detailedMovementsEndDate!.month}/${_detailedMovementsEndDate!.year}'
+                                      : 'End Date',
+                                  style: TextStyle(
+                                    color: _detailedMovementsEndDate != null ? Colors.black : Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Apply Filters Button
+                ElevatedButton(
+                  onPressed: _loadPurchases,
+                  child: const Text('Apply Filters'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyPurchases() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            'No purchases found',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try adjusting your filters or add some inventory purchases',
+            style: TextStyle(color: Colors.grey[600]),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadPurchases,
+            child: const Text('Load Data'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPurchasesTable() {
+    final purchases = _purchasesData['purchases'] as List<dynamic>? ?? [];
+    final summary = _purchasesData['summary'] as Map<String, dynamic>? ?? {};
+
+    return Column(
+      children: [
+        // Summary Cards
+        if (summary.isNotEmpty) _buildPurchasesSummary(summary),
+        const SizedBox(height: 16),
+        
+        // Data Table
+        Expanded(
+          child: Card(
+            child: Column(
+              children: [
+                // Table Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(8),
+                      topRight: Radius.circular(8),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(flex: 2, child: Text('Product', style: TextStyle(fontWeight: FontWeight.bold))),
+                      Expanded(child: Text('Units', style: TextStyle(fontWeight: FontWeight.bold))),
+                      Expanded(child: Text('Cost Price', style: TextStyle(fontWeight: FontWeight.bold))),
+                      Expanded(child: Text('Total Cost', style: TextStyle(fontWeight: FontWeight.bold))),
+                      Expanded(child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
+                    ],
+                  ),
+                ),
+                
+                // Table Body
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: purchases.length,
+                    itemBuilder: (context, index) {
+                      final purchase = purchases[index] as Map<String, dynamic>;
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Colors.grey[200]!),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    purchase['product_name'] ?? 'Unknown',
+                                    style: const TextStyle(fontWeight: FontWeight.w600),
+                                  ),
+                                  Text(
+                                    'SKU: ${purchase['sku'] ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                '${purchase['units_purchased'] ?? 0}',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                '\$${_formatNumber(purchase['cost_price'] ?? 0)}',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                '\$${_formatNumber(purchase['total_cost'] ?? 0)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                _formatDate(purchase['purchase_date']),
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPurchasesSummary(Map<String, dynamic> summary) {
+    return Row(
+      children: [
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.shopping_cart, color: Colors.green[600]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${summary['total_purchases'] ?? 0}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('Total Purchases'),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.inventory, color: Colors.blue[600]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${summary['total_units_purchased'] ?? 0}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('Units Purchased'),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.attach_money, color: Colors.orange[600]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '\$${_formatNumber(summary['total_purchase_cost'] ?? 0)}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('Total Cost'),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.trending_up, color: Colors.purple[600]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '\$${_formatNumber(summary['total_purchase_value'] ?? 0)}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('Total Value'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // =====================================================
+  // INCREMENTS REPORT HELPER METHODS
+  // =====================================================
+
+  Widget _buildIncrementsFilters() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Filters',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                // Date Range
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _showDetailedMovementsStartDatePicker(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  _detailedMovementsStartDate != null
+                                      ? '${_detailedMovementsStartDate!.day}/${_detailedMovementsStartDate!.month}/${_detailedMovementsStartDate!.year}'
+                                      : 'Start Date',
+                                  style: TextStyle(
+                                    color: _detailedMovementsStartDate != null ? Colors.black : Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('to'),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _showDetailedMovementsEndDatePicker(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  _detailedMovementsEndDate != null
+                                      ? '${_detailedMovementsEndDate!.day}/${_detailedMovementsEndDate!.month}/${_detailedMovementsEndDate!.year}'
+                                      : 'End Date',
+                                  style: TextStyle(
+                                    color: _detailedMovementsEndDate != null ? Colors.black : Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Apply Filters Button
+                ElevatedButton(
+                  onPressed: _loadIncrements,
+                  child: const Text('Apply Filters'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyIncrements() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.trending_up_outlined, size: 64, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            'No increments found',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try adjusting your filters or add some inventory increments',
+            style: TextStyle(color: Colors.grey[600]),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadIncrements,
+            child: const Text('Load Data'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIncrementsTable() {
+    final increments = _incrementsData['increments'] as List<dynamic>? ?? [];
+    final summary = _incrementsData['summary'] as Map<String, dynamic>? ?? {};
+
+    return Column(
+      children: [
+        // Summary Cards
+        if (summary.isNotEmpty) _buildIncrementsSummary(summary),
+        const SizedBox(height: 16),
+        
+        // Data Table
+        Expanded(
+          child: Card(
+            child: Column(
+              children: [
+                // Table Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(8),
+                      topRight: Radius.circular(8),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(flex: 2, child: Text('Product', style: TextStyle(fontWeight: FontWeight.bold))),
+                      Expanded(child: Text('Units Added', style: TextStyle(fontWeight: FontWeight.bold))),
+                      Expanded(child: Text('Stock Before', style: TextStyle(fontWeight: FontWeight.bold))),
+                      Expanded(child: Text('Stock After', style: TextStyle(fontWeight: FontWeight.bold))),
+                      Expanded(child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
+                    ],
+                  ),
+                ),
+                
+                // Table Body
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: increments.length,
+                    itemBuilder: (context, index) {
+                      final increment = increments[index] as Map<String, dynamic>;
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Colors.grey[200]!),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    increment['product_name'] ?? 'Unknown',
+                                    style: const TextStyle(fontWeight: FontWeight.w600),
+                                  ),
+                                  Text(
+                                    'SKU: ${increment['sku'] ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '+${increment['units_added'] ?? 0}',
+                                  style: const TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                '${increment['stock_before'] ?? 0}',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                '${increment['stock_after'] ?? 0}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                _formatDate(increment['increment_date']),
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIncrementsSummary(Map<String, dynamic> summary) {
+    return Row(
+      children: [
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.trending_up, color: Colors.blue[600]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${summary['total_increments'] ?? 0}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('Total Increments'),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.inventory, color: Colors.green[600]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${summary['total_units_added'] ?? 0}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('Units Added'),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.attach_money, color: Colors.orange[600]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '\$${_formatNumber(summary['total_cost_added'] ?? 0)}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('Cost Added'),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.trending_up, color: Colors.purple[600]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '\$${_formatNumber(summary['total_value_added'] ?? 0)}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('Value Added'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -1211,11 +1211,12 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     const offset = (page - 1) * limit;
     
     console.log('🔍 Business Transfers Query Debug:', {
-      whereClause,
-      queryParams,
+      storeId,
       limit: parseInt(limit),
       offset: parseInt(offset),
-      totalParams: queryParams.length + 2
+      transfersQueryParams: [storeId, 'out', 'transfer', parseInt(limit), parseInt(offset)],
+      summaryQueryParams: [storeId, 'out', 'transfer'],
+      countQueryParams: [storeId, 'out', 'transfer']
     });
 
     // First, let's check what data exists in store_inventory_movements
@@ -1247,7 +1248,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       LIMIT ? OFFSET ?
     `;
 
-    const [transfers] = await pool.execute(transfersQuery, [storeId, parseInt(limit), parseInt(offset)]);
+    const [transfers] = await pool.execute(transfersQuery, [storeId, 'out', 'transfer', parseInt(limit), parseInt(offset)]);
 
     // Get summary statistics for business transfers only
     const summaryQuery = `
@@ -1260,7 +1261,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
     `;
 
-    const [summaryRows] = await pool.execute(summaryQuery, [storeId]);
+    const [summaryRows] = await pool.execute(summaryQuery, [storeId, 'out', 'transfer']);
     const summary = summaryRows[0] || {};
 
     // Get total count for pagination
@@ -1269,7 +1270,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       FROM store_inventory_movements sim
       WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
     `;
-    const [countRows] = await pool.execute(countQuery, [storeId]);
+    const [countRows] = await pool.execute(countQuery, [storeId, 'out', 'transfer']);
     const total = countRows[0]?.total || 0;
 
     console.log('✅ Business transfers report generated:', {

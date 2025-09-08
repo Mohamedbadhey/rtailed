@@ -1226,7 +1226,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     } catch (testError) {
       console.log('🔍 Test query error:', testError.message);
     }
-    // Query to show all movements for this store (since transfers might be stored differently)
+    // Query for business transfers (movement_type = 'out' and reference_type = 'transfer')
     const transfersQuery = `
       SELECT 
         sim.id,
@@ -1234,7 +1234,6 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
         sim.quantity,
         sim.created_at as transfer_date,
         sim.reference_type as status,
-        sim.movement_type,
         p.name as product_name,
         p.sku,
         b.name as target_business_name,
@@ -1243,14 +1242,14 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       LEFT JOIN products p ON sim.product_id = p.id
       LEFT JOIN businesses b ON sim.business_id = b.id
       LEFT JOIN users u ON sim.created_by = u.id
-      WHERE sim.store_id = ?
+      WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
       ORDER BY sim.created_at DESC
       LIMIT ? OFFSET ?
     `;
 
     const [transfers] = await pool.execute(transfersQuery, [storeId, parseInt(limit), parseInt(offset)]);
 
-    // Get summary statistics for all movements
+    // Get summary statistics for business transfers only
     const summaryQuery = `
       SELECT 
         COUNT(*) as total_transfers,
@@ -1258,7 +1257,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
         COUNT(DISTINCT sim.business_id) as unique_businesses,
         COUNT(DISTINCT sim.product_id) as unique_products
       FROM store_inventory_movements sim
-      WHERE sim.store_id = ?
+      WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
     `;
 
     const [summaryRows] = await pool.execute(summaryQuery, [storeId]);
@@ -1268,7 +1267,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     const countQuery = `
       SELECT COUNT(*) as total
       FROM store_inventory_movements sim
-      WHERE sim.store_id = ?
+      WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
     `;
     const [countRows] = await pool.execute(countQuery, [storeId]);
     const total = countRows[0]?.total || 0;

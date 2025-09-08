@@ -494,7 +494,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 Tab(text: t(context,'Detailed Movements')),
                 Tab(text: t(context,'Purchases')),
                 Tab(text: t(context,'Increments')),
-                Tab(text: 'Store Movements'),
+                Tab(text: 'Business Transfers'),
               ],
             ),
           ),
@@ -1329,7 +1329,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             children: [
               Expanded(
                 child: Text(
-                  'Store Movements Report',
+                  'Business Transfers Report',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -1656,7 +1656,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           child: Row(
             children: [
               Expanded(flex: 2, child: Text('Product', style: TextStyle(fontWeight: FontWeight.bold))),
-              Expanded(child: Text('Type', style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
               Expanded(child: Text('Quantity', style: TextStyle(fontWeight: FontWeight.bold))),
               Expanded(child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
               Expanded(child: Text('User', style: TextStyle(fontWeight: FontWeight.bold))),
@@ -1857,7 +1857,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                           '${summary['total_movements'] ?? 0}',
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
-                        const Text('Total Movements', style: TextStyle(fontSize: 12)),
+                        const Text('Total Transfers', style: TextStyle(fontSize: 12)),
                       ],
                     ),
                   ),
@@ -1944,7 +1944,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     '${summary['total_movements'] ?? 0}',
                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
-                  const Text('Total Movements'),
+                  const Text('Total Transfers'),
                 ],
               ),
             ),
@@ -3559,12 +3559,12 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           Icon(Icons.business_center_outlined, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
-            'No store movements found',
+            'No business transfers found',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
-            'Try adjusting your filters or check if there are any movements in the store',
+            'Try adjusting your filters or check if there are any transfers to businesses',
             style: TextStyle(color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
@@ -3617,9 +3617,9 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             children: [
               Expanded(flex: 2, child: Text('Product', style: TextStyle(fontWeight: FontWeight.bold))),
               Expanded(child: Text('Quantity', style: TextStyle(fontWeight: FontWeight.bold))),
-              Expanded(child: Text('Business', style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(child: Text('To Business', style: TextStyle(fontWeight: FontWeight.bold))),
               Expanded(child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
-              Expanded(child: Text('Type', style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
             ],
           ),
         ),
@@ -3771,7 +3771,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Business', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                        Text('To Business', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                         Text(
                           transfer['target_business_name'] ?? 'Unknown',
                           style: const TextStyle(fontWeight: FontWeight.w600),
@@ -3783,7 +3783,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Type', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                        Text('Status', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
@@ -3839,7 +3839,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                           '${summary['total_transfers'] ?? 0}',
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
-                        const Text('Total Movements', style: TextStyle(fontSize: 12)),
+                        const Text('Total Transfers', style: TextStyle(fontSize: 12)),
                       ],
                     ),
                   ),
@@ -3858,7 +3858,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                           '${summary['total_quantity_transferred'] ?? 0}',
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
-                        const Text('Units Moved', style: TextStyle(fontSize: 12)),
+                        const Text('Units Transferred', style: TextStyle(fontSize: 12)),
                       ],
                     ),
                   ),
@@ -3900,7 +3900,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                           '${summary['unique_products'] ?? 0}',
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
-                        const Text('Products Moved', style: TextStyle(fontSize: 12)),
+                        const Text('Products Transferred', style: TextStyle(fontSize: 12)),
                       ],
                     ),
                   ),
@@ -3926,7 +3926,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     '${summary['total_transfers'] ?? 0}',
                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
-                  const Text('Total Movements'),
+                  const Text('Total Transfers'),
                 ],
               ),
             ),
@@ -3944,7 +3944,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     '${summary['total_quantity_transferred'] ?? 0}',
                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
-                  const Text('Units Moved'),
+                  const Text('Units Transferred'),
                 ],
               ),
             ),
@@ -3980,7 +3980,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     '${summary['unique_products'] ?? 0}',
                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
-                  const Text('Products Moved'),
+                  const Text('Products Transferred'),
                 ],
               ),
             ),
@@ -3992,16 +3992,14 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
 
   Color _getTransferStatusColor(String? status) {
     switch (status) {
-      case 'purchase':
-        return Colors.blue;
       case 'transfer':
         return Colors.green;
-      case 'manual':
+      case 'completed':
+        return Colors.green;
+      case 'pending':
         return Colors.orange;
-      case 'sale':
+      case 'cancelled':
         return Colors.red;
-      case 'adjustment':
-        return Colors.purple;
       default:
         return Colors.grey;
     }
@@ -4009,16 +4007,14 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
 
   String _getTransferStatusLabel(String? status) {
     switch (status) {
-      case 'purchase':
-        return 'Purchase';
       case 'transfer':
         return 'Transfer';
-      case 'manual':
-        return 'Manual';
-      case 'sale':
-        return 'Sale';
-      case 'adjustment':
-        return 'Adjustment';
+      case 'completed':
+        return 'Completed';
+      case 'pending':
+        return 'Pending';
+      case 'cancelled':
+        return 'Cancelled';
       default:
         return 'Unknown';
     }

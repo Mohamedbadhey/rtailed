@@ -1141,6 +1141,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       start_date, 
       end_date, 
       product_id, 
+      category,
       target_business_id, 
       status,
       page = 1, 
@@ -1153,6 +1154,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       start_date,
       end_date,
       product_id,
+      category,
       target_business_id,
       status,
       page,
@@ -1199,6 +1201,12 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       queryParams.push(product_id);
     }
 
+    // Category filter
+    if (category) {
+      whereConditions.push('p.category = ?');
+      queryParams.push(category);
+    }
+
     // Target business filter (for superadmin)
     if (target_business_id) {
       whereConditions.push('sim.business_id = ?');
@@ -1214,9 +1222,11 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       storeId,
       limit: parseInt(limit),
       offset: parseInt(offset),
-      transfersQueryParams: [storeId, 'out', 'transfer', parseInt(limit), parseInt(offset)],
-      summaryQueryParams: [storeId, 'out', 'transfer'],
-      countQueryParams: [storeId, 'out', 'transfer']
+      whereClause,
+      queryParams,
+      transfersQueryParams: [...queryParams, parseInt(limit), parseInt(offset)],
+      summaryQueryParams: queryParams,
+      countQueryParams: queryParams
     });
 
     // First, let's check what data exists in store_inventory_movements
@@ -1227,7 +1237,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     } catch (testError) {
       console.log('🔍 Test query error:', testError.message);
     }
-    // Query for business transfers (movement_type = 'out' and reference_type = 'transfer')
+    // Query for business transfers with dynamic filters
     const transfersQuery = `
       SELECT 
         sim.id,
@@ -1237,18 +1247,19 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
         sim.reference_type as status,
         p.name as product_name,
         p.sku,
+        p.category,
         b.name as target_business_name,
         u.email as created_by_email
       FROM store_inventory_movements sim
       LEFT JOIN products p ON sim.product_id = p.id
       LEFT JOIN businesses b ON sim.business_id = b.id
       LEFT JOIN users u ON sim.created_by = u.id
-      WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
+      ${whereClause}
       ORDER BY sim.created_at DESC
       LIMIT ? OFFSET ?
     `;
 
-    const [transfers] = await pool.execute(transfersQuery, [storeId, 'out', 'transfer', parseInt(limit), parseInt(offset)]);
+    const [transfers] = await pool.execute(transfersQuery, [...queryParams, parseInt(limit), parseInt(offset)]);
 
     // Get summary statistics for business transfers only
     const summaryQuery = `
@@ -1258,19 +1269,19 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
         COUNT(DISTINCT sim.business_id) as unique_businesses,
         COUNT(DISTINCT sim.product_id) as unique_products
       FROM store_inventory_movements sim
-      WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
+      ${whereClause}
     `;
 
-    const [summaryRows] = await pool.execute(summaryQuery, [storeId, 'out', 'transfer']);
+    const [summaryRows] = await pool.execute(summaryQuery, queryParams);
     const summary = summaryRows[0] || {};
 
     // Get total count for pagination
     const countQuery = `
       SELECT COUNT(*) as total
       FROM store_inventory_movements sim
-      WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
+      ${whereClause}
     `;
-    const [countRows] = await pool.execute(countQuery, [storeId, 'out', 'transfer']);
+    const [countRows] = await pool.execute(countQuery, queryParams);
     const total = countRows[0]?.total || 0;
 
     console.log('✅ Business transfers report generated:', {

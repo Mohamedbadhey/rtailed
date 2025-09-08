@@ -2109,6 +2109,7 @@ class ApiService {
     String? startDate,
     String? endDate,
     int? productId,
+    String? category,
     int? targetBusinessId,
     String? status,
     int page = 1,
@@ -2122,6 +2123,7 @@ class ApiService {
     if (startDate != null) queryParams['start_date'] = startDate;
     if (endDate != null) queryParams['end_date'] = endDate;
     if (productId != null) queryParams['product_id'] = productId.toString();
+    if (category != null) queryParams['category'] = category;
     if (targetBusinessId != null) queryParams['target_business_id'] = targetBusinessId.toString();
     if (status != null) queryParams['status'] = status;
     

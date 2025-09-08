@@ -1731,17 +1731,23 @@ class ApiService {
     String? startDate,
     String? endDate,
   }) async {
-    final queryParams = <String, String>{};
+    final queryParams = <String, String>{
+      'report_type': 'comprehensive',
+    };
     
     if (startDate != null) queryParams['start_date'] = startDate;
     if (endDate != null) queryParams['end_date'] = endDate;
     
     final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/reports/$businessId').replace(queryParameters: queryParams);
     
+    print('🔍 GET STORE INVENTORY REPORTS: $uri');
+    
     final response = await http.get(uri, headers: _headers);
     
     if (response.statusCode == 200) {
-      return json.decode(response.body);
+      final data = json.decode(response.body);
+      print('✅ Store inventory reports loaded successfully');
+      return data;
     } else {
       print('GET STORE INVENTORY REPORTS ERROR: ${response.statusCode} ${response.body}');
       throw Exception('Error: ${response.statusCode} ${response.body}');

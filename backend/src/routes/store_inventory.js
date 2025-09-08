@@ -510,14 +510,14 @@ router.get('/:storeId/movements/:businessId', auth, checkRole(['admin', 'manager
   }
 });
 
-// Get store inventory reports
+// Get comprehensive store inventory reports
 router.get('/:storeId/reports/:businessId', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
   try {
     const { storeId, businessId } = req.params;
-    const { start_date, end_date } = req.query;
+    const { start_date, end_date, report_type = 'comprehensive' } = req.query;
     const user = req.user;
     
-    console.log(`🔍 Store Reports Request: storeId=${storeId}, businessId=${businessId}, userRole=${user.role}`);
+    console.log(`🔍 Store Reports Request: storeId=${storeId}, businessId=${businessId}, userRole=${user.role}, reportType=${report_type}`);
     
     // Check access
     if (user.role !== 'superadmin' && user.business_id != businessId) {
@@ -533,46 +533,120 @@ router.get('/:storeId/reports/:businessId', auth, checkRole(['admin', 'manager',
       params.push(start_date, end_date);
     }
     
-    // Get summary statistics
-    const [summary] = await pool.query(
+    // 1. CURRENT STOCK STATUS - Real-time inventory from store_product_inventory
+    const [currentStock] = await pool.query(
       `SELECT 
-         COUNT(DISTINCT sim.product_id) as total_products,
-         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as total_in,
-         SUM(CASE WHEN sim.movement_type = 'out' THEN ABS(sim.quantity) ELSE 0 END) as total_out,
-         SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN ABS(sim.quantity) ELSE 0 END) as total_transferred,
-         COUNT(CASE WHEN sim.movement_type = 'in' THEN 1 END) as in_movements,
-         COUNT(CASE WHEN sim.movement_type = 'out' THEN 1 END) as out_movements,
-         COUNT(CASE WHEN sim.movement_type = 'transfer_out' THEN 1 END) as transfer_movements
+         spi.id as inventory_id,
+         spi.product_id,
+         spi.quantity as current_quantity,
+         spi.min_stock_level,
+         spi.last_updated,
+         p.name as product_name,
+         p.sku,
+         p.barcode,
+         p.cost_price,
+         p.price,
+         p.category,
+         CASE 
+           WHEN spi.quantity <= 0 THEN 'OUT_OF_STOCK'
+           WHEN spi.quantity <= spi.min_stock_level THEN 'LOW_STOCK'
+           ELSE 'IN_STOCK'
+         END as stock_status,
+         (spi.quantity * p.cost_price) as total_cost_value,
+         (spi.quantity * p.price) as total_selling_value
+       FROM store_product_inventory spi
+       JOIN products p ON spi.product_id = p.id
+       WHERE spi.store_id = ? AND spi.business_id = ?
+       ORDER BY spi.quantity ASC, p.name ASC`,
+      [storeId, businessId]
+    );
+    
+    // 2. MOVEMENT SUMMARY STATISTICS
+    const [movementSummary] = await pool.query(
+      `SELECT 
+         COUNT(DISTINCT sim.product_id) as total_products_with_movements,
+         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as total_stock_in,
+         SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN sim.quantity ELSE 0 END) as total_transferred_out,
+         COUNT(CASE WHEN sim.movement_type = 'in' THEN 1 END) as stock_in_count,
+         COUNT(CASE WHEN sim.movement_type = 'transfer_out' THEN 1 END) as transfer_out_count,
+         MIN(sim.created_at) as first_movement_date,
+         MAX(sim.created_at) as last_movement_date
        FROM store_inventory_movements sim
        WHERE sim.store_id = ? AND sim.business_id = ? ${dateFilter}`,
       params
     );
     
-    // Get top products by movement
+    // 3. TOP PERFORMING PRODUCTS (by movement activity)
     const [topProducts] = await pool.query(
       `SELECT 
+         p.id as product_id,
          p.name as product_name,
          p.sku,
-         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as total_in,
-         SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN ABS(sim.quantity) ELSE 0 END) as total_transferred,
-         COUNT(sim.id) as movement_count
-       FROM store_inventory_movements sim
-       JOIN products p ON sim.product_id = p.id
-       WHERE sim.store_id = ? AND sim.business_id = ? ${dateFilter}
-       GROUP BY p.id, p.name, p.sku
-       ORDER BY movement_count DESC
-       LIMIT 10`,
-      params
+         p.cost_price,
+         p.price,
+         COALESCE(current_stock.quantity, 0) as current_stock,
+         COALESCE(movements.total_in, 0) as total_stock_in,
+         COALESCE(movements.total_transferred, 0) as total_transferred,
+         COALESCE(movements.movement_count, 0) as movement_count,
+         COALESCE(movements.last_movement_date, 'N/A') as last_movement_date
+       FROM products p
+       LEFT JOIN (
+         SELECT 
+           product_id,
+           quantity
+         FROM store_product_inventory 
+         WHERE store_id = ? AND business_id = ?
+       ) current_stock ON p.id = current_stock.product_id
+       LEFT JOIN (
+         SELECT 
+           product_id,
+           SUM(CASE WHEN movement_type = 'in' THEN quantity ELSE 0 END) as total_in,
+           SUM(CASE WHEN movement_type = 'transfer_out' THEN quantity ELSE 0 END) as total_transferred,
+           COUNT(*) as movement_count,
+           MAX(created_at) as last_movement_date
+         FROM store_inventory_movements
+         WHERE store_id = ? AND business_id = ? ${dateFilter}
+         GROUP BY product_id
+       ) movements ON p.id = movements.product_id
+       WHERE current_stock.product_id IS NOT NULL OR movements.product_id IS NOT NULL
+       ORDER BY COALESCE(movements.movement_count, 0) DESC, COALESCE(current_stock.quantity, 0) DESC
+       LIMIT 20`,
+      [storeId, businessId, storeId, businessId, ...(start_date && end_date ? [start_date, end_date] : [])]
     );
     
-    // Get daily movement trends
+    // 4. LOW STOCK ALERTS
+    const [lowStockAlerts] = await pool.query(
+      `SELECT 
+         spi.product_id,
+         p.name as product_name,
+         p.sku,
+         spi.quantity as current_quantity,
+         spi.min_stock_level,
+         (spi.min_stock_level - spi.quantity) as shortage_quantity,
+         p.cost_price,
+         p.price,
+         spi.last_updated,
+         CASE 
+           WHEN spi.quantity = 0 THEN 'CRITICAL - OUT OF STOCK'
+           WHEN spi.quantity <= spi.min_stock_level THEN 'WARNING - LOW STOCK'
+         END as alert_level
+       FROM store_product_inventory spi
+       JOIN products p ON spi.product_id = p.id
+       WHERE spi.store_id = ? AND spi.business_id = ? 
+         AND spi.quantity <= spi.min_stock_level
+       ORDER BY spi.quantity ASC, (spi.min_stock_level - spi.quantity) DESC`,
+      [storeId, businessId]
+    );
+    
+    // 5. DAILY MOVEMENT TRENDS
     const [dailyTrends] = await pool.query(
       `SELECT 
          DATE(sim.created_at) as date,
-         COUNT(CASE WHEN sim.movement_type = 'in' THEN 1 END) as in_count,
-         COUNT(CASE WHEN sim.movement_type = 'transfer_out' THEN 1 END) as transfer_count,
-         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as in_quantity,
-         SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN ABS(sim.quantity) ELSE 0 END) as transfer_quantity
+         COUNT(CASE WHEN sim.movement_type = 'in' THEN 1 END) as stock_in_count,
+         COUNT(CASE WHEN sim.movement_type = 'transfer_out' THEN 1 END) as transfer_out_count,
+         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as stock_in_quantity,
+         SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN sim.quantity ELSE 0 END) as transfer_out_quantity,
+         COUNT(DISTINCT sim.product_id) as unique_products_moved
        FROM store_inventory_movements sim
        WHERE sim.store_id = ? AND sim.business_id = ? ${dateFilter}
        GROUP BY DATE(sim.created_at)
@@ -581,182 +655,91 @@ router.get('/:storeId/reports/:businessId', auth, checkRole(['admin', 'manager',
       params
     );
     
-    console.log(`✅ Reports query successful! Summary: ${JSON.stringify(summary[0])}`);
-    res.json({
-      summary: summary[0],
-      top_products: topProducts,
-      daily_trends: dailyTrends
-    });
-  } catch (error) {
-    console.error('❌ Error fetching store reports:', error);
-    console.error('❌ Error details:', {
-      message: error.message,
-      code: error.code,
-      errno: error.errno,
-      sqlState: error.sqlState
-    });
-    res.status(500).json({ 
-      message: 'Server error',
-      error: error.message,
-      code: error.code
-    });
-  }
-});
-
-// Get store inventory reports with date filtering
-router.get('/:storeId/reports/:businessId', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
-  try {
-    const { storeId, businessId } = req.params;
-    const { start_date, end_date } = req.query;
-    const user = req.user;
-    
-    console.log(`📊 Store Inventory Report Request: storeId=${storeId}, businessId=${businessId}, start_date=${start_date}, end_date=${end_date}, userRole=${user.role}`);
-    
-    // Check access
-    if (user.role !== 'superadmin' && user.business_id != businessId) {
-      console.log('❌ Access denied: user.business_id != businessId');
-      return res.status(403).json({ message: 'Access denied' });
-    }
-    
-    // Validate date parameters
-    if (!start_date || !end_date) {
-      return res.status(400).json({ message: 'Start date and end date are required' });
-    }
-    
-    const startDate = new Date(start_date);
-    const endDate = new Date(end_date);
-    
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return res.status(400).json({ message: 'Invalid date format' });
-    }
-    
-    // Set end date to end of day
-    endDate.setHours(23, 59, 59, 999);
-    
-    console.log(`📅 Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
-    
-    // Get summary statistics
-    const [summaryResult] = await pool.query(
+    // 6. FINANCIAL SUMMARY
+    const [financialSummary] = await pool.query(
       `SELECT 
-         COUNT(DISTINCT spi.product_id) as total_products,
-         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as total_in,
-         SUM(CASE WHEN sim.movement_type = 'out' THEN sim.quantity ELSE 0 END) as total_out,
-         SUM(CASE WHEN sim.movement_type = 'transfer_in' THEN sim.quantity ELSE 0 END) as total_transfer_in,
-         SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN sim.quantity ELSE 0 END) as total_transfer_out,
-         COUNT(sim.id) as total_movements,
-         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity * COALESCE(p.cost_price, 0) ELSE 0 END) as total_in_value,
-         SUM(CASE WHEN sim.movement_type = 'out' THEN sim.quantity * COALESCE(p.cost_price, 0) ELSE 0 END) as total_out_value
+         COUNT(*) as total_products_in_store,
+         SUM(spi.quantity) as total_units_in_store,
+         SUM(spi.quantity * p.cost_price) as total_cost_value,
+         SUM(spi.quantity * p.price) as total_selling_value,
+         SUM(spi.quantity * (p.price - p.cost_price)) as total_profit_potential,
+         AVG(p.cost_price) as average_cost_price,
+         AVG(p.price) as average_selling_price
        FROM store_product_inventory spi
-       LEFT JOIN store_inventory_movements sim ON spi.store_id = sim.store_id 
-         AND spi.business_id = sim.business_id 
-         AND spi.product_id = sim.product_id
-         AND sim.created_at BETWEEN ? AND ?
-       LEFT JOIN products p ON spi.product_id = p.id
+       JOIN products p ON spi.product_id = p.id
        WHERE spi.store_id = ? AND spi.business_id = ?`,
-      [startDate, endDate, storeId, businessId]
-    );
-    
-    // Get top products by movement count
-    const [topProductsResult] = await pool.query(
-      `SELECT 
-         p.id as product_id,
-         p.name as product_name,
-         p.sku,
-         p.cost_price,
-         p.price,
-         COUNT(sim.id) as movement_count,
-         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as total_in,
-         SUM(CASE WHEN sim.movement_type = 'out' THEN sim.quantity ELSE 0 END) as total_out,
-         SUM(CASE WHEN sim.movement_type = 'transfer_in' THEN sim.quantity ELSE 0 END) as total_transfer_in,
-         SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN sim.quantity ELSE 0 END) as total_transfer_out,
-         spi.quantity as current_stock
-       FROM store_product_inventory spi
-       JOIN products p ON spi.product_id = p.id
-       LEFT JOIN store_inventory_movements sim ON spi.store_id = sim.store_id 
-         AND spi.business_id = sim.business_id 
-         AND spi.product_id = sim.product_id
-         AND sim.created_at BETWEEN ? AND ?
-       WHERE spi.store_id = ? AND spi.business_id = ?
-       GROUP BY p.id, p.name, p.sku, p.cost_price, p.price, spi.quantity
-       HAVING movement_count > 0
-       ORDER BY movement_count DESC, total_in DESC
-       LIMIT 10`,
-      [startDate, endDate, storeId, businessId]
-    );
-    
-    // Get daily trends
-    const [dailyTrendsResult] = await pool.query(
-      `SELECT 
-         DATE(sim.created_at) as date,
-         COUNT(sim.id) as movements_count,
-         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as total_in,
-         SUM(CASE WHEN sim.movement_type = 'out' THEN sim.quantity ELSE 0 END) as total_out,
-         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity * COALESCE(p.cost_price, 0) ELSE 0 END) as in_value,
-         SUM(CASE WHEN sim.movement_type = 'out' THEN sim.quantity * COALESCE(p.cost_price, 0) ELSE 0 END) as out_value
-       FROM store_inventory_movements sim
-       LEFT JOIN products p ON sim.product_id = p.id
-       WHERE sim.store_id = ? AND sim.business_id = ? 
-         AND sim.created_at BETWEEN ? AND ?
-       GROUP BY DATE(sim.created_at)
-       ORDER BY date ASC`,
-      [storeId, businessId, startDate, endDate]
-    );
-    
-    // Get low stock products
-    const [lowStockResult] = await pool.query(
-      `SELECT 
-         p.id as product_id,
-         p.name as product_name,
-         p.sku,
-         p.cost_price,
-         p.price,
-         spi.quantity as current_stock,
-         spi.min_stock_level,
-         (spi.quantity - spi.min_stock_level) as stock_difference
-       FROM store_product_inventory spi
-       JOIN products p ON spi.product_id = p.id
-       WHERE spi.store_id = ? AND spi.business_id = ? 
-         AND spi.quantity <= spi.min_stock_level
-       ORDER BY stock_difference ASC, p.name ASC`,
       [storeId, businessId]
     );
     
-    // Get movement types breakdown
-    const [movementTypesResult] = await pool.query(
+    // 7. RECENT MOVEMENTS (Last 10 activities)
+    const [recentMovements] = await pool.query(
       `SELECT 
+         sim.id,
+         sim.product_id,
+         p.name as product_name,
+         p.sku,
          sim.movement_type,
-         COUNT(sim.id) as count,
-         SUM(sim.quantity) as total_quantity,
-         SUM(sim.quantity * COALESCE(p.cost_price, 0)) as total_value
+         sim.quantity,
+         sim.previous_quantity,
+         sim.new_quantity,
+         sim.reference_type,
+         sim.notes,
+         sim.created_at,
+         COALESCE(u.email, CONCAT('User ', u.id), 'Unknown') as created_by_name
        FROM store_inventory_movements sim
-       LEFT JOIN products p ON sim.product_id = p.id
-       WHERE sim.store_id = ? AND sim.business_id = ? 
-         AND sim.created_at BETWEEN ? AND ?
-       GROUP BY sim.movement_type
-       ORDER BY count DESC`,
-      [storeId, businessId, startDate, endDate]
+       JOIN products p ON sim.product_id = p.id
+       LEFT JOIN users u ON sim.created_by = u.id
+       WHERE sim.store_id = ? AND sim.business_id = ? ${dateFilter}
+       ORDER BY sim.created_at DESC
+       LIMIT 10`,
+      params
     );
     
-    const reportData = {
-      period: {
-        start_date: start_date,
-        end_date: end_date,
-        days: Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))
-      },
-      summary: summaryResult[0] || {},
-      top_products: topProductsResult,
-      daily_trends: dailyTrendsResult,
-      low_stock_products: lowStockResult,
-      movement_types: movementTypesResult,
-      generated_at: new Date().toISOString(),
-      generated_by: user.id
-    };
+    // 8. TRANSFER ANALYTICS
+    const [transferAnalytics] = await pool.query(
+      `SELECT 
+         COUNT(*) as total_transfers,
+         SUM(quantity) as total_units_transferred,
+         COUNT(DISTINCT product_id) as unique_products_transferred,
+         AVG(quantity) as average_transfer_quantity,
+         MIN(created_at) as first_transfer_date,
+         MAX(created_at) as last_transfer_date
+       FROM store_inventory_movements
+       WHERE store_id = ? AND business_id = ? AND movement_type = 'transfer_out' ${dateFilter}`,
+      params
+    );
     
-    console.log(`✅ Store inventory report generated successfully for store ${storeId}, business ${businessId}`);
-    res.json(reportData);
+    console.log(`✅ Comprehensive reports generated successfully!`);
+    
+    res.json({
+      report_metadata: {
+        store_id: parseInt(storeId),
+        business_id: parseInt(businessId),
+        generated_at: new Date().toISOString(),
+        date_range: start_date && end_date ? { start_date, end_date } : 'All time',
+        report_type: report_type
+      },
+      current_stock: {
+        summary: {
+          total_products: currentStock.length,
+          total_units: currentStock.reduce((sum, item) => sum + item.current_quantity, 0),
+          out_of_stock: currentStock.filter(item => item.stock_status === 'OUT_OF_STOCK').length,
+          low_stock: currentStock.filter(item => item.stock_status === 'LOW_STOCK').length,
+          in_stock: currentStock.filter(item => item.stock_status === 'IN_STOCK').length
+        },
+        products: currentStock
+      },
+      movement_summary: movementSummary[0],
+      financial_summary: financialSummary[0],
+      top_products: topProducts,
+      low_stock_alerts: lowStockAlerts,
+      daily_trends: dailyTrends,
+      recent_movements: recentMovements,
+      transfer_analytics: transferAnalytics[0]
+    });
     
   } catch (error) {
-    console.error('❌ Error generating store inventory report:', error);
+    console.error('❌ Error fetching comprehensive store reports:', error);
     console.error('❌ Error details:', {
       message: error.message,
       code: error.code,

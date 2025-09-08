@@ -828,188 +828,121 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildReportsTab() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+            const SizedBox(height: 16),
+            Text(
+              _error!,
+              style: TextStyle(color: Colors.red[600]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadData,
+              child: Text(t(context, 'Retry')),
+            ),
+          ],
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Inventory Report Section (matching inventory_screen.dart exactly)
+          // Report Header
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 8),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
+              gradient: LinearGradient(
+                colors: [
+                  Theme.of(context).primaryColor,
+                  Theme.of(context).primaryColor.withOpacity(0.8),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
             ),
-            child: ExpansionPanelList(
-              expansionCallback: (int index, bool isExpanded) {
-                setState(() { _showInventoryReport = !_showInventoryReport; });
-              },
+            child: Row(
               children: [
-                ExpansionPanel(
-                  isExpanded: _showInventoryReport,
-                  headerBuilder: (context, isExpanded) {
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          Icons.analytics,
-                          color: Theme.of(context).primaryColor,
-                          size: 20,
-                        ),
-                      ),
-                      title: Text(
-                        t(context, 'Store Inventory Report'), 
+                Icon(Icons.analytics, color: Colors.white, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        t(context, 'Store Inventory Reports'),
                         style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          fontSize: 13,
                         ),
                       ),
-                      trailing: Icon(
-                        isExpanded ? Icons.expand_less : Icons.expand_more,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    );
-                  },
-                  body: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Report Filters
-                        _buildStoreReportFilters(),
-                        const SizedBox(height: 8),
-                        
-                        // Stock Summary Section
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                t(context, 'Stock Summary'), 
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold, 
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                            if (_valueReportRows.isNotEmpty)
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: _selectedReportCategory != null && _selectedReportCategory != 'All' ||
-                                         _selectedReportProduct != null && _selectedReportProduct != 'All'
-                                         ? Colors.orange[50]
-                                         : Colors.purple[50],
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: _selectedReportCategory != null && _selectedReportCategory != 'All' || 
-                                           _selectedReportProduct != null && _selectedReportProduct != 'All'
-                                           ? Colors.orange[300]!
-                                           : Colors.purple[200]!
-                                  ),
-                                ),
-                                child: IconButton(
-                                  icon: Icon(
-                                    Icons.picture_as_pdf,
-                                    color: _selectedReportCategory != null && _selectedReportCategory != 'All' || 
-                                           _selectedReportProduct != null && _selectedReportProduct != 'All'
-                                           ? Colors.orange[600]
-                                           : Colors.purple[600],
-                                    size: 16
-                                  ),
-                                  onPressed: () => _exportStockSummaryToPdf(),
-                                  tooltip: _selectedReportCategory != null && _selectedReportCategory != 'All' || 
-                                           _selectedReportProduct != null && _selectedReportProduct != 'All'
-                                           ? 'Export Filtered Stock Summary to PDF'
-                                           : 'Export Stock Summary to PDF',
-                                  padding: const EdgeInsets.all(4),
-                                  constraints: const BoxConstraints(
-                                    minWidth: 24,
-                                    minHeight: 24,
-                                  ),
-                                ),
-                              ),
-                          ],
+                      Text(
+                        widget.storeName,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 14,
                         ),
-                        const SizedBox(height: 6),
-                        _buildStockSummaryFilters(false),
-                        const SizedBox(height: 8),
-                        
-                        // Filter Status Indicator
-                        if (_selectedReportCategory != null && _selectedReportCategory != 'All' || 
-                            _selectedReportProduct != null && _selectedReportProduct != 'All')
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.blue[50],
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: Colors.blue[200]!),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.filter_list,
-                                  size: 16,
-                                  color: Colors.blue[600],
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    _buildFilterStatusText(),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.blue[700],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.clear,
-                                    size: 16,
-                                    color: Colors.blue[600],
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedReportCategory = null;
-                                      _selectedReportProduct = null;
-                                      _stockSummaryCurrentPage = 0;
-                                    });
-                                  },
-                                  padding: const EdgeInsets.all(4),
-                                  constraints: const BoxConstraints(
-                                    minWidth: 20,
-                                    minHeight: 20,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        
-                        // Stock Summary Table
-                        _buildValueReportTable(false),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
+                if (_reports.isNotEmpty && _reports['report_metadata'] != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _formatDate(DateTime.parse(_reports['report_metadata']['generated_at'])),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
+          
+          const SizedBox(height: 16),
+          
+          // Current Stock Summary
+          _buildCurrentStockSummary(),
+          
+          const SizedBox(height: 16),
+          
+          // Financial Summary
+          _buildFinancialSummary(),
+          
+          const SizedBox(height: 16),
+          
+          // Movement Summary
+          _buildMovementSummary(),
+          
+          const SizedBox(height: 16),
+          
+          // Low Stock Alerts
+          _buildLowStockAlerts(),
+          
+          const SizedBox(height: 16),
+          
+          // Top Products
+          _buildTopProducts(),
         ],
       ),
     );
@@ -2034,7 +1967,498 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     );
   }
 
+  // =====================================================
+  // COMPREHENSIVE REPORTS - NEW METHODS
+  // =====================================================
+
+  Widget _buildCurrentStockSummary() {
+    if (_reports.isEmpty || _reports['current_stock'] == null) {
+      return _buildEmptyCard('Current Stock Summary', Icons.inventory_2);
+    }
+
+    final currentStock = _reports['current_stock'];
+    final summary = currentStock['summary'] ?? {};
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.inventory_2, color: Theme.of(context).primaryColor),
+                const SizedBox(width: 8),
+                Text(
+                  t(context, 'Current Stock Summary'),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSummaryItem(
+                    'Total Products',
+                    '${summary['total_products'] ?? 0}',
+                    Icons.category,
+                    Colors.blue,
+                  ),
+                ),
+                Expanded(
+                  child: _buildSummaryItem(
+                    'Total Units',
+                    '${summary['total_units'] ?? 0}',
+                    Icons.inventory,
+                    Colors.green,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSummaryItem(
+                    'In Stock',
+                    '${summary['in_stock'] ?? 0}',
+                    Icons.check_circle,
+                    Colors.green,
+                  ),
+                ),
+                Expanded(
+                  child: _buildSummaryItem(
+                    'Low Stock',
+                    '${summary['low_stock'] ?? 0}',
+                    Icons.warning,
+                    Colors.orange,
+                  ),
+                ),
+                Expanded(
+                  child: _buildSummaryItem(
+                    'Out of Stock',
+                    '${summary['out_of_stock'] ?? 0}',
+                    Icons.error,
+                    Colors.red,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryItem(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: color.withOpacity(0.8),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyCard(String title, IconData icon) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Icon(icon, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'No data available',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFinancialSummary() {
+    if (_reports.isEmpty || _reports['financial_summary'] == null) {
+      return _buildEmptyCard('Financial Summary', Icons.attach_money);
+    }
+
+    final financial = _reports['financial_summary'];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.attach_money, color: Colors.green[600]),
+                const SizedBox(width: 8),
+                Text(
+                  t(context, 'Financial Summary'),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSummaryItem(
+                    'Total Cost Value',
+                    '\$${_formatNumber(financial['total_cost_value'] ?? 0)}',
+                    Icons.shopping_cart,
+                    Colors.blue,
+                  ),
+                ),
+                Expanded(
+                  child: _buildSummaryItem(
+                    'Total Selling Value',
+                    '\$${_formatNumber(financial['total_selling_value'] ?? 0)}',
+                    Icons.sell,
+                    Colors.green,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSummaryItem(
+                    'Profit Potential',
+                    '\$${_formatNumber(financial['total_profit_potential'] ?? 0)}',
+                    Icons.trending_up,
+                    Colors.purple,
+                  ),
+                ),
+                Expanded(
+                  child: _buildSummaryItem(
+                    'Avg Cost Price',
+                    '\$${_formatNumber(financial['average_cost_price'] ?? 0)}',
+                    Icons.price_check,
+                    Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatNumber(dynamic value) {
+    if (value == null) return '0';
+    final num = double.tryParse(value.toString()) ?? 0;
+    return num.toStringAsFixed(2);
+  }
+
+  Widget _buildMovementSummary() {
+    if (_reports.isEmpty || _reports['movement_summary'] == null) {
+      return _buildEmptyCard('Movement Summary', Icons.trending_up);
+    }
+
+    final movement = _reports['movement_summary'];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.trending_up, color: Colors.blue[600]),
+                const SizedBox(width: 8),
+                Text(
+                  t(context, 'Movement Summary'),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSummaryItem(
+                    'Stock In',
+                    '${movement['total_stock_in'] ?? 0}',
+                    Icons.arrow_downward,
+                    Colors.green,
+                  ),
+                ),
+                Expanded(
+                  child: _buildSummaryItem(
+                    'Transferred Out',
+                    '${movement['total_transferred_out'] ?? 0}',
+                    Icons.arrow_upward,
+                    Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLowStockAlerts() {
+    if (_reports.isEmpty || _reports['low_stock_alerts'] == null) {
+      return _buildEmptyCard('Low Stock Alerts', Icons.warning);
+    }
+
+    final alerts = _reports['low_stock_alerts'] as List;
+    if (alerts.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              Icon(Icons.check_circle, size: 48, color: Colors.green[400]),
+              const SizedBox(height: 8),
+              Text(
+                'Low Stock Alerts',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'All products are well stocked!',
+                style: TextStyle(color: Colors.green[600]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.warning, color: Colors.orange[600]),
+                const SizedBox(width: 8),
+                Text(
+                  t(context, 'Low Stock Alerts'),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${alerts.length}',
+                    style: TextStyle(
+                      color: Colors.orange[800],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...alerts.take(3).map((alert) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: alert['alert_level']?.contains('CRITICAL') == true 
+                    ? Colors.red[50] 
+                    : Colors.orange[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: alert['alert_level']?.contains('CRITICAL') == true 
+                      ? Colors.red[200]! 
+                      : Colors.orange[200]!,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    alert['alert_level']?.contains('CRITICAL') == true 
+                        ? Icons.error 
+                        : Icons.warning,
+                    color: alert['alert_level']?.contains('CRITICAL') == true 
+                        ? Colors.red[600] 
+                        : Colors.orange[600],
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          alert['product_name'] ?? 'Unknown Product',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Stock: ${alert['current_quantity'] ?? 0} / Min: ${alert['min_stock_level'] ?? 0}',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopProducts() {
+    if (_reports.isEmpty || _reports['top_products'] == null) {
+      return _buildEmptyCard('Top Products', Icons.star);
+    }
+
+    final topProducts = _reports['top_products'] as List;
+    if (topProducts.isEmpty) {
+      return _buildEmptyCard('Top Products', Icons.star);
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.star, color: Colors.amber[600]),
+                const SizedBox(width: 8),
+                Text(
+                  t(context, 'Top Products'),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.amber[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Top ${topProducts.length}',
+                    style: TextStyle(
+                      color: Colors.amber[800],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...topProducts.take(3).map((product) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[200]!),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.amber[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.inventory,
+                      color: Colors.amber[600],
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          product['product_name'] ?? 'Unknown Product',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'SKU: ${product['sku'] ?? 'N/A'}',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${product['current_stock'] ?? 0}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        'Stock',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            )).toList(),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
+
 class _ProductDialog extends StatefulWidget {
   final ApiService apiService;
   final Product? product;
@@ -3787,4 +4211,5 @@ class _TransferDialogState extends State<_TransferDialog> {
       }
     }
   }
+
 } 

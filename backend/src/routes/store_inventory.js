@@ -1201,12 +1201,15 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
 
     // Build WHERE conditions for store-to-business transfers
     let whereConditions = ['sim.store_id = ?', 'sim.movement_type = ?', 'sim.reference_type = ?'];
-    let queryParams = [storeId, 'transfer_out', 'transfer'];
+    let queryParams = [parseInt(storeId), 'transfer_out', 'transfer'];
 
     console.log('🔍 STEP 4: Initial WHERE conditions:', {
       whereConditions,
       queryParams,
-      paramCount: queryParams.length
+      paramCount: queryParams.length,
+      storeId: storeId,
+      movementType: 'transfer_out',
+      referenceType: 'transfer'
     });
 
     // Date filter based on time period
@@ -1258,7 +1261,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     });
 
     // Get transfers with pagination
-    const offset = (page - 1) * limit;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
     
     console.log('🔍 Business Transfers Query Debug:', {
       storeId,
@@ -1298,11 +1301,21 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     const placeholderCount = (transfersQuery.match(/\?/g) || []).length;
     const finalParams = [...queryParams, parseInt(limit), parseInt(offset)];
     
+    console.log('🔍 Final Parameters Debug:', {
+      queryParams: queryParams,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      finalParams: finalParams,
+      finalParamsTypes: finalParams.map(p => typeof p)
+    });
+    
     console.log('🔍 Query Placeholder Check:', {
       placeholderCount,
       finalParamsLength: finalParams.length,
       query: transfersQuery,
-      params: finalParams
+      params: finalParams,
+      whereClause: whereClause,
+      queryParams: queryParams
     });
     
     if (placeholderCount !== finalParams.length) {

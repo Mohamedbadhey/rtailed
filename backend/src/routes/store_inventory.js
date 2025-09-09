@@ -1303,6 +1303,12 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       queryParams,
       paramCount: queryParams.length
     });
+    
+    // Safety check for WHERE clause
+    if (!whereClause || whereClause.trim() === '') {
+      console.error('❌ WHERE clause is empty or invalid:', whereClause);
+      return res.status(500).json({ message: 'Invalid query conditions' });
+    }
 
     // Get transfers with pagination
     const offset = (pageNum - 1) * limitNum;
@@ -1321,25 +1327,24 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     });
 
     // Query for business transfers (movement_type = 'transfer_out' and reference_type = 'transfer')
-    const transfersQuery = `
-      SELECT 
-        sim.id,
-        sim.product_id,
-        sim.quantity,
-        sim.created_at as transfer_date,
-        sim.reference_type as status,
-        p.name as product_name,
-        p.sku,
-        b.name as target_business_name,
-        u.email as created_by_email
-      FROM store_inventory_movements sim
-      LEFT JOIN products p ON sim.product_id = p.id
-      LEFT JOIN businesses b ON sim.business_id = b.id
-      LEFT JOIN users u ON sim.created_by = u.id
-      ${whereClause}
-      ORDER BY sim.created_at DESC
-      LIMIT ? OFFSET ?
-    `;
+    const transfersQuery = 
+      'SELECT ' +
+        'sim.id, ' +
+        'sim.product_id, ' +
+        'sim.quantity, ' +
+        'sim.created_at as transfer_date, ' +
+        'sim.reference_type as status, ' +
+        'p.name as product_name, ' +
+        'p.sku, ' +
+        'b.name as target_business_name, ' +
+        'u.email as created_by_email ' +
+      'FROM store_inventory_movements sim ' +
+      'LEFT JOIN products p ON sim.product_id = p.id ' +
+      'LEFT JOIN businesses b ON sim.business_id = b.id ' +
+      'LEFT JOIN users u ON sim.created_by = u.id ' +
+      whereClause + ' ' +
+      'ORDER BY sim.created_at DESC ' +
+      'LIMIT ? OFFSET ?';
 
     // Count placeholders in the query
     const placeholderCount = (transfersQuery.match(/\?/g) || []).length;
@@ -1378,18 +1383,26 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       paramCount: finalParams.length
     });
     
+    // Additional debugging for the query
+    console.log('🔍 FINAL QUERY DEBUG:', {
+      queryLength: transfersQuery.length,
+      queryPreview: transfersQuery.substring(0, 200) + '...',
+      whereClause: whereClause,
+      queryParams: queryParams,
+      finalParams: finalParams
+    });
+    
     const [transfers] = await pool.execute(transfersQuery, finalParams);
 
     // Get summary statistics for business transfers only
-    const summaryQuery = `
-      SELECT 
-        COUNT(*) as total_transfers,
-        COALESCE(SUM(sim.quantity), 0) as total_quantity_transferred,
-        COUNT(DISTINCT sim.business_id) as unique_businesses,
-        COUNT(DISTINCT sim.product_id) as unique_products
-      FROM store_inventory_movements sim
-      ${whereClause}
-    `;
+    const summaryQuery = 
+      'SELECT ' +
+        'COUNT(*) as total_transfers, ' +
+        'COALESCE(SUM(sim.quantity), 0) as total_quantity_transferred, ' +
+        'COUNT(DISTINCT sim.business_id) as unique_businesses, ' +
+        'COUNT(DISTINCT sim.product_id) as unique_products ' +
+      'FROM store_inventory_movements sim ' +
+      whereClause;
 
     // Check summary query parameters
     const summaryPlaceholderCount = (summaryQuery.match(/\?/g) || []).length;
@@ -1420,11 +1433,10 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     const summary = summaryRows[0] || {};
 
     // Get total count for pagination
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM store_inventory_movements sim
-      ${whereClause}
-    `;
+    const countQuery = 
+      'SELECT COUNT(*) as total ' +
+      'FROM store_inventory_movements sim ' +
+      whereClause;
     
     // Check count query parameters
     const countPlaceholderCount = (countQuery.match(/\?/g) || []).length;

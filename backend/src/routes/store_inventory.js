@@ -529,7 +529,7 @@ router.get('/:storeId/reports/:businessId', auth, checkRole(['admin', 'manager',
     let params = [storeId, businessId];
     
     if (start_date && end_date) {
-      dateFilter = 'AND sim.created_at BETWEEN ? AND ?';
+      dateFilter = 'AND created_at BETWEEN ? AND ?';
       params.push(start_date, end_date);
     }
     
@@ -1135,6 +1135,11 @@ router.get('/:storeId/increments/:businessId', auth, checkRole(['admin', 'manage
 
 // Get business transfers report
 router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
+  console.log('🚀 BUSINESS TRANSFERS ENDPOINT CALLED');
+  console.log('🚀 Request params:', req.params);
+  console.log('🚀 Request query:', req.query);
+  console.log('🚀 Request user:', req.user);
+  
   try {
     const { storeId, businessId } = req.params;
     const { 

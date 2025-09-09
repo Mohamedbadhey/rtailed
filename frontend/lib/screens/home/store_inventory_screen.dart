@@ -435,7 +435,23 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       print('❌ FRONTEND: Business Transfers Error: $e');
       print('❌ FRONTEND: Error type: ${e.runtimeType}');
       if (mounted) {
-        SuccessUtils.showOperationError(context, 'load business transfers', e.toString());
+        String errorMessage = 'Failed to load business transfers';
+        
+        if (e is ArgumentError) {
+          errorMessage = 'Invalid parameters: ${e.message}';
+        } else if (e.toString().contains('Validation Error')) {
+          errorMessage = e.toString().replaceFirst('Exception: ', '');
+        } else if (e.toString().contains('Access denied')) {
+          errorMessage = 'Access denied: You do not have permission to view this data';
+        } else if (e.toString().contains('not found')) {
+          errorMessage = 'Store or business not found';
+        } else if (e.toString().contains('Network error')) {
+          errorMessage = 'Network error: Please check your connection';
+        } else if (e.toString().contains('Server Error')) {
+          errorMessage = 'Server error: Please try again later';
+        }
+        
+        SuccessUtils.showOperationError(context, 'load business transfers', errorMessage);
       }
     } finally {
       setState(() {

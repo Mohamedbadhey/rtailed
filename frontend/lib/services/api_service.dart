@@ -2115,6 +2115,57 @@ class ApiService {
     int page = 1,
     int limit = 50,
   }) async {
+    // Validate parameters
+    if (storeId <= 0) {
+      throw ArgumentError('Store ID must be a positive integer');
+    }
+    if (businessId <= 0) {
+      throw ArgumentError('Business ID must be a positive integer');
+    }
+    
+    const validTimePeriods = ['all', 'today', 'week', 'month', 'custom'];
+    if (!validTimePeriods.contains(timePeriod)) {
+      throw ArgumentError('Invalid time period. Must be one of: all, today, week, month, custom');
+    }
+    
+    if (page < 1) {
+      throw ArgumentError('Page must be a positive integer');
+    }
+    if (limit < 1 || limit > 100) {
+      throw ArgumentError('Limit must be between 1 and 100');
+    }
+    
+    // Validate custom date range
+    if (timePeriod == 'custom') {
+      if (startDate == null || endDate == null) {
+        throw ArgumentError('Start date and end date are required for custom time period');
+      }
+      
+      // Validate date format (YYYY-MM-DD)
+      final dateRegex = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+      if (!dateRegex.hasMatch(startDate) || !dateRegex.hasMatch(endDate)) {
+        throw ArgumentError('Invalid date format. Use YYYY-MM-DD');
+      }
+      
+      // Validate date range
+      final start = DateTime.tryParse(startDate);
+      final end = DateTime.tryParse(endDate);
+      if (start == null || end == null) {
+        throw ArgumentError('Invalid date values');
+      }
+      if (start.isAfter(end)) {
+        throw ArgumentError('Start date cannot be after end date');
+      }
+    }
+    
+    // Validate optional parameters
+    if (productId != null && productId <= 0) {
+      throw ArgumentError('Product ID must be a positive integer');
+    }
+    if (targetBusinessId != null && targetBusinessId <= 0) {
+      throw ArgumentError('Target business ID must be a positive integer');
+    }
+    
     final queryParams = <String, String>{
       'time_period': timePeriod,
       'page': page.toString(),
@@ -2127,7 +2178,7 @@ class ApiService {
     }
     if (productId != null) queryParams['product_id'] = productId.toString();
     if (targetBusinessId != null) queryParams['target_business_id'] = targetBusinessId.toString();
-    if (status != null) queryParams['status'] = status;
+    if (status != null && status.isNotEmpty) queryParams['status'] = status;
     
     final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/business-transfers/$businessId').replace(queryParameters: queryParams);
     
@@ -2135,18 +2186,36 @@ class ApiService {
     print('🔍 API SERVICE: Query params: $queryParams');
     print('🔍 API SERVICE: Store ID: $storeId, Business ID: $businessId');
     
-    final response = await http.get(uri, headers: _headers);
-    
-    print('🔍 API SERVICE: Response status: ${response.statusCode}');
-    print('🔍 API SERVICE: Response body: ${response.body}');
-    
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      print('✅ API SERVICE: Business transfers report loaded successfully');
-      return data;
-    } else {
-      print('❌ API SERVICE: GET BUSINESS TRANSFERS REPORT ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+    try {
+      final response = await http.get(uri, headers: _headers);
+      
+      print('🔍 API SERVICE: Response status: ${response.statusCode}');
+      print('🔍 API SERVICE: Response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ API SERVICE: Business transfers report loaded successfully');
+        return data;
+      } else if (response.statusCode == 400) {
+        // Handle validation errors from backend
+        final errorData = json.decode(response.body);
+        throw Exception('Validation Error: ${errorData['message'] ?? 'Invalid request parameters'}');
+      } else if (response.statusCode == 403) {
+        throw Exception('Access denied: You do not have permission to view this data');
+      } else if (response.statusCode == 404) {
+        throw Exception('Store or business not found');
+      } else {
+        print('❌ API SERVICE: GET BUSINESS TRANSFERS REPORT ERROR: ${response.statusCode} ${response.body}');
+        throw Exception('Server Error: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is FormatException) {
+        throw Exception('Invalid response format from server');
+      } else if (e is ArgumentError) {
+        rethrow; // Re-throw validation errors
+      } else {
+        throw Exception('Network error: ${e.toString()}');
+      }
     }
   }
 } 

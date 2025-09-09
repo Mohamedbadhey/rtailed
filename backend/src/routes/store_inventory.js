@@ -1153,25 +1153,69 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       limit = 50 
     } = req.query;
 
+    // Validate and sanitize parameters
+    const validTimePeriods = ['all', 'today', 'week', 'month', 'custom'];
+    if (!validTimePeriods.includes(time_period)) {
+      return res.status(400).json({ message: 'Invalid time_period. Must be one of: all, today, week, month, custom' });
+    }
+
+    // Validate page and limit
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50));
+
+    // Validate storeId and businessId
+    if (!storeId || isNaN(parseInt(storeId))) {
+      return res.status(400).json({ message: 'Invalid store ID' });
+    }
+    if (!businessId || isNaN(parseInt(businessId))) {
+      return res.status(400).json({ message: 'Invalid business ID' });
+    }
+
+    // Validate custom date range
+    if (time_period === 'custom') {
+      if (!start_date || !end_date) {
+        return res.status(400).json({ message: 'start_date and end_date are required for custom time period' });
+      }
+      // Validate date format (YYYY-MM-DD)
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(start_date) || !dateRegex.test(end_date)) {
+        return res.status(400).json({ message: 'Invalid date format. Use YYYY-MM-DD' });
+      }
+      if (new Date(start_date) > new Date(end_date)) {
+        return res.status(400).json({ message: 'start_date cannot be after end_date' });
+      }
+    }
+
+    // Validate optional parameters
+    const productIdNum = product_id ? parseInt(product_id) : null;
+    const targetBusinessIdNum = target_business_id ? parseInt(target_business_id) : null;
+
+    if (product_id && isNaN(productIdNum)) {
+      return res.status(400).json({ message: 'Invalid product_id' });
+    }
+    if (target_business_id && isNaN(targetBusinessIdNum)) {
+      return res.status(400).json({ message: 'Invalid target_business_id' });
+    }
+
     console.log('🔍 BUSINESS TRANSFERS REPORT REQUEST:', {
-      storeId,
-      businessId,
+      storeId: parseInt(storeId),
+      businessId: parseInt(businessId),
       time_period,
       start_date,
       end_date,
-      product_id,
-      target_business_id,
+      product_id: productIdNum,
+      target_business_id: targetBusinessIdNum,
       status,
-      page,
-      limit,
+      page: pageNum,
+      limit: limitNum,
       userRole: req.user.role,
       userBusinessId: req.user.business_id
     });
 
-    console.log('🔍 STEP 1: Request parameters parsed successfully');
+    console.log('🔍 STEP 1: Request parameters validated successfully');
 
     // Access control
-    if (req.user.role !== 'superadmin' && req.user.business_id != businessId) {
+    if (req.user.role !== 'superadmin' && req.user.business_id != parseInt(businessId)) {
       console.log('❌ STEP 2: Access denied');
       return res.status(403).json({ message: 'Access denied' });
     }
@@ -1188,10 +1232,10 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     
     console.log('🔍 STEP 3: Executing store check query:', {
       query: storeCheckQuery,
-      params: [storeId, req.user.business_id, req.user.role]
+      params: [parseInt(storeId), req.user.business_id, req.user.role]
     });
     
-    const [storeRows] = await pool.execute(storeCheckQuery, [storeId, req.user.business_id, req.user.role]);
+    const [storeRows] = await pool.execute(storeCheckQuery, [parseInt(storeId), req.user.business_id, req.user.role]);
     if (storeRows.length === 0) {
       console.log('❌ STEP 3: Store not found or access denied');
       return res.status(404).json({ message: 'Store not found or access denied' });
@@ -1201,13 +1245,13 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
 
     // Build WHERE conditions for store-to-business transfers
     let whereConditions = ['sim.store_id = ?', 'sim.movement_type = ?', 'sim.reference_type = ?'];
-    let queryParams = [storeId, 'transfer_out', 'transfer'];
+    let queryParams = [parseInt(storeId), 'transfer_out', 'transfer'];
 
     console.log('🔍 STEP 4: Initial WHERE conditions:', {
       whereConditions,
       queryParams,
       paramCount: queryParams.length,
-      storeId: storeId,
+      storeId: parseInt(storeId),
       movementType: 'transfer_out',
       referenceType: 'transfer'
     });
@@ -1234,18 +1278,18 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     // 'all' time period doesn't add any date filter
 
     // Product filter
-    if (product_id) {
+    if (productIdNum) {
       whereConditions.push('sim.product_id = ?');
-      queryParams.push(product_id);
+      queryParams.push(productIdNum);
       console.log('🔍 STEP 6a: Added product filter with 1 param');
     } else {
       console.log('🔍 STEP 6a: No product filter');
     }
 
     // Target business filter (for superadmin)
-    if (target_business_id) {
+    if (targetBusinessIdNum) {
       whereConditions.push('sim.business_id = ?');
-      queryParams.push(target_business_id);
+      queryParams.push(targetBusinessIdNum);
       console.log('🔍 STEP 6b: Added business filter with 1 param');
     } else {
       console.log('🔍 STEP 6b: No business filter');
@@ -1261,18 +1305,18 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     });
 
     // Get transfers with pagination
-    const offset = (page - 1) * limit;
+    const offset = (pageNum - 1) * limitNum;
     
     console.log('🔍 Business Transfers Query Debug:', {
-      storeId,
+      storeId: parseInt(storeId),
       time_period,
       whereConditions,
       whereClause,
       queryParams,
       queryParamsLength: queryParams.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset),
-      finalParams: [...queryParams, parseInt(limit), parseInt(offset)],
+      limit: limitNum,
+      offset: offset,
+      finalParams: [...queryParams, limitNum, offset],
       finalParamsLength: queryParams.length + 2
     });
 
@@ -1299,11 +1343,11 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
 
     // Count placeholders in the query
     const placeholderCount = (transfersQuery.match(/\?/g) || []).length;
-    const finalParams = [...queryParams, limit, offset];
+    const finalParams = [...queryParams, limitNum, offset];
     
     console.log('🔍 Final Parameters Debug:', {
       queryParams: queryParams,
-      limit: limit,
+      limit: limitNum,
       offset: offset,
       finalParams: finalParams,
       finalParamsTypes: finalParams.map(p => typeof p)
@@ -1414,8 +1458,8 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       transfersCount: transfers.length,
       summary,
       total,
-      page,
-      limit,
+      page: pageNum,
+      limit: limitNum,
       time_period
     });
 
@@ -1424,8 +1468,8 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       transfers,
       summary,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: pageNum,
+        limit: limitNum,
         total,
         pages: Math.ceil(total / limit)
       },

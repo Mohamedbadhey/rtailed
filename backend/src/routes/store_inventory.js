@@ -1229,7 +1229,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       finalParamsLength: queryParams.length + 2
     });
 
-    // Query for business transfers (movement_type = 'out' and reference_type = 'transfer')
+    // Query for business transfers (movement_type = 'transfer_out' and reference_type = 'transfer')
     const transfersQuery = `
       SELECT 
         sim.id,

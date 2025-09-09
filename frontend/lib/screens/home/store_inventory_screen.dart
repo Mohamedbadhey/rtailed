@@ -411,6 +411,11 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         _businessTransfersData = data;
       });
       
+      print('✅ Business Transfers Data Loaded:');
+      print('  - Transfers count: ${(data['transfers'] as List?)?.length ?? 0}');
+      print('  - Summary: ${data['summary']}');
+      print('  - Pagination: ${data['pagination']}');
+      
     } catch (e) {
       print('Business Transfers Error: $e');
       if (mounted) {
@@ -1354,7 +1359,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           // Data Display
           _businessTransfersLoading
               ? const Center(child: CircularProgressIndicator())
-              : _businessTransfersData.isEmpty
+              : (_businessTransfersData['transfers'] as List?)?.isEmpty ?? true
                   ? _buildEmptyBusinessTransfers()
                   : _buildBusinessTransfersTable(),
         ],

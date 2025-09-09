@@ -1348,7 +1348,15 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
 
     // Count placeholders in the query
     const placeholderCount = (transfersQuery.match(/\?/g) || []).length;
-    const finalParams = [...queryParams, limitNum, offset];
+    
+    // Ensure all parameters are properly typed
+    const finalParams = [
+      parseInt(storeId),           // sim.store_id
+      'transfer_out',              // sim.movement_type
+      'transfer',                  // sim.reference_type
+      parseInt(limitNum),          // LIMIT
+      parseInt(offset)             // OFFSET
+    ];
     
     console.log('🔍 Final Parameters Debug:', {
       queryParams: queryParams,
@@ -1406,30 +1414,32 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
 
     // Check summary query parameters
     const summaryPlaceholderCount = (summaryQuery.match(/\?/g) || []).length;
+    const summaryParams = [parseInt(storeId), 'transfer_out', 'transfer'];
+    
     console.log('🔍 Summary Query Check:', {
       placeholderCount: summaryPlaceholderCount,
-      paramsLength: queryParams.length,
+      paramsLength: summaryParams.length,
       query: summaryQuery,
-      params: queryParams
+      params: summaryParams
     });
     
-    if (summaryPlaceholderCount !== queryParams.length) {
+    if (summaryPlaceholderCount !== summaryParams.length) {
       console.error('❌ SUMMARY QUERY PARAMETER MISMATCH:', {
         placeholders: summaryPlaceholderCount,
-        parameters: queryParams.length,
+        parameters: summaryParams.length,
         query: summaryQuery,
-        params: queryParams
+        params: summaryParams
       });
-      throw new Error(`Summary query parameter mismatch: ${summaryPlaceholderCount} placeholders, ${queryParams.length} parameters`);
+      throw new Error(`Summary query parameter mismatch: ${summaryPlaceholderCount} placeholders, ${summaryParams.length} parameters`);
     }
     
     console.log('🚀 EXECUTING SUMMARY QUERY:', {
       query: summaryQuery,
-      params: queryParams,
-      paramCount: queryParams.length
+      params: summaryParams,
+      paramCount: summaryParams.length
     });
     
-    const [summaryRows] = await pool.execute(summaryQuery, queryParams);
+    const [summaryRows] = await pool.execute(summaryQuery, summaryParams);
     const summary = summaryRows[0] || {};
 
     // Get total count for pagination
@@ -1440,30 +1450,32 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     
     // Check count query parameters
     const countPlaceholderCount = (countQuery.match(/\?/g) || []).length;
+    const countParams = [parseInt(storeId), 'transfer_out', 'transfer'];
+    
     console.log('🔍 Count Query Check:', {
       placeholderCount: countPlaceholderCount,
-      paramsLength: queryParams.length,
+      paramsLength: countParams.length,
       query: countQuery,
-      params: queryParams
+      params: countParams
     });
     
-    if (countPlaceholderCount !== queryParams.length) {
+    if (countPlaceholderCount !== countParams.length) {
       console.error('❌ COUNT QUERY PARAMETER MISMATCH:', {
         placeholders: countPlaceholderCount,
-        parameters: queryParams.length,
+        parameters: countParams.length,
         query: countQuery,
-        params: queryParams
+        params: countParams
       });
-      throw new Error(`Count query parameter mismatch: ${countPlaceholderCount} placeholders, ${queryParams.length} parameters`);
+      throw new Error(`Count query parameter mismatch: ${countPlaceholderCount} placeholders, ${countParams.length} parameters`);
     }
     
     console.log('🚀 EXECUTING COUNT QUERY:', {
       query: countQuery,
-      params: queryParams,
-      paramCount: queryParams.length
+      params: countParams,
+      paramCount: countParams.length
     });
     
-    const [countRows] = await pool.execute(countQuery, queryParams);
+    const [countRows] = await pool.execute(countQuery, countParams);
     const total = countRows[0]?.total || 0;
 
     console.log('✅ Business transfers report generated:', {

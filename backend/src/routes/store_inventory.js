@@ -1141,60 +1141,28 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       start_date, 
       end_date, 
       product_id, 
-      category,
       target_business_id, 
       status,
       page = 1, 
       limit = 50 
     } = req.query;
 
-    // Filter out 'undefined' string values and convert to actual undefined
-    const cleanStartDate = start_date && start_date !== 'undefined' ? start_date : undefined;
-    const cleanEndDate = end_date && end_date !== 'undefined' ? end_date : undefined;
-    const cleanProductId = product_id && product_id !== 'undefined' ? product_id : undefined;
-    const cleanCategory = category && category !== 'undefined' ? category : undefined;
-    const cleanTargetBusinessId = target_business_id && target_business_id !== 'undefined' ? target_business_id : undefined;
-    const cleanStatus = status && status !== 'undefined' ? status : undefined;
-
     console.log('🔍 BUSINESS TRANSFERS REPORT REQUEST:', {
       storeId,
       businessId,
-      start_date: cleanStartDate,
-      end_date: cleanEndDate,
-      product_id: cleanProductId,
-      category: cleanCategory,
-      target_business_id: cleanTargetBusinessId,
-      status: cleanStatus,
+      start_date,
+      end_date,
+      product_id,
+      target_business_id,
+      status,
       page,
       limit,
       userRole: req.user.role,
       userBusinessId: req.user.business_id
     });
 
-    console.log('🔍 RAW QUERY PARAMETERS:', req.query);
-    console.log('🔍 CLEANED PARAMETERS:', {
-      cleanStartDate,
-      cleanEndDate,
-      cleanProductId,
-      cleanCategory,
-      cleanTargetBusinessId,
-      cleanStatus
-    });
-    console.log('🔍 PARAMETER TYPES:', {
-      storeId: typeof storeId,
-      businessId: typeof businessId,
-      start_date: typeof cleanStartDate,
-      end_date: typeof cleanEndDate,
-      product_id: typeof cleanProductId,
-      category: typeof cleanCategory,
-      target_business_id: typeof cleanTargetBusinessId,
-      status: typeof cleanStatus,
-      page: typeof page,
-      limit: typeof limit
-    });
-
     // Access control
-    if (req.user.role !== 'superadmin' && req.user.business_id != parseInt(businessId)) {
+    if (req.user.role !== 'superadmin' && req.user.business_id != businessId) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
@@ -1206,77 +1174,38 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       WHERE s.id = ? AND (sba.business_id = ? OR ? = 'superadmin')
     `;
     
-    const [storeRows] = await pool.execute(storeCheckQuery, [parseInt(storeId), req.user.business_id, req.user.role]);
+    const [storeRows] = await pool.execute(storeCheckQuery, [storeId, req.user.business_id, req.user.role]);
     if (storeRows.length === 0) {
       return res.status(404).json({ message: 'Store not found or access denied' });
     }
 
     // Build WHERE conditions for store-to-business transfers
-    let baseWhereConditions = ['sim.store_id = ?', 'sim.movement_type = ?', 'sim.reference_type = ?'];
-    let baseQueryParams = [parseInt(storeId), 'out', 'transfer'];
-    
-    // For queries with JOINs (transfers query)
-    let fullWhereConditions = [...baseWhereConditions];
-    let fullQueryParams = [...baseQueryParams];
-    
-    // For queries without JOINs (summary and count queries)
-    let simpleWhereConditions = [...baseWhereConditions];
-    let simpleQueryParams = [...baseQueryParams];
+    let whereConditions = ['sim.store_id = ?', 'sim.movement_type = ?', 'sim.reference_type = ?'];
+    let queryParams = [storeId, 'out', 'transfer'];
 
     // Date range filter
-    if (cleanStartDate) {
-      const dateCondition = 'DATE(sim.created_at) >= ?';
-      fullWhereConditions.push(dateCondition);
-      simpleWhereConditions.push(dateCondition);
-      fullQueryParams.push(cleanStartDate);
-      simpleQueryParams.push(cleanStartDate);
+    if (start_date) {
+      whereConditions.push('DATE(sim.created_at) >= ?');
+      queryParams.push(start_date);
     }
-    if (cleanEndDate) {
-      const dateCondition = 'DATE(sim.created_at) <= ?';
-      fullWhereConditions.push(dateCondition);
-      simpleWhereConditions.push(dateCondition);
-      fullQueryParams.push(cleanEndDate);
-      simpleQueryParams.push(cleanEndDate);
+    if (end_date) {
+      whereConditions.push('DATE(sim.created_at) <= ?');
+      queryParams.push(end_date);
     }
 
     // Product filter
-    if (cleanProductId) {
-      const productCondition = 'sim.product_id = ?';
-      fullWhereConditions.push(productCondition);
-      simpleWhereConditions.push(productCondition);
-      fullQueryParams.push(parseInt(cleanProductId));
-      simpleQueryParams.push(parseInt(cleanProductId));
-    }
-
-    // Category filter (only for full query with JOINs)
-    if (cleanCategory) {
-      fullWhereConditions.push('p.category = ?');
-      fullQueryParams.push(cleanCategory);
-      // For simple queries, add a subquery to filter by category
-      simpleWhereConditions.push('sim.product_id IN (SELECT id FROM products WHERE category = ?)');
-      simpleQueryParams.push(cleanCategory);
+    if (product_id) {
+      whereConditions.push('sim.product_id = ?');
+      queryParams.push(product_id);
     }
 
     // Target business filter (for superadmin)
-    if (cleanTargetBusinessId) {
-      const businessCondition = 'sim.business_id = ?';
-      fullWhereConditions.push(businessCondition);
-      simpleWhereConditions.push(businessCondition);
-      fullQueryParams.push(parseInt(cleanTargetBusinessId));
-      simpleQueryParams.push(parseInt(cleanTargetBusinessId));
+    if (target_business_id) {
+      whereConditions.push('sim.business_id = ?');
+      queryParams.push(target_business_id);
     }
 
-    const fullWhereClause = `WHERE ${fullWhereConditions.join(' AND ')}`;
-    const simpleWhereClause = `WHERE ${simpleWhereConditions.join(' AND ')}`;
-    
-    console.log('🔍 WHERE Clause Construction:', {
-      fullWhereConditions,
-      fullQueryParams,
-      fullWhereClause,
-      simpleWhereConditions,
-      simpleQueryParams,
-      simpleWhereClause
-    });
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
     // Get transfers with pagination
     const offset = (page - 1) * limit;
@@ -1285,54 +1214,22 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       storeId,
       limit: parseInt(limit),
       offset: parseInt(offset),
-      fullWhereClause,
-      simpleWhereClause,
-      fullQueryParams,
-      simpleQueryParams,
-      fullQueryParamsLength: fullQueryParams.length,
-      simpleQueryParamsLength: simpleQueryParams.length,
-      transfersQueryParams: [...fullQueryParams, parseInt(limit), parseInt(offset)],
-      transfersQueryParamsLength: fullQueryParams.length + 2,
-      summaryQueryParams: simpleQueryParams,
-      countQueryParams: simpleQueryParams
+      transfersQueryParams: [storeId, 'out', 'transfer', parseInt(limit), parseInt(offset)],
+      summaryQueryParams: [storeId, 'out', 'transfer'],
+      countQueryParams: [storeId, 'out', 'transfer']
     });
-
-    // Test with minimal query first
-    console.log('🔍 Testing minimal query first...');
-    try {
-      const minimalQuery = `SELECT COUNT(*) as total FROM store_inventory_movements WHERE store_id = ? AND movement_type = ? AND reference_type = ?`;
-      const minimalParams = [parseInt(storeId), 'out', 'transfer'];
-      const [minimalResult] = await pool.execute(minimalQuery, minimalParams);
-      console.log('✅ Minimal query result:', minimalResult);
-    } catch (minimalError) {
-      console.error('❌ Minimal query error:', minimalError.message);
-    }
-
-    // Test with a simple data query
-    console.log('🔍 Testing simple data query...');
-    try {
-      const simpleQuery = `SELECT sim.id, sim.product_id, sim.quantity, sim.created_at 
-                           FROM store_inventory_movements sim 
-                           WHERE sim.store_id = ? AND sim.movement_type = ? AND sim.reference_type = ? 
-                           LIMIT 5`;
-      const simpleParams = [parseInt(storeId), 'out', 'transfer'];
-      const [simpleResult] = await pool.execute(simpleQuery, simpleParams);
-      console.log('✅ Simple query result:', simpleResult);
-    } catch (simpleError) {
-      console.error('❌ Simple query error:', simpleError.message);
-    }
 
     // First, let's check what data exists in store_inventory_movements
     try {
       const testQuery = `SELECT COUNT(*) as total FROM store_inventory_movements WHERE store_id = ?`;
-      const [testResult] = await pool.execute(testQuery, [parseInt(storeId)]);
+      const [testResult] = await pool.execute(testQuery, [storeId]);
       console.log('🔍 Test query result:', testResult);
     } catch (testError) {
       console.log('🔍 Test query error:', testError.message);
     }
-
-    // Query for business transfers with dynamic filters
-    const transfersQuery = `SELECT 
+    // Query for business transfers (movement_type = 'out' and reference_type = 'transfer')
+    const transfersQuery = `
+      SELECT 
         sim.id,
         sim.product_id,
         sim.quantity,
@@ -1340,54 +1237,18 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
         sim.reference_type as status,
         p.name as product_name,
         p.sku,
-        p.category,
         b.name as target_business_name,
         u.email as created_by_email
       FROM store_inventory_movements sim
       LEFT JOIN products p ON sim.product_id = p.id
       LEFT JOIN businesses b ON sim.business_id = b.id
       LEFT JOIN users u ON sim.created_by = u.id
-      ${fullWhereClause}
+      WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
       ORDER BY sim.created_at DESC
-      LIMIT ? OFFSET ?`;
+      LIMIT ? OFFSET ?
+    `;
 
-    // Test the actual query structure
-    console.log('🔍 Final Query Structure:', {
-      transfersQuery: transfersQuery,
-      fullWhereClause: fullWhereClause,
-      fullQueryParams: fullQueryParams,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
-    });
-
-    const finalParams = [...fullQueryParams, parseInt(limit), parseInt(offset)];
-    console.log('🔍 Executing transfers query with params:', finalParams);
-    console.log('🔍 Query placeholders count:', (transfersQuery.match(/\?/g) || []).length);
-    console.log('🔍 Parameters count:', finalParams.length);
-    console.log('🔍 Parameter types:', finalParams.map(p => typeof p));
-    
-    // Test query structure
-    const placeholderCount = (transfersQuery.match(/\?/g) || []).length;
-    if (placeholderCount !== finalParams.length) {
-      console.error('❌ PARAMETER MISMATCH DETECTED!');
-      console.error('❌ Query has', placeholderCount, 'placeholders but', finalParams.length, 'parameters provided');
-      console.error('❌ Query:', transfersQuery);
-      console.error('❌ Params:', finalParams);
-      throw new Error(`Parameter mismatch: ${placeholderCount} placeholders, ${finalParams.length} parameters`);
-    }
-    
-    let transfers;
-    try {
-      [transfers] = await pool.execute(transfersQuery, finalParams);
-      console.log('✅ Transfers query executed successfully, got', transfers.length, 'results');
-    } catch (transfersError) {
-      console.error('❌ TRANSFERS QUERY ERROR:', transfersError.message);
-      console.error('❌ Query:', transfersQuery);
-      console.error('❌ Params:', finalParams);
-      console.error('❌ Placeholders in query:', (transfersQuery.match(/\?/g) || []).length);
-      console.error('❌ Parameters provided:', finalParams.length);
-      throw transfersError;
-    }
+    const [transfers] = await pool.execute(transfersQuery, [storeId, 'out', 'transfer', parseInt(limit), parseInt(offset)]);
 
     // Get summary statistics for business transfers only
     const summaryQuery = `
@@ -1397,39 +1258,19 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
         COUNT(DISTINCT sim.business_id) as unique_businesses,
         COUNT(DISTINCT sim.product_id) as unique_products
       FROM store_inventory_movements sim
-      ${simpleWhereClause}
+      WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
     `;
 
-    console.log('🔍 Executing summary query with params:', simpleQueryParams);
-    let summaryRows;
-    try {
-      [summaryRows] = await pool.execute(summaryQuery, simpleQueryParams);
-      console.log('✅ Summary query executed successfully');
-    } catch (summaryError) {
-      console.error('❌ SUMMARY QUERY ERROR:', summaryError.message);
-      console.error('❌ Query:', summaryQuery);
-      console.error('❌ Params:', simpleQueryParams);
-      throw summaryError;
-    }
+    const [summaryRows] = await pool.execute(summaryQuery, [storeId, 'out', 'transfer']);
     const summary = summaryRows[0] || {};
 
     // Get total count for pagination
     const countQuery = `
       SELECT COUNT(*) as total
       FROM store_inventory_movements sim
-      ${simpleWhereClause}
+      WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
     `;
-    console.log('🔍 Executing count query with params:', simpleQueryParams);
-    let countRows;
-    try {
-      [countRows] = await pool.execute(countQuery, simpleQueryParams);
-      console.log('✅ Count query executed successfully');
-    } catch (countError) {
-      console.error('❌ COUNT QUERY ERROR:', countError.message);
-      console.error('❌ Query:', countQuery);
-      console.error('❌ Params:', simpleQueryParams);
-      throw countError;
-    }
+    const [countRows] = await pool.execute(countQuery, [storeId, 'out', 'transfer']);
     const total = countRows[0]?.total || 0;
 
     console.log('✅ Business transfers report generated:', {

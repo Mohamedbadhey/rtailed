@@ -2131,16 +2131,21 @@ class ApiService {
     
     final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/business-transfers/$businessId').replace(queryParameters: queryParams);
     
-    print('🔍 GET BUSINESS TRANSFERS REPORT: $uri');
+    print('🔍 API SERVICE: GET BUSINESS TRANSFERS REPORT: $uri');
+    print('🔍 API SERVICE: Query params: $queryParams');
+    print('🔍 API SERVICE: Store ID: $storeId, Business ID: $businessId');
     
     final response = await http.get(uri, headers: _headers);
     
+    print('🔍 API SERVICE: Response status: ${response.statusCode}');
+    print('🔍 API SERVICE: Response body: ${response.body}');
+    
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      print('✅ Business transfers report loaded successfully');
+      print('✅ API SERVICE: Business transfers report loaded successfully');
       return data;
     } else {
-      print('GET BUSINESS TRANSFERS REPORT ERROR: ${response.statusCode} ${response.body}');
+      print('❌ API SERVICE: GET BUSINESS TRANSFERS REPORT ERROR: ${response.statusCode} ${response.body}');
       throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }

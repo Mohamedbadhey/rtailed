@@ -1163,10 +1163,15 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       userBusinessId: req.user.business_id
     });
 
+    console.log('🔍 STEP 1: Request parameters parsed successfully');
+
     // Access control
     if (req.user.role !== 'superadmin' && req.user.business_id != businessId) {
+      console.log('❌ STEP 2: Access denied');
       return res.status(403).json({ message: 'Access denied' });
     }
+
+    console.log('🔍 STEP 2: Access control passed');
 
     // Check if store exists and user has access
     const storeCheckQuery = `
@@ -1176,27 +1181,47 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       WHERE s.id = ? AND (sba.business_id = ? OR ? = 'superadmin')
     `;
     
+    console.log('🔍 STEP 3: Executing store check query:', {
+      query: storeCheckQuery,
+      params: [storeId, req.user.business_id, req.user.role]
+    });
+    
     const [storeRows] = await pool.execute(storeCheckQuery, [storeId, req.user.business_id, req.user.role]);
     if (storeRows.length === 0) {
+      console.log('❌ STEP 3: Store not found or access denied');
       return res.status(404).json({ message: 'Store not found or access denied' });
     }
+
+    console.log('🔍 STEP 3: Store check passed, found stores:', storeRows.length);
 
     // Build WHERE conditions for store-to-business transfers
     let whereConditions = ['sim.store_id = ?', 'sim.movement_type = ?', 'sim.reference_type = ?'];
     let queryParams = [storeId, 'transfer_out', 'transfer'];
 
+    console.log('🔍 STEP 4: Initial WHERE conditions:', {
+      whereConditions,
+      queryParams,
+      paramCount: queryParams.length
+    });
+
     // Date filter based on time period
     if (time_period === 'today') {
       whereConditions.push('DATE(sim.created_at) = CURDATE()');
+      console.log('🔍 STEP 5a: Added today filter (no params)');
     } else if (time_period === 'week') {
       whereConditions.push('sim.created_at >= DATE_SUB(NOW(), INTERVAL 1 WEEK)');
+      console.log('🔍 STEP 5b: Added week filter (no params)');
     } else if (time_period === 'month') {
       whereConditions.push('sim.created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)');
+      console.log('🔍 STEP 5c: Added month filter (no params)');
     } else if (time_period === 'custom' && start_date && end_date) {
       whereConditions.push('DATE(sim.created_at) >= ?');
       whereConditions.push('DATE(sim.created_at) <= ?');
       queryParams.push(start_date);
       queryParams.push(end_date);
+      console.log('🔍 STEP 5d: Added custom date filter with 2 params');
+    } else {
+      console.log('🔍 STEP 5e: No date filter added (all time)');
     }
     // 'all' time period doesn't add any date filter
 
@@ -1204,15 +1229,28 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     if (product_id) {
       whereConditions.push('sim.product_id = ?');
       queryParams.push(product_id);
+      console.log('🔍 STEP 6a: Added product filter with 1 param');
+    } else {
+      console.log('🔍 STEP 6a: No product filter');
     }
 
     // Target business filter (for superadmin)
     if (target_business_id) {
       whereConditions.push('sim.business_id = ?');
       queryParams.push(target_business_id);
+      console.log('🔍 STEP 6b: Added business filter with 1 param');
+    } else {
+      console.log('🔍 STEP 6b: No business filter');
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
+    console.log('🔍 STEP 7: Final WHERE clause built:', {
+      whereConditions,
+      whereClause,
+      queryParams,
+      paramCount: queryParams.length
+    });
 
     // Get transfers with pagination
     const offset = (page - 1) * limit;
@@ -1220,6 +1258,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     console.log('🔍 Business Transfers Query Debug:', {
       storeId,
       time_period,
+      whereConditions,
       whereClause,
       queryParams,
       queryParamsLength: queryParams.length,
@@ -1271,6 +1310,12 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       throw new Error(`Parameter mismatch: ${placeholderCount} placeholders, ${finalParams.length} parameters`);
     }
     
+    console.log('🚀 EXECUTING TRANSFERS QUERY:', {
+      query: transfersQuery,
+      params: finalParams,
+      paramCount: finalParams.length
+    });
+    
     const [transfers] = await pool.execute(transfersQuery, finalParams);
 
     // Get summary statistics for business transfers only
@@ -1303,6 +1348,12 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       throw new Error(`Summary query parameter mismatch: ${summaryPlaceholderCount} placeholders, ${queryParams.length} parameters`);
     }
     
+    console.log('🚀 EXECUTING SUMMARY QUERY:', {
+      query: summaryQuery,
+      params: queryParams,
+      paramCount: queryParams.length
+    });
+    
     const [summaryRows] = await pool.execute(summaryQuery, queryParams);
     const summary = summaryRows[0] || {};
 
@@ -1331,6 +1382,12 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       });
       throw new Error(`Count query parameter mismatch: ${countPlaceholderCount} placeholders, ${queryParams.length} parameters`);
     }
+    
+    console.log('🚀 EXECUTING COUNT QUERY:', {
+      query: countQuery,
+      params: queryParams,
+      paramCount: queryParams.length
+    });
     
     const [countRows] = await pool.execute(countQuery, queryParams);
     const total = countRows[0]?.total || 0;

@@ -374,6 +374,15 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   Future<void> _loadBusinessTransfers() async {
     if (_businessTransfersLoading) return;
     
+    print('🔍 FRONTEND: Starting to load business transfers...');
+    print('🔍 FRONTEND: Store ID: ${widget.storeId}');
+    print('🔍 FRONTEND: Time Period: $_businessTransfersTimePeriod');
+    print('🔍 FRONTEND: Start Date: $_businessTransfersStartDate');
+    print('🔍 FRONTEND: End Date: $_businessTransfersEndDate');
+    print('🔍 FRONTEND: Product ID: $_selectedProductForTransfers');
+    print('🔍 FRONTEND: Target Business ID: $_selectedBusinessForTransfers');
+    print('🔍 FRONTEND: Status: $_selectedTransferStatus');
+    
     setState(() {
       _businessTransfersLoading = true;
     });
@@ -393,7 +402,11 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           throw Exception('Business ID not found');
         }
       }
+      
+      print('🔍 FRONTEND: Business ID determined: $businessId');
+      print('🔍 FRONTEND: User role: ${user?.role}');
 
+        print('🔍 FRONTEND: Calling API service...');
         final data = await _apiService.getBusinessTransfersReport(
           widget.storeId,
           businessId,
@@ -406,6 +419,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           page: 1,
           limit: _detailedReportsPageSize,
         );
+        
+        print('🔍 FRONTEND: API call completed successfully');
 
       setState(() {
         _businessTransfersData = data;
@@ -417,7 +432,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       print('  - Pagination: ${data['pagination']}');
       
     } catch (e) {
-      print('Business Transfers Error: $e');
+      print('❌ FRONTEND: Business Transfers Error: $e');
+      print('❌ FRONTEND: Error type: ${e.runtimeType}');
       if (mounted) {
         SuccessUtils.showOperationError(context, 'load business transfers', e.toString());
       }

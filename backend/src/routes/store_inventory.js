@@ -1183,7 +1183,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
 
     // Build WHERE conditions for store-to-business transfers
     let whereConditions = ['sim.store_id = ?', 'sim.movement_type = ?', 'sim.reference_type = ?'];
-    let queryParams = [storeId, 'out', 'transfer'];
+    let queryParams = [storeId, 'transfer_out', 'transfer'];
 
     // Date filter based on time period
     if (time_period === 'today') {
@@ -1222,8 +1222,11 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       time_period,
       whereClause,
       queryParams,
+      queryParamsLength: queryParams.length,
       limit: parseInt(limit),
-      offset: parseInt(offset)
+      offset: parseInt(offset),
+      finalParams: [...queryParams, parseInt(limit), parseInt(offset)],
+      finalParamsLength: queryParams.length + 2
     });
 
     // Query for business transfers (movement_type = 'out' and reference_type = 'transfer')
@@ -1247,7 +1250,28 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       LIMIT ? OFFSET ?
     `;
 
-    const [transfers] = await pool.execute(transfersQuery, [...queryParams, parseInt(limit), parseInt(offset)]);
+    // Count placeholders in the query
+    const placeholderCount = (transfersQuery.match(/\?/g) || []).length;
+    const finalParams = [...queryParams, parseInt(limit), parseInt(offset)];
+    
+    console.log('🔍 Query Placeholder Check:', {
+      placeholderCount,
+      finalParamsLength: finalParams.length,
+      query: transfersQuery,
+      params: finalParams
+    });
+    
+    if (placeholderCount !== finalParams.length) {
+      console.error('❌ PARAMETER MISMATCH:', {
+        placeholders: placeholderCount,
+        parameters: finalParams.length,
+        query: transfersQuery,
+        params: finalParams
+      });
+      throw new Error(`Parameter mismatch: ${placeholderCount} placeholders, ${finalParams.length} parameters`);
+    }
+    
+    const [transfers] = await pool.execute(transfersQuery, finalParams);
 
     // Get summary statistics for business transfers only
     const summaryQuery = `
@@ -1260,6 +1284,25 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       ${whereClause}
     `;
 
+    // Check summary query parameters
+    const summaryPlaceholderCount = (summaryQuery.match(/\?/g) || []).length;
+    console.log('🔍 Summary Query Check:', {
+      placeholderCount: summaryPlaceholderCount,
+      paramsLength: queryParams.length,
+      query: summaryQuery,
+      params: queryParams
+    });
+    
+    if (summaryPlaceholderCount !== queryParams.length) {
+      console.error('❌ SUMMARY QUERY PARAMETER MISMATCH:', {
+        placeholders: summaryPlaceholderCount,
+        parameters: queryParams.length,
+        query: summaryQuery,
+        params: queryParams
+      });
+      throw new Error(`Summary query parameter mismatch: ${summaryPlaceholderCount} placeholders, ${queryParams.length} parameters`);
+    }
+    
     const [summaryRows] = await pool.execute(summaryQuery, queryParams);
     const summary = summaryRows[0] || {};
 
@@ -1269,6 +1312,26 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       FROM store_inventory_movements sim
       ${whereClause}
     `;
+    
+    // Check count query parameters
+    const countPlaceholderCount = (countQuery.match(/\?/g) || []).length;
+    console.log('🔍 Count Query Check:', {
+      placeholderCount: countPlaceholderCount,
+      paramsLength: queryParams.length,
+      query: countQuery,
+      params: queryParams
+    });
+    
+    if (countPlaceholderCount !== queryParams.length) {
+      console.error('❌ COUNT QUERY PARAMETER MISMATCH:', {
+        placeholders: countPlaceholderCount,
+        parameters: queryParams.length,
+        query: countQuery,
+        params: queryParams
+      });
+      throw new Error(`Count query parameter mismatch: ${countPlaceholderCount} placeholders, ${queryParams.length} parameters`);
+    }
+    
     const [countRows] = await pool.execute(countQuery, queryParams);
     const total = countRows[0]?.total || 0;
 

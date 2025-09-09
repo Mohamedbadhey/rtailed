@@ -1138,6 +1138,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
   try {
     const { storeId, businessId } = req.params;
     const { 
+      time_period = 'all', // 'all', 'today', 'week', 'month', 'custom'
       start_date, 
       end_date, 
       product_id, 
@@ -1150,6 +1151,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     console.log('🔍 BUSINESS TRANSFERS REPORT REQUEST:', {
       storeId,
       businessId,
+      time_period,
       start_date,
       end_date,
       product_id,
@@ -1183,15 +1185,20 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     let whereConditions = ['sim.store_id = ?', 'sim.movement_type = ?', 'sim.reference_type = ?'];
     let queryParams = [storeId, 'out', 'transfer'];
 
-    // Date range filter
-    if (start_date) {
+    // Date filter based on time period
+    if (time_period === 'today') {
+      whereConditions.push('DATE(sim.created_at) = CURDATE()');
+    } else if (time_period === 'week') {
+      whereConditions.push('sim.created_at >= DATE_SUB(NOW(), INTERVAL 1 WEEK)');
+    } else if (time_period === 'month') {
+      whereConditions.push('sim.created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)');
+    } else if (time_period === 'custom' && start_date && end_date) {
       whereConditions.push('DATE(sim.created_at) >= ?');
-      queryParams.push(start_date);
-    }
-    if (end_date) {
       whereConditions.push('DATE(sim.created_at) <= ?');
+      queryParams.push(start_date);
       queryParams.push(end_date);
     }
+    // 'all' time period doesn't add any date filter
 
     // Product filter
     if (product_id) {
@@ -1212,21 +1219,13 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     
     console.log('🔍 Business Transfers Query Debug:', {
       storeId,
+      time_period,
+      whereClause,
+      queryParams,
       limit: parseInt(limit),
-      offset: parseInt(offset),
-      transfersQueryParams: [storeId, 'out', 'transfer', parseInt(limit), parseInt(offset)],
-      summaryQueryParams: [storeId, 'out', 'transfer'],
-      countQueryParams: [storeId, 'out', 'transfer']
+      offset: parseInt(offset)
     });
 
-    // First, let's check what data exists in store_inventory_movements
-    try {
-      const testQuery = `SELECT COUNT(*) as total FROM store_inventory_movements WHERE store_id = ?`;
-      const [testResult] = await pool.execute(testQuery, [storeId]);
-      console.log('🔍 Test query result:', testResult);
-    } catch (testError) {
-      console.log('🔍 Test query error:', testError.message);
-    }
     // Query for business transfers (movement_type = 'out' and reference_type = 'transfer')
     const transfersQuery = `
       SELECT 
@@ -1243,12 +1242,12 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       LEFT JOIN products p ON sim.product_id = p.id
       LEFT JOIN businesses b ON sim.business_id = b.id
       LEFT JOIN users u ON sim.created_by = u.id
-      WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
+      ${whereClause}
       ORDER BY sim.created_at DESC
       LIMIT ? OFFSET ?
     `;
 
-    const [transfers] = await pool.execute(transfersQuery, [storeId, 'out', 'transfer', parseInt(limit), parseInt(offset)]);
+    const [transfers] = await pool.execute(transfersQuery, [...queryParams, parseInt(limit), parseInt(offset)]);
 
     // Get summary statistics for business transfers only
     const summaryQuery = `
@@ -1258,19 +1257,19 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
         COUNT(DISTINCT sim.business_id) as unique_businesses,
         COUNT(DISTINCT sim.product_id) as unique_products
       FROM store_inventory_movements sim
-      WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
+      ${whereClause}
     `;
 
-    const [summaryRows] = await pool.execute(summaryQuery, [storeId, 'out', 'transfer']);
+    const [summaryRows] = await pool.execute(summaryQuery, queryParams);
     const summary = summaryRows[0] || {};
 
     // Get total count for pagination
     const countQuery = `
       SELECT COUNT(*) as total
       FROM store_inventory_movements sim
-      WHERE sim.store_id = ? AND sim.movement_type = 'out' AND sim.reference_type = 'transfer'
+      ${whereClause}
     `;
-    const [countRows] = await pool.execute(countQuery, [storeId, 'out', 'transfer']);
+    const [countRows] = await pool.execute(countQuery, queryParams);
     const total = countRows[0]?.total || 0;
 
     console.log('✅ Business transfers report generated:', {
@@ -1278,7 +1277,8 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       summary,
       total,
       page,
-      limit
+      limit,
+      time_period
     });
 
     res.json({
@@ -1290,6 +1290,13 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
         limit: parseInt(limit),
         total,
         pages: Math.ceil(total / limit)
+      },
+      filters: {
+        time_period,
+        start_date,
+        end_date,
+        product_id,
+        target_business_id
       }
     });
 

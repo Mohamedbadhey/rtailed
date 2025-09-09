@@ -2106,6 +2106,7 @@ class ApiService {
 
   // Get business transfers report
   Future<Map<String, dynamic>> getBusinessTransfersReport(int storeId, int businessId, {
+    String timePeriod = 'all', // 'all', 'today', 'week', 'month', 'custom'
     String? startDate,
     String? endDate,
     int? productId,
@@ -2115,12 +2116,15 @@ class ApiService {
     int limit = 50,
   }) async {
     final queryParams = <String, String>{
+      'time_period': timePeriod,
       'page': page.toString(),
       'limit': limit.toString(),
     };
     
-    if (startDate != null) queryParams['start_date'] = startDate;
-    if (endDate != null) queryParams['end_date'] = endDate;
+    if (timePeriod == 'custom') {
+      if (startDate != null) queryParams['start_date'] = startDate;
+      if (endDate != null) queryParams['end_date'] = endDate;
+    }
     if (productId != null) queryParams['product_id'] = productId.toString();
     if (targetBusinessId != null) queryParams['target_business_id'] = targetBusinessId.toString();
     if (status != null) queryParams['status'] = status;

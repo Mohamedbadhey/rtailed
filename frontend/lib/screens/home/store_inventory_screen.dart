@@ -80,6 +80,14 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   bool _incrementsLoading = false;
   bool _businessTransfersLoading = false;
   
+  // Business Transfers filter state
+  String _businessTransfersTimePeriod = 'all'; // 'all', 'today', 'week', 'month', 'custom'
+  DateTime? _businessTransfersStartDate;
+  DateTime? _businessTransfersEndDate;
+  int? _selectedProductForTransfers;
+  int? _selectedBusinessForTransfers;
+  String? _selectedTransferStatus;
+  
   // Detailed Reports filter variables
   DateTime? _detailedMovementsStartDate;
   DateTime? _detailedMovementsEndDate;
@@ -88,12 +96,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   int? _selectedProductForDetailed;
   int _detailedMovementsPage = 1;
   
-  // Business Transfers filter variables
-  DateTime? _businessTransfersStartDate;
-  DateTime? _businessTransfersEndDate;
-  int? _selectedProductForTransfers;
-  int? _selectedBusinessForTransfers;
-  String? _selectedTransferStatus;
   static const int _detailedReportsPageSize = 50;
 
   @override
@@ -392,17 +394,18 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         }
       }
 
-      final data = await _apiService.getBusinessTransfersReport(
-        widget.storeId,
-        businessId,
-        startDate: _businessTransfersStartDate?.toIso8601String().split('T')[0],
-        endDate: _businessTransfersEndDate?.toIso8601String().split('T')[0],
-        productId: _selectedProductForTransfers,
-        targetBusinessId: _selectedBusinessForTransfers,
-        status: _selectedTransferStatus,
-        page: 1,
-        limit: _detailedReportsPageSize,
-      );
+        final data = await _apiService.getBusinessTransfersReport(
+          widget.storeId,
+          businessId,
+          timePeriod: _businessTransfersTimePeriod,
+          startDate: _businessTransfersStartDate?.toIso8601String().split('T')[0],
+          endDate: _businessTransfersEndDate?.toIso8601String().split('T')[0],
+          productId: _selectedProductForTransfers,
+          targetBusinessId: _selectedBusinessForTransfers,
+          status: _selectedTransferStatus,
+          page: 1,
+          limit: _detailedReportsPageSize,
+        );
 
       setState(() {
         _businessTransfersData = data;
@@ -3291,61 +3294,93 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   Widget _buildMobileBusinessTransfersFilters() {
     return Column(
       children: [
-        // Date Range
+        // Time Period
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
+            const Text('Time Period:', style: TextStyle(fontWeight: FontWeight.w500)),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _showBusinessTransfersStartDatePicker(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        _businessTransfersStartDate != null
-                            ? '${_businessTransfersStartDate!.day}/${_businessTransfersStartDate!.month}/${_businessTransfersStartDate!.year}'
-                            : 'Start Date',
-                        style: TextStyle(
-                          color: _businessTransfersStartDate != null ? Colors.black : Colors.grey,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text('to'),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _showBusinessTransfersEndDatePicker(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        _businessTransfersEndDate != null
-                            ? '${_businessTransfersEndDate!.day}/${_businessTransfersEndDate!.month}/${_businessTransfersEndDate!.year}'
-                            : 'End Date',
-                        style: TextStyle(
-                          color: _businessTransfersEndDate != null ? Colors.black : Colors.grey,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+            DropdownButtonFormField<String>(
+              value: _businessTransfersTimePeriod,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'all', child: Text('All Time')),
+                DropdownMenuItem(value: 'today', child: Text('Today')),
+                DropdownMenuItem(value: 'week', child: Text('This Week')),
+                DropdownMenuItem(value: 'month', child: Text('This Month')),
+                DropdownMenuItem(value: 'custom', child: Text('Custom Range')),
               ],
+              onChanged: (value) {
+                setState(() {
+                  _businessTransfersTimePeriod = value ?? 'all';
+                });
+              },
             ),
           ],
         ),
+        const SizedBox(height: 16),
+        
+        // Custom Date Range (only show if custom is selected)
+        if (_businessTransfersTimePeriod == 'custom') ...[
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Custom Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _showBusinessTransfersStartDatePicker(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          _businessTransfersStartDate != null
+                              ? 'From: ${_businessTransfersStartDate!.day}/${_businessTransfersStartDate!.month}/${_businessTransfersStartDate!.year}'
+                              : 'Start Date',
+                          style: TextStyle(
+                            color: _businessTransfersStartDate != null ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('to'),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _showBusinessTransfersEndDatePicker(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          _businessTransfersEndDate != null
+                              ? 'To: ${_businessTransfersEndDate!.day}/${_businessTransfersEndDate!.month}/${_businessTransfersEndDate!.year}'
+                              : 'End Date',
+                          style: TextStyle(
+                            color: _businessTransfersEndDate != null ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+        ],
         const SizedBox(height: 16),
         // Product Filter
         Column(
@@ -3421,64 +3456,95 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   Widget _buildDesktopBusinessTransfersFilters() {
     return Row(
       children: [
-        // Date Range
+        // Time Period
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const Text('Time Period:', style: TextStyle(fontWeight: FontWeight.w500)),
               const SizedBox(height: 4),
-              Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => _showBusinessTransfersStartDatePicker(context),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          _businessTransfersStartDate != null
-                              ? '${_businessTransfersStartDate!.day}/${_businessTransfersStartDate!.month}/${_businessTransfersStartDate!.year}'
-                              : 'Start Date',
-                          style: TextStyle(
-                            color: _businessTransfersStartDate != null ? Colors.black : Colors.grey,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text('to'),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => _showBusinessTransfersEndDatePicker(context),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          _businessTransfersEndDate != null
-                              ? '${_businessTransfersEndDate!.day}/${_businessTransfersEndDate!.month}/${_businessTransfersEndDate!.year}'
-                              : 'End Date',
-                          style: TextStyle(
-                            color: _businessTransfersEndDate != null ? Colors.black : Colors.grey,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+              DropdownButtonFormField<String>(
+                value: _businessTransfersTimePeriod,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'all', child: Text('All Time')),
+                  DropdownMenuItem(value: 'today', child: Text('Today')),
+                  DropdownMenuItem(value: 'week', child: Text('This Week')),
+                  DropdownMenuItem(value: 'month', child: Text('This Month')),
+                  DropdownMenuItem(value: 'custom', child: Text('Custom Range')),
                 ],
+                onChanged: (value) {
+                  setState(() {
+                    _businessTransfersTimePeriod = value ?? 'all';
+                  });
+                },
               ),
             ],
           ),
         ),
         const SizedBox(width: 16),
+        // Custom Date Range (only show if custom is selected)
+        if (_businessTransfersTimePeriod == 'custom')
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Custom Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _showBusinessTransfersStartDatePicker(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            _businessTransfersStartDate != null
+                                ? 'From: ${_businessTransfersStartDate!.day}/${_businessTransfersStartDate!.month}/${_businessTransfersStartDate!.year}'
+                                : 'Start Date',
+                            style: TextStyle(
+                              color: _businessTransfersStartDate != null ? Colors.black : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('to'),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _showBusinessTransfersEndDatePicker(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            _businessTransfersEndDate != null
+                                ? 'To: ${_businessTransfersEndDate!.day}/${_businessTransfersEndDate!.month}/${_businessTransfersEndDate!.year}'
+                                : 'End Date',
+                            style: TextStyle(
+                              color: _businessTransfersEndDate != null ? Colors.black : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        if (_businessTransfersTimePeriod == 'custom') const SizedBox(width: 16),
         // Product Filter
         Expanded(
           child: Column(

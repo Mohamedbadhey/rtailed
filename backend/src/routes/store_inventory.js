@@ -1201,7 +1201,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
 
     // Build WHERE conditions for store-to-business transfers
     let whereConditions = ['sim.store_id = ?', 'sim.movement_type = ?', 'sim.reference_type = ?'];
-    let queryParams = [parseInt(storeId), 'transfer_out', 'transfer'];
+    let queryParams = [storeId, 'transfer_out', 'transfer'];
 
     console.log('🔍 STEP 4: Initial WHERE conditions:', {
       whereConditions,
@@ -1261,7 +1261,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     });
 
     // Get transfers with pagination
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const offset = (page - 1) * limit;
     
     console.log('🔍 Business Transfers Query Debug:', {
       storeId,
@@ -1299,12 +1299,12 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
 
     // Count placeholders in the query
     const placeholderCount = (transfersQuery.match(/\?/g) || []).length;
-    const finalParams = [...queryParams, parseInt(limit), parseInt(offset)];
+    const finalParams = [...queryParams, limit, offset];
     
     console.log('🔍 Final Parameters Debug:', {
       queryParams: queryParams,
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+      limit: limit,
+      offset: offset,
       finalParams: finalParams,
       finalParamsTypes: finalParams.map(p => typeof p)
     });

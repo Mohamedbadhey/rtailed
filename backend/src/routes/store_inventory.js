@@ -1148,15 +1148,23 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       limit = 50 
     } = req.query;
 
+    // Filter out 'undefined' string values and convert to actual undefined
+    const cleanStartDate = start_date && start_date !== 'undefined' ? start_date : undefined;
+    const cleanEndDate = end_date && end_date !== 'undefined' ? end_date : undefined;
+    const cleanProductId = product_id && product_id !== 'undefined' ? product_id : undefined;
+    const cleanCategory = category && category !== 'undefined' ? category : undefined;
+    const cleanTargetBusinessId = target_business_id && target_business_id !== 'undefined' ? target_business_id : undefined;
+    const cleanStatus = status && status !== 'undefined' ? status : undefined;
+
     console.log('🔍 BUSINESS TRANSFERS REPORT REQUEST:', {
       storeId,
       businessId,
-      start_date,
-      end_date,
-      product_id,
-      category,
-      target_business_id,
-      status,
+      start_date: cleanStartDate,
+      end_date: cleanEndDate,
+      product_id: cleanProductId,
+      category: cleanCategory,
+      target_business_id: cleanTargetBusinessId,
+      status: cleanStatus,
       page,
       limit,
       userRole: req.user.role,
@@ -1164,15 +1172,23 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     });
 
     console.log('🔍 RAW QUERY PARAMETERS:', req.query);
+    console.log('🔍 CLEANED PARAMETERS:', {
+      cleanStartDate,
+      cleanEndDate,
+      cleanProductId,
+      cleanCategory,
+      cleanTargetBusinessId,
+      cleanStatus
+    });
     console.log('🔍 PARAMETER TYPES:', {
       storeId: typeof storeId,
       businessId: typeof businessId,
-      start_date: typeof start_date,
-      end_date: typeof end_date,
-      product_id: typeof product_id,
-      category: typeof category,
-      target_business_id: typeof target_business_id,
-      status: typeof status,
+      start_date: typeof cleanStartDate,
+      end_date: typeof cleanEndDate,
+      product_id: typeof cleanProductId,
+      category: typeof cleanCategory,
+      target_business_id: typeof cleanTargetBusinessId,
+      status: typeof cleanStatus,
       page: typeof page,
       limit: typeof limit
     });
@@ -1208,46 +1224,46 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     let simpleQueryParams = [...baseQueryParams];
 
     // Date range filter
-    if (start_date) {
+    if (cleanStartDate) {
       const dateCondition = 'DATE(sim.created_at) >= ?';
       fullWhereConditions.push(dateCondition);
       simpleWhereConditions.push(dateCondition);
-      fullQueryParams.push(start_date);
-      simpleQueryParams.push(start_date);
+      fullQueryParams.push(cleanStartDate);
+      simpleQueryParams.push(cleanStartDate);
     }
-    if (end_date) {
+    if (cleanEndDate) {
       const dateCondition = 'DATE(sim.created_at) <= ?';
       fullWhereConditions.push(dateCondition);
       simpleWhereConditions.push(dateCondition);
-      fullQueryParams.push(end_date);
-      simpleQueryParams.push(end_date);
+      fullQueryParams.push(cleanEndDate);
+      simpleQueryParams.push(cleanEndDate);
     }
 
     // Product filter
-    if (product_id) {
+    if (cleanProductId) {
       const productCondition = 'sim.product_id = ?';
       fullWhereConditions.push(productCondition);
       simpleWhereConditions.push(productCondition);
-      fullQueryParams.push(parseInt(product_id));
-      simpleQueryParams.push(parseInt(product_id));
+      fullQueryParams.push(parseInt(cleanProductId));
+      simpleQueryParams.push(parseInt(cleanProductId));
     }
 
     // Category filter (only for full query with JOINs)
-    if (category) {
+    if (cleanCategory) {
       fullWhereConditions.push('p.category = ?');
-      fullQueryParams.push(category);
+      fullQueryParams.push(cleanCategory);
       // For simple queries, add a subquery to filter by category
       simpleWhereConditions.push('sim.product_id IN (SELECT id FROM products WHERE category = ?)');
-      simpleQueryParams.push(category);
+      simpleQueryParams.push(cleanCategory);
     }
 
     // Target business filter (for superadmin)
-    if (target_business_id) {
+    if (cleanTargetBusinessId) {
       const businessCondition = 'sim.business_id = ?';
       fullWhereConditions.push(businessCondition);
       simpleWhereConditions.push(businessCondition);
-      fullQueryParams.push(parseInt(target_business_id));
-      simpleQueryParams.push(parseInt(target_business_id));
+      fullQueryParams.push(parseInt(cleanTargetBusinessId));
+      simpleQueryParams.push(parseInt(cleanTargetBusinessId));
     }
 
     const fullWhereClause = `WHERE ${fullWhereConditions.join(' AND ')}`;

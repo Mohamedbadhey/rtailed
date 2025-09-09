@@ -766,6 +766,7 @@ router.get('/:storeId/detailed-movements/:businessId', auth, checkRole(['admin',
       start_date, 
       end_date, 
       product_id, 
+      category_id,
       movement_type, 
       reference_type,
       page = 1, 
@@ -794,6 +795,11 @@ router.get('/:storeId/detailed-movements/:businessId', auth, checkRole(['admin',
       params.push(product_id);
     }
     
+    if (category_id) {
+      whereConditions.push('p.category_id = ?');
+      params.push(category_id);
+    }
+    
     if (movement_type) {
       whereConditions.push('sim.movement_type = ?');
       params.push(movement_type);
@@ -807,10 +813,11 @@ router.get('/:storeId/detailed-movements/:businessId', auth, checkRole(['admin',
     const whereClause = whereConditions.join(' AND ');
     
     // Get total count for pagination
-    const [countResult] = await pool.query(
-      `SELECT COUNT(*) as total FROM store_inventory_movements sim WHERE ${whereClause}`,
-      params
-    );
+    const countQuery = category_id 
+      ? `SELECT COUNT(*) as total FROM store_inventory_movements sim JOIN products p ON sim.product_id = p.id WHERE ${whereClause}`
+      : `SELECT COUNT(*) as total FROM store_inventory_movements sim WHERE ${whereClause}`;
+    
+    const [countResult] = await pool.query(countQuery, params);
     
     const totalRecords = countResult[0].total;
     const offset = (page - 1) * limit;
@@ -848,19 +855,30 @@ router.get('/:storeId/detailed-movements/:businessId', auth, checkRole(['admin',
     );
     
     // Get summary statistics
-    const [summary] = await pool.query(
-      `SELECT 
-         COUNT(*) as total_movements,
-         COUNT(DISTINCT sim.product_id) as unique_products,
-         SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as total_stock_in,
-         SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN sim.quantity ELSE 0 END) as total_transferred_out,
-         SUM(CASE WHEN sim.movement_type = 'adjustment' THEN sim.quantity ELSE 0 END) as total_adjustments,
-         MIN(sim.created_at) as first_movement,
-         MAX(sim.created_at) as last_movement
-       FROM store_inventory_movements sim
-       WHERE ${whereClause}`,
-      params
-    );
+    const summaryQuery = category_id 
+      ? `SELECT 
+           COUNT(*) as total_movements,
+           COUNT(DISTINCT sim.product_id) as unique_products,
+           SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as total_stock_in,
+           SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN sim.quantity ELSE 0 END) as total_transferred_out,
+           SUM(CASE WHEN sim.movement_type = 'adjustment' THEN sim.quantity ELSE 0 END) as total_adjustments,
+           MIN(sim.created_at) as first_movement,
+           MAX(sim.created_at) as last_movement
+         FROM store_inventory_movements sim
+         JOIN products p ON sim.product_id = p.id
+         WHERE ${whereClause}`
+      : `SELECT 
+           COUNT(*) as total_movements,
+           COUNT(DISTINCT sim.product_id) as unique_products,
+           SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as total_stock_in,
+           SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN sim.quantity ELSE 0 END) as total_transferred_out,
+           SUM(CASE WHEN sim.movement_type = 'adjustment' THEN sim.quantity ELSE 0 END) as total_adjustments,
+           MIN(sim.created_at) as first_movement,
+           MAX(sim.created_at) as last_movement
+         FROM store_inventory_movements sim
+         WHERE ${whereClause}`;
+    
+    const [summary] = await pool.query(summaryQuery, params);
     
     res.json({
       report_metadata: {
@@ -871,6 +889,7 @@ router.get('/:storeId/detailed-movements/:businessId', auth, checkRole(['admin',
           start_date,
           end_date,
           product_id,
+          category_id,
           movement_type,
           reference_type
         },
@@ -1133,37 +1152,23 @@ router.get('/:storeId/increments/:businessId', auth, checkRole(['admin', 'manage
   }
 });
 
-// Get business transfers report
-router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
-  console.log('🚀 BUSINESS TRANSFERS ENDPOINT CALLED');
-  console.log('🚀 Request params:', req.params);
-  console.log('🚀 Request query:', req.query);
-  console.log('🚀 Request user:', req.user);
-  
+// Get business transfer reports - NEW IMPLEMENTATION
+router.get('/:storeId/transfer-reports/:businessId', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
   try {
     const { storeId, businessId } = req.params;
     const { 
-      time_period = 'all', // 'all', 'today', 'week', 'month', 'custom'
+      time_period = 'all',
       start_date, 
       end_date, 
-      product_id, 
-      target_business_id, 
-      status,
       page = 1, 
       limit = 50 
     } = req.query;
 
-    // Validate and sanitize parameters
-    const validTimePeriods = ['all', 'today', 'week', 'month', 'custom'];
-    if (!validTimePeriods.includes(time_period)) {
-      return res.status(400).json({ message: 'Invalid time_period. Must be one of: all, today, week, month, custom' });
-    }
+    console.log('🚀 NEW TRANSFER REPORTS ENDPOINT CALLED');
+    console.log('Store ID:', storeId, 'Business ID:', businessId);
+    console.log('Time Period:', time_period);
 
-    // Validate page and limit
-    const pageNum = Math.max(1, parseInt(page) || 1);
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50));
-
-    // Validate storeId and businessId
+    // Validate parameters
     if (!storeId || isNaN(parseInt(storeId))) {
       return res.status(400).json({ message: 'Invalid store ID' });
     }
@@ -1171,320 +1176,110 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       return res.status(400).json({ message: 'Invalid business ID' });
     }
 
-    // Validate custom date range
-    if (time_period === 'custom') {
-      if (!start_date || !end_date) {
-        return res.status(400).json({ message: 'start_date and end_date are required for custom time period' });
-      }
-      // Validate date format (YYYY-MM-DD)
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-      if (!dateRegex.test(start_date) || !dateRegex.test(end_date)) {
-        return res.status(400).json({ message: 'Invalid date format. Use YYYY-MM-DD' });
-      }
-      if (new Date(start_date) > new Date(end_date)) {
-        return res.status(400).json({ message: 'start_date cannot be after end_date' });
-      }
-    }
-
-    // Validate optional parameters
-    const productIdNum = product_id ? parseInt(product_id) : null;
-    const targetBusinessIdNum = target_business_id ? parseInt(target_business_id) : null;
-
-    if (product_id && isNaN(productIdNum)) {
-      return res.status(400).json({ message: 'Invalid product_id' });
-    }
-    if (target_business_id && isNaN(targetBusinessIdNum)) {
-      return res.status(400).json({ message: 'Invalid target_business_id' });
-    }
-
-    console.log('🔍 BUSINESS TRANSFERS REPORT REQUEST:', {
-      storeId: parseInt(storeId),
-      businessId: parseInt(businessId),
-      time_period,
-      start_date,
-      end_date,
-      product_id: productIdNum,
-      target_business_id: targetBusinessIdNum,
-      status,
-      page: pageNum,
-      limit: limitNum,
-      userRole: req.user.role,
-      userBusinessId: req.user.business_id
-    });
-
-    console.log('🔍 STEP 1: Request parameters validated successfully');
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50));
 
     // Access control
     if (req.user.role !== 'superadmin' && req.user.business_id != parseInt(businessId)) {
-      console.log('❌ STEP 2: Access denied');
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    console.log('🔍 STEP 2: Access control passed');
-
-    // Check if store exists and user has access
-    const storeCheckQuery = `
-      SELECT s.*, sba.business_id 
-      FROM stores s
-      LEFT JOIN store_business_assignments sba ON s.id = sba.store_id
-      WHERE s.id = ? AND (sba.business_id = ? OR ? = 'superadmin')
-    `;
+    // Check store access
+    const [storeCheck] = await pool.execute(
+      'SELECT 1 FROM stores s LEFT JOIN store_business_assignments sba ON s.id = sba.store_id WHERE s.id = ? AND (sba.business_id = ? OR ? = "superadmin")',
+      [parseInt(storeId), req.user.business_id, req.user.role]
+    );
     
-    console.log('🔍 STEP 3: Executing store check query:', {
-      query: storeCheckQuery,
-      params: [parseInt(storeId), req.user.business_id, req.user.role]
-    });
-    
-    const [storeRows] = await pool.execute(storeCheckQuery, [parseInt(storeId), req.user.business_id, req.user.role]);
-    if (storeRows.length === 0) {
-      console.log('❌ STEP 3: Store not found or access denied');
+    if (storeCheck.length === 0) {
       return res.status(404).json({ message: 'Store not found or access denied' });
     }
 
-    console.log('🔍 STEP 3: Store check passed, found stores:', storeRows.length);
-
-    // Build WHERE conditions for store-to-business transfers
-    let whereConditions = ['sim.store_id = ?', 'sim.movement_type = ?', 'sim.reference_type = ?'];
-    let queryParams = [parseInt(storeId), 'transfer_out', 'transfer'];
-
-    console.log('🔍 STEP 4: Initial WHERE conditions:', {
-      whereConditions,
-      queryParams,
-      paramCount: queryParams.length,
-      storeId: parseInt(storeId),
-      movementType: 'transfer_out',
-      referenceType: 'transfer'
-    });
-
-    // Date filter based on time period
+    // Build date filter
+    let dateFilter = '';
+    let dateParams = [];
+    
     if (time_period === 'today') {
-      whereConditions.push('DATE(sim.created_at) = CURDATE()');
-      console.log('🔍 STEP 5a: Added today filter (no params)');
+      dateFilter = 'AND DATE(sim.created_at) = CURDATE()';
     } else if (time_period === 'week') {
-      whereConditions.push('sim.created_at >= DATE_SUB(NOW(), INTERVAL 1 WEEK)');
-      console.log('🔍 STEP 5b: Added week filter (no params)');
+      dateFilter = 'AND sim.created_at >= DATE_SUB(NOW(), INTERVAL 1 WEEK)';
     } else if (time_period === 'month') {
-      whereConditions.push('sim.created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)');
-      console.log('🔍 STEP 5c: Added month filter (no params)');
+      dateFilter = 'AND sim.created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)';
     } else if (time_period === 'custom' && start_date && end_date) {
-      whereConditions.push('DATE(sim.created_at) >= ?');
-      whereConditions.push('DATE(sim.created_at) <= ?');
-      queryParams.push(start_date);
-      queryParams.push(end_date);
-      console.log('🔍 STEP 5d: Added custom date filter with 2 params');
-    } else {
-      console.log('🔍 STEP 5e: No date filter added (all time)');
-    }
-    // 'all' time period doesn't add any date filter
-
-    // Product filter
-    if (productIdNum) {
-      whereConditions.push('sim.product_id = ?');
-      queryParams.push(productIdNum);
-      console.log('🔍 STEP 6a: Added product filter with 1 param');
-    } else {
-      console.log('🔍 STEP 6a: No product filter');
+      dateFilter = 'AND DATE(sim.created_at) >= ? AND DATE(sim.created_at) <= ?';
+      dateParams = [start_date, end_date];
     }
 
-    // Target business filter (for superadmin)
-    if (targetBusinessIdNum) {
-      whereConditions.push('sim.business_id = ?');
-      queryParams.push(targetBusinessIdNum);
-      console.log('🔍 STEP 6b: Added business filter with 1 param');
-    } else {
-      console.log('🔍 STEP 6b: No business filter');
-    }
-
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-    
-    console.log('🔍 STEP 7: Final WHERE clause built:', {
-      whereConditions,
-      whereClause,
-      queryParams,
-      paramCount: queryParams.length
-    });
-    
-    // Safety check for WHERE clause
-    if (!whereClause || whereClause.trim() === '') {
-      console.error('❌ WHERE clause is empty or invalid:', whereClause);
-      return res.status(500).json({ message: 'Invalid query conditions' });
-    }
-
-    // Get transfers with pagination
+    // Get transfer reports
     const offset = (pageNum - 1) * limitNum;
     
-    console.log('🔍 Business Transfers Query Debug:', {
-      storeId: parseInt(storeId),
-      time_period,
-      whereConditions,
-      whereClause,
-      queryParams,
-      queryParamsLength: queryParams.length,
-      limit: limitNum,
-      offset: offset,
-      finalParams: [...queryParams, limitNum, offset],
-      finalParamsLength: queryParams.length + 2
-    });
+    const transfersQuery = `
+      SELECT 
+        sim.id,
+        sim.product_id,
+        sim.quantity,
+        sim.created_at as transfer_date,
+        sim.movement_type,
+        sim.reference_type,
+        p.name as product_name,
+        p.sku,
+        p.price,
+        p.cost_price,
+        b.name as target_business_name,
+        u.email as created_by_email
+      FROM store_inventory_movements sim
+      LEFT JOIN products p ON sim.product_id = p.id
+      LEFT JOIN businesses b ON sim.business_id = b.id
+      LEFT JOIN users u ON sim.created_by = u.id
+      WHERE sim.store_id = ? 
+        AND sim.movement_type = 'transfer_out' 
+        AND sim.reference_type = 'transfer'
+        ${dateFilter}
+      ORDER BY sim.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
 
-    // Query for business transfers (movement_type = 'transfer_out' and reference_type = 'transfer')
-    const transfersQuery = 
-      'SELECT ' +
-        'sim.id, ' +
-        'sim.product_id, ' +
-        'sim.quantity, ' +
-        'sim.created_at as transfer_date, ' +
-        'sim.reference_type as status, ' +
-        'p.name as product_name, ' +
-        'p.sku, ' +
-        'b.name as target_business_name, ' +
-        'u.email as created_by_email ' +
-      'FROM store_inventory_movements sim ' +
-      'LEFT JOIN products p ON sim.product_id = p.id ' +
-      'LEFT JOIN businesses b ON sim.business_id = b.id ' +
-      'LEFT JOIN users u ON sim.created_by = u.id ' +
-      whereClause + ' ' +
-      'ORDER BY sim.created_at DESC ' +
-      'LIMIT ? OFFSET ?';
+    const queryParams = [parseInt(storeId), ...dateParams, limitNum, offset];
+    console.log('Executing query with params:', queryParams);
+    
+    const [transfers] = await pool.execute(transfersQuery, queryParams);
 
-    // Count placeholders in the query
-    const placeholderCount = (transfersQuery.match(/\?/g) || []).length;
-    
-    // Ensure all parameters are properly typed
-    const finalParams = [
-      parseInt(storeId),           // sim.store_id
-      'transfer_out',              // sim.movement_type
-      'transfer',                  // sim.reference_type
-      parseInt(limitNum),          // LIMIT
-      parseInt(offset)             // OFFSET
-    ];
-    
-    console.log('🔍 Final Parameters Debug:', {
-      queryParams: queryParams,
-      limit: limitNum,
-      offset: offset,
-      finalParams: finalParams,
-      finalParamsTypes: finalParams.map(p => typeof p)
-    });
-    
-    console.log('🔍 Query Placeholder Check:', {
-      placeholderCount,
-      finalParamsLength: finalParams.length,
-      query: transfersQuery,
-      params: finalParams,
-      whereClause: whereClause,
-      queryParams: queryParams
-    });
-    
-    if (placeholderCount !== finalParams.length) {
-      console.error('❌ PARAMETER MISMATCH:', {
-        placeholders: placeholderCount,
-        parameters: finalParams.length,
-        query: transfersQuery,
-        params: finalParams
-      });
-      throw new Error(`Parameter mismatch: ${placeholderCount} placeholders, ${finalParams.length} parameters`);
-    }
-    
-    console.log('🚀 EXECUTING TRANSFERS QUERY:', {
-      query: transfersQuery,
-      params: finalParams,
-      paramCount: finalParams.length
-    });
-    
-    // Additional debugging for the query
-    console.log('🔍 FINAL QUERY DEBUG:', {
-      queryLength: transfersQuery.length,
-      queryPreview: transfersQuery.substring(0, 200) + '...',
-      whereClause: whereClause,
-      queryParams: queryParams,
-      finalParams: finalParams
-    });
-    
-    const [transfers] = await pool.execute(transfersQuery, finalParams);
+    // Get summary
+    const summaryQuery = `
+      SELECT 
+        COUNT(*) as total_transfers,
+        COALESCE(SUM(sim.quantity), 0) as total_quantity_transferred,
+        COUNT(DISTINCT sim.business_id) as unique_businesses,
+        COUNT(DISTINCT sim.product_id) as unique_products,
+        COALESCE(SUM(sim.quantity * p.cost_price), 0) as total_cost_value
+      FROM store_inventory_movements sim
+      LEFT JOIN products p ON sim.product_id = p.id
+      WHERE sim.store_id = ? 
+        AND sim.movement_type = 'transfer_out' 
+        AND sim.reference_type = 'transfer'
+        ${dateFilter}
+    `;
 
-    // Get summary statistics for business transfers only
-    const summaryQuery = 
-      'SELECT ' +
-        'COUNT(*) as total_transfers, ' +
-        'COALESCE(SUM(sim.quantity), 0) as total_quantity_transferred, ' +
-        'COUNT(DISTINCT sim.business_id) as unique_businesses, ' +
-        'COUNT(DISTINCT sim.product_id) as unique_products ' +
-      'FROM store_inventory_movements sim ' +
-      whereClause;
-
-    // Check summary query parameters
-    const summaryPlaceholderCount = (summaryQuery.match(/\?/g) || []).length;
-    const summaryParams = [parseInt(storeId), 'transfer_out', 'transfer'];
-    
-    console.log('🔍 Summary Query Check:', {
-      placeholderCount: summaryPlaceholderCount,
-      paramsLength: summaryParams.length,
-      query: summaryQuery,
-      params: summaryParams
-    });
-    
-    if (summaryPlaceholderCount !== summaryParams.length) {
-      console.error('❌ SUMMARY QUERY PARAMETER MISMATCH:', {
-        placeholders: summaryPlaceholderCount,
-        parameters: summaryParams.length,
-        query: summaryQuery,
-        params: summaryParams
-      });
-      throw new Error(`Summary query parameter mismatch: ${summaryPlaceholderCount} placeholders, ${summaryParams.length} parameters`);
-    }
-    
-    console.log('🚀 EXECUTING SUMMARY QUERY:', {
-      query: summaryQuery,
-      params: summaryParams,
-      paramCount: summaryParams.length
-    });
-    
+    const summaryParams = [parseInt(storeId), ...dateParams];
     const [summaryRows] = await pool.execute(summaryQuery, summaryParams);
     const summary = summaryRows[0] || {};
 
-    // Get total count for pagination
-    const countQuery = 
-      'SELECT COUNT(*) as total ' +
-      'FROM store_inventory_movements sim ' +
-      whereClause;
-    
-    // Check count query parameters
-    const countPlaceholderCount = (countQuery.match(/\?/g) || []).length;
-    const countParams = [parseInt(storeId), 'transfer_out', 'transfer'];
-    
-    console.log('🔍 Count Query Check:', {
-      placeholderCount: countPlaceholderCount,
-      paramsLength: countParams.length,
-      query: countQuery,
-      params: countParams
-    });
-    
-    if (countPlaceholderCount !== countParams.length) {
-      console.error('❌ COUNT QUERY PARAMETER MISMATCH:', {
-        placeholders: countPlaceholderCount,
-        parameters: countParams.length,
-        query: countQuery,
-        params: countParams
-      });
-      throw new Error(`Count query parameter mismatch: ${countPlaceholderCount} placeholders, ${countParams.length} parameters`);
-    }
-    
-    console.log('🚀 EXECUTING COUNT QUERY:', {
-      query: countQuery,
-      params: countParams,
-      paramCount: countParams.length
-    });
-    
-    const [countRows] = await pool.execute(countQuery, countParams);
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM store_inventory_movements sim
+      WHERE sim.store_id = ? 
+        AND sim.movement_type = 'transfer_out' 
+        AND sim.reference_type = 'transfer'
+        ${dateFilter}
+    `;
+
+    const [countRows] = await pool.execute(countQuery, summaryParams);
     const total = countRows[0]?.total || 0;
 
-    console.log('✅ Business transfers report generated:', {
+    console.log('✅ Transfer reports generated:', {
       transfersCount: transfers.length,
       summary,
-      total,
-      page: pageNum,
-      limit: limitNum,
-      time_period
+      total
     });
 
     res.json({
@@ -1495,19 +1290,17 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
         page: pageNum,
         limit: limitNum,
         total,
-        pages: Math.ceil(total / limit)
+        pages: Math.ceil(total / limitNum)
       },
       filters: {
         time_period,
         start_date,
-        end_date,
-        product_id,
-        target_business_id
+        end_date
       }
     });
 
   } catch (error) {
-    console.error('Error getting business transfers report:', error);
+    console.error('Error getting transfer reports:', error);
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 });

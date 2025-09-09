@@ -12,6 +12,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:retail_management/utils/api.dart';
+import 'package:retail_management/utils/responsive_utils.dart';
+import 'package:retail_management/utils/theme.dart';
 
 class StoreInventoryScreen extends StatefulWidget {
   final int storeId;
@@ -42,6 +44,10 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   String _searchQuery = '';
   String _selectedMovementType = '';
   String _selectedProductId = '';
+  String _selectedStockStatus = '';
+  String _selectedCategory = '';
+  double? _minPrice;
+  double? _maxPrice;
   
   // Stock Summary Report fields (matching inventory_screen.dart)
   bool _showInventoryReport = false;
@@ -66,6 +72,17 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   static const int _itemsPerPage = 10;
   int _stockSummaryCurrentPage = 0;
   
+  // Inventory pagination
+  int _inventoryCurrentPage = 0;
+  bool _inventoryHasMore = true;
+  bool _inventoryLoadingMore = false;
+  final ScrollController _inventoryScrollController = ScrollController();
+  
+  // Cache for API responses
+  final Map<String, dynamic> _cache = {};
+  final Map<String, DateTime> _cacheTimestamps = {};
+  static const Duration _cacheExpiry = Duration(minutes: 5);
+  
   // Business selection for superadmin
   List<Map<String, dynamic>> _businesses = [];
   int? _selectedBusinessId;
@@ -74,19 +91,9 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   Map<String, dynamic> _detailedMovementsData = {};
   Map<String, dynamic> _purchasesData = {};
   Map<String, dynamic> _incrementsData = {};
-  Map<String, dynamic> _businessTransfersData = {};
   bool _detailedMovementsLoading = false;
   bool _purchasesLoading = false;
   bool _incrementsLoading = false;
-  bool _businessTransfersLoading = false;
-  
-  // Business Transfers filter state
-  String _businessTransfersTimePeriod = 'all'; // 'all', 'today', 'week', 'month', 'custom'
-  DateTime? _businessTransfersStartDate;
-  DateTime? _businessTransfersEndDate;
-  int? _selectedProductForTransfers;
-  int? _selectedBusinessForTransfers;
-  String? _selectedTransferStatus;
   
   // Detailed Reports filter variables
   DateTime? _detailedMovementsStartDate;
@@ -94,7 +101,14 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   String? _selectedDetailedMovementType;
   String? _selectedReferenceType;
   int? _selectedProductForDetailed;
+  int? _selectedCategoryForDetailed;
+  String _detailedMovementsTimeFilter = 'All Time';
+  final List<String> _detailedMovementsTimeFilterOptions = ['All Time', 'This Week', 'This Month', 'Custom Range'];
   int _detailedMovementsPage = 1;
+  
+  // Data for dropdowns
+  List<Map<String, dynamic>> _productsForDetailed = [];
+  List<Map<String, dynamic>> _categoriesForDetailed = [];
   
   static const int _detailedReportsPageSize = 50;
 
@@ -102,6 +116,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   void initState() {
     super.initState();
     _tabController = TabController(length: 7, vsync: this);
+    _inventoryScrollController.addListener(_onInventoryScroll);
     _initializeDateFilters();
     // Load data after the widget is built to avoid setState during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -112,6 +127,34 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   void _initializeDateFilters() {
     _stockSummaryFilterType = 'Today';
     _applyStockSummaryPreset('Today');
+    _detailedMovementsTimeFilter = 'All Time';
+    _applyDetailedMovementsTimePreset('All Time');
+  }
+  
+  void _applyDetailedMovementsTimePreset(String filterType) {
+    final now = DateTime.now();
+    setState(() {
+      _detailedMovementsTimeFilter = filterType;
+      
+      switch (filterType) {
+        case 'All Time':
+          _detailedMovementsStartDate = null;
+          _detailedMovementsEndDate = null;
+          break;
+        case 'This Week':
+          final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+          _detailedMovementsStartDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+          _detailedMovementsEndDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'This Month':
+          _detailedMovementsStartDate = DateTime(now.year, now.month, 1);
+          _detailedMovementsEndDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'Custom Range':
+          // Keep existing dates or set to null if not set
+          break;
+      }
+    });
   }
   
   Future<void> _initializeData() async {
@@ -119,6 +162,10 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     
     // Load businesses for all users (needed for transfer dialog)
     await _loadBusinesses();
+    
+    // Load products and categories for detailed reports
+    await _loadProductsForDetailed();
+    await _loadCategoriesForDetailed();
     
     // If superadmin, wait for business selection
     if (user?.role == 'superadmin') {
@@ -142,11 +189,135 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       });
     }
   }
+  
+  Future<void> _loadProductsForDetailed() async {
+    try {
+      final user = context.read<AuthProvider>().user;
+      int? businessId;
+      
+      if (user?.role == 'superadmin') {
+        businessId = _selectedBusinessId;
+      } else {
+        businessId = user?.businessId;
+      }
+      
+      if (businessId != null) {
+        final products = await _apiService.getProducts(businessId);
+        setState(() {
+          _productsForDetailed = products;
+        });
+      }
+    } catch (e) {
+      print('Error loading products for detailed reports: $e');
+    }
+  }
+  
+  Future<void> _loadCategoriesForDetailed() async {
+    try {
+      final user = context.read<AuthProvider>().user;
+      int? businessId;
+      
+      if (user?.role == 'superadmin') {
+        businessId = _selectedBusinessId;
+      } else {
+        businessId = user?.businessId;
+      }
+      
+      if (businessId != null) {
+        final categories = await _apiService.getCategories(businessId);
+        setState(() {
+          _categoriesForDetailed = categories;
+        });
+      }
+    } catch (e) {
+      print('Error loading categories for detailed reports: $e');
+    }
+  }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _inventoryScrollController.dispose();
     super.dispose();
+  }
+
+  void _onInventoryScroll() {
+    if (_inventoryScrollController.position.pixels >=
+        _inventoryScrollController.position.maxScrollExtent - 200) {
+      _loadMoreInventory();
+    }
+  }
+
+  Future<void> _loadMoreInventory() async {
+    if (_inventoryLoadingMore || !_inventoryHasMore) return;
+
+    setState(() {
+      _inventoryLoadingMore = true;
+    });
+
+    try {
+      final user = context.read<AuthProvider>().user;
+      int? businessId;
+      
+      if (user?.role == 'superadmin') {
+        businessId = _selectedBusinessId;
+      } else {
+        businessId = user?.businessId;
+      }
+
+      if (businessId != null) {
+        final newInventory = await _apiService.getStoreInventory(
+          widget.storeId, 
+          businessId,
+          page: _inventoryCurrentPage + 1,
+          limit: _itemsPerPage,
+        );
+        
+        if (newInventory.isNotEmpty) {
+          setState(() {
+            _inventory.addAll(newInventory);
+            _inventoryCurrentPage++;
+            _inventoryHasMore = newInventory.length == _itemsPerPage;
+          });
+        } else {
+          setState(() {
+            _inventoryHasMore = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading more inventory: $e');
+    } finally {
+      setState(() {
+        _inventoryLoadingMore = false;
+      });
+    }
+  }
+
+  // Cache helper methods
+  bool _isCacheValid(String key) {
+    final timestamp = _cacheTimestamps[key];
+    if (timestamp == null) return false;
+    return DateTime.now().difference(timestamp) < _cacheExpiry;
+  }
+
+  T? _getFromCache<T>(String key) {
+    if (_isCacheValid(key)) {
+      return _cache[key] as T?;
+    }
+    _cache.remove(key);
+    _cacheTimestamps.remove(key);
+    return null;
+  }
+
+  void _setCache(String key, dynamic value) {
+    _cache[key] = value;
+    _cacheTimestamps[key] = DateTime.now();
+  }
+
+  void _clearCache() {
+    _cache.clear();
+    _cacheTimestamps.clear();
   }
 
   Future<void> _loadData() async {
@@ -175,33 +346,64 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         }
       }
       
-      // Load inventory
-      final inventory = await _apiService.getStoreInventory(widget.storeId, businessId);
-      setState(() {
-        _inventory = inventory;
-      });
+      // Check cache first
+      final cacheKey = 'inventory_${widget.storeId}_$businessId';
+      final cachedInventory = _getFromCache<List<Map<String, dynamic>>>(cacheKey);
       
-      // Load movements
-      final movements = await _apiService.getStoreInventoryMovements(
-        widget.storeId, 
-        businessId,
-        movementType: _selectedMovementType,
-        productId: _selectedProductId,
-      );
-      setState(() {
-        _movements = movements;
-      });
+      if (cachedInventory != null) {
+        setState(() {
+          _inventory = cachedInventory;
+        });
+      } else {
+        // Load inventory
+        final inventory = await _apiService.getStoreInventory(widget.storeId, businessId);
+        setState(() {
+          _inventory = inventory;
+        });
+        _setCache(cacheKey, inventory);
+      }
       
-      // Load reports
-      print('🔍 Loading reports for storeId: ${widget.storeId}, businessId: $businessId');
-      final reports = await _apiService.getStoreInventoryReports(widget.storeId, businessId);
-      print('📊 Reports loaded: ${reports.keys}');
-      print('📊 Current stock data: ${reports['current_stock']}');
-      print('📊 Current stock summary: ${reports['current_stock']?['summary']}');
-      print('📊 Current stock products: ${reports['current_stock']?['products']?.length ?? 0} products');
-      setState(() {
-        _reports = reports;
-      });
+      // Load movements (with cache)
+      final movementsCacheKey = 'movements_${widget.storeId}_$businessId';
+      final cachedMovements = _getFromCache<List<Map<String, dynamic>>>(movementsCacheKey);
+      
+      if (cachedMovements != null) {
+        setState(() {
+          _movements = cachedMovements;
+        });
+      } else {
+        final movements = await _apiService.getStoreInventoryMovements(
+          widget.storeId, 
+          businessId,
+          movementType: _selectedMovementType,
+          productId: _selectedProductId,
+        );
+        setState(() {
+          _movements = movements;
+        });
+        _setCache(movementsCacheKey, movements);
+      }
+      
+      // Load reports (with cache)
+      final reportsCacheKey = 'reports_${widget.storeId}_$businessId';
+      final cachedReports = _getFromCache<Map<String, dynamic>>(reportsCacheKey);
+      
+      if (cachedReports != null) {
+        setState(() {
+          _reports = cachedReports;
+        });
+      } else {
+        print('🔍 Loading reports for storeId: ${widget.storeId}, businessId: $businessId');
+        final reports = await _apiService.getStoreInventoryReports(widget.storeId, businessId);
+        print('📊 Reports loaded: ${reports.keys}');
+        print('📊 Current stock data: ${reports['current_stock']}');
+        print('📊 Current stock summary: ${reports['current_stock']?['summary']}');
+        print('📊 Current stock products: ${reports['current_stock']?['products']?.length ?? 0} products');
+        setState(() {
+          _reports = reports;
+        });
+        _setCache(reportsCacheKey, reports);
+      }
       
     } catch (e) {
       print('Store Inventory Error: $e');
@@ -248,6 +450,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         startDate: _detailedMovementsStartDate?.toIso8601String().split('T')[0],
         endDate: _detailedMovementsEndDate?.toIso8601String().split('T')[0],
         productId: _selectedProductForDetailed,
+        categoryId: _selectedCategoryForDetailed,
         movementType: _selectedDetailedMovementType,
         referenceType: _selectedReferenceType,
         page: _detailedMovementsPage,
@@ -370,21 +573,18 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     }
   }
 
-  // Load business transfers data
-  Future<void> _loadBusinessTransfers() async {
-    if (_businessTransfersLoading) return;
+  // Load transfer reports data
+  Future<void> _loadTransferReports() async {
+    if (_transferReportsLoading) return;
     
-    print('🔍 FRONTEND: Starting to load business transfers...');
+    print('🔍 FRONTEND: Starting to load transfer reports...');
     print('🔍 FRONTEND: Store ID: ${widget.storeId}');
-    print('🔍 FRONTEND: Time Period: $_businessTransfersTimePeriod');
-    print('🔍 FRONTEND: Start Date: $_businessTransfersStartDate');
-    print('🔍 FRONTEND: End Date: $_businessTransfersEndDate');
-    print('🔍 FRONTEND: Product ID: $_selectedProductForTransfers');
-    print('🔍 FRONTEND: Target Business ID: $_selectedBusinessForTransfers');
-    print('🔍 FRONTEND: Status: $_selectedTransferStatus');
+    print('🔍 FRONTEND: Time Period: $_transferReportsTimePeriod');
+    print('🔍 FRONTEND: Start Date: $_transferReportsStartDate');
+    print('🔍 FRONTEND: End Date: $_transferReportsEndDate');
     
     setState(() {
-      _businessTransfersLoading = true;
+      _transferReportsLoading = true;
     });
 
     try {
@@ -394,7 +594,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       if (user?.role == 'superadmin') {
         businessId = _selectedBusinessId;
         if (businessId == null) {
-          throw Exception('Please select a business to view transfers.');
+          throw Exception('Please select a business to view transfer reports.');
         }
       } else {
         businessId = user?.businessId;
@@ -406,36 +606,33 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       print('🔍 FRONTEND: Business ID determined: $businessId');
       print('🔍 FRONTEND: User role: ${user?.role}');
 
-        print('🔍 FRONTEND: Calling API service...');
-        final data = await _apiService.getBusinessTransfersReport(
-          widget.storeId,
-          businessId,
-          timePeriod: _businessTransfersTimePeriod,
-          startDate: _businessTransfersStartDate?.toIso8601String().split('T')[0],
-          endDate: _businessTransfersEndDate?.toIso8601String().split('T')[0],
-          productId: _selectedProductForTransfers,
-          targetBusinessId: _selectedBusinessForTransfers,
-          status: _selectedTransferStatus,
-          page: 1,
-          limit: _detailedReportsPageSize,
-        );
-        
-        print('🔍 FRONTEND: API call completed successfully');
+      print('🔍 FRONTEND: Calling API service...');
+      final data = await _apiService.getTransferReports(
+        widget.storeId,
+        businessId,
+        timePeriod: _transferReportsTimePeriod,
+        startDate: _transferReportsStartDate?.toIso8601String().split('T')[0],
+        endDate: _transferReportsEndDate?.toIso8601String().split('T')[0],
+        page: 1,
+        limit: _detailedReportsPageSize,
+      );
+      
+      print('🔍 FRONTEND: API call completed successfully');
 
       setState(() {
-        _businessTransfersData = data;
+        _transferReportsData = data;
       });
       
-      print('✅ Business Transfers Data Loaded:');
+      print('✅ Transfer Reports Data Loaded:');
       print('  - Transfers count: ${(data['transfers'] as List?)?.length ?? 0}');
       print('  - Summary: ${data['summary']}');
       print('  - Pagination: ${data['pagination']}');
       
     } catch (e) {
-      print('❌ FRONTEND: Business Transfers Error: $e');
+      print('❌ FRONTEND: Transfer Reports Error: $e');
       print('❌ FRONTEND: Error type: ${e.runtimeType}');
       if (mounted) {
-        String errorMessage = 'Failed to load business transfers';
+        String errorMessage = 'Failed to load transfer reports';
         
         if (e is ArgumentError) {
           errorMessage = 'Invalid parameters: ${e.message}';
@@ -451,11 +648,11 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           errorMessage = 'Server error: Please try again later';
         }
         
-        SuccessUtils.showOperationError(context, 'load business transfers', errorMessage);
+        SuccessUtils.showOperationError(context, 'load transfer reports', errorMessage);
       }
     } finally {
       setState(() {
-        _businessTransfersLoading = false;
+        _transferReportsLoading = false;
       });
     }
   }
@@ -464,15 +661,19 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   Widget build(BuildContext context) {
     final user = context.read<AuthProvider>().user;
     final isSuperAdmin = user?.role == 'superadmin';
+    final screenSize = MediaQuery.of(context).size;
+    final isMobile = ResponsiveUtils.isMobile(screenSize);
+    final isTablet = ResponsiveUtils.isTablet(screenSize);
     
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: BrandedAppBar(
         title: '${t(context,'Store Inventory')} - ${widget.storeName}',
         actions: [
           // Business selection for superadmin
           if (isSuperAdmin && _businesses.isNotEmpty)
             Container(
-              width: 200,
+              width: isMobile ? 150 : 200,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: DropdownButtonFormField<int>(
                 value: _selectedBusinessId,
@@ -497,6 +698,9 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     _selectedBusinessId = value;
                   });
                   _loadData();
+                  // Reload products and categories for the selected business
+                  _loadProductsForDetailed();
+                  _loadCategoriesForDetailed();
                 },
               ),
             ),
@@ -517,78 +721,211 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Tab Bar
-          Container(
-            color: Theme.of(context).primaryColor,
-            child: TabBar(
-              controller: _tabController,
-              indicatorColor: Colors.white,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              tabs: [
-                Tab(text: t(context,'Inventory')),
-                Tab(text: t(context,'Movements')),
-                Tab(text: t(context,'Reports')),
-                Tab(text: t(context,'Detailed Movements')),
-                Tab(text: t(context,'Purchases')),
-                Tab(text: t(context,'Increments')),
-                Tab(text: 'Business Transfers'),
-              ],
-            ),
+      body: _buildResponsiveBody(context, isSuperAdmin, isMobile, isTablet),
+    );
+  }
+
+  Widget _buildResponsiveBody(BuildContext context, bool isSuperAdmin, bool isMobile, bool isTablet) {
+    if (isMobile) {
+      return _buildMobileLayout(context, isSuperAdmin);
+    } else if (isTablet) {
+      return _buildTabletLayout(context, isSuperAdmin);
+    } else {
+      return _buildDesktopLayout(context, isSuperAdmin);
+    }
+  }
+
+  Widget _buildMobileLayout(BuildContext context, bool isSuperAdmin) {
+    return Column(
+      children: [
+        // Mobile Tab Bar
+        Container(
+          color: Theme.of(context).primaryColor,
+          child: TabBar(
+            controller: _tabController,
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            tabs: [
+              Tab(
+                icon: const Icon(Icons.inventory_2, size: 20),
+                text: t(context,'Inventory'),
+              ),
+              Tab(
+                icon: const Icon(Icons.trending_up, size: 20),
+                text: t(context,'Movements'),
+              ),
+              Tab(
+                icon: const Icon(Icons.analytics, size: 20),
+                text: t(context,'Reports'),
+              ),
+              Tab(
+                icon: const Icon(Icons.list_alt, size: 20),
+                text: t(context,'Details'),
+              ),
+              Tab(
+                icon: const Icon(Icons.shopping_cart, size: 20),
+                text: t(context,'Purchases'),
+              ),
+              Tab(
+                icon: const Icon(Icons.add_box, size: 20),
+                text: t(context,'Increments'),
+              ),
+              Tab(
+                icon: const Icon(Icons.swap_horiz, size: 20),
+                text: 'Transfers',
+              ),
+            ],
           ),
-          
-          // Tab Content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildInventoryTab(),
-                _buildMovementsTab(),
-                _buildReportsTab(),
-                _buildDetailedMovementsTab(),
-                _buildPurchasesTab(),
-                _buildIncrementsTab(),
-                _buildBusinessTransfersTab(),
-              ],
-            ),
+        ),
+        
+        // Mobile Tab Content
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildMobileInventoryTab(),
+              _buildMobileMovementsTab(),
+              _buildMobileReportsTab(),
+              _buildMobileDetailedMovementsTab(),
+              _buildMobilePurchasesTab(),
+              _buildMobileIncrementsTab(),
+              _buildMobileTransferReportsTab(),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabletLayout(BuildContext context, bool isSuperAdmin) {
+    return Column(
+      children: [
+        // Tablet Tab Bar
+        Container(
+          color: Theme.of(context).primaryColor,
+          child: TabBar(
+            controller: _tabController,
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            isScrollable: true,
+            tabs: [
+              Tab(
+                icon: const Icon(Icons.inventory_2),
+                text: t(context,'Inventory'),
+              ),
+              Tab(
+                icon: const Icon(Icons.trending_up),
+                text: t(context,'Movements'),
+              ),
+              Tab(
+                icon: const Icon(Icons.analytics),
+                text: t(context,'Reports'),
+              ),
+              Tab(
+                icon: const Icon(Icons.list_alt),
+                text: t(context,'Detailed Movements'),
+              ),
+              Tab(
+                icon: const Icon(Icons.shopping_cart),
+                text: t(context,'Purchases'),
+              ),
+              Tab(
+                icon: const Icon(Icons.add_box),
+                text: t(context,'Increments'),
+              ),
+            ],
+          ),
+        ),
+        
+        // Tablet Tab Content
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildTabletInventoryTab(),
+              _buildTabletMovementsTab(),
+              _buildTabletReportsTab(),
+              _buildTabletDetailedMovementsTab(),
+              _buildTabletPurchasesTab(),
+              _buildTabletIncrementsTab(),
+              _buildTabletTransferReportsTab(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopLayout(BuildContext context, bool isSuperAdmin) {
+    return Column(
+      children: [
+        // Desktop Tab Bar
+        Container(
+          color: Theme.of(context).primaryColor,
+          child: TabBar(
+            controller: _tabController,
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            tabs: [
+              Tab(
+                icon: const Icon(Icons.inventory_2),
+                text: t(context,'Inventory'),
+              ),
+              Tab(
+                icon: const Icon(Icons.trending_up),
+                text: t(context,'Movements'),
+              ),
+              Tab(
+                icon: const Icon(Icons.analytics),
+                text: t(context,'Reports'),
+              ),
+              Tab(
+                icon: const Icon(Icons.list_alt),
+                text: t(context,'Detailed Movements'),
+              ),
+              Tab(
+                icon: const Icon(Icons.shopping_cart),
+                text: t(context,'Purchases'),
+              ),
+              Tab(
+                icon: const Icon(Icons.add_box),
+                text: t(context,'Increments'),
+              ),
+            ],
+          ),
+        ),
+        
+        // Desktop Tab Content
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildDesktopInventoryTab(),
+              _buildDesktopMovementsTab(),
+              _buildDesktopReportsTab(),
+              _buildDesktopDetailedMovementsTab(),
+              _buildDesktopPurchasesTab(),
+              _buildDesktopIncrementsTab(),
+              _buildDesktopTransferReportsTab(),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildInventoryTab() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return _buildLoadingState();
     }
 
     if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-            const SizedBox(height: 16),
-            Text(
-              t(context,'Error loading inventory'),
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _error!,
-              style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadData,
-              child: Text(t(context,'Retry')),
-            ),
-          ],
-        ),
-      );
+      return _buildErrorState();
     }
 
     return Column(
@@ -622,41 +959,55 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
 
   Widget _buildInventoryList() {
     final filteredInventory = _inventory.where((item) {
+      // Search filter
       final matchesSearch = _searchQuery.isEmpty ||
           item['product_name'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          item['sku'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
+          item['sku'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (item['category_name'] ?? item['category'] ?? '').toString().toLowerCase().contains(_searchQuery.toLowerCase());
       
-      return matchesSearch;
+      // Stock status filter
+      final matchesStockStatus = _selectedStockStatus.isEmpty ||
+          (item['stock_status'] ?? '').toString() == _selectedStockStatus;
+      
+      // Category filter
+      final matchesCategory = _selectedCategory.isEmpty ||
+          (item['category_name'] ?? item['category'] ?? '').toString() == _selectedCategory;
+      
+      // Price range filter
+      final price = double.tryParse(item['price']?.toString() ?? '0') ?? 0.0;
+      final matchesPriceRange = (_minPrice == null || price >= _minPrice!) &&
+          (_maxPrice == null || price <= _maxPrice!);
+      
+      return matchesSearch && matchesStockStatus && matchesCategory && matchesPriceRange;
     }).toList();
 
     if (filteredInventory.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              t(context,'No inventory found'),
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              t(context,'Add products to this store to get started'),
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ],
-        ),
+      return _buildEmptyState(
+        icon: Icons.inventory_2_outlined,
+        title: t(context,'No inventory found'),
+        subtitle: t(context,'Add products to this store to get started'),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: filteredInventory.length,
-      itemBuilder: (context, index) {
-        final item = filteredInventory[index];
-        return _buildInventoryCard(item);
-      },
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: ListView.builder(
+        controller: _inventoryScrollController,
+        padding: const EdgeInsets.all(16),
+        itemCount: filteredInventory.length + (_inventoryLoadingMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == filteredInventory.length) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+          final item = filteredInventory[index];
+          return _buildProfessionalInventoryCard(item);
+        },
+      ),
     );
   }
 
@@ -935,6 +1286,318 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     );
   }
 
+  Widget _buildProfessionalInventoryCard(Map<String, dynamic> item) {
+    final stockStatus = item['stock_status'] as String?;
+    final quantity = item['store_quantity'] ?? item['quantity'] ?? 0;
+    final minStock = item['min_stock_level'] ?? 0;
+    final costPrice = double.tryParse(item['cost_price']?.toString() ?? '0') ?? 0.0;
+    final sellingPrice = double.tryParse(item['price']?.toString() ?? '0') ?? 0.0;
+    
+    Color statusColor;
+    IconData statusIcon;
+    String statusText;
+    
+    switch (stockStatus) {
+      case 'LOW_STOCK':
+        statusColor = Colors.orange;
+        statusIcon = Icons.warning;
+        statusText = 'Low Stock';
+        break;
+      case 'OUT_OF_STOCK':
+        statusColor = Colors.red;
+        statusIcon = Icons.error;
+        statusText = 'Out of Stock';
+        break;
+      default:
+        statusColor = Colors.green;
+        statusIcon = Icons.check_circle;
+        statusText = 'In Stock';
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Theme.of(context).colorScheme.surface,
+              Theme.of(context).colorScheme.surface.withOpacity(0.8),
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Row
+              Row(
+                children: [
+                  // Product Image
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: Colors.grey[100],
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: item['image_url'] != null && item['image_url'].toString().isNotEmpty
+                          ? Image.network(
+                              'https://rtailed-production.up.railway.app${item['image_url']}',
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey[200],
+                                  child: Icon(Icons.image, color: Colors.grey[400], size: 32),
+                                );
+                              },
+                            )
+                          : Container(
+                              color: Colors.grey[200],
+                              child: Icon(Icons.image, color: Colors.grey[400], size: 32),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Product Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item['product_name'] ?? 'Unknown Product',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: statusColor.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(statusIcon, color: statusColor, size: 16),
+                              const SizedBox(width: 6),
+                              Text(
+                                statusText,
+                                style: TextStyle(
+                                  color: statusColor,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'SKU: ${item['sku'] ?? 'N/A'}',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Stock Quantity Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: statusColor.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Stock',
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          quantity.toString(),
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              // Price Information
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildPriceInfo(
+                        'Cost Price',
+                        '₦${costPrice.toStringAsFixed(2)}',
+                        Icons.monetization_on,
+                        Colors.green,
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: Colors.grey[300],
+                    ),
+                    Expanded(
+                      child: _buildPriceInfo(
+                        'Selling Price',
+                        '₦${sellingPrice.toStringAsFixed(2)}',
+                        Icons.sell,
+                        Colors.blue,
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: Colors.grey[300],
+                    ),
+                    Expanded(
+                      child: _buildPriceInfo(
+                        'Profit Margin',
+                        '₦${(sellingPrice - costPrice).toStringAsFixed(2)}',
+                        Icons.trending_up,
+                        sellingPrice > costPrice ? Colors.green : Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (minStock > 0) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.orange, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Minimum Stock Level: $minStock',
+                        style: TextStyle(
+                          color: Colors.orange[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              // Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showAddStockDialog(item),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Add Stock'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showEditCostDialog(item),
+                      icon: const Icon(Icons.edit, size: 18),
+                      label: const Text('Edit Cost'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.blue,
+                        side: BorderSide(color: Colors.blue),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPriceInfo(String label, String value, IconData icon, Color color) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
   String _getStockStatusLabel(String? status) {
     switch (status) {
       case 'LOW_STOCK':
@@ -1004,18 +1667,10 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
 
   Widget _buildMovementsList() {
     if (_movements.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.history, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              t(context,'No movements found'),
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-          ],
-        ),
+      return _buildEmptyState(
+        icon: Icons.history,
+        title: t(context, 'No movements found'),
+        subtitle: t(context, 'Inventory movements will appear here when products are added or transferred'),
       );
     }
 
@@ -1116,29 +1771,11 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     print('🔍 _reports current_stock: ${_reports['current_stock']}');
     
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return _buildLoadingState();
     }
 
     if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-            const SizedBox(height: 16),
-            Text(
-              _error!,
-              style: TextStyle(color: Colors.red[600]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadData,
-              child: Text(t(context, 'Retry')),
-            ),
-          ],
-        ),
-      );
+      return _buildErrorState();
     }
 
     return SingleChildScrollView(
@@ -1146,9 +1783,9 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Report Header
+          // Modern Report Header
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
@@ -1158,29 +1795,45 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(context).primaryColor.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Row(
               children: [
-                Icon(Icons.analytics, color: Colors.white, size: 24),
-                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.analytics, color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        t(context, 'Store Inventory Reports'),
+                        t(context, 'Store Inventory Analytics'),
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 18,
+                          fontSize: 24,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      const SizedBox(height: 4),
                       Text(
                         widget.storeName,
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.9),
-                          fontSize: 14,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
@@ -1188,13 +1841,13 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 ),
                 if (_reports.isNotEmpty && _reports['report_metadata'] != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      _formatDate(DateTime.parse(_reports['report_metadata']['generated_at'])),
+                      'Last updated: ${_formatDate(DateTime.parse(_reports['report_metadata']['generated_at']))}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -1206,32 +1859,594 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             ),
           ),
           
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           
-          // Current Stock Summary
-          _buildCurrentStockSummary(),
+          // Key Metrics Dashboard
+          _buildKeyMetricsDashboard(),
           
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           
-          // Financial Summary
-          _buildFinancialSummary(),
+          // Charts and Analytics Grid
+          _buildAnalyticsGrid(),
           
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           
-          // Movement Summary
-          _buildMovementSummary(),
-          
-          const SizedBox(height: 16),
-          
-          // Low Stock Alerts
-          _buildLowStockAlerts(),
-          
-          const SizedBox(height: 16),
-          
-          // Top Products
-          _buildTopProducts(),
+          // Detailed Reports Section
+          _buildDetailedReportsSection(),
         ],
       ),
+    );
+  }
+
+  // =====================================================
+  // MODERN ANALYTICS DASHBOARD METHODS
+  // =====================================================
+
+  Widget _buildKeyMetricsDashboard() {
+    final currentStock = _reports['current_stock']?['summary'] ?? {};
+    final financialSummary = _reports['financial_summary'] ?? {};
+    final movementSummary = _reports['movement_summary'] ?? {};
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Key Performance Indicators',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 16),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 4,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.5,
+          children: [
+            _buildMetricCard(
+              'Total Products',
+              (currentStock['total_products'] ?? 0).toString(),
+              Icons.inventory_2,
+              Colors.blue,
+              'Active inventory items',
+            ),
+            _buildMetricCard(
+              'Total Units',
+              (currentStock['total_units'] ?? 0).toString(),
+              Icons.shopping_cart,
+              Colors.green,
+              'Units in stock',
+            ),
+            _buildMetricCard(
+              'Total Value',
+              '₦${(double.tryParse(financialSummary['total_selling_value']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
+              Icons.attach_money,
+              Colors.purple,
+              'Inventory value',
+            ),
+            _buildMetricCard(
+              'Low Stock Items',
+              (currentStock['low_stock'] ?? 0).toString(),
+              Icons.warning,
+              Colors.orange,
+              'Need restocking',
+            ),
+            _buildMetricCard(
+              'Out of Stock',
+              (currentStock['out_of_stock'] ?? 0).toString(),
+              Icons.error,
+              Colors.red,
+              'Critical items',
+            ),
+            _buildMetricCard(
+              'Total Movements',
+              (movementSummary['total_products_with_movements'] ?? 0).toString(),
+              Icons.trending_up,
+              Colors.teal,
+              'Active products',
+            ),
+            _buildMetricCard(
+              'Stock Added',
+              (movementSummary['total_stock_in'] ?? 0).toString(),
+              Icons.add_box,
+              Colors.indigo,
+              'Units added',
+            ),
+            _buildMetricCard(
+              'Transferred Out',
+              (movementSummary['total_transferred_out'] ?? 0).toString(),
+              Icons.send,
+              Colors.cyan,
+              'Units transferred',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricCard(String title, String value, IconData icon, Color color, String subtitle) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: ThemeAwareColors.getSecondaryTextColor(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyticsGrid() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Analytics & Insights',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 16),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.8,
+          children: [
+            _buildAnalyticsCard(
+              'Stock Status Distribution',
+              Icons.pie_chart,
+              Colors.blue,
+              _buildStockStatusChart(),
+            ),
+            _buildAnalyticsCard(
+              'Financial Overview',
+              Icons.account_balance_wallet,
+              Colors.green,
+              _buildFinancialOverview(),
+            ),
+            _buildAnalyticsCard(
+              'Movement Trends',
+              Icons.trending_up,
+              Colors.orange,
+              _buildMovementTrends(),
+            ),
+            _buildAnalyticsCard(
+              'Top Products',
+              Icons.star,
+              Colors.purple,
+              _buildTopProductsPreview(),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAnalyticsCard(String title, IconData icon, Color color, Widget content) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(child: content),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStockStatusChart() {
+    final currentStock = _reports['current_stock']?['summary'] ?? {};
+    final inStock = currentStock['in_stock'] ?? 0;
+    final lowStock = currentStock['low_stock'] ?? 0;
+    final outOfStock = currentStock['out_of_stock'] ?? 0;
+    final total = inStock + lowStock + outOfStock;
+    
+    if (total == 0) {
+      return Center(
+        child: Text(
+          'No data available',
+          style: TextStyle(color: ThemeAwareColors.getSecondaryTextColor(context)),
+        ),
+      );
+    }
+    
+    return Column(
+      children: [
+        // Simple bar chart representation
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Container(
+                      height: (inStock / total) * 100,
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'In Stock',
+                      style: TextStyle(fontSize: 10, color: ThemeAwareColors.getSecondaryTextColor(context)),
+                    ),
+                    Text(
+                      inStock.toString(),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Container(
+                      height: (lowStock / total) * 100,
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Low Stock',
+                      style: TextStyle(fontSize: 10, color: ThemeAwareColors.getSecondaryTextColor(context)),
+                    ),
+                    Text(
+                      lowStock.toString(),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Container(
+                      height: (outOfStock / total) * 100,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Out of Stock',
+                      style: TextStyle(fontSize: 10, color: ThemeAwareColors.getSecondaryTextColor(context)),
+                    ),
+                    Text(
+                      outOfStock.toString(),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFinancialOverview() {
+    final financialSummary = _reports['financial_summary'] ?? {};
+    final totalCost = double.tryParse(financialSummary['total_cost_value']?.toString() ?? '0') ?? 0.0;
+    final totalSelling = double.tryParse(financialSummary['total_selling_value']?.toString() ?? '0') ?? 0.0;
+    final profitPotential = totalSelling - totalCost;
+    
+    return Column(
+      children: [
+        _buildFinancialRow('Total Cost Value', '₦${totalCost.toStringAsFixed(0)}', Colors.red),
+        const SizedBox(height: 8),
+        _buildFinancialRow('Total Selling Value', '₦${totalSelling.toStringAsFixed(0)}', Colors.green),
+        const SizedBox(height: 8),
+        _buildFinancialRow('Profit Potential', '₦${profitPotential.toStringAsFixed(0)}', Colors.blue),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: ThemeAwareColors.getInputFillColor(context),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Profit Margin',
+                style: TextStyle(fontSize: 12, color: ThemeAwareColors.getSecondaryTextColor(context)),
+              ),
+              Text(
+                totalSelling > 0 ? '${((profitPotential / totalSelling) * 100).toStringAsFixed(1)}%' : '0%',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFinancialRow(String label, String value, Color color) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: ThemeAwareColors.getSecondaryTextColor(context)),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMovementTrends() {
+    final movementSummary = _reports['movement_summary'] ?? {};
+    final stockIn = movementSummary['total_stock_in'] ?? 0;
+    final transferredOut = movementSummary['total_transferred_out'] ?? 0;
+    
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildTrendItem('Stock Added', stockIn.toString(), Icons.add_box, Colors.green),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildTrendItem('Transferred', transferredOut.toString(), Icons.send, Colors.blue),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: ThemeAwareColors.getInputFillColor(context),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Net Movement',
+                style: TextStyle(fontSize: 12, color: ThemeAwareColors.getSecondaryTextColor(context)),
+              ),
+              Text(
+                (stockIn - transferredOut).toString(),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: (stockIn - transferredOut) >= 0 ? Colors.green : Colors.red,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTrendItem(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: ThemeAwareColors.getSecondaryTextColor(context),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopProductsPreview() {
+    final topProducts = _reports['top_products'] ?? [];
+    
+    if (topProducts.isEmpty) {
+      return Center(
+        child: Text(
+          'No data available',
+          style: TextStyle(color: ThemeAwareColors.getSecondaryTextColor(context)),
+        ),
+      );
+    }
+    
+    return ListView.builder(
+      shrinkWrap: true,
+      itemCount: topProducts.length > 3 ? 3 : topProducts.length,
+      itemBuilder: (context, index) {
+        final product = topProducts[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: Colors.purple,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  product['product_name'] ?? 'Unknown',
+                  style: const TextStyle(fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                '${product['movement_count'] ?? 0}',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailedReportsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Detailed Reports',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Keep existing detailed report methods
+        _buildCurrentStockSummary(),
+        const SizedBox(height: 16),
+        _buildFinancialSummary(),
+        const SizedBox(height: 16),
+        _buildMovementSummary(),
+        const SizedBox(height: 16),
+        _buildLowStockAlerts(),
+        const SizedBox(height: 16),
+        _buildTopProducts(),
+      ],
     );
   }
 
@@ -1240,6 +2455,10 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   // =====================================================
 
   Widget _buildDetailedMovementsTab() {
+    if (_detailedMovementsLoading) {
+      return _buildLoadingState();
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -1280,6 +2499,10 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildPurchasesTab() {
+    if (_purchasesLoading) {
+      return _buildLoadingState();
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -1320,6 +2543,10 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildIncrementsTab() {
+    if (_incrementsLoading) {
+      return _buildLoadingState();
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -1359,7 +2586,457 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     );
   }
 
-  Widget _buildBusinessTransfersTab() {
+  // =====================================================
+  // MOBILE-SPECIFIC TAB METHODS
+  // =====================================================
+
+  Widget _buildMobileInventoryTab() {
+    if (_loading) {
+      return _buildLoadingState();
+    }
+
+    if (_error != null) {
+      return _buildErrorState();
+    }
+
+    return Column(
+      children: [
+        // Mobile Search and Filters
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Search Bar
+              TextField(
+                decoration: InputDecoration(
+                  hintText: t(context,'Search products...'),
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Theme.of(context).colorScheme.surfaceVariant,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              // Quick Stats
+              _buildMobileQuickStats(),
+            ],
+          ),
+        ),
+        
+        // Mobile Inventory List
+        Expanded(
+          child: _buildMobileInventoryList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileMovementsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Mobile Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Theme.of(context).primaryColor,
+                  Theme.of(context).primaryColor.withOpacity(0.8),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.trending_up, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Inventory Movements',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Track all stock movements',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Mobile Filters
+          _buildMobileMovementFilters(),
+          const SizedBox(height: 16),
+          
+          // Mobile Movements List
+          _buildMobileMovementsList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileReportsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Mobile Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Theme.of(context).primaryColor,
+                  Theme.of(context).primaryColor.withOpacity(0.8),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.analytics, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Inventory Reports',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Comprehensive analytics',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Mobile Report Cards
+          _buildMobileReportCards(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileDetailedMovementsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Mobile Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Theme.of(context).primaryColor,
+                  Theme.of(context).primaryColor.withOpacity(0.8),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.list_alt, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Detailed Movements',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Complete movement history',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Mobile Filters
+          _buildMobileDetailedFilters(),
+          const SizedBox(height: 16),
+          
+          // Mobile Detailed List
+          _buildMobileDetailedList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobilePurchasesTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Mobile Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Theme.of(context).primaryColor,
+                  Theme.of(context).primaryColor.withOpacity(0.8),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.shopping_cart, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Purchase History',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Track all purchases',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Mobile Purchases List
+          _buildMobilePurchasesList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileIncrementsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Mobile Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Theme.of(context).primaryColor,
+                  Theme.of(context).primaryColor.withOpacity(0.8),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.add_box, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Stock Increments',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Track stock additions',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Mobile Increments List
+          _buildMobileIncrementsList(),
+        ],
+      ),
+    );
+  }
+
+  // =====================================================
+  // TABLET-SPECIFIC TAB METHODS
+  // =====================================================
+
+  Widget _buildTabletInventoryTab() {
+    return _buildDesktopInventoryTab(); // Reuse desktop for now
+  }
+
+  Widget _buildTabletMovementsTab() {
+    return _buildDesktopMovementsTab(); // Reuse desktop for now
+  }
+
+  Widget _buildTabletReportsTab() {
+    return _buildDesktopReportsTab(); // Reuse desktop for now
+  }
+
+  Widget _buildTabletDetailedMovementsTab() {
+    return _buildDesktopDetailedMovementsTab(); // Reuse desktop for now
+  }
+
+  Widget _buildTabletPurchasesTab() {
+    return _buildDesktopPurchasesTab(); // Reuse desktop for now
+  }
+
+  Widget _buildTabletIncrementsTab() {
+    return _buildDesktopIncrementsTab(); // Reuse desktop for now
+  }
+
+  // =====================================================
+  // DESKTOP-SPECIFIC TAB METHODS
+  // =====================================================
+
+  Widget _buildDesktopInventoryTab() {
+    return _buildInventoryTab(); // Use existing method
+  }
+
+  Widget _buildDesktopMovementsTab() {
+    return _buildMovementsTab(); // Use existing method
+  }
+
+  Widget _buildDesktopReportsTab() {
+    return _buildReportsTab(); // Use existing method
+  }
+
+  Widget _buildDesktopDetailedMovementsTab() {
+    return _buildDetailedMovementsTab(); // Use existing method
+  }
+
+  Widget _buildDesktopPurchasesTab() {
+    return _buildPurchasesTab(); // Use existing method
+  }
+
+  Widget _buildDesktopIncrementsTab() {
+    return _buildIncrementsTab(); // Use existing method
+  }
+
+  Widget _buildDesktopTransferReportsTab() {
+    return _buildTransferReportsTab(); // Use existing method
+  }
+
+  Widget _buildTabletTransferReportsTab() {
+    return _buildDesktopTransferReportsTab(); // Reuse desktop for now
+  }
+
+  Widget _buildMobileTransferReportsTab() {
+    return _buildTransferReportsTab(); // Use existing method
+  }
+
+  Widget _buildTransferReportsTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -1369,14 +3046,14 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             children: [
               Expanded(
                 child: Text(
-                  'Business Transfers Report',
+                  'Transfer Reports',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
               IconButton(
-                onPressed: _loadBusinessTransfers,
+                onPressed: _loadTransferReports,
                 icon: const Icon(Icons.refresh),
                 tooltip: 'Refresh Data',
               ),
@@ -1385,18 +3062,656 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           const SizedBox(height: 16),
           
           // Filters Row
-          _buildBusinessTransfersFilters(),
+          _buildTransferReportsFilters(),
           const SizedBox(height: 16),
           
           // Data Display
-          _businessTransfersLoading
+          _transferReportsLoading
               ? const Center(child: CircularProgressIndicator())
-              : (_businessTransfersData['transfers'] as List?)?.isEmpty ?? true
-                  ? _buildEmptyBusinessTransfers()
-                  : _buildBusinessTransfersTable(),
+              : (_transferReportsData['transfers'] as List?)?.isEmpty ?? true
+                  ? _buildEmptyTransferReports()
+                  : _buildTransferReportsTable(),
         ],
       ),
     );
+  }
+
+  Widget _buildTransferReportsFilters() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 768;
+    
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Filters',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            isSmallScreen ? _buildMobileTransferReportsFilters() : _buildDesktopTransferReportsFilters(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileTransferReportsFilters() {
+    return Column(
+      children: [
+        // Time Period
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Time Period:', style: TextStyle(fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _transferReportsTimePeriod,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'all', child: Text('All Time')),
+                DropdownMenuItem(value: 'today', child: Text('Today')),
+                DropdownMenuItem(value: 'week', child: Text('This Week')),
+                DropdownMenuItem(value: 'month', child: Text('This Month')),
+                DropdownMenuItem(value: 'custom', child: Text('Custom Range')),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _transferReportsTimePeriod = value ?? 'all';
+                });
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        
+        // Custom Date Range (if selected)
+        if (_transferReportsTimePeriod == 'custom') ...[
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _showTransferReportsStartDatePicker(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          _transferReportsStartDate != null
+                              ? '${_transferReportsStartDate!.day}/${_transferReportsStartDate!.month}/${_transferReportsStartDate!.year}'
+                              : 'Start Date',
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _showTransferReportsEndDatePicker(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          _transferReportsEndDate != null
+                              ? '${_transferReportsEndDate!.day}/${_transferReportsEndDate!.month}/${_transferReportsEndDate!.year}'
+                              : 'End Date',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+        ],
+        
+        // Apply Button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _loadTransferReports,
+            child: const Text('Apply Filters'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopTransferReportsFilters() {
+    return Row(
+      children: [
+        // Time Period
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Time Period:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(height: 4),
+              DropdownButtonFormField<String>(
+                value: _transferReportsTimePeriod,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'all', child: Text('All Time')),
+                  DropdownMenuItem(value: 'today', child: Text('Today')),
+                  DropdownMenuItem(value: 'week', child: Text('This Week')),
+                  DropdownMenuItem(value: 'month', child: Text('This Month')),
+                  DropdownMenuItem(value: 'custom', child: Text('Custom Range')),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _transferReportsTimePeriod = value ?? 'all';
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 16),
+        
+        // Custom Date Range (if selected)
+        if (_transferReportsTimePeriod == 'custom') ...[
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Start Date:', style: TextStyle(fontWeight: FontWeight.w500)),
+                const SizedBox(height: 4),
+                InkWell(
+                  onTap: () => _showTransferReportsStartDatePicker(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      _transferReportsStartDate != null
+                          ? '${_transferReportsStartDate!.day}/${_transferReportsStartDate!.month}/${_transferReportsStartDate!.year}'
+                          : 'Select Start Date',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('End Date:', style: TextStyle(fontWeight: FontWeight.w500)),
+                const SizedBox(height: 4),
+                InkWell(
+                  onTap: () => _showTransferReportsEndDatePicker(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      _transferReportsEndDate != null
+                          ? '${_transferReportsEndDate!.day}/${_transferReportsEndDate!.month}/${_transferReportsEndDate!.year}'
+                          : 'Select End Date',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+        ],
+        
+        // Apply Button
+        ElevatedButton(
+          onPressed: _loadTransferReports,
+          child: const Text('Apply Filters'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyTransferReports() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.swap_horiz, size: 64, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            'No transfer reports found',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try adjusting your filters or check if there are any transfers',
+            style: TextStyle(color: Colors.grey[600]),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadTransferReports,
+            child: const Text('Load Data'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransferReportsTable() {
+    final transfers = _transferReportsData['transfers'] as List<dynamic>? ?? [];
+    final summary = _transferReportsData['summary'] as Map<String, dynamic>? ?? {};
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 768;
+
+    return Column(
+      children: [
+        // Summary Cards
+        if (summary.isNotEmpty) _buildTransferReportsSummary(summary),
+        const SizedBox(height: 16),
+        
+        // Data Table
+        Card(
+          child: isSmallScreen 
+              ? _buildMobileTransferReportsList(transfers)
+              : _buildDesktopTransferReportsTable(transfers),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopTransferReportsTable(List<dynamic> transfers) {
+    return Column(
+      children: [
+        // Table Header
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(8),
+              topRight: Radius.circular(8),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(flex: 2, child: Text('Product', style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(child: Text('Quantity', style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(child: Text('To Business', style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
+            ],
+          ),
+        ),
+        
+        // Table Body
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: transfers.length,
+          itemBuilder: (context, index) {
+            final transfer = transfers[index] as Map<String, dynamic>;
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey[200]!),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          transfer['product_name'] ?? 'Unknown',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          'SKU: ${transfer['sku'] ?? 'N/A'}',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '${transfer['quantity'] ?? 0}',
+                        style: const TextStyle(
+                          color: Colors.blue,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      transfer['target_business_name'] ?? 'Unknown',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      transfer['transfer_date'] != null
+                          ? DateTime.parse(transfer['transfer_date']).toString().split(' ')[0]
+                          : 'N/A',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'Completed',
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileTransferReportsList(List<dynamic> transfers) {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: transfers.length,
+      itemBuilder: (context, index) {
+        final transfer = transfers[index] as Map<String, dynamic>;
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        transfer['product_name'] ?? 'Unknown',
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'Completed',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text('SKU: ${transfer['sku'] ?? 'N/A'}', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                const SizedBox(height: 4),
+                Text('Quantity: ${transfer['quantity'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w500)),
+                const SizedBox(height: 4),
+                Text('To: ${transfer['target_business_name'] ?? 'Unknown'}', style: const TextStyle(fontWeight: FontWeight.w500)),
+                const SizedBox(height: 4),
+                Text(
+                  'Date: ${transfer['transfer_date'] != null ? DateTime.parse(transfer['transfer_date']).toString().split(' ')[0] : 'N/A'}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTransferReportsSummary(Map<String, dynamic> summary) {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 768;
+    
+    if (isSmallScreen) {
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Icon(Icons.swap_horiz, color: Colors.blue[600]),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${summary['total_transfers'] ?? 0}',
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                        const Text('Total Transfers'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Icon(Icons.inventory, color: Colors.green[600]),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${summary['total_quantity_transferred'] ?? 0}',
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                        const Text('Items Transferred'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Icon(Icons.business, color: Colors.orange[600]),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${summary['unique_businesses'] ?? 0}',
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                        const Text('Businesses Served'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Icon(Icons.category, color: Colors.purple[600]),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${summary['unique_products'] ?? 0}',
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                        const Text('Products Transferred'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+    
+    return Row(
+      children: [
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.swap_horiz, color: Colors.blue[600]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${summary['total_transfers'] ?? 0}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('Total Transfers'),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.inventory, color: Colors.green[600]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${summary['total_quantity_transferred'] ?? 0}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('Items Transferred'),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.business, color: Colors.orange[600]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${summary['unique_businesses'] ?? 0}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('Businesses Served'),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.category, color: Colors.purple[600]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${summary['unique_products'] ?? 0}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('Products Transferred'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showTransferReportsStartDatePicker(BuildContext context) {
+    showDatePicker(
+      context: context,
+      initialDate: _transferReportsStartDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    ).then((date) {
+      if (date != null) {
+        setState(() {
+          _transferReportsStartDate = date;
+        });
+      }
+    });
+  }
+
+  void _showTransferReportsEndDatePicker(BuildContext context) {
+    showDatePicker(
+      context: context,
+      initialDate: _transferReportsEndDate ?? DateTime.now(),
+      firstDate: _transferReportsStartDate ?? DateTime(2020),
+      lastDate: DateTime.now(),
+    ).then((date) {
+      if (date != null) {
+        setState(() {
+          _transferReportsEndDate = date;
+        });
+      }
+    });
   }
 
   // =====================================================
@@ -1430,62 +3745,152 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   Widget _buildMobileFilters() {
     return Column(
       children: [
-        // Date Range
+        // Time Filter
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
+            const Text('Time Period:', style: TextStyle(fontWeight: FontWeight.w500)),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _showDetailedMovementsStartDatePicker(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        _detailedMovementsStartDate != null
-                            ? '${_detailedMovementsStartDate!.day}/${_detailedMovementsStartDate!.month}/${_detailedMovementsStartDate!.year}'
-                            : 'Start Date',
-                        style: TextStyle(
-                          color: _detailedMovementsStartDate != null ? Colors.black : Colors.grey,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text('to'),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _showDetailedMovementsEndDatePicker(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        _detailedMovementsEndDate != null
-                            ? '${_detailedMovementsEndDate!.day}/${_detailedMovementsEndDate!.month}/${_detailedMovementsEndDate!.year}'
-                            : 'End Date',
-                        style: TextStyle(
-                          color: _detailedMovementsEndDate != null ? Colors.black : Colors.grey,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            DropdownButtonFormField<String>(
+              value: _detailedMovementsTimeFilter,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
+              items: _detailedMovementsTimeFilterOptions.map((option) {
+                return DropdownMenuItem(value: option, child: Text(option));
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  _applyDetailedMovementsTimePreset(value);
+                }
+              },
             ),
           ],
         ),
         const SizedBox(height: 16),
+        
+        // Custom Date Range (only show if Custom Range is selected)
+        if (_detailedMovementsTimeFilter == 'Custom Range') ...[
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Custom Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _showDetailedMovementsStartDatePicker(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          _detailedMovementsStartDate != null
+                              ? '${_detailedMovementsStartDate!.day}/${_detailedMovementsStartDate!.month}/${_detailedMovementsStartDate!.year}'
+                              : 'Start Date',
+                          style: TextStyle(
+                            color: _detailedMovementsStartDate != null ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('to'),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _showDetailedMovementsEndDatePicker(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          _detailedMovementsEndDate != null
+                              ? '${_detailedMovementsEndDate!.day}/${_detailedMovementsEndDate!.month}/${_detailedMovementsEndDate!.year}'
+                              : 'End Date',
+                          style: TextStyle(
+                            color: _detailedMovementsEndDate != null ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+        ],
+        
+        // Category Filter
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Category:', style: TextStyle(fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int?>(
+              value: _selectedCategoryForDetailed,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('All Categories')),
+                ..._categoriesForDetailed.map((category) {
+                  return DropdownMenuItem(
+                    value: category['id'],
+                    child: Text(category['name'] ?? 'Unknown Category'),
+                  );
+                }).toList(),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedCategoryForDetailed = value;
+                });
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        
+        // Product Filter
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Product:', style: TextStyle(fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int?>(
+              value: _selectedProductForDetailed,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('All Products')),
+                ..._productsForDetailed.map((product) {
+                  return DropdownMenuItem(
+                    value: product['id'],
+                    child: Text(product['name'] ?? 'Unknown Product'),
+                  );
+                }).toList(),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedProductForDetailed = value;
+                });
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        
         // Movement Type Filter
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1513,6 +3918,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           ],
         ),
         const SizedBox(height: 16),
+        
         // Apply Filters Button
         SizedBox(
           width: double.infinity,
@@ -5633,6 +8039,216 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       ),
     );
   }
+
+  // =====================================================
+  // LOADING, ERROR, AND EMPTY STATE METHODS
+  // =====================================================
+
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).primaryColor,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  t(context, 'Loading inventory...'),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  t(context, 'Please wait while we fetch your data'),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: ThemeAwareColors.getSecondaryTextColor(context),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+          border: Border.all(
+            color: Colors.red.withOpacity(0.2),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.error_outline,
+                size: 48,
+                color: Colors.red[600],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              t(context, 'Something went wrong'),
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error ?? t(context, 'An unexpected error occurred'),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: ThemeAwareColors.getSecondaryTextColor(context),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _loadData,
+                  icon: const Icon(Icons.refresh),
+                  label: Text(t(context, 'Retry')),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Theme.of(context).primaryColor,
+                    side: BorderSide(
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _error = null;
+                    });
+                  },
+                  icon: const Icon(Icons.close),
+                  label: Text(t(context, 'Dismiss')),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    String? actionText,
+    VoidCallback? onAction,
+  }) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                icon,
+                size: 64,
+                color: Theme.of(context).primaryColor,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: ThemeAwareColors.getSecondaryTextColor(context),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (actionText != null && onAction != null) ...[
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: onAction,
+                icon: const Icon(Icons.add),
+                label: Text(actionText),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 
@@ -7387,5 +10003,224 @@ class _TransferDialogState extends State<_TransferDialog> {
         });
       }
     }
+  }
+
+  // =====================================================
+  // ENHANCED SEARCH AND FILTER METHODS
+  // =====================================================
+
+  Widget _buildQuickStatsRow() {
+    final currentStock = _reports['current_stock']?['summary'] ?? {};
+    final totalProducts = currentStock['total_products'] ?? 0;
+    final totalUnits = currentStock['total_units'] ?? 0;
+    final lowStock = currentStock['low_stock'] ?? 0;
+    final outOfStock = currentStock['out_of_stock'] ?? 0;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildQuickStatCard(
+            'Total Products',
+            totalProducts.toString(),
+            Icons.inventory_2,
+            Colors.blue,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildQuickStatCard(
+            'Total Units',
+            totalUnits.toString(),
+            Icons.shopping_cart,
+            Colors.green,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildQuickStatCard(
+            'Low Stock',
+            lowStock.toString(),
+            Icons.warning,
+            Colors.orange,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildQuickStatCard(
+            'Out of Stock',
+            outOfStock.toString(),
+            Icons.error,
+            Colors.red,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey[600],
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.filter_list, color: Theme.of(context).primaryColor),
+            const SizedBox(width: 8),
+            const Text('Filter Inventory'),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Stock Status Filter
+              DropdownButtonFormField<String>(
+                value: _selectedStockStatus,
+                decoration: const InputDecoration(
+                  labelText: 'Stock Status',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  const DropdownMenuItem(value: '', child: Text('All Statuses')),
+                  const DropdownMenuItem(value: 'IN_STOCK', child: Text('In Stock')),
+                  const DropdownMenuItem(value: 'LOW_STOCK', child: Text('Low Stock')),
+                  const DropdownMenuItem(value: 'OUT_OF_STOCK', child: Text('Out of Stock')),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedStockStatus = value ?? '';
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              // Category Filter
+              DropdownButtonFormField<String>(
+                value: _selectedCategory,
+                decoration: const InputDecoration(
+                  labelText: 'Category',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  const DropdownMenuItem(value: '', child: Text('All Categories')),
+                  ..._getUniqueCategories().map((category) => DropdownMenuItem(
+                    value: category,
+                    child: Text(category),
+                  )),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCategory = value ?? '';
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              // Price Range Filter
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Min Price',
+                        border: OutlineInputBorder(),
+                        prefixText: '₦',
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) {
+                        _minPrice = double.tryParse(value);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Max Price',
+                        border: OutlineInputBorder(),
+                        prefixText: '₦',
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) {
+                        _maxPrice = double.tryParse(value);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _selectedStockStatus = '';
+                _selectedCategory = '';
+                _minPrice = null;
+                _maxPrice = null;
+              });
+              Navigator.of(context).pop();
+            },
+            child: const Text('Clear All'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Apply filters - the filtering logic will be handled in _buildInventoryList
+            },
+            child: const Text('Apply Filters'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<String> _getUniqueCategories() {
+    final categories = <String>{};
+    for (final item in _inventory) {
+      final category = item['category_name'] ?? item['category'] ?? '';
+      if (category.isNotEmpty) {
+        categories.add(category.toString());
+      }
+    }
+    return categories.toList()..sort();
   }
 } 

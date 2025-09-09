@@ -2006,6 +2006,7 @@ class ApiService {
     String? startDate,
     String? endDate,
     int? productId,
+    int? categoryId,
     String? movementType,
     String? referenceType,
     int page = 1,
@@ -2019,6 +2020,7 @@ class ApiService {
     if (startDate != null) queryParams['start_date'] = startDate;
     if (endDate != null) queryParams['end_date'] = endDate;
     if (productId != null) queryParams['product_id'] = productId.toString();
+    if (categoryId != null) queryParams['category_id'] = categoryId.toString();
     if (movementType != null) queryParams['movement_type'] = movementType;
     if (referenceType != null) queryParams['reference_type'] = referenceType;
     
@@ -2104,14 +2106,11 @@ class ApiService {
     }
   }
 
-  // Get business transfers report
-  Future<Map<String, dynamic>> getBusinessTransfersReport(int storeId, int businessId, {
-    String timePeriod = 'all', // 'all', 'today', 'week', 'month', 'custom'
+  // Get transfer reports - NEW IMPLEMENTATION
+  Future<Map<String, dynamic>> getTransferReports(int storeId, int businessId, {
+    String timePeriod = 'all',
     String? startDate,
     String? endDate,
-    int? productId,
-    int? targetBusinessId,
-    String? status,
     int page = 1,
     int limit = 50,
   }) async {
@@ -2158,14 +2157,6 @@ class ApiService {
       }
     }
     
-    // Validate optional parameters
-    if (productId != null && productId <= 0) {
-      throw ArgumentError('Product ID must be a positive integer');
-    }
-    if (targetBusinessId != null && targetBusinessId <= 0) {
-      throw ArgumentError('Target business ID must be a positive integer');
-    }
-    
     final queryParams = <String, String>{
       'time_period': timePeriod,
       'page': page.toString(),
@@ -2176,13 +2167,10 @@ class ApiService {
       if (startDate != null) queryParams['start_date'] = startDate;
       if (endDate != null) queryParams['end_date'] = endDate;
     }
-    if (productId != null) queryParams['product_id'] = productId.toString();
-    if (targetBusinessId != null) queryParams['target_business_id'] = targetBusinessId.toString();
-    if (status != null && status.isNotEmpty) queryParams['status'] = status;
     
-    final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/business-transfers/$businessId').replace(queryParameters: queryParams);
+    final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/transfer-reports/$businessId').replace(queryParameters: queryParams);
     
-    print('🔍 API SERVICE: GET BUSINESS TRANSFERS REPORT: $uri');
+    print('🔍 API SERVICE: GET TRANSFER REPORTS: $uri');
     print('🔍 API SERVICE: Query params: $queryParams');
     print('🔍 API SERVICE: Store ID: $storeId, Business ID: $businessId');
     
@@ -2194,10 +2182,9 @@ class ApiService {
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('✅ API SERVICE: Business transfers report loaded successfully');
+        print('✅ API SERVICE: Transfer reports loaded successfully');
         return data;
       } else if (response.statusCode == 400) {
-        // Handle validation errors from backend
         final errorData = json.decode(response.body);
         throw Exception('Validation Error: ${errorData['message'] ?? 'Invalid request parameters'}');
       } else if (response.statusCode == 403) {
@@ -2205,7 +2192,7 @@ class ApiService {
       } else if (response.statusCode == 404) {
         throw Exception('Store or business not found');
       } else {
-        print('❌ API SERVICE: GET BUSINESS TRANSFERS REPORT ERROR: ${response.statusCode} ${response.body}');
+        print('❌ API SERVICE: GET TRANSFER REPORTS ERROR: ${response.statusCode} ${response.body}');
         throw Exception('Server Error: ${response.statusCode}');
       }
     } catch (e) {
@@ -2218,4 +2205,5 @@ class ApiService {
       }
     }
   }
+
 } 

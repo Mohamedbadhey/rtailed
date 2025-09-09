@@ -1685,12 +1685,25 @@ class ApiService {
     
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
+      print('🔍 DEBUG: API Response received. Status: ${response.statusCode}');
+      print('🔍 DEBUG: Response data type: ${data.runtimeType}');
+      print('🔍 DEBUG: Response data: $data');
+      
       // Handle both old format (direct array) and new format (object with inventory property)
       if (data is List) {
+        print('🔍 DEBUG: Data is List, returning directly');
         return List<Map<String, dynamic>>.from(data);
       } else if (data is Map && data.containsKey('inventory')) {
-        return List<Map<String, dynamic>>.from(data['inventory'] ?? []);
+        print('🔍 DEBUG: Data is Map with inventory property');
+        final inventory = data['inventory'] ?? [];
+        print('🔍 DEBUG: Inventory type: ${inventory.runtimeType}, length: ${inventory.length}');
+        if (inventory.isNotEmpty) {
+          print('🔍 DEBUG: First inventory item: ${inventory[0]}');
+          print('🔍 DEBUG: First item store_quantity: ${inventory[0]['store_quantity']} (type: ${inventory[0]['store_quantity'].runtimeType})');
+        }
+        return List<Map<String, dynamic>>.from(inventory);
       } else {
+        print('🔍 DEBUG: Data format not recognized, returning empty list');
         return [];
       }
     } else {

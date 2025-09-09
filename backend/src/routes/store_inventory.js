@@ -424,15 +424,38 @@ router.get('/:storeId/inventory/:businessId', auth, checkRole(['admin', 'manager
     console.log(`✅ Query successful! Found ${inventory.length} inventory records`);
     if (inventory.length > 0) {
       console.log(`📊 Sample record:`, inventory[0]);
+      console.log(`🔍 DEBUG: store_quantity type: ${typeof inventory[0].store_quantity}, value: ${inventory[0].store_quantity}`);
+      console.log(`🔍 DEBUG: quantity type: ${typeof inventory[0].quantity}, value: ${inventory[0].quantity}`);
+      console.log(`🔍 DEBUG: min_stock_level type: ${typeof inventory[0].min_stock_level}, value: ${inventory[0].min_stock_level}`);
+      console.log(`🔍 DEBUG: price type: ${typeof inventory[0].price}, value: ${inventory[0].price}`);
+      console.log(`🔍 DEBUG: cost_price type: ${typeof inventory[0].cost_price}, value: ${inventory[0].cost_price}`);
     }
     
-    res.json({
+    const responseData = {
       store_id: parseInt(storeId),
       business_id: parseInt(businessId),
       inventory,
       total_products: inventory.length,
       total_quantity: inventory.reduce((sum, item) => sum + item.quantity, 0)
+    };
+    
+    console.log(`🔍 DEBUG: Response data structure:`, {
+      store_id: typeof responseData.store_id,
+      business_id: typeof responseData.business_id,
+      inventory_count: responseData.inventory.length,
+      total_products: typeof responseData.total_products,
+      total_quantity: typeof responseData.total_quantity
     });
+    
+    if (responseData.inventory.length > 0) {
+      console.log(`🔍 DEBUG: First item in response:`, {
+        store_quantity: typeof responseData.inventory[0].store_quantity,
+        quantity: typeof responseData.inventory[0].quantity,
+        min_stock_level: typeof responseData.inventory[0].min_stock_level
+      });
+    }
+    
+    res.json(responseData);
   } catch (error) {
     console.error('Error fetching store inventory:', error);
     console.error('Error details:', {

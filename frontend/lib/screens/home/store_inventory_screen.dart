@@ -111,6 +111,21 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   List<Map<String, dynamic>> _categoriesForDetailed = [];
   
   static const int _detailedReportsPageSize = 50;
+  
+  // Business Transfers filter variables
+  DateTime? _businessTransfersStartDate;
+  DateTime? _businessTransfersEndDate;
+  String _businessTransfersTimePeriod = 'all';
+  int? _selectedProductForTransfers;
+  int? _selectedBusinessForTransfers;
+  Map<String, dynamic> _businessTransfersData = {};
+  
+  // Transfer Reports variables
+  bool _transferReportsLoading = false;
+  Map<String, dynamic> _transferReportsData = {};
+  String _transferReportsTimePeriod = 'all';
+  DateTime? _transferReportsStartDate;
+  DateTime? _transferReportsEndDate;
 
   @override
   void initState() {
@@ -202,9 +217,12 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       }
       
       if (businessId != null) {
-        final products = await _apiService.getProducts(businessId);
+        final products = await _apiService.getProducts();
         setState(() {
-          _productsForDetailed = products;
+          _productsForDetailed = products.map((product) => {
+            'id': product.id,
+            'name': product.name,
+          }).toList();
         });
       }
     } catch (e) {
@@ -224,7 +242,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       }
       
       if (businessId != null) {
-        final categories = await _apiService.getCategories(businessId);
+        final categories = await _apiService.getCategories();
         setState(() {
           _categoriesForDetailed = categories;
         });
@@ -269,8 +287,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         final newInventory = await _apiService.getStoreInventory(
           widget.storeId, 
           businessId,
-          page: _inventoryCurrentPage + 1,
-          limit: _itemsPerPage,
         );
         
         if (newInventory.isNotEmpty) {
@@ -350,17 +366,29 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       final cacheKey = 'inventory_${widget.storeId}_$businessId';
       final cachedInventory = _getFromCache<List<Map<String, dynamic>>>(cacheKey);
       
+      print('🔍 DEBUG: Loading inventory for store: ${widget.storeId}, business: $businessId');
+      
       if (cachedInventory != null) {
+        print('🔍 DEBUG: Using cached inventory data. Count: ${cachedInventory.length}');
         setState(() {
           _inventory = cachedInventory;
         });
       } else {
         // Load inventory
+        print('🔍 DEBUG: Fetching inventory from API...');
         final inventory = await _apiService.getStoreInventory(widget.storeId, businessId);
+        print('🔍 DEBUG: API response received. Inventory count: ${inventory.length}');
+        if (inventory.isNotEmpty) {
+          print('🔍 DEBUG: First inventory item: ${inventory[0]}');
+          print('🔍 DEBUG: First item store_quantity: ${inventory[0]['store_quantity']} (type: ${inventory[0]['store_quantity'].runtimeType})');
+          print('🔍 DEBUG: First item quantity: ${inventory[0]['quantity']} (type: ${inventory[0]['quantity'].runtimeType})');
+          print('🔍 DEBUG: First item min_stock_level: ${inventory[0]['min_stock_level']} (type: ${inventory[0]['min_stock_level'].runtimeType})');
+        }
         setState(() {
           _inventory = inventory;
         });
         _setCache(cacheKey, inventory);
+        print('🔍 DEBUG: Inventory loaded and cached successfully');
       }
       
       // Load movements (with cache)
@@ -573,6 +601,46 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     }
   }
 
+  // Load business transfers data
+  Future<void> _loadBusinessTransfers() async {
+    try {
+      final user = context.read<AuthProvider>().user;
+      int? businessId;
+      
+      if (user?.role == 'superadmin') {
+        businessId = _selectedBusinessId;
+        if (businessId == null) {
+          throw Exception('Please select a business to view business transfers.');
+        }
+      } else {
+        businessId = user?.businessId;
+        if (businessId == null) {
+          throw Exception('Business ID not found');
+        }
+      }
+      
+      final data = await _apiService.getTransferReports(
+        widget.storeId,
+        businessId,
+        timePeriod: _businessTransfersTimePeriod,
+        startDate: _businessTransfersStartDate?.toIso8601String().split('T')[0],
+        endDate: _businessTransfersEndDate?.toIso8601String().split('T')[0],
+        page: 1,
+        limit: _detailedReportsPageSize,
+      );
+      
+      setState(() {
+        _businessTransfersData = data;
+      });
+      
+    } catch (e) {
+      print('❌ Business Transfers Error: $e');
+      if (mounted) {
+        SuccessUtils.showOperationError(context, 'load business transfers', e.toString());
+      }
+    }
+  }
+
   // Load transfer reports data
   Future<void> _loadTransferReports() async {
     if (_transferReportsLoading) return;
@@ -662,8 +730,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     final user = context.read<AuthProvider>().user;
     final isSuperAdmin = user?.role == 'superadmin';
     final screenSize = MediaQuery.of(context).size;
-    final isMobile = ResponsiveUtils.isMobile(screenSize);
-    final isTablet = ResponsiveUtils.isTablet(screenSize);
+        final isMobile = ResponsiveUtils.isMobile(context);
+        final isTablet = ResponsiveUtils.isTablet(context);
     
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -958,6 +1026,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildInventoryList() {
+    print('🔍 DEBUG: Building inventory list. Total inventory items: ${_inventory.length}');
+    
     final filteredInventory = _inventory.where((item) {
       // Search filter
       final matchesSearch = _searchQuery.isEmpty ||
@@ -1005,6 +1075,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             );
           }
           final item = filteredInventory[index];
+          print('🔍 DEBUG: Building card for item at index $index: ${item['product_name']}');
           return _buildProfessionalInventoryCard(item);
         },
       ),
@@ -1124,7 +1195,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 Expanded(
                   child: _buildQuantityInfo(
                     t(context,'Store Quantity'),
-                    item['store_quantity'] ?? item['quantity'] ?? 0,
+                    _safeToInt(item['store_quantity'] ?? item['quantity']),
                     Colors.blue,
                   ),
                 ),
@@ -1150,7 +1221,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 Icon(Icons.inventory, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
-                  '${t(context,'Store Quantity')}: ${item['store_quantity'] ?? item['quantity'] ?? 0}',
+                  '${t(context,'Store Quantity')}: ${_safeToInt(item['store_quantity'] ?? item['quantity'])}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.grey[600],
                   ),
@@ -1287,11 +1358,31 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildProfessionalInventoryCard(Map<String, dynamic> item) {
+    print('🔍 DEBUG: Building professional inventory card for item: ${item['product_name']}');
+    print('🔍 DEBUG: Raw item data: $item');
+    
     final stockStatus = item['stock_status'] as String?;
-    final quantity = item['store_quantity'] ?? item['quantity'] ?? 0;
-    final minStock = item['min_stock_level'] ?? 0;
-    final costPrice = double.tryParse(item['cost_price']?.toString() ?? '0') ?? 0.0;
-    final sellingPrice = double.tryParse(item['price']?.toString() ?? '0') ?? 0.0;
+    print('🔍 DEBUG: stock_status: $stockStatus (type: ${stockStatus.runtimeType})');
+    
+    final rawQuantity = item['store_quantity'] ?? item['quantity'];
+    print('🔍 DEBUG: Raw quantity: $rawQuantity (type: ${rawQuantity.runtimeType})');
+    final quantity = _safeToInt(rawQuantity);
+    print('🔍 DEBUG: Converted quantity: $quantity (type: ${quantity.runtimeType})');
+    
+    final rawMinStock = item['min_stock_level'];
+    print('🔍 DEBUG: Raw min_stock_level: $rawMinStock (type: ${rawMinStock.runtimeType})');
+    final minStock = _safeToInt(rawMinStock);
+    print('🔍 DEBUG: Converted minStock: $minStock (type: ${minStock.runtimeType})');
+    
+    final rawCostPrice = item['cost_price'];
+    print('🔍 DEBUG: Raw cost_price: $rawCostPrice (type: ${rawCostPrice.runtimeType})');
+    final costPrice = double.tryParse(rawCostPrice?.toString() ?? '0') ?? 0.0;
+    print('🔍 DEBUG: Converted costPrice: $costPrice (type: ${costPrice.runtimeType})');
+    
+    final rawSellingPrice = item['price'];
+    print('🔍 DEBUG: Raw price: $rawSellingPrice (type: ${rawSellingPrice.runtimeType})');
+    final sellingPrice = double.tryParse(rawSellingPrice?.toString() ?? '0') ?? 0.0;
+    print('🔍 DEBUG: Converted sellingPrice: $sellingPrice (type: ${sellingPrice.runtimeType})');
     
     Color statusColor;
     IconData statusIcon;
@@ -1495,7 +1586,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     Expanded(
                       child: _buildPriceInfo(
                         'Profit Margin',
-                        '₦${(sellingPrice - costPrice).toStringAsFixed(2)}',
+                        '₦${(sellingPrice - costPrice).clamp(0.0, double.infinity).toStringAsFixed(2)}',
                         Icons.trending_up,
                         sellingPrice > costPrice ? Colors.green : Colors.red,
                       ),
@@ -2242,7 +2333,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     final financialSummary = _reports['financial_summary'] ?? {};
     final totalCost = double.tryParse(financialSummary['total_cost_value']?.toString() ?? '0') ?? 0.0;
     final totalSelling = double.tryParse(financialSummary['total_selling_value']?.toString() ?? '0') ?? 0.0;
-    final profitPotential = totalSelling - totalCost;
+    final profitPotential = (totalSelling - totalCost).clamp(0.0, double.infinity);
     
     return Column(
       children: [
@@ -2298,8 +2389,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
 
   Widget _buildMovementTrends() {
     final movementSummary = _reports['movement_summary'] ?? {};
-    final stockIn = movementSummary['total_stock_in'] ?? 0;
-    final transferredOut = movementSummary['total_transferred_out'] ?? 0;
+    final stockIn = (movementSummary['total_stock_in'] ?? 0) as int;
+    final transferredOut = (movementSummary['total_transferred_out'] ?? 0) as int;
     
     return Column(
       children: [
@@ -2710,7 +2801,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           const SizedBox(height: 16),
           
           // Mobile Movements List
-          _buildMobileMovementsList(),
+          _buildMobileMovementsList(_movements),
         ],
       ),
     );
@@ -2900,7 +2991,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           const SizedBox(height: 16),
           
           // Mobile Purchases List
-          _buildMobilePurchasesList(),
+          _buildMobilePurchasesList(_purchasesData['purchases'] as List<dynamic>? ?? []),
         ],
       ),
     );
@@ -2962,7 +3053,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           const SizedBox(height: 16),
           
           // Mobile Increments List
-          _buildMobileIncrementsList(),
+          _buildMobileIncrementsList(_incrementsData['increments'] as List<dynamic>? ?? []),
         ],
       ),
     );
@@ -3844,8 +3935,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
               items: [
                 const DropdownMenuItem(value: null, child: Text('All Categories')),
                 ..._categoriesForDetailed.map((category) {
-                  return DropdownMenuItem(
-                    value: category['id'],
+                  return DropdownMenuItem<int?>(
+                    value: category['id'] as int?,
                     child: Text(category['name'] ?? 'Unknown Category'),
                   );
                 }).toList(),
@@ -3875,8 +3966,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
               items: [
                 const DropdownMenuItem(value: null, child: Text('All Products')),
                 ..._productsForDetailed.map((product) {
-                  return DropdownMenuItem(
-                    value: product['id'],
+                  return DropdownMenuItem<int?>(
+                    value: product['id'] as int?,
                     child: Text(product['name'] ?? 'Unknown Product'),
                   );
                 }).toList(),
@@ -7148,11 +7239,10 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             'product_name': product['product_name'],
             'sku': product['sku'],
             'category_name': 'Store Product',
-            'quantity_sold': product['total_out'] ?? 0,
-            'quantity_remaining': product['current_stock'] ?? 0,
-            'revenue': (product['total_out'] ?? 0) * (double.tryParse(product['price']?.toString() ?? '0') ?? 0.0),
-            'profit': ((product['total_out'] ?? 0) * (double.tryParse(product['price']?.toString() ?? '0') ?? 0.0)) - 
-                     ((product['total_out'] ?? 0) * (double.tryParse(product['cost_price']?.toString() ?? '0') ?? 0.0)),
+            'quantity_sold': _safeToInt(product['total_out']),
+            'quantity_remaining': _safeToInt(product['current_stock']),
+            'revenue': _safeToInt(product['total_out']) * _safeToDouble(product['price']),
+            'profit': _calculateProfit(product),
             'sale_mode': 'retail',
           });
         }
@@ -7178,7 +7268,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     'sku': item['sku'] ?? '',
                     'category_name': item['category_name'] ?? 'Store Product',
                     'quantity_sold': 0, // No movements in this period
-                    'quantity_remaining': item['store_quantity'] ?? 0,
+                    'quantity_remaining': _safeToInt(item['store_quantity']),
                     'revenue': 0.0, // No sales in this period
                     'profit': 0.0, // No profit in this period
                     'sale_mode': 'retail',
@@ -7245,6 +7335,14 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     if (value is int) return value.toDouble();
     if (value is String) return double.tryParse(value) ?? 0.0;
     return 0.0;
+  }
+
+  int _safeToInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
   }
 
   void _exportStockSummaryToPdf() {
@@ -7336,7 +7434,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('Sold: ${_filteredStockSummaryData.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt()}', 
+                            Text('Sold: ${_filteredStockSummaryData.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt().toString()}', 
                                  style: const TextStyle(fontWeight: FontWeight.bold)),
                             Text('Remaining: ${row['quantity_remaining']?.toString() ?? ''}'),
                           ],
@@ -7395,7 +7493,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                         ),
                       ),
                       Text(
-                        '${(_stockSummaryCurrentPage * _itemsPerPage) + 1}-${(_stockSummaryCurrentPage + 1) * _itemsPerPage} of ${_filteredStockSummaryData.length}',
+                        '${(_stockSummaryCurrentPage * _itemsPerPage) + 1}-${(_stockSummaryCurrentPage + 1) * _itemsPerPage} of ${_filteredStockSummaryData.length.toString()}',
                         style: TextStyle(
                           fontSize: 10,
                           color: Colors.grey[600],
@@ -7495,7 +7593,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Showing ${(_stockSummaryCurrentPage * _itemsPerPage) + 1} to ${(_stockSummaryCurrentPage + 1) * _itemsPerPage} of ${_filteredStockSummaryData.length} entries',
+                  'Showing ${(_stockSummaryCurrentPage * _itemsPerPage) + 1} to ${(_stockSummaryCurrentPage + 1) * _itemsPerPage} of ${_filteredStockSummaryData.length.toString()} entries',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 12,
@@ -7553,6 +7651,23 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   // =====================================================
   // COMPREHENSIVE REPORTS - NEW METHODS
   // =====================================================
+
+  double _calculateProfit(Map<String, dynamic> product) {
+    try {
+      final totalOut = _safeToInt(product['total_out']);
+      final price = _safeToDouble(product['price']);
+      final costPrice = _safeToDouble(product['cost_price']);
+      
+      final revenue = totalOut * price;
+      final cost = totalOut * costPrice;
+      final profit = revenue - cost;
+      
+      return profit.clamp(0.0, double.infinity);
+    } catch (e) {
+      print('Error calculating profit: $e');
+      return 0.0;
+    }
+  }
 
   Widget _buildCurrentStockSummary() {
     if (_reports.isEmpty || _reports['current_stock'] == null) {
@@ -8249,6 +8364,414 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       ),
     );
   }
+
+  // =====================================================
+  // MOBILE HELPER METHODS
+  // =====================================================
+
+  Widget _buildMobileQuickStats() {
+    final currentStock = _reports['current_stock']?['summary'] ?? {};
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            'Total Products',
+            (currentStock['total_products'] ?? 0).toString(),
+            Icons.inventory_2,
+            Colors.blue,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildStatCard(
+            'Total Units',
+            (currentStock['total_units'] ?? 0).toString(),
+            Icons.shopping_cart,
+            Colors.green,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildStatCard(
+            'Low Stock',
+            (currentStock['low_stock'] ?? 0).toString(),
+            Icons.warning,
+            Colors.orange,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildStatCard(
+            'Out of Stock',
+            (currentStock['out_of_stock'] ?? 0).toString(),
+            Icons.error,
+            Colors.red,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 10,
+              color: ThemeAwareColors.getSecondaryTextColor(context),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileInventoryList() {
+    final filteredInventory = _inventory.where((item) {
+      final matchesSearch = _searchQuery.isEmpty ||
+          (item['product_name']?.toString().toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
+          (item['sku']?.toString().toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+      
+      final matchesStockStatus = _selectedStockStatus.isEmpty ||
+          (item['stock_status'] == _selectedStockStatus);
+      
+      final matchesCategory = _selectedCategory.isEmpty ||
+          (item['category_name']?.toString() == _selectedCategory);
+      
+      final price = double.tryParse(item['selling_price']?.toString() ?? '0') ?? 0.0;
+      final matchesMinPrice = _minPrice == null || price >= _minPrice!;
+      final matchesMaxPrice = _maxPrice == null || price <= _maxPrice!;
+      
+      return matchesSearch && matchesStockStatus && matchesCategory && matchesMinPrice && matchesMaxPrice;
+    }).toList();
+
+    if (filteredInventory.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.inventory_2_outlined,
+        title: t(context, 'No inventory found'),
+        subtitle: t(context, 'Add products to this store to get started'),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: filteredInventory.length,
+      itemBuilder: (context, index) {
+        final item = filteredInventory[index];
+        return _buildMobileInventoryCard(item);
+      },
+    );
+  }
+
+  Widget _buildMobileInventoryCard(Map<String, dynamic> item) {
+    final stockStatus = item['stock_status'] as String?;
+    Color statusColor;
+    IconData statusIcon;
+    
+    switch (stockStatus) {
+      case 'LOW_STOCK':
+        statusColor = Colors.orange;
+        statusIcon = Icons.warning;
+        break;
+      case 'OUT_OF_STOCK':
+        statusColor = Colors.red;
+        statusIcon = Icons.error;
+        break;
+      default:
+        statusColor = Colors.green;
+        statusIcon = Icons.check_circle;
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                // Product Image
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: item['image_url'] != null
+                      ? Image.network(
+                          item['image_url'],
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: 60,
+                              height: 60,
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.image, color: Colors.grey),
+                            );
+                          },
+                        )
+                      : Container(
+                          width: 60,
+                          height: 60,
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.image, color: Colors.grey),
+                        ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['product_name'] ?? 'Unknown Product',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'SKU: ${item['sku'] ?? 'N/A'}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: ThemeAwareColors.getSecondaryTextColor(context),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: statusColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(statusIcon, color: statusColor, size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              stockStatus == 'LOW_STOCK' ? 'Low Stock' :
+                              stockStatus == 'OUT_OF_STOCK' ? 'Out of Stock' : 'In Stock',
+                              style: TextStyle(
+                                color: statusColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildInfoChip(
+                    'Stock',
+                    '${item['current_stock'] ?? 0}',
+                    Icons.inventory,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildInfoChip(
+                    'Price',
+                    '₦${(double.tryParse(item['selling_price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
+                    Icons.attach_money,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildInfoChip(
+                    'Cost',
+                    '₦${(double.tryParse(item['cost_price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
+                    Icons.money_off,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showAddStockDialog(item),
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Add Stock'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showEditCostDialog(item),
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: const Text('Edit Cost'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoChip(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: ThemeAwareColors.getSecondaryTextColor(context)),
+          const SizedBox(width: 4),
+          Text(
+            '$label: $value',
+            style: TextStyle(
+              fontSize: 10,
+              color: ThemeAwareColors.getSecondaryTextColor(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddStockDialog(Map<String, dynamic> item) {
+    showDialog(
+      context: context,
+      builder: (context) => _IncrementDialog(
+        item: item,
+        onIncrement: (quantity, cost, notes) {
+          // Handle stock increment
+          print('Adding $quantity units to ${item['product_name']}');
+        },
+      ),
+    );
+  }
+
+  void _showEditCostDialog(Map<String, dynamic> item) {
+    showDialog(
+      context: context,
+      builder: (context) => _EditCostPriceDialog(
+        item: item,
+        onUpdate: (newCostPrice) {
+          // Handle cost price update
+          print('Updating cost price to $newCostPrice for ${item['product_name']}');
+        },
+      ),
+    );
+  }
+
+  Widget _buildMobileMovementFilters() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              value: _selectedMovementType.isEmpty ? null : _selectedMovementType,
+              decoration: InputDecoration(
+                labelText: t(context, 'Movement Type'),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              items: [
+                DropdownMenuItem(value: '', child: Text(t(context, 'All Types'))),
+                DropdownMenuItem(value: 'in', child: Text(t(context, 'In'))),
+                DropdownMenuItem(value: 'out', child: Text(t(context, 'Out'))),
+                DropdownMenuItem(value: 'transfer_out', child: Text(t(context, 'Transfer Out'))),
+                DropdownMenuItem(value: 'adjustment', child: Text(t(context, 'Adjustment'))),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedMovementType = value ?? '';
+                });
+                _loadData();
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileReportCards() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildMobileQuickStats(),
+          const SizedBox(height: 16),
+          // Add more report cards as needed
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileDetailedFilters() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Add detailed filters for mobile
+          Text('Detailed Filters', style: Theme.of(context).textTheme.titleMedium),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileDetailedList() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Add detailed list for mobile
+          Text('Detailed List', style: Theme.of(context).textTheme.titleMedium),
+        ],
+      ),
+    );
+  }
+
 }
 
 
@@ -9203,6 +9726,14 @@ class _IncrementDialogState extends State<_IncrementDialog> {
   final _notesController = TextEditingController();
   bool _isLoading = false;
 
+  int _safeToInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -9293,7 +9824,7 @@ class _IncrementDialogState extends State<_IncrementDialog> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Current Stock: ${widget.item['store_quantity'] ?? widget.item['quantity'] ?? 0}',
+                    'Current Stock: ${_safeToInt(widget.item['store_quantity'] ?? widget.item['quantity'])}',
                     style: TextStyle(
                       color: Colors.blue[600],
                       fontSize: 14,
@@ -9594,6 +10125,21 @@ class _TransferDialogState extends State<_TransferDialog> {
   final Map<int, int> _selectedQuantities = {};
   final TextEditingController _notesController = TextEditingController();
   bool _isLoading = false;
+  
+  // Filter variables for transfer dialog
+  String _selectedStockStatus = '';
+  String _selectedCategory = '';
+  double? _minPrice;
+  double? _maxPrice;
+
+  int _safeToInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+  Map<String, dynamic> _reports = {};
 
   @override
   void initState() {
@@ -9724,7 +10270,7 @@ class _TransferDialogState extends State<_TransferDialog> {
                         final item = widget.inventory[index];
                         final productId = item['product_id'];
                         final currentQuantity = _selectedQuantities[productId] ?? 0;
-                        final availableQuantity = item['store_quantity'] ?? 0;
+                        final availableQuantity = _safeToInt(item['store_quantity']);
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
@@ -10215,7 +10761,7 @@ class _TransferDialogState extends State<_TransferDialog> {
 
   List<String> _getUniqueCategories() {
     final categories = <String>{};
-    for (final item in _inventory) {
+    for (final item in widget.inventory) {
       final category = item['category_name'] ?? item['category'] ?? '';
       if (category.isNotEmpty) {
         categories.add(category.toString());

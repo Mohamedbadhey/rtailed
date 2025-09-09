@@ -1252,6 +1252,15 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
 
     const fullWhereClause = `WHERE ${fullWhereConditions.join(' AND ')}`;
     const simpleWhereClause = `WHERE ${simpleWhereConditions.join(' AND ')}`;
+    
+    console.log('🔍 WHERE Clause Construction:', {
+      fullWhereConditions,
+      fullQueryParams,
+      fullWhereClause,
+      simpleWhereConditions,
+      simpleQueryParams,
+      simpleWhereClause
+    });
 
     // Get transfers with pagination
     const offset = (page - 1) * limit;
@@ -1283,6 +1292,20 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       console.error('❌ Minimal query error:', minimalError.message);
     }
 
+    // Test with a simple data query
+    console.log('🔍 Testing simple data query...');
+    try {
+      const simpleQuery = `SELECT sim.id, sim.product_id, sim.quantity, sim.created_at 
+                           FROM store_inventory_movements sim 
+                           WHERE sim.store_id = ? AND sim.movement_type = ? AND sim.reference_type = ? 
+                           LIMIT 5`;
+      const simpleParams = [parseInt(storeId), 'out', 'transfer'];
+      const [simpleResult] = await pool.execute(simpleQuery, simpleParams);
+      console.log('✅ Simple query result:', simpleResult);
+    } catch (simpleError) {
+      console.error('❌ Simple query error:', simpleError.message);
+    }
+
     // First, let's check what data exists in store_inventory_movements
     try {
       const testQuery = `SELECT COUNT(*) as total FROM store_inventory_movements WHERE store_id = ?`;
@@ -1293,8 +1316,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     }
 
     // Query for business transfers with dynamic filters
-    const transfersQuery = `
-      SELECT 
+    const transfersQuery = `SELECT 
         sim.id,
         sim.product_id,
         sim.quantity,
@@ -1311,8 +1333,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       LEFT JOIN users u ON sim.created_by = u.id
       ${fullWhereClause}
       ORDER BY sim.created_at DESC
-      LIMIT ? OFFSET ?
-    `;
+      LIMIT ? OFFSET ?`;
 
     // Test the actual query structure
     console.log('🔍 Final Query Structure:', {
@@ -1323,15 +1344,32 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       offset: parseInt(offset)
     });
 
-    console.log('🔍 Executing transfers query with params:', [...fullQueryParams, parseInt(limit), parseInt(offset)]);
+    const finalParams = [...fullQueryParams, parseInt(limit), parseInt(offset)];
+    console.log('🔍 Executing transfers query with params:', finalParams);
+    console.log('🔍 Query placeholders count:', (transfersQuery.match(/\?/g) || []).length);
+    console.log('🔍 Parameters count:', finalParams.length);
+    console.log('🔍 Parameter types:', finalParams.map(p => typeof p));
+    
+    // Test query structure
+    const placeholderCount = (transfersQuery.match(/\?/g) || []).length;
+    if (placeholderCount !== finalParams.length) {
+      console.error('❌ PARAMETER MISMATCH DETECTED!');
+      console.error('❌ Query has', placeholderCount, 'placeholders but', finalParams.length, 'parameters provided');
+      console.error('❌ Query:', transfersQuery);
+      console.error('❌ Params:', finalParams);
+      throw new Error(`Parameter mismatch: ${placeholderCount} placeholders, ${finalParams.length} parameters`);
+    }
+    
     let transfers;
     try {
-      [transfers] = await pool.execute(transfersQuery, [...fullQueryParams, parseInt(limit), parseInt(offset)]);
+      [transfers] = await pool.execute(transfersQuery, finalParams);
       console.log('✅ Transfers query executed successfully, got', transfers.length, 'results');
     } catch (transfersError) {
       console.error('❌ TRANSFERS QUERY ERROR:', transfersError.message);
       console.error('❌ Query:', transfersQuery);
-      console.error('❌ Params:', [...fullQueryParams, parseInt(limit), parseInt(offset)]);
+      console.error('❌ Params:', finalParams);
+      console.error('❌ Placeholders in query:', (transfersQuery.match(/\?/g) || []).length);
+      console.error('❌ Parameters provided:', finalParams.length);
       throw transfersError;
     }
 

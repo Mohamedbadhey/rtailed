@@ -1182,38 +1182,62 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     }
 
     // Build WHERE conditions for store-to-business transfers
-    let whereConditions = ['sim.store_id = ?', 'sim.movement_type = ?', 'sim.reference_type = ?'];
-    let queryParams = [storeId, 'out', 'transfer'];
+    let baseWhereConditions = ['sim.store_id = ?', 'sim.movement_type = ?', 'sim.reference_type = ?'];
+    let baseQueryParams = [storeId, 'out', 'transfer'];
+    
+    // For queries with JOINs (transfers query)
+    let fullWhereConditions = [...baseWhereConditions];
+    let fullQueryParams = [...baseQueryParams];
+    
+    // For queries without JOINs (summary and count queries)
+    let simpleWhereConditions = [...baseWhereConditions];
+    let simpleQueryParams = [...baseQueryParams];
 
     // Date range filter
     if (start_date) {
-      whereConditions.push('DATE(sim.created_at) >= ?');
-      queryParams.push(start_date);
+      const dateCondition = 'DATE(sim.created_at) >= ?';
+      fullWhereConditions.push(dateCondition);
+      simpleWhereConditions.push(dateCondition);
+      fullQueryParams.push(start_date);
+      simpleQueryParams.push(start_date);
     }
     if (end_date) {
-      whereConditions.push('DATE(sim.created_at) <= ?');
-      queryParams.push(end_date);
+      const dateCondition = 'DATE(sim.created_at) <= ?';
+      fullWhereConditions.push(dateCondition);
+      simpleWhereConditions.push(dateCondition);
+      fullQueryParams.push(end_date);
+      simpleQueryParams.push(end_date);
     }
 
     // Product filter
     if (product_id) {
-      whereConditions.push('sim.product_id = ?');
-      queryParams.push(product_id);
+      const productCondition = 'sim.product_id = ?';
+      fullWhereConditions.push(productCondition);
+      simpleWhereConditions.push(productCondition);
+      fullQueryParams.push(product_id);
+      simpleQueryParams.push(product_id);
     }
 
-    // Category filter
+    // Category filter (only for full query with JOINs)
     if (category) {
-      whereConditions.push('p.category = ?');
-      queryParams.push(category);
+      fullWhereConditions.push('p.category = ?');
+      fullQueryParams.push(category);
+      // For simple queries, add a subquery to filter by category
+      simpleWhereConditions.push('sim.product_id IN (SELECT id FROM products WHERE category = ?)');
+      simpleQueryParams.push(category);
     }
 
     // Target business filter (for superadmin)
     if (target_business_id) {
-      whereConditions.push('sim.business_id = ?');
-      queryParams.push(target_business_id);
+      const businessCondition = 'sim.business_id = ?';
+      fullWhereConditions.push(businessCondition);
+      simpleWhereConditions.push(businessCondition);
+      fullQueryParams.push(target_business_id);
+      simpleQueryParams.push(target_business_id);
     }
 
-    const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+    const fullWhereClause = `WHERE ${fullWhereConditions.join(' AND ')}`;
+    const simpleWhereClause = `WHERE ${simpleWhereConditions.join(' AND ')}`;
 
     // Get transfers with pagination
     const offset = (page - 1) * limit;
@@ -1222,13 +1246,16 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       storeId,
       limit: parseInt(limit),
       offset: parseInt(offset),
-      whereClause,
-      queryParams,
-      queryParamsLength: queryParams.length,
-      transfersQueryParams: [...queryParams, parseInt(limit), parseInt(offset)],
-      transfersQueryParamsLength: queryParams.length + 2,
-      summaryQueryParams: queryParams,
-      countQueryParams: queryParams
+      fullWhereClause,
+      simpleWhereClause,
+      fullQueryParams,
+      simpleQueryParams,
+      fullQueryParamsLength: fullQueryParams.length,
+      simpleQueryParamsLength: simpleQueryParams.length,
+      transfersQueryParams: [...fullQueryParams, parseInt(limit), parseInt(offset)],
+      transfersQueryParamsLength: fullQueryParams.length + 2,
+      summaryQueryParams: simpleQueryParams,
+      countQueryParams: simpleQueryParams
     });
 
     // First, let's check what data exists in store_inventory_movements
@@ -1257,7 +1284,7 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       LEFT JOIN products p ON sim.product_id = p.id
       LEFT JOIN businesses b ON sim.business_id = b.id
       LEFT JOIN users u ON sim.created_by = u.id
-      ${whereClause}
+      ${fullWhereClause}
       ORDER BY sim.created_at DESC
       LIMIT ? OFFSET ?
     `;
@@ -1265,13 +1292,13 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
     // Test the actual query structure
     console.log('🔍 Final Query Structure:', {
       transfersQuery: transfersQuery,
-      whereClause: whereClause,
-      queryParams: queryParams,
+      fullWhereClause: fullWhereClause,
+      fullQueryParams: fullQueryParams,
       limit: parseInt(limit),
       offset: parseInt(offset)
     });
 
-    const [transfers] = await pool.execute(transfersQuery, [...queryParams, parseInt(limit), parseInt(offset)]);
+    const [transfers] = await pool.execute(transfersQuery, [...fullQueryParams, parseInt(limit), parseInt(offset)]);
 
     // Get summary statistics for business transfers only
     const summaryQuery = `
@@ -1281,19 +1308,19 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
         COUNT(DISTINCT sim.business_id) as unique_businesses,
         COUNT(DISTINCT sim.product_id) as unique_products
       FROM store_inventory_movements sim
-      ${whereClause}
+      ${simpleWhereClause}
     `;
 
-    const [summaryRows] = await pool.execute(summaryQuery, queryParams);
+    const [summaryRows] = await pool.execute(summaryQuery, simpleQueryParams);
     const summary = summaryRows[0] || {};
 
     // Get total count for pagination
     const countQuery = `
       SELECT COUNT(*) as total
       FROM store_inventory_movements sim
-      ${whereClause}
+      ${simpleWhereClause}
     `;
-    const [countRows] = await pool.execute(countQuery, queryParams);
+    const [countRows] = await pool.execute(countQuery, simpleQueryParams);
     const total = countRows[0]?.total || 0;
 
     console.log('✅ Business transfers report generated:', {

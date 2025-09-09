@@ -403,8 +403,9 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         final movements = await _apiService.getStoreInventoryMovements(
           widget.storeId, 
           businessId,
-          movementType: _selectedMovementType,
-          productId: _selectedProductId,
+          // Don't filter at API level, we'll do client-side filtering
+          movementType: '',
+          productId: '',
         );
         setState(() {
           _movements = movements;
@@ -963,6 +964,10 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
               Tab(
                 icon: const Icon(Icons.add_box),
                 text: t(context,'Increments'),
+              ),
+              Tab(
+                icon: const Icon(Icons.swap_horiz),
+                text: 'Transfers',
               ),
             ],
           ),
@@ -1715,35 +1720,109 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   Widget _buildMovementsTab() {
     return Column(
       children: [
-        // Filter Bar
+        // Enhanced Filter Bar
         Container(
           padding: const EdgeInsets.all(16),
-          child: Row(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
             children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _selectedMovementType.isEmpty ? null : _selectedMovementType,
-                  decoration: InputDecoration(
-                    labelText: t(context,'Movement Type'),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+              // Filter Row
+              Row(
+                children: [
+                  // Movement Type Filter
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedMovementType.isEmpty ? null : _selectedMovementType,
+                      decoration: InputDecoration(
+                        labelText: t(context,'Movement Type'),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      items: [
+                        DropdownMenuItem(value: '', child: Text(t(context,'All Types'))),
+                        DropdownMenuItem(value: 'in', child: Text(t(context,'Stock In'))),
+                        DropdownMenuItem(value: 'out', child: Text(t(context,'Stock Out'))),
+                        DropdownMenuItem(value: 'transfer_out', child: Text(t(context,'Transfer Out'))),
+                        DropdownMenuItem(value: 'adjustment', child: Text(t(context,'Adjustment'))),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedMovementType = value ?? '';
+                        });
+                        // No need to reload data, filtering is done client-side
+                      },
                     ),
                   ),
-                  items: [
-                    DropdownMenuItem(value: '', child: Text(t(context,'All Types'))),
-                    DropdownMenuItem(value: 'in', child: Text(t(context,'In'))),
-                    DropdownMenuItem(value: 'out', child: Text(t(context,'Out'))),
-                    DropdownMenuItem(value: 'transfer_out', child: Text(t(context,'Transfer Out'))),
-                    DropdownMenuItem(value: 'adjustment', child: Text(t(context,'Adjustment'))),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedMovementType = value ?? '';
-                    });
-                    _loadData();
-                  },
-                ),
+                  const SizedBox(width: 16),
+                  // Product Filter
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedProductId.isEmpty ? null : _selectedProductId,
+                      decoration: InputDecoration(
+                        labelText: t(context,'Product'),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      items: [
+                        DropdownMenuItem(value: '', child: Text(t(context,'All Products'))),
+                        ..._inventory.map((item) => DropdownMenuItem(
+                          value: item['product_id']?.toString() ?? '',
+                          child: Text(item['product_name'] ?? 'Unknown'),
+                        )),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedProductId = value ?? '';
+                        });
+                        // No need to reload data, filtering is done client-side
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Clear Filters Button
+                  if (_selectedMovementType.isNotEmpty || _selectedProductId.isNotEmpty)
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _selectedMovementType = '';
+                          _selectedProductId = '';
+                        });
+                      },
+                      icon: const Icon(Icons.clear, size: 18),
+                      label: Text(t(context,'Clear')),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                  if (_selectedMovementType.isNotEmpty || _selectedProductId.isNotEmpty)
+                    const SizedBox(width: 8),
+                  // Refresh Button
+                  ElevatedButton.icon(
+                    onPressed: _loadData,
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: Text(t(context,'Refresh')),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 12),
+              // Quick Stats
+              _buildMovementsQuickStats(),
             ],
           ),
         ),
@@ -1756,28 +1835,153 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     );
   }
 
+  Widget _buildMovementsQuickStats() {
+    // Apply same filtering logic as the list
+    final filteredMovements = _movements.where((movement) {
+      if (_selectedMovementType.isNotEmpty && movement['movement_type'] != _selectedMovementType) {
+        return false;
+      }
+      if (_selectedProductId.isNotEmpty && movement['product_id']?.toString() != _selectedProductId) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    final totalMovements = filteredMovements.length;
+    final stockInCount = filteredMovements.where((m) => m['movement_type'] == 'in').length;
+    final stockOutCount = filteredMovements.where((m) => m['movement_type'] == 'out').length;
+    final transferCount = filteredMovements.where((m) => m['movement_type'] == 'transfer_out').length;
+    final adjustmentCount = filteredMovements.where((m) => m['movement_type'] == 'adjustment').length;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildMovementStatCard(
+            'Total',
+            totalMovements.toString(),
+            Icons.history,
+            Colors.blue,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildMovementStatCard(
+            'Stock In',
+            stockInCount.toString(),
+            Icons.arrow_downward,
+            Colors.green,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildMovementStatCard(
+            'Stock Out',
+            stockOutCount.toString(),
+            Icons.arrow_upward,
+            Colors.red,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildMovementStatCard(
+            'Transfers',
+            transferCount.toString(),
+            Icons.send,
+            Colors.orange,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildMovementStatCard(
+            'Adjustments',
+            adjustmentCount.toString(),
+            Icons.edit,
+            Colors.purple,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMovementStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 4),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: color.withOpacity(0.8),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMovementsList() {
-    if (_movements.isEmpty) {
+    // Apply client-side filtering
+    final filteredMovements = _movements.where((movement) {
+      // Filter by movement type
+      if (_selectedMovementType.isNotEmpty && movement['movement_type'] != _selectedMovementType) {
+        return false;
+      }
+      
+      // Filter by product ID
+      if (_selectedProductId.isNotEmpty && movement['product_id']?.toString() != _selectedProductId) {
+        return false;
+      }
+      
+      return true;
+    }).toList();
+
+    if (filteredMovements.isEmpty) {
       return _buildEmptyState(
         icon: Icons.history,
         title: t(context, 'No movements found'),
-        subtitle: t(context, 'Inventory movements will appear here when products are added or transferred'),
+        subtitle: _selectedMovementType.isNotEmpty || _selectedProductId.isNotEmpty
+            ? t(context, 'No movements match the selected filters')
+            : t(context, 'Inventory movements will appear here when products are added or transferred'),
       );
     }
 
-    return ListView.builder(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      itemCount: _movements.length,
-      itemBuilder: (context, index) {
-        final movement = _movements[index];
-        return _buildMovementCard(movement);
-      },
+      child: Column(
+        children: filteredMovements.map((movement) => _buildMovementCard(movement)).toList(),
+      ),
     );
   }
 
   Widget _buildMovementCard(Map<String, dynamic> movement) {
     final movementType = movement['movement_type'] as String?;
-    final quantityChange = movement['quantity_change'] as int? ?? 0;
+    final quantity = _safeToInt(movement['quantity'] ?? 0);
+    final previousQuantity = _safeToInt(movement['previous_quantity'] ?? 0);
+    final newQuantity = _safeToInt(movement['new_quantity'] ?? 0);
+    final referenceType = movement['reference_type'] as String?;
+    final notes = movement['notes'] as String?;
     
     Color typeColor;
     IconData typeIcon;
@@ -1787,12 +1991,12 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       case 'in':
         typeColor = Colors.green;
         typeIcon = Icons.arrow_downward;
-        typeLabel = t(context,'In');
+        typeLabel = t(context,'Stock In');
         break;
       case 'out':
         typeColor = Colors.red;
         typeIcon = Icons.arrow_upward;
-        typeLabel = t(context,'Out');
+        typeLabel = t(context,'Stock Out');
         break;
       case 'transfer_out':
         typeColor = Colors.blue;
@@ -1811,45 +2015,284 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     }
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: typeColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(typeIcon, color: typeColor),
-        ),
-        title: Text(movement['product_name'] ?? ''),
-        subtitle: Column(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('SKU: ${movement['sku'] ?? ''}'),
-            Text('${t(context,'By')}: ${movement['created_by_username'] ?? ''}'),
-            Text('${t(context,'Date')}: ${_formatDate(movement['created_at'])}'),
-          ],
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              typeLabel,
-              style: TextStyle(
-                color: typeColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
+            // Header Row
+            Row(
+              children: [
+                // Movement Type Icon
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: typeColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(typeIcon, color: typeColor, size: 20),
+                ),
+                const SizedBox(width: 12),
+                // Product Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        movement['product_name'] ?? 'Unknown Product',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'SKU: ${movement['sku'] ?? 'N/A'}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: ThemeAwareColors.getSecondaryTextColor(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Movement Type Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: typeColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    typeLabel,
+                    style: TextStyle(
+                      color: typeColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Quantity Information
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Quantity',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        Text(
+                          '${quantity > 0 ? '+' : ''}$quantity',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: typeColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Previous',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        Text(
+                          '$previousQuantity',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'New Total',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        Text(
+                          '$newQuantity',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            Text(
-              '${quantityChange > 0 ? '+' : ''}$quantityChange',
-              style: TextStyle(
-                color: typeColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+            const SizedBox(height: 12),
+            
+            // Additional Information
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Reference',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      Text(
+                        referenceType ?? 'Manual',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'By',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      Text(
+                        movement['created_by_username'] ?? 'Unknown',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Date',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      Text(
+                        _formatDate(movement['created_at']),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
+            
+            // Business Information (for transfers)
+            if (movementType == 'transfer_out' && movement['business_name'] != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.business, color: Colors.blue[700], size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Transferred to Business',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            movement['business_name'] ?? 'Unknown Business',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.blue[800],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
+            // Notes (if available)
+            if (notes != null && notes.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Text(
+                  'Note: $notes',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blue[800],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -2862,8 +3305,15 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           ),
           const SizedBox(height: 16),
           
-          // Mobile Report Cards
-          _buildMobileReportCards(),
+          // Reports Content
+          if (_reports.isEmpty)
+            _buildEmptyState(
+              icon: Icons.analytics_outlined,
+              title: 'No Reports Available',
+              subtitle: 'Reports will appear here when data is loaded',
+            )
+          else
+            _buildUnifiedReportsContent(),
         ],
       ),
     );
@@ -3092,7 +3542,491 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   // =====================================================
 
   Widget _buildDesktopInventoryTab() {
-    return _buildInventoryTab(); // Use existing method
+    if (_loading) {
+      return _buildLoadingState();
+    }
+
+    if (_error != null) {
+      return _buildErrorState();
+    }
+
+    return Column(
+      children: [
+        // Desktop Search and Filters Header
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Search and Filter Row
+              Row(
+                children: [
+                  // Search Bar
+                  Expanded(
+                    flex: 2,
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: t(context,'Search products...'),
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surfaceVariant,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Quick Actions
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _showAddProductsDialog,
+                        icon: const Icon(Icons.add),
+                        label: Text(t(context,'Add Products')),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: _showTransferDialog,
+                        icon: const Icon(Icons.swap_horiz),
+                        label: Text(t(context,'Transfer')),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Quick Stats
+              _buildDesktopQuickStats(),
+            ],
+          ),
+        ),
+        
+        // Desktop Inventory Grid - Responsive and Scrollable
+        Expanded(
+          child: _buildDesktopInventoryGrid(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopQuickStats() {
+    final totalProducts = _inventory.length;
+    final inStock = _inventory.where((item) => item['stock_status'] == 'IN_STOCK').length;
+    final lowStock = _inventory.where((item) => item['stock_status'] == 'LOW_STOCK').length;
+    final outOfStock = _inventory.where((item) => item['stock_status'] == 'OUT_OF_STOCK').length;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            'Total Products',
+            totalProducts.toString(),
+            Icons.inventory_2,
+            Colors.blue,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            'In Stock',
+            inStock.toString(),
+            Icons.check_circle,
+            Colors.green,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            'Low Stock',
+            lowStock.toString(),
+            Icons.warning,
+            Colors.orange,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            'Out of Stock',
+            outOfStock.toString(),
+            Icons.error,
+            Colors.red,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: color.withOpacity(0.8),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopInventoryGrid() {
+    final filteredInventory = _inventory.where((item) {
+      final matchesSearch = _searchQuery.isEmpty ||
+          (item['product_name']?.toString().toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
+          (item['sku']?.toString().toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+      
+      final matchesStockStatus = _selectedStockStatus.isEmpty ||
+          (item['stock_status'] == _selectedStockStatus);
+      
+      final matchesCategory = _selectedCategory.isEmpty ||
+          (item['category_name']?.toString() == _selectedCategory);
+      
+      final price = double.tryParse(item['price']?.toString() ?? '0') ?? 0.0;
+      final matchesMinPrice = _minPrice == null || price >= _minPrice!;
+      final matchesMaxPrice = _maxPrice == null || price <= _maxPrice!;
+      
+      return matchesSearch && matchesStockStatus && matchesCategory && matchesMinPrice && matchesMaxPrice;
+    }).toList();
+
+    if (filteredInventory.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.inventory_2_outlined,
+        title: t(context, 'No inventory found'),
+        subtitle: t(context, 'Add products to this store to get started'),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Calculate responsive grid columns based on screen width
+          int crossAxisCount;
+          double childAspectRatio;
+          
+          if (constraints.maxWidth > 1400) {
+            crossAxisCount = 4;
+            childAspectRatio = 1.1;
+          } else if (constraints.maxWidth > 1000) {
+            crossAxisCount = 3;
+            childAspectRatio = 1.0;
+          } else if (constraints.maxWidth > 700) {
+            crossAxisCount = 2;
+            childAspectRatio = 0.9;
+          } else {
+            crossAxisCount = 1;
+            childAspectRatio = 0.8;
+          }
+
+          return GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              childAspectRatio: childAspectRatio,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: filteredInventory.length,
+            itemBuilder: (context, index) {
+              final item = filteredInventory[index];
+              return _buildDesktopInventoryCard(item);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildDesktopInventoryCard(Map<String, dynamic> item) {
+    final stockStatus = item['stock_status'] as String?;
+    Color statusColor;
+    IconData statusIcon;
+    
+    switch (stockStatus) {
+      case 'LOW_STOCK':
+        statusColor = Colors.orange;
+        statusIcon = Icons.warning;
+        break;
+      case 'OUT_OF_STOCK':
+        statusColor = Colors.red;
+        statusIcon = Icons.error;
+        break;
+      default:
+        statusColor = Colors.green;
+        statusIcon = Icons.check_circle;
+    }
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with image and status
+            Row(
+              children: [
+                // Product Image
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: item['image_url'] != null
+                      ? Image.network(
+                          item['image_url'],
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: 50,
+                              height: 50,
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.image, color: Colors.grey),
+                            );
+                          },
+                        )
+                      : Container(
+                          width: 50,
+                          height: 50,
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.image, color: Colors.grey),
+                        ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['product_name'] ?? 'Unknown Product',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'SKU: ${item['sku'] ?? 'N/A'}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: ThemeAwareColors.getSecondaryTextColor(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Status Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, color: statusColor, size: 10),
+                      const SizedBox(width: 2),
+                      Text(
+                        stockStatus == 'LOW_STOCK' ? 'Low' :
+                        stockStatus == 'OUT_OF_STOCK' ? 'Out' : 'In',
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Stock Information
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Current Stock',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      Text(
+                        '${_safeToInt(item['store_quantity'] ?? item['quantity'])}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Min Level',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      Text(
+                        '${_safeToInt(item['min_stock_level'])}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Price Information
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Selling Price',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      '₦${(double.tryParse(item['price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Cost Price',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      '₦${(double.tryParse(item['cost_price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Action Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showIncrementDialog(item),
+                    icon: const Icon(Icons.add, size: 14),
+                    label: const Text('Add Stock', style: TextStyle(fontSize: 11)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showEditCostPriceDialog(item),
+                    icon: const Icon(Icons.edit, size: 14),
+                    label: const Text('Edit Cost', style: TextStyle(fontSize: 11)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildDesktopMovementsTab() {
@@ -3100,7 +4034,340 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildDesktopReportsTab() {
-    return _buildReportsTab(); // Use existing method
+    return _buildMobileReportsTab(); // Use unified implementation
+  }
+
+  Widget _buildUnifiedReportsContent() {
+    final currentStock = _reports['current_stock']?['summary'] ?? {};
+    final financialSummary = _reports['financial_summary'] ?? {};
+    final movementSummary = _reports['movement_summary'] ?? {};
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Key Metrics Cards
+        _buildKeyMetricsGrid(currentStock, financialSummary, movementSummary),
+        
+        const SizedBox(height: 24),
+        
+        // Current Stock Summary
+        if (_reports['current_stock'] != null) ...[
+          _buildCurrentStockSection(),
+          const SizedBox(height: 24),
+        ],
+        
+        // Recent Movements
+        if (_reports['recent_movements'] != null) ...[
+          _buildRecentMovementsSection(),
+          const SizedBox(height: 24),
+        ],
+        
+        // Financial Overview
+        if (financialSummary.isNotEmpty) ...[
+          _buildFinancialOverviewSection(financialSummary),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildKeyMetricsGrid(Map<String, dynamic> currentStock, Map<String, dynamic> financialSummary, Map<String, dynamic> movementSummary) {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
+      childAspectRatio: 1.5,
+      children: [
+        _buildSimpleMetricCard(
+          'Total Products',
+          _safeToInt(currentStock['total_products']).toString(),
+          Icons.inventory_2,
+          Colors.blue,
+        ),
+        _buildSimpleMetricCard(
+          'Total Units',
+          _safeToInt(currentStock['total_units']).toString(),
+          Icons.shopping_cart,
+          Colors.green,
+        ),
+        _buildSimpleMetricCard(
+          'Low Stock',
+          _safeToInt(currentStock['low_stock']).toString(),
+          Icons.warning,
+          Colors.orange,
+        ),
+        _buildSimpleMetricCard(
+          'Out of Stock',
+          _safeToInt(currentStock['out_of_stock']).toString(),
+          Icons.error,
+          Colors.red,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSimpleMetricCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 32),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: ThemeAwareColors.getSecondaryTextColor(context),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCurrentStockSection() {
+    final products = _reports['current_stock']?['products'] as List<dynamic>? ?? [];
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Current Stock',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (products.isEmpty)
+          _buildEmptyState(
+            icon: Icons.inventory_2_outlined,
+            title: 'No Stock Data',
+            subtitle: 'Stock information will appear here',
+          )
+        else
+          ...products.take(5).map((product) => _buildStockItemCard(product)),
+      ],
+    );
+  }
+
+  Widget _buildStockItemCard(Map<String, dynamic> product) {
+    final stockStatus = product['stock_status'] as String?;
+    Color statusColor;
+    switch (stockStatus) {
+      case 'LOW_STOCK':
+        statusColor = Colors.orange;
+        break;
+      case 'OUT_OF_STOCK':
+        statusColor = Colors.red;
+        break;
+      default:
+        statusColor = Colors.green;
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: statusColor.withOpacity(0.1),
+          child: Icon(Icons.inventory_2, color: statusColor),
+        ),
+        title: Text(product['product_name'] ?? 'Unknown Product'),
+        subtitle: Text('SKU: ${product['sku'] ?? 'N/A'}'),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '${_safeToInt(product['current_quantity'])} units',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: statusColor,
+              ),
+            ),
+            Text(
+              'Min: ${_safeToInt(product['min_stock_level'])}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentMovementsSection() {
+    final movements = _reports['recent_movements'] as List<dynamic>? ?? [];
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Recent Movements',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (movements.isEmpty)
+          _buildEmptyState(
+            icon: Icons.trending_up_outlined,
+            title: 'No Recent Movements',
+            subtitle: 'Movement history will appear here',
+          )
+        else
+          ...movements.take(5).map((movement) => _buildMovementItemCard(movement)),
+      ],
+    );
+  }
+
+  Widget _buildMovementItemCard(Map<String, dynamic> movement) {
+    final movementType = movement['movement_type'] as String?;
+    final quantity = _safeToInt(movement['quantity']);
+    
+    Color typeColor;
+    IconData typeIcon;
+    String typeLabel;
+    
+    switch (movementType) {
+      case 'in':
+        typeColor = Colors.green;
+        typeIcon = Icons.add_circle;
+        typeLabel = 'Stock In';
+        break;
+      case 'out':
+        typeColor = Colors.red;
+        typeIcon = Icons.remove_circle;
+        typeLabel = 'Stock Out';
+        break;
+      case 'transfer_out':
+        typeColor = Colors.blue;
+        typeIcon = Icons.swap_horiz;
+        typeLabel = 'Transfer Out';
+        break;
+      default:
+        typeColor = Colors.grey;
+        typeIcon = Icons.help;
+        typeLabel = 'Unknown';
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: typeColor.withOpacity(0.1),
+          child: Icon(typeIcon, color: typeColor),
+        ),
+        title: Text(movement['product_name'] ?? 'Unknown Product'),
+        subtitle: Text(typeLabel),
+        trailing: Text(
+          '${quantity > 0 ? '+' : ''}$quantity',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: typeColor,
+            fontSize: 16,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFinancialOverviewSection(Map<String, dynamic> financialSummary) {
+    final totalCost = _safeToDouble(financialSummary['total_cost_value']);
+    final totalSelling = _safeToDouble(financialSummary['total_selling_value']);
+    final profit = totalSelling - totalCost;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Financial Overview',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildFinancialCard(
+                'Total Cost',
+                '₦${totalCost.toStringAsFixed(0)}',
+                Icons.money_off,
+                Colors.red,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildFinancialCard(
+                'Total Value',
+                '₦${totalSelling.toStringAsFixed(0)}',
+                Icons.attach_money,
+                Colors.green,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildFinancialCard(
+          'Potential Profit',
+          '₦${profit.toStringAsFixed(0)}',
+          Icons.trending_up,
+          profit >= 0 ? Colors.green : Colors.red,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFinancialCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildDesktopDetailedMovementsTab() {
@@ -8412,44 +9679,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 10,
-              color: ThemeAwareColors.getSecondaryTextColor(context),
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildMobileInventoryList() {
     final filteredInventory = _inventory.where((item) {
@@ -8596,16 +9825,16 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
               children: [
                 Expanded(
                   child: _buildInfoChip(
-                    'Stock',
-                    '${item['current_stock'] ?? 0}',
+                    'Current Stock',
+                    '${_safeToInt(item['store_quantity'] ?? item['quantity'])}',
                     Icons.inventory,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: _buildInfoChip(
-                    'Price',
-                    '₦${(double.tryParse(item['selling_price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
+                    'Selling Price',
+                    '₦${(double.tryParse(item['price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
                     Icons.attach_money,
                   ),
                 ),

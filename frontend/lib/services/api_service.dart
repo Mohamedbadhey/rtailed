@@ -1729,10 +1729,22 @@ class ApiService {
     
     final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/movements/$businessId').replace(queryParameters: queryParams);
     
+    print('🔍 DEBUG: Fetching movements from: $uri');
+    print('🔍 DEBUG: Query params: $queryParams');
+    
     final response = await http.get(uri, headers: _headers);
     
+    print('🔍 DEBUG: Movements API Response Status: ${response.statusCode}');
+    
     if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(json.decode(response.body));
+      final data = json.decode(response.body);
+      print('🔍 DEBUG: Movements data type: ${data.runtimeType}');
+      print('🔍 DEBUG: Movements count: ${data.length}');
+      if (data.isNotEmpty) {
+        print('🔍 DEBUG: First movement: ${data[0]}');
+        print('🔍 DEBUG: Movement fields: ${data[0].keys.toList()}');
+      }
+      return List<Map<String, dynamic>>.from(data);
     } else {
       print('GET STORE INVENTORY MOVEMENTS ERROR: ${response.statusCode} ${response.body}');
       throw Exception('Error: ${response.statusCode} ${response.body}');

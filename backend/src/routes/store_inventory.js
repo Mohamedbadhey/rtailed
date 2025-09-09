@@ -505,10 +505,13 @@ router.get('/:storeId/movements/:businessId', auth, checkRole(['admin', 'manager
          sim.*,
          p.name as product_name,
          p.sku,
-         COALESCE(u.email, CONCAT('User ', u.id), 'Unknown') as created_by_username
+         COALESCE(u.email, CONCAT('User ', u.id), 'Unknown') as created_by_username,
+         b.name as business_name,
+         b.id as business_id
        FROM store_inventory_movements sim
        JOIN products p ON sim.product_id = p.id
        LEFT JOIN users u ON sim.created_by = u.id
+       LEFT JOIN businesses b ON sim.business_id = b.id
        ${whereClause}
        ORDER BY sim.created_at DESC
        LIMIT ? OFFSET ?`,

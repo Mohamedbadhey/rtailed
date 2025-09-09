@@ -1163,8 +1163,22 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       userBusinessId: req.user.business_id
     });
 
+    console.log('🔍 RAW QUERY PARAMETERS:', req.query);
+    console.log('🔍 PARAMETER TYPES:', {
+      storeId: typeof storeId,
+      businessId: typeof businessId,
+      start_date: typeof start_date,
+      end_date: typeof end_date,
+      product_id: typeof product_id,
+      category: typeof category,
+      target_business_id: typeof target_business_id,
+      status: typeof status,
+      page: typeof page,
+      limit: typeof limit
+    });
+
     // Access control
-    if (req.user.role !== 'superadmin' && req.user.business_id != businessId) {
+    if (req.user.role !== 'superadmin' && req.user.business_id != parseInt(businessId)) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
@@ -1176,14 +1190,14 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       WHERE s.id = ? AND (sba.business_id = ? OR ? = 'superadmin')
     `;
     
-    const [storeRows] = await pool.execute(storeCheckQuery, [storeId, req.user.business_id, req.user.role]);
+    const [storeRows] = await pool.execute(storeCheckQuery, [parseInt(storeId), req.user.business_id, req.user.role]);
     if (storeRows.length === 0) {
       return res.status(404).json({ message: 'Store not found or access denied' });
     }
 
     // Build WHERE conditions for store-to-business transfers
     let baseWhereConditions = ['sim.store_id = ?', 'sim.movement_type = ?', 'sim.reference_type = ?'];
-    let baseQueryParams = [storeId, 'out', 'transfer'];
+    let baseQueryParams = [parseInt(storeId), 'out', 'transfer'];
     
     // For queries with JOINs (transfers query)
     let fullWhereConditions = [...baseWhereConditions];
@@ -1214,8 +1228,8 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       const productCondition = 'sim.product_id = ?';
       fullWhereConditions.push(productCondition);
       simpleWhereConditions.push(productCondition);
-      fullQueryParams.push(product_id);
-      simpleQueryParams.push(product_id);
+      fullQueryParams.push(parseInt(product_id));
+      simpleQueryParams.push(parseInt(product_id));
     }
 
     // Category filter (only for full query with JOINs)
@@ -1232,8 +1246,8 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       const businessCondition = 'sim.business_id = ?';
       fullWhereConditions.push(businessCondition);
       simpleWhereConditions.push(businessCondition);
-      fullQueryParams.push(target_business_id);
-      simpleQueryParams.push(target_business_id);
+      fullQueryParams.push(parseInt(target_business_id));
+      simpleQueryParams.push(parseInt(target_business_id));
     }
 
     const fullWhereClause = `WHERE ${fullWhereConditions.join(' AND ')}`;
@@ -1258,10 +1272,21 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       countQueryParams: simpleQueryParams
     });
 
+    // Test with minimal query first
+    console.log('🔍 Testing minimal query first...');
+    try {
+      const minimalQuery = `SELECT COUNT(*) as total FROM store_inventory_movements WHERE store_id = ? AND movement_type = ? AND reference_type = ?`;
+      const minimalParams = [parseInt(storeId), 'out', 'transfer'];
+      const [minimalResult] = await pool.execute(minimalQuery, minimalParams);
+      console.log('✅ Minimal query result:', minimalResult);
+    } catch (minimalError) {
+      console.error('❌ Minimal query error:', minimalError.message);
+    }
+
     // First, let's check what data exists in store_inventory_movements
     try {
       const testQuery = `SELECT COUNT(*) as total FROM store_inventory_movements WHERE store_id = ?`;
-      const [testResult] = await pool.execute(testQuery, [storeId]);
+      const [testResult] = await pool.execute(testQuery, [parseInt(storeId)]);
       console.log('🔍 Test query result:', testResult);
     } catch (testError) {
       console.log('🔍 Test query error:', testError.message);
@@ -1298,7 +1323,17 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       offset: parseInt(offset)
     });
 
-    const [transfers] = await pool.execute(transfersQuery, [...fullQueryParams, parseInt(limit), parseInt(offset)]);
+    console.log('🔍 Executing transfers query with params:', [...fullQueryParams, parseInt(limit), parseInt(offset)]);
+    let transfers;
+    try {
+      [transfers] = await pool.execute(transfersQuery, [...fullQueryParams, parseInt(limit), parseInt(offset)]);
+      console.log('✅ Transfers query executed successfully, got', transfers.length, 'results');
+    } catch (transfersError) {
+      console.error('❌ TRANSFERS QUERY ERROR:', transfersError.message);
+      console.error('❌ Query:', transfersQuery);
+      console.error('❌ Params:', [...fullQueryParams, parseInt(limit), parseInt(offset)]);
+      throw transfersError;
+    }
 
     // Get summary statistics for business transfers only
     const summaryQuery = `
@@ -1311,7 +1346,17 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       ${simpleWhereClause}
     `;
 
-    const [summaryRows] = await pool.execute(summaryQuery, simpleQueryParams);
+    console.log('🔍 Executing summary query with params:', simpleQueryParams);
+    let summaryRows;
+    try {
+      [summaryRows] = await pool.execute(summaryQuery, simpleQueryParams);
+      console.log('✅ Summary query executed successfully');
+    } catch (summaryError) {
+      console.error('❌ SUMMARY QUERY ERROR:', summaryError.message);
+      console.error('❌ Query:', summaryQuery);
+      console.error('❌ Params:', simpleQueryParams);
+      throw summaryError;
+    }
     const summary = summaryRows[0] || {};
 
     // Get total count for pagination
@@ -1320,7 +1365,17 @@ router.get('/:storeId/business-transfers/:businessId', auth, checkRole(['admin',
       FROM store_inventory_movements sim
       ${simpleWhereClause}
     `;
-    const [countRows] = await pool.execute(countQuery, simpleQueryParams);
+    console.log('🔍 Executing count query with params:', simpleQueryParams);
+    let countRows;
+    try {
+      [countRows] = await pool.execute(countQuery, simpleQueryParams);
+      console.log('✅ Count query executed successfully');
+    } catch (countError) {
+      console.error('❌ COUNT QUERY ERROR:', countError.message);
+      console.error('❌ Query:', countQuery);
+      console.error('❌ Params:', simpleQueryParams);
+      throw countError;
+    }
     const total = countRows[0]?.total || 0;
 
     console.log('✅ Business transfers report generated:', {

@@ -415,6 +415,16 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                           }
                         }
 
+                        print('🔍 Frontend sending filters:');
+                        print('  - storeId: ${widget.storeId}');
+                        print('  - businessId: $businessId');
+                        print('  - startDate: $startDateParam');
+                        print('  - endDate: $endDateParam');
+                        print('  - productId: $_selectedProductForTransfers');
+                        print('  - category: $_selectedCategoryForTransfers');
+                        print('  - targetBusinessId: $_selectedBusinessForTransfers');
+                        print('  - status: $_selectedTransferStatus');
+
                         final data = await _apiService.getBusinessTransfersReport(
                           widget.storeId,
                           businessId,

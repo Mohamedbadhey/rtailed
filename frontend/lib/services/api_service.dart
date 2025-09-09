@@ -2130,6 +2130,8 @@ class ApiService {
     final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/business-transfers/$businessId').replace(queryParameters: queryParams);
     
     print('🔍 GET BUSINESS TRANSFERS REPORT: $uri');
+    print('🔍 Query Parameters: $queryParams');
+    print('🔍 Filter Values: startDate=$startDate, endDate=$endDate, productId=$productId, category=$category, targetBusinessId=$targetBusinessId, status=$status');
     
     final response = await http.get(uri, headers: _headers);
     

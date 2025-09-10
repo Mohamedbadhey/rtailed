@@ -827,6 +827,11 @@ router.get('/:storeId/detailed-movements/:businessId', auth, checkRole(['admin',
       params.push(category_id);
     }
     
+    if (category_id) {
+      whereConditions.push('p.category_id = ?');
+      params.push(category_id);
+    }
+    
     if (movement_type) {
       whereConditions.push('sim.movement_type = ?');
       params.push(movement_type);
@@ -956,6 +961,7 @@ router.get('/:storeId/purchases/:businessId', auth, checkRole(['admin', 'manager
       start_date, 
       end_date, 
       product_id,
+      category_id,
       page = 1, 
       limit = 50 
     } = req.query;
@@ -982,13 +988,19 @@ router.get('/:storeId/purchases/:businessId', auth, checkRole(['admin', 'manager
       params.push(product_id);
     }
     
+    if (category_id) {
+      whereConditions.push('p.category_id = ?');
+      params.push(category_id);
+    }
+    
     const whereClause = whereConditions.join(' AND ');
     
     // Get total count for pagination
-    const [countResult] = await pool.query(
-      `SELECT COUNT(*) as total FROM store_inventory_movements sim WHERE ${whereClause}`,
-      params
-    );
+    const countQuery = category_id 
+      ? `SELECT COUNT(*) as total FROM store_inventory_movements sim JOIN products p ON sim.product_id = p.id WHERE ${whereClause}`
+      : `SELECT COUNT(*) as total FROM store_inventory_movements sim WHERE ${whereClause}`;
+    
+    const [countResult] = await pool.query(countQuery, params);
     
     const totalRecords = countResult[0].total;
     const offset = (page - 1) * limit;
@@ -1003,6 +1015,7 @@ router.get('/:storeId/purchases/:businessId', auth, checkRole(['admin', 'manager
          p.barcode,
          p.cost_price,
          p.price,
+         c.name as category_name,
          sim.quantity as units_purchased,
          sim.previous_quantity,
          sim.new_quantity,
@@ -1016,6 +1029,7 @@ router.get('/:storeId/purchases/:businessId', auth, checkRole(['admin', 'manager
          (sim.quantity * p.price) as total_selling_value
        FROM store_inventory_movements sim
        JOIN products p ON sim.product_id = p.id
+       LEFT JOIN categories c ON p.category_id = c.id
        JOIN stores s ON sim.store_id = s.id
        JOIN businesses b ON sim.business_id = b.id
        LEFT JOIN users u ON sim.created_by = u.id
@@ -1026,21 +1040,33 @@ router.get('/:storeId/purchases/:businessId', auth, checkRole(['admin', 'manager
     );
     
     // Get summary statistics
-    const [summary] = await pool.query(
-      `SELECT 
-         COUNT(*) as total_purchases,
-         COUNT(DISTINCT sim.product_id) as unique_products_purchased,
-         SUM(sim.quantity) as total_units_purchased,
-         SUM(sim.quantity * p.cost_price) as total_purchase_cost,
-         SUM(sim.quantity * p.price) as total_purchase_value,
-         AVG(p.cost_price) as average_cost_price,
-         MIN(sim.created_at) as first_purchase,
-         MAX(sim.created_at) as last_purchase
-       FROM store_inventory_movements sim
-       JOIN products p ON sim.product_id = p.id
-       WHERE ${whereClause}`,
-      params
-    );
+    const summaryQuery = category_id 
+      ? `SELECT 
+           COUNT(*) as total_purchases,
+           COUNT(DISTINCT sim.product_id) as unique_products_purchased,
+           SUM(sim.quantity) as total_units_purchased,
+           SUM(sim.quantity * p.cost_price) as total_purchase_cost,
+           SUM(sim.quantity * p.price) as total_purchase_value,
+           AVG(p.cost_price) as average_cost_price,
+           MIN(sim.created_at) as first_purchase,
+           MAX(sim.created_at) as last_purchase
+         FROM store_inventory_movements sim
+         JOIN products p ON sim.product_id = p.id
+         WHERE ${whereClause}`
+      : `SELECT 
+           COUNT(*) as total_purchases,
+           COUNT(DISTINCT sim.product_id) as unique_products_purchased,
+           SUM(sim.quantity) as total_units_purchased,
+           SUM(sim.quantity * p.cost_price) as total_purchase_cost,
+           SUM(sim.quantity * p.price) as total_purchase_value,
+           AVG(p.cost_price) as average_cost_price,
+           MIN(sim.created_at) as first_purchase,
+           MAX(sim.created_at) as last_purchase
+         FROM store_inventory_movements sim
+         JOIN products p ON sim.product_id = p.id
+         WHERE ${whereClause}`;
+    
+    const [summary] = await pool.query(summaryQuery, params);
     
     res.json({
       report_metadata: {
@@ -1050,7 +1076,8 @@ router.get('/:storeId/purchases/:businessId', auth, checkRole(['admin', 'manager
         filters: {
           start_date,
           end_date,
-          product_id
+          product_id,
+          category_id
         },
         pagination: {
           page: parseInt(page),
@@ -1101,6 +1128,11 @@ router.get('/:storeId/increments/:businessId', auth, checkRole(['admin', 'manage
     if (product_id) {
       whereConditions.push('sim.product_id = ?');
       params.push(product_id);
+    }
+    
+    if (category_id) {
+      whereConditions.push('p.category_id = ?');
+      params.push(category_id);
     }
     
     const whereClause = whereConditions.join(' AND ');

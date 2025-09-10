@@ -2072,6 +2072,7 @@ class ApiService {
     String? startDate,
     String? endDate,
     int? productId,
+    int? categoryId,
     int page = 1,
     int limit = 50,
   }) async {
@@ -2083,6 +2084,7 @@ class ApiService {
     if (startDate != null) queryParams['start_date'] = startDate;
     if (endDate != null) queryParams['end_date'] = endDate;
     if (productId != null) queryParams['product_id'] = productId.toString();
+    if (categoryId != null) queryParams['category_id'] = categoryId.toString();
     
     final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/purchases/$businessId').replace(queryParameters: queryParams);
     

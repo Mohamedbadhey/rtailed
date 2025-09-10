@@ -827,11 +827,6 @@ router.get('/:storeId/detailed-movements/:businessId', auth, checkRole(['admin',
       params.push(category_id);
     }
     
-    if (category_id) {
-      whereConditions.push('p.category_id = ?');
-      params.push(category_id);
-    }
-    
     if (movement_type) {
       whereConditions.push('sim.movement_type = ?');
       params.push(movement_type);
@@ -1104,6 +1099,7 @@ router.get('/:storeId/increments/:businessId', auth, checkRole(['admin', 'manage
       start_date, 
       end_date, 
       product_id,
+      category_id,
       page = 1, 
       limit = 50 
     } = req.query;
@@ -1138,10 +1134,11 @@ router.get('/:storeId/increments/:businessId', auth, checkRole(['admin', 'manage
     const whereClause = whereConditions.join(' AND ');
     
     // Get total count for pagination
-    const [countResult] = await pool.query(
-      `SELECT COUNT(*) as total FROM store_inventory_movements sim WHERE ${whereClause}`,
-      params
-    );
+    const countQuery = category_id 
+      ? `SELECT COUNT(*) as total FROM store_inventory_movements sim JOIN products p ON sim.product_id = p.id WHERE ${whereClause}`
+      : `SELECT COUNT(*) as total FROM store_inventory_movements sim WHERE ${whereClause}`;
+    
+    const [countResult] = await pool.query(countQuery, params);
     
     const totalRecords = countResult[0].total;
     const offset = (page - 1) * limit;
@@ -1156,6 +1153,7 @@ router.get('/:storeId/increments/:businessId', auth, checkRole(['admin', 'manage
          p.barcode,
          p.cost_price,
          p.price,
+         c.name as category_name,
          sim.quantity as units_added,
          sim.previous_quantity as stock_before,
          sim.new_quantity as stock_after,
@@ -1169,6 +1167,7 @@ router.get('/:storeId/increments/:businessId', auth, checkRole(['admin', 'manage
          (sim.quantity * p.price) as total_value_added
        FROM store_inventory_movements sim
        JOIN products p ON sim.product_id = p.id
+       LEFT JOIN categories c ON p.category_id = c.id
        JOIN stores s ON sim.store_id = s.id
        JOIN businesses b ON sim.business_id = b.id
        LEFT JOIN users u ON sim.created_by = u.id
@@ -1179,21 +1178,33 @@ router.get('/:storeId/increments/:businessId', auth, checkRole(['admin', 'manage
     );
     
     // Get summary statistics
-    const [summary] = await pool.query(
-      `SELECT 
-         COUNT(*) as total_increments,
-         COUNT(DISTINCT sim.product_id) as unique_products_incremented,
-         SUM(sim.quantity) as total_units_added,
-         SUM(sim.quantity * p.cost_price) as total_cost_added,
-         SUM(sim.quantity * p.price) as total_value_added,
-         AVG(sim.quantity) as average_increment_size,
-         MIN(sim.created_at) as first_increment,
-         MAX(sim.created_at) as last_increment
-       FROM store_inventory_movements sim
-       JOIN products p ON sim.product_id = p.id
-       WHERE ${whereClause}`,
-      params
-    );
+    const summaryQuery = category_id 
+      ? `SELECT 
+           COUNT(*) as total_increments,
+           COUNT(DISTINCT sim.product_id) as unique_products_incremented,
+           SUM(sim.quantity) as total_units_added,
+           SUM(sim.quantity * p.cost_price) as total_cost_added,
+           SUM(sim.quantity * p.price) as total_value_added,
+           AVG(sim.quantity) as average_increment_size,
+           MIN(sim.created_at) as first_increment,
+           MAX(sim.created_at) as last_increment
+         FROM store_inventory_movements sim
+         JOIN products p ON sim.product_id = p.id
+         WHERE ${whereClause}`
+      : `SELECT 
+           COUNT(*) as total_increments,
+           COUNT(DISTINCT sim.product_id) as unique_products_incremented,
+           SUM(sim.quantity) as total_units_added,
+           SUM(sim.quantity * p.cost_price) as total_cost_added,
+           SUM(sim.quantity * p.price) as total_value_added,
+           AVG(sim.quantity) as average_increment_size,
+           MIN(sim.created_at) as first_increment,
+           MAX(sim.created_at) as last_increment
+         FROM store_inventory_movements sim
+         JOIN products p ON sim.product_id = p.id
+         WHERE ${whereClause}`;
+    
+    const [summary] = await pool.query(summaryQuery, params);
     
     res.json({
       report_metadata: {
@@ -1203,7 +1214,8 @@ router.get('/:storeId/increments/:businessId', auth, checkRole(['admin', 'manage
         filters: {
           start_date,
           end_date,
-          product_id
+          product_id,
+          category_id
         },
         pagination: {
           page: parseInt(page),

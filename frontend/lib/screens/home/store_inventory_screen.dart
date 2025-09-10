@@ -95,6 +95,38 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   bool _purchasesLoading = false;
   bool _incrementsLoading = false;
   
+  // Purchases filters state variables
+  DateTime? _purchasesStartDate;
+  DateTime? _purchasesEndDate;
+  String _purchasesTimeFilter = 'all_time';
+  String? _selectedCategoryForPurchases;
+  int? _selectedProductForPurchases;
+  
+  // Purchases time filter options
+  final List<String> _purchasesTimeFilterOptions = [
+    'today',
+    'this_week', 
+    'this_month',
+    'all_time',
+    'custom'
+  ];
+  
+  // Increments filters state variables
+  DateTime? _incrementsStartDate;
+  DateTime? _incrementsEndDate;
+  String _incrementsTimeFilter = 'all_time';
+  String? _selectedCategoryForIncrements;
+  int? _selectedProductForIncrements;
+  
+  // Increments time filter options
+  final List<String> _incrementsTimeFilterOptions = [
+    'today',
+    'this_week', 
+    'this_month',
+    'all_time',
+    'custom'
+  ];
+  
   // Detailed Reports filter variables
   DateTime? _detailedMovementsStartDate;
   DateTime? _detailedMovementsEndDate;
@@ -104,19 +136,9 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   String? _selectedCategoryForDetailed;
   int? _selectedBusinessForDetailed;
   String? _selectedMovementTypeForDetailed;
-  
-  // Purchases filter state variables
-  String _purchasesTimeFilter = 'all_time';
-  DateTime? _purchasesStartDate;
-  DateTime? _purchasesEndDate;
-  String? _selectedCategoryForPurchases;
-  int? _selectedProductForPurchases;
   String _detailedMovementsTimeFilter = 'all_time';
   final List<String> _detailedMovementsTimeFilterOptions = ['today', 'this_week', 'this_month', 'all_time', 'custom'];
   int _detailedMovementsPage = 1;
-  
-  // Purchases time filter options
-  final List<String> _purchasesTimeFilterOptions = ['today', 'this_week', 'this_month', 'all_time', 'custom'];
   
   // Data for dropdowns
   List<Map<String, dynamic>> _productsForDetailed = [];
@@ -157,6 +179,14 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     _applyStockSummaryPreset('Today');
     _detailedMovementsTimeFilter = 'all_time';
     _applyDetailedMovementsTimePreset('all_time');
+    
+    // Initialize purchases filters
+    _purchasesTimeFilter = 'all_time';
+    _applyPurchasesTimePreset('all_time');
+    
+    // Initialize increments filters
+    _incrementsTimeFilter = 'all_time';
+    _applyIncrementsTimePreset('all_time');
   }
   
   void _applyDetailedMovementsTimePreset(String filterType) {
@@ -193,6 +223,70 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     _loadDetailedMovements();
   }
 
+  void _applyPurchasesTimePreset(String filterType) {
+    final now = DateTime.now();
+    setState(() {
+      _purchasesTimeFilter = filterType;
+      
+      switch (filterType) {
+        case 'today':
+          _purchasesStartDate = DateTime(now.year, now.month, now.day);
+          _purchasesEndDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'this_week':
+          final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+          _purchasesStartDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+          _purchasesEndDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'this_month':
+          _purchasesStartDate = DateTime(now.year, now.month, 1);
+          _purchasesEndDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+          break;
+        case 'all_time':
+          _purchasesStartDate = null;
+          _purchasesEndDate = null;
+          break;
+        case 'custom':
+          // Keep existing dates, user will set them manually
+          break;
+      }
+    });
+    
+    _loadPurchases();
+  }
+
+  void _applyIncrementsTimePreset(String filterType) {
+    final now = DateTime.now();
+    setState(() {
+      _incrementsTimeFilter = filterType;
+      
+      switch (filterType) {
+        case 'today':
+          _incrementsStartDate = DateTime(now.year, now.month, now.day);
+          _incrementsEndDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'this_week':
+          final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+          _incrementsStartDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+          _incrementsEndDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'this_month':
+          _incrementsStartDate = DateTime(now.year, now.month, 1);
+          _incrementsEndDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+          break;
+        case 'all_time':
+          _incrementsStartDate = null;
+          _incrementsEndDate = null;
+          break;
+        case 'custom':
+          // Keep existing dates, user will set them manually
+          break;
+      }
+    });
+    
+    _loadIncrements();
+  }
+
   void _clearDetailedMovementsFilters() {
     setState(() {
       _detailedMovementsTimeFilter = 'all_time';
@@ -207,38 +301,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     _loadDetailedMovements();
   }
 
-  void _applyPurchasesTimePreset(String filterType) {
-    final now = DateTime.now();
-    setState(() {
-      _purchasesTimeFilter = filterType;
-      
-      switch (filterType) {
-        case 'today':
-          _purchasesStartDate = DateTime(now.year, now.month, now.day);
-          _purchasesEndDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
-          break;
-        case 'this_week':
-          final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-          _purchasesStartDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
-          _purchasesEndDate = now;
-          break;
-        case 'this_month':
-          _purchasesStartDate = DateTime(now.year, now.month, 1);
-          _purchasesEndDate = now;
-          break;
-        case 'all_time':
-          _purchasesStartDate = null;
-          _purchasesEndDate = null;
-          break;
-        case 'custom':
-          // Keep existing dates for custom range
-          break;
-      }
-    });
-    
-    _loadPurchases();
-  }
-
   void _clearPurchasesFilters() {
     setState(() {
       _purchasesTimeFilter = 'all_time';
@@ -249,6 +311,18 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     });
     
     _loadPurchases();
+  }
+
+  void _clearIncrementsFilters() {
+    setState(() {
+      _incrementsTimeFilter = 'all_time';
+      _incrementsStartDate = null;
+      _incrementsEndDate = null;
+      _selectedCategoryForIncrements = null;
+      _selectedProductForIncrements = null;
+    });
+    
+    _loadIncrements();
   }
   
   Future<void> _initializeData() async {
@@ -672,9 +746,10 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       final data = await _apiService.getIncrementsReport(
         widget.storeId,
         businessId,
-        startDate: _detailedMovementsStartDate?.toIso8601String().split('T')[0],
-        endDate: _detailedMovementsEndDate?.toIso8601String().split('T')[0],
-        productId: _selectedProductForDetailed,
+        startDate: _incrementsStartDate?.toIso8601String().split('T')[0],
+        endDate: _incrementsEndDate?.toIso8601String().split('T')[0],
+        productId: _selectedProductForIncrements,
+        categoryId: _selectedCategoryForIncrements != null ? int.tryParse(_selectedCategoryForIncrements!) : null,
         page: 1,
         limit: _detailedReportsPageSize,
       );
@@ -3206,117 +3281,42 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       return _buildLoadingState();
     }
 
-    final screenSize = MediaQuery.of(context).size;
-    final isSmallScreen = screenSize.width < 768;
-
-    return Column(
-      children: [
-        // Enhanced Header with filters - Responsive
-        Container(
-          padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Header with filters
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Purchases Report',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: _loadPurchases,
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Refresh Data',
               ),
             ],
           ),
-          child: Column(
-            children: [
-              // Header Row - Responsive
-              isSmallScreen 
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Purchases Report',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Quick Actions - Stacked on mobile
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _clearPurchasesFilters,
-                              icon: const Icon(Icons.clear, size: 16),
-                              label: const Text('Clear'),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _loadPurchases,
-                              icon: const Icon(Icons.refresh, size: 16),
-                              label: const Text('Refresh'),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Purchases Report',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      // Quick Actions - Side by side on desktop
-                      Row(
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: _clearPurchasesFilters,
-                            icon: const Icon(Icons.clear, size: 18),
-                            label: const Text('Clear Filters'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed: _loadPurchases,
-                            icon: const Icon(Icons.refresh, size: 18),
-                            label: const Text('Refresh'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-              const SizedBox(height: 16),
-              
-              // Enhanced Filters - Responsive
-              _buildResponsivePurchasesFilters(),
-            ],
-          ),
-        ),
-        
-        // Data Display - Scrollable and Responsive
-        Expanded(
-          child: _purchasesLoading
+          const SizedBox(height: 16),
+          
+          // Filters Row
+          _buildPurchasesFilters(),
+          const SizedBox(height: 16),
+          
+          // Data Display
+          _purchasesLoading
               ? const Center(child: CircularProgressIndicator())
               : _purchasesData.isEmpty
                   ? _buildEmptyPurchases()
                   : _buildPurchasesTable(),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -7498,7 +7498,9 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     if (date != null) {
       setState(() {
         _purchasesStartDate = date;
+        _purchasesTimeFilter = 'custom';
       });
+      _loadPurchases();
     }
   }
 
@@ -7512,7 +7514,41 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     if (date != null) {
       setState(() {
         _purchasesEndDate = date;
+        _purchasesTimeFilter = 'custom';
       });
+      _loadPurchases();
+    }
+  }
+
+  Future<void> _showIncrementsStartDatePicker(BuildContext context) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _incrementsStartDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (date != null) {
+      setState(() {
+        _incrementsStartDate = date;
+        _incrementsTimeFilter = 'custom';
+      });
+      _loadIncrements();
+    }
+  }
+
+  Future<void> _showIncrementsEndDatePicker(BuildContext context) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _incrementsEndDate ?? DateTime.now(),
+      firstDate: _incrementsStartDate ?? DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (date != null) {
+      setState(() {
+        _incrementsEndDate = date;
+        _incrementsTimeFilter = 'custom';
+      });
+      _loadIncrements();
     }
   }
 
@@ -7544,34 +7580,64 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     );
   }
 
-
-  Widget _buildDesktopPurchasesFilters() {
-    return Row(
+  Widget _buildMobilePurchasesFilters() {
+    return Column(
       children: [
-        // Date Range
-        Expanded(
-          child: Column(
+        // Time Period Filter
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Time Period:', style: TextStyle(fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _purchasesTimeFilter,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'today', child: Text('Today')),
+                DropdownMenuItem(value: 'this_week', child: Text('This Week')),
+                DropdownMenuItem(value: 'this_month', child: Text('This Month')),
+                DropdownMenuItem(value: 'all_time', child: Text('All Time')),
+                DropdownMenuItem(value: 'custom', child: Text('Custom Range')),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  _applyPurchasesTimePreset(value);
+                }
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        
+        // Custom Date Range (only show if custom is selected)
+        if (_purchasesTimeFilter == 'custom') ...[
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
-              const SizedBox(height: 4),
+              const Text('Custom Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
                     child: InkWell(
-                      onTap: () => _showDetailedMovementsStartDatePicker(context),
+                      onTap: () => _showPurchasesStartDatePicker(context),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          _detailedMovementsStartDate != null
-                              ? '${_detailedMovementsStartDate!.day}/${_detailedMovementsStartDate!.month}/${_detailedMovementsStartDate!.year}'
+                          _purchasesStartDate != null
+                              ? '${_purchasesStartDate!.day}/${_purchasesStartDate!.month}/${_purchasesStartDate!.year}'
                               : 'Start Date',
                           style: TextStyle(
-                            color: _detailedMovementsStartDate != null ? Colors.black : Colors.grey,
+                            color: _purchasesStartDate != null ? Colors.black : Colors.grey,
                           ),
                         ),
                       ),
@@ -7582,19 +7648,19 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   const SizedBox(width: 8),
                   Expanded(
                     child: InkWell(
-                      onTap: () => _showDetailedMovementsEndDatePicker(context),
+                      onTap: () => _showPurchasesEndDatePicker(context),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          _detailedMovementsEndDate != null
-                              ? '${_detailedMovementsEndDate!.day}/${_detailedMovementsEndDate!.month}/${_detailedMovementsEndDate!.year}'
+                          _purchasesEndDate != null
+                              ? '${_purchasesEndDate!.day}/${_purchasesEndDate!.month}/${_purchasesEndDate!.year}'
                               : 'End Date',
                           style: TextStyle(
-                            color: _detailedMovementsEndDate != null ? Colors.black : Colors.grey,
+                            color: _purchasesEndDate != null ? Colors.black : Colors.grey,
                           ),
                         ),
                       ),
@@ -7604,241 +7670,281 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
               ),
             ],
           ),
+          const SizedBox(height: 16),
+        ],
+        
+        // Category Filter
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Category:', style: TextStyle(fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _selectedCategoryForPurchases,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                hintText: 'All Categories',
+              ),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('All Categories')),
+                ..._categories.map((category) => 
+                  DropdownMenuItem(value: category['id']?.toString(), child: Text(category['name'] ?? 'Unknown'))
+                ),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedCategoryForPurchases = value;
+                });
+                _loadPurchases();
+              },
+            ),
+          ],
         ),
-        const SizedBox(width: 16),
-        // Apply Filters Button
-        ElevatedButton(
-          onPressed: _loadPurchases,
-          child: const Text('Apply Filters'),
+        const SizedBox(height: 16),
+        
+        // Product Filter
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Product:', style: TextStyle(fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int?>(
+              value: _selectedProductForPurchases,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                hintText: 'All Products',
+              ),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('All Products')),
+                ..._inventory.map((item) => DropdownMenuItem(
+                  value: item['product_id'],
+                  child: Text(item['product_name'] ?? 'Unknown'),
+                )),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedProductForPurchases = value;
+                });
+                _loadPurchases();
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        
+        // Action Buttons
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _clearPurchasesFilters,
+                child: const Text('Clear Filters'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _loadPurchases,
+                child: const Text('Apply Filters'),
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildResponsivePurchasesFilters() {
-    final screenSize = MediaQuery.of(context).size;
-    final isSmallScreen = screenSize.width < 768;
-    final isMediumScreen = screenSize.width >= 768 && screenSize.width < 1024;
-
-    if (isSmallScreen) {
-      return _buildMobilePurchasesFilters();
-    } else if (isMediumScreen) {
-      return _buildTabletPurchasesFilters();
-    } else {
-      return _buildDesktopPurchasesFilters();
-    }
-  }
-
-  Widget _buildMobilePurchasesFilters() {
+  Widget _buildDesktopPurchasesFilters() {
     return Column(
       children: [
-        // Time Filter Dropdown
-        DropdownButtonFormField<String>(
-          value: _purchasesTimeFilter,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            labelText: 'Time Period',
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
-          items: _purchasesTimeFilterOptions.map((String value) {
-            return DropdownMenuItem<String>(
-              value: value,
-              child: Text(value.replaceAll('_', ' ').toUpperCase()),
-            );
-          }).toList(),
-          onChanged: (value) {
-            if (value != null) {
-              _applyPurchasesTimePreset(value);
-            }
-          },
-        ),
-        const SizedBox(height: 12),
-        
-        // Category Filter
-        DropdownButtonFormField<String?>(
-          value: _selectedCategoryForPurchases,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            labelText: 'Category',
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
-          items: [
-            const DropdownMenuItem<String?>(value: null, child: Text('All Categories')),
-            ..._categoriesForDetailed.map((category) {
-              return DropdownMenuItem<String?>(
-                value: category['name'],
-                child: Text(category['name']),
-              );
-            }),
+        // First Row - Time Period and Category
+        Row(
+          children: [
+            // Time Period Filter
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Time Period:', style: TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 4),
+                  DropdownButtonFormField<String>(
+                    value: _purchasesTimeFilter,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'today', child: Text('Today')),
+                      DropdownMenuItem(value: 'this_week', child: Text('This Week')),
+                      DropdownMenuItem(value: 'this_month', child: Text('This Month')),
+                      DropdownMenuItem(value: 'all_time', child: Text('All Time')),
+                      DropdownMenuItem(value: 'custom', child: Text('Custom Range')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        _applyPurchasesTimePreset(value);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Category Filter
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Category:', style: TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 4),
+                  DropdownButtonFormField<String>(
+                    value: _selectedCategoryForPurchases,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      hintText: 'All Categories',
+                    ),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('All Categories')),
+                      ..._categories.map((category) => 
+                        DropdownMenuItem(value: category['id']?.toString(), child: Text(category['name'] ?? 'Unknown'))
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCategoryForPurchases = value;
+                      });
+                      _loadPurchases();
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Product Filter
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Product:', style: TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 4),
+                  DropdownButtonFormField<int?>(
+                    value: _selectedProductForPurchases,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      hintText: 'All Products',
+                    ),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('All Products')),
+                      ..._inventory.map((item) => DropdownMenuItem(
+                        value: item['product_id'],
+                        child: Text(item['product_name'] ?? 'Unknown'),
+                      )),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedProductForPurchases = value;
+                      });
+                      _loadPurchases();
+                    },
+                  ),
+                ],
+              ),
+            ),
           ],
-          onChanged: (value) {
-            setState(() {
-              _selectedCategoryForPurchases = value;
-            });
-            _loadPurchases();
-          },
         ),
-        const SizedBox(height: 12),
         
-        // Product Filter
-        DropdownButtonFormField<int?>(
-          value: _selectedProductForPurchases,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            labelText: 'Product',
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
-          items: [
-            const DropdownMenuItem<int?>(value: null, child: Text('All Products')),
-            ..._productsForDetailed.map((product) {
-              return DropdownMenuItem<int?>(
-                value: product['id'],
-                child: Text(product['name']),
-              );
-            }),
-          ],
-          onChanged: (value) {
-            setState(() {
-              _selectedProductForPurchases = value;
-            });
-            _loadPurchases();
-          },
-        ),
-        const SizedBox(height: 12),
-        
-        // Custom Date Range (if custom is selected)
+        // Custom Date Range (only show if custom is selected)
         if (_purchasesTimeFilter == 'custom') ...[
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
-                child: InkWell(
-                  onTap: () => _showPurchasesStartDatePicker(context),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      _purchasesStartDate != null
-                          ? '${_purchasesStartDate!.day}/${_purchasesStartDate!.month}/${_purchasesStartDate!.year}'
-                          : 'Start Date',
-                      style: TextStyle(
-                        color: _purchasesStartDate != null ? Colors.black : Colors.grey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Start Date:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    InkWell(
+                      onTap: () => _showPurchasesStartDatePicker(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _purchasesStartDate != null
+                              ? '${_purchasesStartDate!.day}/${_purchasesStartDate!.month}/${_purchasesStartDate!.year}'
+                              : 'Start Date',
+                          style: TextStyle(
+                            color: _purchasesStartDate != null ? Colors.black : Colors.grey,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 16),
               Expanded(
-                child: InkWell(
-                  onTap: () => _showPurchasesEndDatePicker(context),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      _purchasesEndDate != null
-                          ? '${_purchasesEndDate!.day}/${_purchasesEndDate!.month}/${_purchasesEndDate!.year}'
-                          : 'End Date',
-                      style: TextStyle(
-                        color: _purchasesEndDate != null ? Colors.black : Colors.grey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('End Date:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    InkWell(
+                      onTap: () => _showPurchasesEndDatePicker(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _purchasesEndDate != null
+                              ? '${_purchasesEndDate!.day}/${_purchasesEndDate!.month}/${_purchasesEndDate!.year}'
+                              : 'End Date',
+                          style: TextStyle(
+                            color: _purchasesEndDate != null ? Colors.black : Colors.grey,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
         ],
-      ],
-    );
-  }
-
-  Widget _buildTabletPurchasesFilters() {
-    return Row(
-      children: [
-        // Time Filter
-        Expanded(
-          child: DropdownButtonFormField<String>(
-            value: _purchasesTimeFilter,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              labelText: 'Time Period',
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
-            items: _purchasesTimeFilterOptions.map((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value.replaceAll('_', ' ').toUpperCase()),
-              );
-            }).toList(),
-            onChanged: (value) {
-              if (value != null) {
-                _applyPurchasesTimePreset(value);
-              }
-            },
-          ),
-        ),
-        const SizedBox(width: 12),
         
-        // Category Filter
-        Expanded(
-          child: DropdownButtonFormField<String?>(
-            value: _selectedCategoryForPurchases,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              labelText: 'Category',
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        const SizedBox(height: 16),
+        // Action Buttons
+        Row(
+          children: [
+            OutlinedButton(
+              onPressed: _clearPurchasesFilters,
+              child: const Text('Clear Filters'),
             ),
-            items: [
-              const DropdownMenuItem<String?>(value: null, child: Text('All Categories')),
-              ..._categoriesForDetailed.map((category) {
-                return DropdownMenuItem<String?>(
-                  value: category['name'],
-                  child: Text(category['name']),
-                );
-              }),
-            ],
-            onChanged: (value) {
-              setState(() {
-                _selectedCategoryForPurchases = value;
-              });
-              _loadPurchases();
-            },
-          ),
-        ),
-        const SizedBox(width: 12),
-        
-        // Product Filter
-        Expanded(
-          child: DropdownButtonFormField<int?>(
-            value: _selectedProductForPurchases,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              labelText: 'Product',
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            const SizedBox(width: 16),
+            ElevatedButton(
+              onPressed: _loadPurchases,
+              child: const Text('Apply Filters'),
             ),
-            items: [
-              const DropdownMenuItem<int?>(value: null, child: Text('All Products')),
-              ..._productsForDetailed.map((product) {
-                return DropdownMenuItem<int?>(
-                  value: product['id'],
-                  child: Text(product['name']),
-                );
-              }),
-            ],
-            onChanged: (value) {
-              setState(() {
-                _selectedProductForPurchases = value;
-              });
-              _loadPurchases();
-            },
-          ),
+          ],
         ),
       ],
     );
@@ -7909,7 +8015,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           child: Row(
             children: [
               Expanded(flex: 2, child: Text('Product', style: TextStyle(fontWeight: FontWeight.bold))),
-              Expanded(child: Text('Category', style: TextStyle(fontWeight: FontWeight.bold))),
               Expanded(child: Text('Units', style: TextStyle(fontWeight: FontWeight.bold))),
               Expanded(child: Text('Cost Price', style: TextStyle(fontWeight: FontWeight.bold))),
               Expanded(child: Text('Total Cost', style: TextStyle(fontWeight: FontWeight.bold))),
@@ -7948,25 +8053,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                         ),
                       ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.green[50],
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.green[200]!),
-                      ),
-                      child: Text(
-                        purchase['category_name'] ?? 'No Category',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.green[700],
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
                     ),
                   ),
                   Expanded(
@@ -8056,31 +8142,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 8),
-              // Category Info
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.green[50],
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.green[200]!),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.category, color: Colors.green[700], size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      purchase['category_name'] ?? 'No Category',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.green[700],
-                      ),
-                    ),
-                  ],
-                ),
               ),
               const SizedBox(height: 12),
               // Details Row
@@ -8329,101 +8390,61 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   Widget _buildMobileIncrementsFilters() {
     return Column(
       children: [
-        // Date Range
+        // Time Period Filter
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
+            const Text('Time Period:', style: TextStyle(fontWeight: FontWeight.w500)),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _showDetailedMovementsStartDatePicker(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        _detailedMovementsStartDate != null
-                            ? '${_detailedMovementsStartDate!.day}/${_detailedMovementsStartDate!.month}/${_detailedMovementsStartDate!.year}'
-                            : 'Start Date',
-                        style: TextStyle(
-                          color: _detailedMovementsStartDate != null ? Colors.black : Colors.grey,
-                        ),
-                      ),
-                    ),
-                  ),
+            DropdownButtonFormField<String>(
+              value: _incrementsTimeFilter,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(width: 8),
-                const Text('to'),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _showDetailedMovementsEndDatePicker(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        _detailedMovementsEndDate != null
-                            ? '${_detailedMovementsEndDate!.day}/${_detailedMovementsEndDate!.month}/${_detailedMovementsEndDate!.year}'
-                            : 'End Date',
-                        style: TextStyle(
-                          color: _detailedMovementsEndDate != null ? Colors.black : Colors.grey,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'today', child: Text('Today')),
+                DropdownMenuItem(value: 'this_week', child: Text('This Week')),
+                DropdownMenuItem(value: 'this_month', child: Text('This Month')),
+                DropdownMenuItem(value: 'all_time', child: Text('All Time')),
+                DropdownMenuItem(value: 'custom', child: Text('Custom Range')),
               ],
+              onChanged: (value) {
+                if (value != null) {
+                  _applyIncrementsTimePreset(value);
+                }
+              },
             ),
           ],
         ),
         const SizedBox(height: 16),
-        // Apply Filters Button
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _loadIncrements,
-            child: const Text('Apply Filters'),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDesktopIncrementsFilters() {
-    return Row(
-      children: [
-        // Date Range
-        Expanded(
-          child: Column(
+        
+        // Custom Date Range (only show if custom is selected)
+        if (_incrementsTimeFilter == 'custom') ...[
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
-              const SizedBox(height: 4),
+              const Text('Custom Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
                     child: InkWell(
-                      onTap: () => _showDetailedMovementsStartDatePicker(context),
+                      onTap: () => _showIncrementsStartDatePicker(context),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          _detailedMovementsStartDate != null
-                              ? '${_detailedMovementsStartDate!.day}/${_detailedMovementsStartDate!.month}/${_detailedMovementsStartDate!.year}'
+                          _incrementsStartDate != null
+                              ? '${_incrementsStartDate!.day}/${_incrementsStartDate!.month}/${_incrementsStartDate!.year}'
                               : 'Start Date',
                           style: TextStyle(
-                            color: _detailedMovementsStartDate != null ? Colors.black : Colors.grey,
+                            color: _incrementsStartDate != null ? Colors.black : Colors.grey,
                           ),
                         ),
                       ),
@@ -8434,19 +8455,19 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   const SizedBox(width: 8),
                   Expanded(
                     child: InkWell(
-                      onTap: () => _showDetailedMovementsEndDatePicker(context),
+                      onTap: () => _showIncrementsEndDatePicker(context),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          _detailedMovementsEndDate != null
-                              ? '${_detailedMovementsEndDate!.day}/${_detailedMovementsEndDate!.month}/${_detailedMovementsEndDate!.year}'
+                          _incrementsEndDate != null
+                              ? '${_incrementsEndDate!.day}/${_incrementsEndDate!.month}/${_incrementsEndDate!.year}'
                               : 'End Date',
                           style: TextStyle(
-                            color: _detailedMovementsEndDate != null ? Colors.black : Colors.grey,
+                            color: _incrementsEndDate != null ? Colors.black : Colors.grey,
                           ),
                         ),
                       ),
@@ -8456,12 +8477,281 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
               ),
             ],
           ),
+          const SizedBox(height: 16),
+        ],
+        
+        // Category Filter
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Category:', style: TextStyle(fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _selectedCategoryForIncrements,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                hintText: 'All Categories',
+              ),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('All Categories')),
+                ..._categories.map((category) => 
+                  DropdownMenuItem(value: category['id']?.toString(), child: Text(category['name'] ?? 'Unknown'))
+                ),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedCategoryForIncrements = value;
+                });
+                _loadIncrements();
+              },
+            ),
+          ],
         ),
-        const SizedBox(width: 16),
-        // Apply Filters Button
-        ElevatedButton(
-          onPressed: _loadIncrements,
-          child: const Text('Apply Filters'),
+        const SizedBox(height: 16),
+        
+        // Product Filter
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Product:', style: TextStyle(fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int?>(
+              value: _selectedProductForIncrements,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                hintText: 'All Products',
+              ),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('All Products')),
+                ..._inventory.map((item) => DropdownMenuItem(
+                  value: item['product_id'],
+                  child: Text(item['product_name'] ?? 'Unknown'),
+                )),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedProductForIncrements = value;
+                });
+                _loadIncrements();
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        
+        // Action Buttons
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _clearIncrementsFilters,
+                child: const Text('Clear Filters'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _loadIncrements,
+                child: const Text('Apply Filters'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopIncrementsFilters() {
+    return Column(
+      children: [
+        // First Row - Time Period and Category
+        Row(
+          children: [
+            // Time Period Filter
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Time Period:', style: TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 4),
+                  DropdownButtonFormField<String>(
+                    value: _incrementsTimeFilter,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'today', child: Text('Today')),
+                      DropdownMenuItem(value: 'this_week', child: Text('This Week')),
+                      DropdownMenuItem(value: 'this_month', child: Text('This Month')),
+                      DropdownMenuItem(value: 'all_time', child: Text('All Time')),
+                      DropdownMenuItem(value: 'custom', child: Text('Custom Range')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        _applyIncrementsTimePreset(value);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Category Filter
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Category:', style: TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 4),
+                  DropdownButtonFormField<String>(
+                    value: _selectedCategoryForIncrements,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      hintText: 'All Categories',
+                    ),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('All Categories')),
+                      ..._categories.map((category) => 
+                        DropdownMenuItem(value: category['id']?.toString(), child: Text(category['name'] ?? 'Unknown'))
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCategoryForIncrements = value;
+                      });
+                      _loadIncrements();
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Product Filter
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Product:', style: TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 4),
+                  DropdownButtonFormField<int?>(
+                    value: _selectedProductForIncrements,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      hintText: 'All Products',
+                    ),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('All Products')),
+                      ..._inventory.map((item) => DropdownMenuItem(
+                        value: item['product_id'],
+                        child: Text(item['product_name'] ?? 'Unknown'),
+                      )),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedProductForIncrements = value;
+                      });
+                      _loadIncrements();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        
+        // Custom Date Range (only show if custom is selected)
+        if (_incrementsTimeFilter == 'custom') ...[
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Start Date:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    InkWell(
+                      onTap: () => _showIncrementsStartDatePicker(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _incrementsStartDate != null
+                              ? '${_incrementsStartDate!.day}/${_incrementsStartDate!.month}/${_incrementsStartDate!.year}'
+                              : 'Start Date',
+                          style: TextStyle(
+                            color: _incrementsStartDate != null ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('End Date:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    InkWell(
+                      onTap: () => _showIncrementsEndDatePicker(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _incrementsEndDate != null
+                              ? '${_incrementsEndDate!.day}/${_incrementsEndDate!.month}/${_incrementsEndDate!.year}'
+                              : 'End Date',
+                          style: TextStyle(
+                            color: _incrementsEndDate != null ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+        
+        const SizedBox(height: 16),
+        // Action Buttons
+        Row(
+          children: [
+            OutlinedButton(
+              onPressed: _clearIncrementsFilters,
+              child: const Text('Clear Filters'),
+            ),
+            const SizedBox(width: 16),
+            ElevatedButton(
+              onPressed: _loadIncrements,
+              child: const Text('Apply Filters'),
+            ),
+          ],
         ),
       ],
     );

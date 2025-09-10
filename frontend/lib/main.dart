@@ -77,7 +77,7 @@ class MyApp extends StatelessWidget {
           return BrandingInitializer(
             child: BrandingListener(
               child: MaterialApp(
-                title: 'No Name',
+                title: 'SmartLedger',
                 theme: appTheme,
                 darkTheme: darkTheme,
                 themeMode: settings.themeMode,

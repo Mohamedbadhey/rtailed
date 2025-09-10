@@ -788,15 +788,16 @@ router.get('/:storeId/reports/:businessId', auth, checkRole(['admin', 'manager',
 router.get('/:storeId/detailed-movements/:businessId', auth, checkRole(['admin', 'manager', 'superadmin']), async (req, res) => {
   try {
     const { storeId, businessId } = req.params;
-    const { 
-      start_date, 
-      end_date, 
-      product_id, 
+    const {
+      start_date,
+      end_date,
+      product_id,
       category_id,
-      movement_type, 
+      movement_type,
       reference_type,
-      page = 1, 
-      limit = 50 
+      target_business_id,
+      page = 1,
+      limit = 50
     } = req.query;
     const user = req.user;
     
@@ -836,6 +837,11 @@ router.get('/:storeId/detailed-movements/:businessId', auth, checkRole(['admin',
       params.push(reference_type);
     }
     
+    if (target_business_id) {
+      whereConditions.push('sim.business_id = ?');
+      params.push(target_business_id);
+    }
+    
     const whereClause = whereConditions.join(' AND ');
     
     // Get total count for pagination
@@ -858,6 +864,7 @@ router.get('/:storeId/detailed-movements/:businessId', auth, checkRole(['admin',
          p.barcode,
          p.cost_price,
          p.price,
+         c.name as category_name,
          sim.movement_type,
          sim.quantity,
          sim.previous_quantity,
@@ -871,6 +878,7 @@ router.get('/:storeId/detailed-movements/:businessId', auth, checkRole(['admin',
          b.name as business_name
        FROM store_inventory_movements sim
        JOIN products p ON sim.product_id = p.id
+       LEFT JOIN categories c ON p.category_id = c.id
        JOIN stores s ON sim.store_id = s.id
        JOIN businesses b ON sim.business_id = b.id
        LEFT JOIN users u ON sim.created_by = u.id
@@ -885,6 +893,8 @@ router.get('/:storeId/detailed-movements/:businessId', auth, checkRole(['admin',
       ? `SELECT 
            COUNT(*) as total_movements,
            COUNT(DISTINCT sim.product_id) as unique_products,
+           COUNT(DISTINCT sim.business_id) as unique_businesses,
+           SUM(sim.quantity) as total_quantity,
            SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as total_stock_in,
            SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN sim.quantity ELSE 0 END) as total_transferred_out,
            SUM(CASE WHEN sim.movement_type = 'adjustment' THEN sim.quantity ELSE 0 END) as total_adjustments,
@@ -896,6 +906,8 @@ router.get('/:storeId/detailed-movements/:businessId', auth, checkRole(['admin',
       : `SELECT 
            COUNT(*) as total_movements,
            COUNT(DISTINCT sim.product_id) as unique_products,
+           COUNT(DISTINCT sim.business_id) as unique_businesses,
+           SUM(sim.quantity) as total_quantity,
            SUM(CASE WHEN sim.movement_type = 'in' THEN sim.quantity ELSE 0 END) as total_stock_in,
            SUM(CASE WHEN sim.movement_type = 'transfer_out' THEN sim.quantity ELSE 0 END) as total_transferred_out,
            SUM(CASE WHEN sim.movement_type = 'adjustment' THEN sim.quantity ELSE 0 END) as total_adjustments,

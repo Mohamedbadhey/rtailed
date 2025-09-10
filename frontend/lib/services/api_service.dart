@@ -2034,6 +2034,7 @@ class ApiService {
     int? categoryId,
     String? movementType,
     String? referenceType,
+    int? targetBusinessId,
     int page = 1,
     int limit = 50,
   }) async {
@@ -2048,6 +2049,7 @@ class ApiService {
     if (categoryId != null) queryParams['category_id'] = categoryId.toString();
     if (movementType != null) queryParams['movement_type'] = movementType;
     if (referenceType != null) queryParams['reference_type'] = referenceType;
+    if (targetBusinessId != null) queryParams['target_business_id'] = targetBusinessId.toString();
     
     final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/detailed-movements/$businessId').replace(queryParameters: queryParams);
     

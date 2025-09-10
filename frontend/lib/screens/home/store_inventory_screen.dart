@@ -101,14 +101,17 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   String? _selectedDetailedMovementType;
   String? _selectedReferenceType;
   int? _selectedProductForDetailed;
-  int? _selectedCategoryForDetailed;
-  String _detailedMovementsTimeFilter = 'All Time';
-  final List<String> _detailedMovementsTimeFilterOptions = ['All Time', 'This Week', 'This Month', 'Custom Range'];
+  String? _selectedCategoryForDetailed;
+  int? _selectedBusinessForDetailed;
+  String? _selectedMovementTypeForDetailed;
+  String _detailedMovementsTimeFilter = 'all_time';
+  final List<String> _detailedMovementsTimeFilterOptions = ['today', 'this_week', 'this_month', 'all_time', 'custom'];
   int _detailedMovementsPage = 1;
   
   // Data for dropdowns
   List<Map<String, dynamic>> _productsForDetailed = [];
   List<Map<String, dynamic>> _categoriesForDetailed = [];
+  List<Map<String, dynamic>> _categories = [];
   
   static const int _detailedReportsPageSize = 50;
   
@@ -142,8 +145,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   void _initializeDateFilters() {
     _stockSummaryFilterType = 'Today';
     _applyStockSummaryPreset('Today');
-    _detailedMovementsTimeFilter = 'All Time';
-    _applyDetailedMovementsTimePreset('All Time');
+    _detailedMovementsTimeFilter = 'all_time';
+    _applyDetailedMovementsTimePreset('all_time');
   }
   
   void _applyDetailedMovementsTimePreset(String filterType) {
@@ -152,24 +155,46 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       _detailedMovementsTimeFilter = filterType;
       
       switch (filterType) {
-        case 'All Time':
-          _detailedMovementsStartDate = null;
-          _detailedMovementsEndDate = null;
+        case 'today':
+          _detailedMovementsStartDate = DateTime(now.year, now.month, now.day);
+          _detailedMovementsEndDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
           break;
-        case 'This Week':
+        case 'this_week':
           final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
           _detailedMovementsStartDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
           _detailedMovementsEndDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
           break;
-        case 'This Month':
+        case 'this_month':
           _detailedMovementsStartDate = DateTime(now.year, now.month, 1);
           _detailedMovementsEndDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
           break;
-        case 'Custom Range':
-          // Keep existing dates or set to null if not set
+        case 'all_time':
+          _detailedMovementsStartDate = null;
+          _detailedMovementsEndDate = null;
+          break;
+        case 'custom':
+          // Keep existing dates or set defaults
+          _detailedMovementsStartDate ??= now.subtract(const Duration(days: 30));
+          _detailedMovementsEndDate ??= now;
           break;
       }
     });
+    
+    _loadDetailedMovements();
+  }
+
+  void _clearDetailedMovementsFilters() {
+    setState(() {
+      _detailedMovementsTimeFilter = 'all_time';
+      _detailedMovementsStartDate = null;
+      _detailedMovementsEndDate = null;
+      _selectedCategoryForDetailed = null;
+      _selectedProductForDetailed = null;
+      _selectedBusinessForDetailed = null;
+      _selectedMovementTypeForDetailed = null;
+    });
+    
+    _loadDetailedMovements();
   }
   
   Future<void> _initializeData() async {
@@ -181,6 +206,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     // Load products and categories for detailed reports
     await _loadProductsForDetailed();
     await _loadCategoriesForDetailed();
+    await _loadCategories();
     
     // If superadmin, wait for business selection
     if (user?.role == 'superadmin') {
@@ -249,6 +275,17 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       }
     } catch (e) {
       print('Error loading categories for detailed reports: $e');
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await _apiService.getCategories();
+      setState(() {
+        _categories = categories;
+      });
+    } catch (e) {
+      print('Error loading categories: $e');
     }
   }
 
@@ -479,9 +516,10 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         startDate: _detailedMovementsStartDate?.toIso8601String().split('T')[0],
         endDate: _detailedMovementsEndDate?.toIso8601String().split('T')[0],
         productId: _selectedProductForDetailed,
-        categoryId: _selectedCategoryForDetailed,
-        movementType: _selectedDetailedMovementType,
+        categoryId: _selectedCategoryForDetailed != null ? int.tryParse(_selectedCategoryForDetailed!) : null,
+        movementType: _selectedMovementTypeForDetailed,
         referenceType: _selectedReferenceType,
+        targetBusinessId: _selectedBusinessForDetailed,
         page: _detailedMovementsPage,
         limit: _detailedReportsPageSize,
       );
@@ -2993,42 +3031,118 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       return _buildLoadingState();
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // Header with filters
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Detailed Movements Report',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: _loadDetailedMovements,
-                icon: const Icon(Icons.refresh),
-                tooltip: 'Refresh Data',
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 768;
+    final isMediumScreen = screenSize.width >= 768 && screenSize.width < 1024;
+
+    return Column(
+      children: [
+        // Enhanced Header with filters - Responsive
+        Container(
+          padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          
-          // Filters Row
-          _buildDetailedMovementsFilters(),
-          const SizedBox(height: 16),
-          
-          // Data Display
-          _detailedMovementsLoading
+          child: Column(
+            children: [
+              // Header Row - Responsive
+              isSmallScreen 
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Detailed Movements Report',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Quick Actions - Stacked on mobile
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _clearDetailedMovementsFilters,
+                              icon: const Icon(Icons.clear, size: 16),
+                              label: const Text('Clear'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _loadDetailedMovements,
+                              icon: const Icon(Icons.refresh, size: 16),
+                              label: const Text('Refresh'),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Detailed Movements Report',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      // Quick Actions - Side by side on desktop
+                      Row(
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: _clearDetailedMovementsFilters,
+                            icon: const Icon(Icons.clear, size: 18),
+                            label: const Text('Clear Filters'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            onPressed: _loadDetailedMovements,
+                            icon: const Icon(Icons.refresh, size: 18),
+                            label: const Text('Refresh'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+              const SizedBox(height: 16),
+              
+              // Enhanced Filters - Responsive
+              _buildResponsiveDetailedMovementsFilters(),
+            ],
+          ),
+        ),
+        
+        // Data Display - Scrollable and Responsive
+        Expanded(
+          child: _detailedMovementsLoading
               ? const Center(child: CircularProgressIndicator())
               : _detailedMovementsData.isEmpty
                   ? _buildEmptyDetailedMovements()
-                  : _buildDetailedMovementsTable(),
-        ],
-      ),
+                  : _buildResponsiveDetailedMovementsTable(),
+        ),
+      ],
     );
   }
 
@@ -5076,6 +5190,735 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   // DETAILED MOVEMENTS HELPER METHODS
   // =====================================================
 
+  Widget _buildResponsiveDetailedMovementsFilters() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 768;
+    final isMediumScreen = screenSize.width >= 768 && screenSize.width < 1024;
+    
+    if (isSmallScreen) {
+      // Mobile layout - Stack all filters vertically
+      return Column(
+        children: [
+          // Time Period Filter
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Time Period:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _detailedMovementsTimeFilter,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'today', child: Text('Today')),
+                  DropdownMenuItem(value: 'this_week', child: Text('This Week')),
+                  DropdownMenuItem(value: 'this_month', child: Text('This Month')),
+                  DropdownMenuItem(value: 'all_time', child: Text('All Time')),
+                  DropdownMenuItem(value: 'custom', child: Text('Custom Range')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    _applyDetailedMovementsTimePreset(value);
+                  }
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Custom Date Range (only show if custom is selected)
+          if (_detailedMovementsTimeFilter == 'custom') ...[
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Custom Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _showDetailedMovementsStartDatePicker(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            _detailedMovementsStartDate != null
+                                ? '${_detailedMovementsStartDate!.day}/${_detailedMovementsStartDate!.month}/${_detailedMovementsStartDate!.year}'
+                                : 'Start Date',
+                            style: TextStyle(
+                              color: _detailedMovementsStartDate != null ? Colors.black : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('to'),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _showDetailedMovementsEndDatePicker(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            _detailedMovementsEndDate != null
+                                ? '${_detailedMovementsEndDate!.day}/${_detailedMovementsEndDate!.month}/${_detailedMovementsEndDate!.year}'
+                                : 'End Date',
+                            style: TextStyle(
+                              color: _detailedMovementsEndDate != null ? Colors.black : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+          
+          // Category Filter
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Category:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _selectedCategoryForDetailed,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  hintText: 'All Categories',
+                ),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('All Categories')),
+                  ..._categories.map((category) => 
+                    DropdownMenuItem(value: category['id']?.toString(), child: Text(category['name'] ?? 'Unknown'))
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCategoryForDetailed = value;
+                  });
+                  _loadDetailedMovements();
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Product Filter
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Product:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<int?>(
+                value: _selectedProductForDetailed,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  hintText: 'All Products',
+                ),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('All Products')),
+                  ..._inventory.map((item) => DropdownMenuItem(
+                    value: item['product_id'],
+                    child: Text(item['product_name'] ?? 'Unknown'),
+                  )),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedProductForDetailed = value;
+                  });
+                  _loadDetailedMovements();
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Business Filter
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Business:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<int?>(
+                value: _selectedBusinessForDetailed,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  hintText: 'All Businesses',
+                ),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('All Businesses')),
+                  ..._businesses.map((business) => DropdownMenuItem(
+                    value: business['id'],
+                    child: Text(business['name'] ?? 'Unknown'),
+                  )),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedBusinessForDetailed = value;
+                  });
+                  _loadDetailedMovements();
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Movement Type Filter
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Movement Type:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _selectedMovementTypeForDetailed,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  hintText: 'All Types',
+                ),
+                items: const [
+                  DropdownMenuItem(value: null, child: Text('All Types')),
+                  DropdownMenuItem(value: 'in', child: Text('Stock In')),
+                  DropdownMenuItem(value: 'out', child: Text('Stock Out')),
+                  DropdownMenuItem(value: 'transfer_out', child: Text('Transfer Out')),
+                  DropdownMenuItem(value: 'adjustment', child: Text('Adjustment')),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedMovementTypeForDetailed = value;
+                  });
+                  _loadDetailedMovements();
+                },
+              ),
+            ],
+          ),
+        ],
+      );
+    } else if (isMediumScreen) {
+      // Tablet layout - 2 columns
+      return Column(
+        children: [
+          // First Row - Date and Category
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Time Period:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _detailedMovementsTimeFilter,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'today', child: Text('Today')),
+                        DropdownMenuItem(value: 'this_week', child: Text('This Week')),
+                        DropdownMenuItem(value: 'this_month', child: Text('This Month')),
+                        DropdownMenuItem(value: 'all_time', child: Text('All Time')),
+                        DropdownMenuItem(value: 'custom', child: Text('Custom Range')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          _applyDetailedMovementsTimePreset(value);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Category:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _selectedCategoryForDetailed,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        hintText: 'All Categories',
+                      ),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('All Categories')),
+                        ..._categories.map((category) => 
+                          DropdownMenuItem(value: category['id']?.toString(), child: Text(category['name'] ?? 'Unknown'))
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedCategoryForDetailed = value;
+                        });
+                        _loadDetailedMovements();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Second Row - Product and Business
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Product:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<int?>(
+                      value: _selectedProductForDetailed,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        hintText: 'All Products',
+                      ),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('All Products')),
+                        ..._inventory.map((item) => DropdownMenuItem(
+                          value: item['product_id'],
+                          child: Text(item['product_name'] ?? 'Unknown'),
+                        )),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedProductForDetailed = value;
+                        });
+                        _loadDetailedMovements();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Business:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<int?>(
+                      value: _selectedBusinessForDetailed,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        hintText: 'All Businesses',
+                      ),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('All Businesses')),
+                        ..._businesses.map((business) => DropdownMenuItem(
+                          value: business['id'],
+                          child: Text(business['name'] ?? 'Unknown'),
+                        )),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedBusinessForDetailed = value;
+                        });
+                        _loadDetailedMovements();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Third Row - Movement Type and Custom Date Range
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Movement Type:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _selectedMovementTypeForDetailed,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        hintText: 'All Types',
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: null, child: Text('All Types')),
+                        DropdownMenuItem(value: 'in', child: Text('Stock In')),
+                        DropdownMenuItem(value: 'out', child: Text('Stock Out')),
+                        DropdownMenuItem(value: 'transfer_out', child: Text('Transfer Out')),
+                        DropdownMenuItem(value: 'adjustment', child: Text('Adjustment')),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedMovementTypeForDetailed = value;
+                        });
+                        _loadDetailedMovements();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              if (_detailedMovementsTimeFilter == 'custom')
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Custom Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _showDetailedMovementsStartDatePicker(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  _detailedMovementsStartDate != null
+                                      ? '${_detailedMovementsStartDate!.day}/${_detailedMovementsStartDate!.month}/${_detailedMovementsStartDate!.year}'
+                                      : 'Start Date',
+                                  style: TextStyle(
+                                    color: _detailedMovementsStartDate != null ? Colors.black : Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('to'),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _showDetailedMovementsEndDatePicker(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  _detailedMovementsEndDate != null
+                                      ? '${_detailedMovementsEndDate!.day}/${_detailedMovementsEndDate!.month}/${_detailedMovementsEndDate!.year}'
+                                      : 'End Date',
+                                  style: TextStyle(
+                                    color: _detailedMovementsEndDate != null ? Colors.black : Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ],
+      );
+    } else {
+      // Desktop layout - Original 4-column layout
+      return _buildEnhancedDetailedMovementsFilters();
+    }
+  }
+
+  Widget _buildEnhancedDetailedMovementsFilters() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 768;
+    
+    return Column(
+      children: [
+        // First Row - Date Filters
+        Row(
+          children: [
+            // Time Period Filter
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Time Period:', style: TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: _detailedMovementsTimeFilter,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'today', child: Text('Today')),
+                      DropdownMenuItem(value: 'this_week', child: Text('This Week')),
+                      DropdownMenuItem(value: 'this_month', child: Text('This Month')),
+                      DropdownMenuItem(value: 'all_time', child: Text('All Time')),
+                      DropdownMenuItem(value: 'custom', child: Text('Custom Range')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        _applyDetailedMovementsTimePreset(value);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            
+            // Custom Date Range (only show if custom is selected)
+            if (_detailedMovementsTimeFilter == 'custom') ...[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Custom Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => _showDetailedMovementsStartDatePicker(context),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                _detailedMovementsStartDate != null
+                                    ? '${_detailedMovementsStartDate!.day}/${_detailedMovementsStartDate!.month}/${_detailedMovementsStartDate!.year}'
+                                    : 'Start Date',
+                                style: TextStyle(
+                                  color: _detailedMovementsStartDate != null ? Colors.black : Colors.grey,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('to'),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => _showDetailedMovementsEndDatePicker(context),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                _detailedMovementsEndDate != null
+                                    ? '${_detailedMovementsEndDate!.day}/${_detailedMovementsEndDate!.month}/${_detailedMovementsEndDate!.year}'
+                                    : 'End Date',
+                                style: TextStyle(
+                                  color: _detailedMovementsEndDate != null ? Colors.black : Colors.grey,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 16),
+        
+        // Second Row - Category, Product, Business, Movement Type Filters
+        Row(
+          children: [
+            // Category Filter
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Category:', style: TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: _selectedCategoryForDetailed,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      hintText: 'All Categories',
+                    ),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('All Categories')),
+                      ..._categories.map((category) => 
+                        DropdownMenuItem(value: category['id']?.toString(), child: Text(category['name'] ?? 'Unknown'))
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCategoryForDetailed = value;
+                      });
+                      _loadDetailedMovements();
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            
+            // Product Filter
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Product:', style: TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<int?>(
+                    value: _selectedProductForDetailed,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      hintText: 'All Products',
+                    ),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('All Products')),
+                      ..._inventory.map((item) => DropdownMenuItem(
+                        value: item['product_id'],
+                        child: Text(item['product_name'] ?? 'Unknown'),
+                      )),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedProductForDetailed = value;
+                      });
+                      _loadDetailedMovements();
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            
+            // Business Filter
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Business:', style: TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<int?>(
+                    value: _selectedBusinessForDetailed,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      hintText: 'All Businesses',
+                    ),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('All Businesses')),
+                      ..._businesses.map((business) => DropdownMenuItem(
+                        value: business['id'],
+                        child: Text(business['name'] ?? 'Unknown'),
+                      )),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedBusinessForDetailed = value;
+                      });
+                      _loadDetailedMovements();
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            
+            // Movement Type Filter
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Movement Type:', style: TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: _selectedMovementTypeForDetailed,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      hintText: 'All Types',
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: null, child: Text('All Types')),
+                      DropdownMenuItem(value: 'in', child: Text('Stock In')),
+                      DropdownMenuItem(value: 'out', child: Text('Stock Out')),
+                      DropdownMenuItem(value: 'transfer_out', child: Text('Transfer Out')),
+                      DropdownMenuItem(value: 'adjustment', child: Text('Adjustment')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedMovementTypeForDetailed = value;
+                      });
+                      _loadDetailedMovements();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   Widget _buildDetailedMovementsFilters() {
     final screenSize = MediaQuery.of(context).size;
     final isSmallScreen = screenSize.width < 768;
@@ -5193,7 +6036,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           children: [
             const Text('Category:', style: TextStyle(fontWeight: FontWeight.w500)),
             const SizedBox(height: 8),
-            DropdownButtonFormField<int?>(
+            DropdownButtonFormField<String?>(
               value: _selectedCategoryForDetailed,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
@@ -5201,17 +6044,15 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
               ),
               items: [
                 const DropdownMenuItem(value: null, child: Text('All Categories')),
-                ..._categoriesForDetailed.map((category) {
-                  return DropdownMenuItem<int?>(
-                    value: category['id'] as int?,
-                    child: Text(category['name'] ?? 'Unknown Category'),
-                  );
-                }).toList(),
+                ..._categories.map((category) => 
+                  DropdownMenuItem(value: category['id']?.toString(), child: Text(category['name'] ?? 'Unknown'))
+                ),
               ],
               onChanged: (value) {
                 setState(() {
                   _selectedCategoryForDetailed = value;
                 });
+                _loadDetailedMovements();
               },
             ),
           ],
@@ -5421,6 +6262,46 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     );
   }
 
+  Widget _buildResponsiveDetailedMovementsTable() {
+    final movements = _detailedMovementsData['movements'] as List<dynamic>? ?? [];
+    final summary = _detailedMovementsData['summary'] as Map<String, dynamic>? ?? {};
+    final pagination = _detailedMovementsData['report_metadata']?['pagination'] as Map<String, dynamic>? ?? {};
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 768;
+    final isMediumScreen = screenSize.width >= 768 && screenSize.width < 1024;
+
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
+      child: Column(
+        children: [
+          // Summary Cards - Responsive
+          if (summary.isNotEmpty) _buildResponsiveDetailedMovementsSummary(summary),
+          if (summary.isNotEmpty) const SizedBox(height: 16),
+          
+          // Data Table - Responsive
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: isSmallScreen 
+                ? _buildMobileMovementsList(movements)
+                : isMediumScreen
+                    ? _buildTabletMovementsTable(movements)
+                    : _buildDesktopMovementsTable(movements),
+          ),
+          
+          // Pagination - Responsive
+          if (pagination.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildResponsivePagination(pagination),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildDetailedMovementsTable() {
     final movements = _detailedMovementsData['movements'] as List<dynamic>? ?? [];
     final summary = _detailedMovementsData['summary'] as Map<String, dynamic>? ?? {};
@@ -5444,6 +6325,504 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     );
   }
 
+  Widget _buildResponsiveDetailedMovementsSummary(Map<String, dynamic> summary) {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 768;
+    final isMediumScreen = screenSize.width >= 768 && screenSize.width < 1024;
+    
+    if (isSmallScreen) {
+      // Mobile - 2x2 grid
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        Icon(Icons.inventory, color: Colors.blue[600], size: 20),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${summary['total_movements'] ?? 0}',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const Text('Total Movements', style: TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        Icon(Icons.trending_up, color: Colors.green[600], size: 20),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${summary['total_quantity'] ?? 0}',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const Text('Total Quantity', style: TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        Icon(Icons.business, color: Colors.orange[600], size: 20),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${summary['unique_businesses'] ?? 0}',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const Text('Businesses', style: TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        Icon(Icons.inventory_2, color: Colors.purple[600], size: 20),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${summary['unique_products'] ?? 0}',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const Text('Products', style: TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    } else if (isMediumScreen) {
+      // Tablet - 2x2 grid with larger cards
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Icon(Icons.inventory, color: Colors.blue[600], size: 24),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${summary['total_movements'] ?? 0}',
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const Text('Total Movements', style: TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Icon(Icons.trending_up, color: Colors.green[600], size: 24),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${summary['total_quantity'] ?? 0}',
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const Text('Total Quantity', style: TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Icon(Icons.business, color: Colors.orange[600], size: 24),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${summary['unique_businesses'] ?? 0}',
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const Text('Businesses Served', style: TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Icon(Icons.inventory_2, color: Colors.purple[600], size: 24),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${summary['unique_products'] ?? 0}',
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const Text('Products Moved', style: TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    } else {
+      // Desktop - 4 columns
+      return Row(
+        children: [
+          Expanded(
+            child: Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Icon(Icons.inventory, color: Colors.blue[600], size: 24),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${summary['total_movements'] ?? 0}',
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    const Text('Total Movements'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Icon(Icons.trending_up, color: Colors.green[600], size: 24),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${summary['total_quantity'] ?? 0}',
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    const Text('Total Quantity'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Icon(Icons.business, color: Colors.orange[600], size: 24),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${summary['unique_businesses'] ?? 0}',
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    const Text('Businesses Served'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Icon(Icons.inventory_2, color: Colors.purple[600], size: 24),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${summary['unique_products'] ?? 0}',
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    const Text('Products Moved'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+  }
+
+  Widget _buildTabletMovementsTable(List<dynamic> movements) {
+    return Column(
+      children: [
+        // Table Header
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(8),
+              topRight: Radius.circular(8),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(flex: 2, child: Text('Product', style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(child: Text('Category', style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(child: Text('Quantity', style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(child: Text('Business', style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
+            ],
+          ),
+        ),
+        
+        // Table Body
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: movements.length,
+          itemBuilder: (context, index) {
+            final movement = movements[index] as Map<String, dynamic>;
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey[200]!),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          movement['product_name'] ?? 'Unknown',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          'SKU: ${movement['sku'] ?? 'N/A'}',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.green[200]!),
+                      ),
+                      child: Text(
+                        movement['category_name'] ?? 'No Category',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.green[700],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _getMovementTypeColor(movement['movement_type']).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        _getMovementTypeLabel(movement['movement_type']),
+                        style: TextStyle(
+                          color: _getMovementTypeColor(movement['movement_type']),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      '${movement['quantity'] ?? 0}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: movement['movement_type'] == 'transfer_out' 
+                            ? Colors.blue[50] 
+                            : Colors.grey[50],
+                        borderRadius: BorderRadius.circular(4),
+                        border: movement['movement_type'] == 'transfer_out' 
+                            ? Border.all(color: Colors.blue[200]!)
+                            : null,
+                      ),
+                      child: Text(
+                        movement['movement_type'] == 'transfer_out' 
+                            ? (movement['business_name'] ?? 'Unknown Business')
+                            : (movement['business_name'] ?? 'N/A'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: movement['movement_type'] == 'transfer_out' 
+                              ? Colors.blue[700]
+                              : Colors.grey[600],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      _formatDate(movement['created_at']),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResponsivePagination(Map<String, dynamic> pagination) {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 768;
+    
+    
+    if (isSmallScreen) {
+      // Mobile pagination - simplified
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Page ${pagination['current_page'] ?? 1} of ${pagination['total_pages'] ?? 1}',
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          ),
+          Row(
+            children: [
+              if ((pagination['current_page'] ?? 1) > 1)
+                IconButton(
+                  onPressed: () {
+                    _detailedMovementsPage = (pagination['current_page'] ?? 1) - 1;
+                    _loadDetailedMovements();
+                  },
+                  icon: const Icon(Icons.chevron_left),
+                ),
+              if ((pagination['current_page'] ?? 1) < (pagination['total_pages'] ?? 1))
+                IconButton(
+                  onPressed: () {
+                    _detailedMovementsPage = (pagination['current_page'] ?? 1) + 1;
+                    _loadDetailedMovements();
+                  },
+                  icon: const Icon(Icons.chevron_right),
+                ),
+            ],
+          ),
+        ],
+      );
+    } else {
+      // Desktop pagination - full controls
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if ((pagination['current_page'] ?? 1) > 1)
+            ElevatedButton(
+              onPressed: () {
+                _detailedMovementsPage = (pagination['current_page'] ?? 1) - 1;
+                _loadDetailedMovements();
+              },
+              child: const Text('Previous'),
+            ),
+          const SizedBox(width: 16),
+          Text(
+            'Page ${pagination['current_page'] ?? 1} of ${pagination['total_pages'] ?? 1}',
+            style: const TextStyle(fontSize: 16),
+          ),
+          const SizedBox(width: 16),
+          if ((pagination['current_page'] ?? 1) < (pagination['total_pages'] ?? 1))
+            ElevatedButton(
+              onPressed: () {
+                _detailedMovementsPage = (pagination['current_page'] ?? 1) + 1;
+                _loadDetailedMovements();
+              },
+              child: const Text('Next'),
+            ),
+        ],
+      );
+    }
+  }
+
   Widget _buildDesktopMovementsTable(List<dynamic> movements) {
     return Column(
       children: [
@@ -5460,8 +6839,10 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           child: Row(
             children: [
               Expanded(flex: 2, child: Text('Product', style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(child: Text('Category', style: TextStyle(fontWeight: FontWeight.bold))),
               Expanded(child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
               Expanded(child: Text('Quantity', style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(child: Text('Business', style: TextStyle(fontWeight: FontWeight.bold))),
               Expanded(child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
               Expanded(child: Text('User', style: TextStyle(fontWeight: FontWeight.bold))),
             ],
@@ -5504,6 +6885,24 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.green[200]!),
+                      ),
+                      child: Text(
+                        movement['category_name'] ?? 'No Category',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.green[700],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
                         color: _getMovementTypeColor(movement['movement_type']).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
@@ -5521,6 +6920,32 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     child: Text(
                       '${movement['quantity'] ?? 0}',
                       style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: movement['movement_type'] == 'transfer_out' 
+                            ? Colors.blue[50] 
+                            : Colors.grey[50],
+                        borderRadius: BorderRadius.circular(4),
+                        border: movement['movement_type'] == 'transfer_out' 
+                            ? Border.all(color: Colors.blue[200]!)
+                            : null,
+                      ),
+                      child: Text(
+                        movement['movement_type'] == 'transfer_out' 
+                            ? (movement['business_name'] ?? 'Unknown Business')
+                            : (movement['business_name'] ?? 'N/A'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: movement['movement_type'] == 'transfer_out' 
+                              ? Colors.blue[700]
+                              : Colors.grey[600],
+                        ),
+                      ),
                     ),
                   ),
                   Expanded(
@@ -5596,6 +7021,31 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
+              // Category Info
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.green[200]!),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.category, color: Colors.green[700], size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                      movement['category_name'] ?? 'No Category',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.green[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 12),
               // Details Row
               Row(
@@ -5627,6 +7077,48 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 ],
               ),
               const SizedBox(height: 8),
+              // Business Info (for transfers)
+              if (movement['movement_type'] == 'transfer_out' && movement['business_name'] != null) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.business, color: Colors.blue[700], size: 16),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Transferred to Business',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.blue[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              movement['business_name'] ?? 'Unknown Business',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue[800],
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               // User Info
               Text('User', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
               Text(

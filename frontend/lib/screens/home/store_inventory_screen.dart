@@ -1346,7 +1346,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 Icon(Icons.attach_money, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
-                  '${t(context,'Cost Price')}: ₦${(double.tryParse(item['cost_price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2)}',
+                  '${t(context,'Cost Price')}: \$${(double.tryParse(item['cost_price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2)}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.grey[600],
                   ),
@@ -1355,7 +1355,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 Icon(Icons.sell, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
-                  '${t(context,'Selling Price')}: ₦${(double.tryParse(item['price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2)}',
+                  '${t(context,'Selling Price')}: \$${(double.tryParse(item['price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2)}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.grey[600],
                   ),
@@ -1663,7 +1663,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     Expanded(
                       child: _buildPriceInfo(
                         'Cost Price',
-                        '₦${costPrice.toStringAsFixed(2)}',
+                        '\$${costPrice.toStringAsFixed(2)}',
                         Icons.monetization_on,
                         Colors.green,
                       ),
@@ -1676,7 +1676,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     Expanded(
                       child: _buildPriceInfo(
                         'Selling Price',
-                        '₦${sellingPrice.toStringAsFixed(2)}',
+                        '\$${sellingPrice.toStringAsFixed(2)}',
                         Icons.sell,
                         Colors.blue,
                       ),
@@ -1689,7 +1689,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     Expanded(
                       child: _buildPriceInfo(
                         'Profit Margin',
-                        '₦${(sellingPrice - costPrice).clamp(0.0, double.infinity).toStringAsFixed(2)}',
+                        '\$${(sellingPrice - costPrice).clamp(0.0, double.infinity).toStringAsFixed(2)}',
                         Icons.trending_up,
                         sellingPrice > costPrice ? Colors.green : Colors.red,
                       ),
@@ -2588,7 +2588,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             ),
             _buildHorizontalMetricCardWithSubtitle(
               'Total Value',
-              '₦${(double.tryParse(financialSummary['total_selling_value']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
+              '\$${(double.tryParse(financialSummary['total_selling_value']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
               Icons.attach_money,
               Colors.purple,
               'Inventory value',
@@ -2722,7 +2722,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             ),
             _buildMetricCard(
               'Total Value',
-              '₦${(double.tryParse(financialSummary['total_selling_value']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
+              '\$${(double.tryParse(financialSummary['total_selling_value']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
               Icons.attach_money,
               Colors.purple,
               'Inventory value',
@@ -3113,11 +3113,11 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     
     return Column(
       children: [
-        _buildFinancialRow('Total Cost Value', '₦${totalCost.toStringAsFixed(0)}', Colors.red),
+        _buildFinancialRow('Total Cost Value', '\$${totalCost.toStringAsFixed(0)}', Colors.red),
         const SizedBox(height: 8),
-        _buildFinancialRow('Total Selling Value', '₦${totalSelling.toStringAsFixed(0)}', Colors.green),
+        _buildFinancialRow('Total Selling Value', '\$${totalSelling.toStringAsFixed(0)}', Colors.green),
         const SizedBox(height: 8),
-        _buildFinancialRow('Profit Potential', '₦${profitPotential.toStringAsFixed(0)}', Colors.blue),
+        _buildFinancialRow('Profit Potential', '\$${profitPotential.toStringAsFixed(0)}', Colors.blue),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(8),
@@ -4248,7 +4248,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                       ),
                     ),
                     Text(
-                      '₦${(double.tryParse(item['price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
+                      '\$${(double.tryParse(item['price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -4268,7 +4268,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                       ),
                     ),
                     Text(
-                      '₦${(double.tryParse(item['cost_price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
+                      '\$${(double.tryParse(item['cost_price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -4727,7 +4727,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             Expanded(
               child: _buildFinancialCard(
                 'Total Cost',
-                '₦${totalCost.toStringAsFixed(0)}',
+                '\$${totalCost.toStringAsFixed(0)}',
                 Icons.money_off,
                 Colors.red,
               ),
@@ -4736,7 +4736,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             Expanded(
               child: _buildFinancialCard(
                 'Total Value',
-                '₦${totalSelling.toStringAsFixed(0)}',
+                '\$${totalSelling.toStringAsFixed(0)}',
                 Icons.attach_money,
                 Colors.green,
               ),
@@ -4746,7 +4746,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         const SizedBox(height: 16),
         _buildFinancialCard(
           'Potential Profit',
-          '₦${profit.toStringAsFixed(0)}',
+          '\$${profit.toStringAsFixed(0)}',
           Icons.trending_up,
           profit >= 0 ? Colors.green : Colors.red,
         ),
@@ -11227,10 +11227,10 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   Row(
                     children: [
                       Expanded(
-                        child: Text('Revenue: ₦${_safeToDouble(row['revenue']).toStringAsFixed(2)}'),
+                        child: Text('Revenue: \$${_safeToDouble(row['revenue']).toStringAsFixed(2)}'),
                       ),
                       Expanded(
-                        child: Text('Profit: ₦${_safeToDouble(row['profit']).toStringAsFixed(2)}'),
+                        child: Text('Profit: \$${_safeToDouble(row['profit']).toStringAsFixed(2)}'),
                       ),
                     ],
                   ),
@@ -11334,8 +11334,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   DataCell(Text(row['category_name'] ?? '')),
                   DataCell(Text(_valueReportRows.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt().toString(), style: const TextStyle(fontWeight: FontWeight.bold))),
                   DataCell(Text(row['quantity_remaining']?.toString() ?? '')),
-                  DataCell(Text('₦${_safeToDouble(row['revenue']).toStringAsFixed(2)}')),
-                  DataCell(Text('₦${_safeToDouble(row['profit']).toStringAsFixed(2)}')),
+                  DataCell(Text('\$${_safeToDouble(row['revenue']).toStringAsFixed(2)}')),
+                  DataCell(Text('\$${_safeToDouble(row['profit']).toStringAsFixed(2)}')),
                   DataCell(Text((row['sale_mode'] ?? '').toString().isNotEmpty ? (row['sale_mode'] == 'wholesale' ? 'Wholesale' : 'Retail') : '')),
                 ],
               )),
@@ -11350,8 +11350,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   const DataCell(Text('')),
                   DataCell(Text(_filteredStockSummaryData.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt().toString(), style: const TextStyle(fontWeight: FontWeight.bold))),
                   const DataCell(Text('')),
-                  DataCell(Text('₦${_filteredStockSummaryData.fold<double>(0, (sum, r) => sum + _safeToDouble(r['revenue'])).toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))),
-                  DataCell(Text('₦${_filteredStockSummaryData.fold<double>(0, (sum, r) => sum + _safeToDouble(r['profit'])).toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))),
+                  DataCell(Text('\$${_filteredStockSummaryData.fold<double>(0, (sum, r) => sum + _safeToDouble(r['revenue'])).toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))),
+                  DataCell(Text('\$${_filteredStockSummaryData.fold<double>(0, (sum, r) => sum + _safeToDouble(r['profit'])).toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold))),
                   const DataCell(Text('')),
                 ],
               ),
@@ -12364,7 +12364,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 Expanded(
                   child: _buildInfoChip(
                     'Selling Price',
-                    '₦${(double.tryParse(item['price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
+                    '\$${(double.tryParse(item['price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
                     Icons.attach_money,
                   ),
                 ),
@@ -12372,7 +12372,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 Expanded(
                   child: _buildInfoChip(
                     'Cost',
-                    '₦${(double.tryParse(item['cost_price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
+                    '\$${(double.tryParse(item['cost_price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
                     Icons.money_off,
                   ),
                 ),
@@ -13608,7 +13608,7 @@ class _IncrementDialogState extends State<_IncrementDialog> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 prefixIcon: const Icon(Icons.attach_money),
-                prefixText: '₦ ',
+                prefixText: '\$ ',
               ),
               keyboardType: TextInputType.numberWithOptions(decimal: true),
               validator: (value) {
@@ -13770,7 +13770,7 @@ class _EditCostPriceDialogState extends State<_EditCostPriceDialog> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Current Cost: ₦${(double.tryParse(widget.item['cost_price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2)}',
+                    'Current Cost: \$${(double.tryParse(widget.item['cost_price']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2)}',
                     style: TextStyle(
                       color: Colors.blue[600],
                       fontSize: 14,
@@ -13792,7 +13792,7 @@ class _EditCostPriceDialogState extends State<_EditCostPriceDialog> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 prefixIcon: const Icon(Icons.attach_money),
-                prefixText: '₦ ',
+                prefixText: '\$ ',
               ),
               keyboardType: TextInputType.numberWithOptions(decimal: true),
               validator: (value) {
@@ -14440,7 +14440,7 @@ class _TransferDialogState extends State<_TransferDialog> {
                       decoration: const InputDecoration(
                         labelText: 'Min Price',
                         border: OutlineInputBorder(),
-                        prefixText: '₦',
+                        prefixText: '\$',
                       ),
                       keyboardType: TextInputType.number,
                       onChanged: (value) {
@@ -14454,7 +14454,7 @@ class _TransferDialogState extends State<_TransferDialog> {
                       decoration: const InputDecoration(
                         labelText: 'Max Price',
                         border: OutlineInputBorder(),
-                        prefixText: '₦',
+                        prefixText: '\$',
                       ),
                       keyboardType: TextInputType.number,
                       onChanged: (value) {

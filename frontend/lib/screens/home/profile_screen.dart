@@ -61,11 +61,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          t(context, 'Profile'),
-          style: TextStyle(color: Colors.white),
-        ),
-        backgroundColor: Theme.of(context).primaryColor,
+        title: Text(t(context, 'Profile')),
         bottom: TabBar(
           controller: _tabController,
           tabs: [
@@ -110,7 +106,6 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       t(context, 'Profile Information'),
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -190,7 +185,6 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   t(context, 'Change Password'),
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -269,19 +263,16 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             width: 100,
             child: Text(
               '$label:',
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.w500,
-                color: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.7) ?? Colors.grey,
+                color: Colors.grey,
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w500),
             ),
           ),
         ],

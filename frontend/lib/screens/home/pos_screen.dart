@@ -36,31 +36,11 @@ class _POSScreenState extends State<POSScreen> {
   void initState() {
     super.initState();
     _loadProducts();
-    
-    // Listen to cart changes to ensure UI updates immediately
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<CartProvider>().addListener(_onCartChanged);
-      }
-    });
   }
-  
-  void _onCartChanged() {
-    if (mounted) {
-      print('🛒 Cart changed detected in POS screen - forcing UI update');
-      setState(() {});
-    }
-  }
-  
+
   @override
   void dispose() {
     _searchController.dispose();
-    // Remove listener to prevent memory leaks
-    try {
-      context.read<CartProvider>().removeListener(_onCartChanged);
-    } catch (e) {
-      // Ignore if context is not available
-    }
     super.dispose();
   }
 
@@ -188,8 +168,6 @@ class _POSScreenState extends State<POSScreen> {
                 right: isSmallMobile ? 16 : 20,
                 child: Consumer<CartProvider>(
                   builder: (context, cart, child) {
-                    // Debug: Print cart items count to verify updates
-                    print('🛒 Floating cart icon updated: ${cart.items.length} items');
                     return GestureDetector(
                       onTap: () {
                         _showMobileCartDialog(context, cart);
@@ -507,12 +485,12 @@ class _POSScreenState extends State<POSScreen> {
                       ),
                     )
                   : GridView.builder(
-                      padding: EdgeInsets.all(isSmallMobile ? 4 : (isMobile ? 6 : 12)),
+                      padding: EdgeInsets.all(isSmallMobile ? 4 : (isMobile ? 6 : 16)),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: isSmallMobile ? 2 : (isMobile ? 2 : 6), // More cards on desktop
-                        childAspectRatio: isSmallMobile ? 0.65 : (isMobile ? 0.7 : 0.6), // More compact for desktop
-                        crossAxisSpacing: isSmallMobile ? 6 : (isMobile ? 8 : 8), // Reduced spacing for desktop
-                        mainAxisSpacing: isSmallMobile ? 6 : (isMobile ? 8 : 8), // Reduced spacing for desktop
+                        crossAxisCount: isSmallMobile ? 2 : (isMobile ? 2 : 3),
+                        childAspectRatio: isSmallMobile ? 0.65 : (isMobile ? 0.7 : 0.8), // Better proportions for mobile
+                        crossAxisSpacing: isSmallMobile ? 6 : (isMobile ? 8 : 16),
+                        mainAxisSpacing: isSmallMobile ? 6 : (isMobile ? 8 : 16),
                       ),
                       itemCount: _filteredProducts.length,
                       itemBuilder: (context, index) {
@@ -528,8 +506,8 @@ class _POSScreenState extends State<POSScreen> {
     final isLowStock = product.stockQuantity <= product.lowStockThreshold;
     
     return Card(
-      elevation: isMobile ? 2 : 1, // Less elevation for desktop
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isMobile ? 12 : 8)), // Smaller radius for desktop
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () async {
           if (product.stockQuantity > 0) {
@@ -609,9 +587,6 @@ class _POSScreenState extends State<POSScreen> {
                     duration: Duration(seconds: 2),
                   ),
                 );
-                
-                // Force UI update to ensure cart icon updates immediately
-                setState(() {});
               }
             } else if (mode == 'wholesale') {
               print('🛒 POS: Adding product as WHOLESALE: ${product.name}');
@@ -722,20 +697,17 @@ class _POSScreenState extends State<POSScreen> {
                       duration: Duration(seconds: 2),
                     ),
                   );
-                  
-                  // Force UI update to ensure cart icon updates immediately
-                  setState(() {});
                 }
               }
             }
           }
         },
-        borderRadius: BorderRadius.circular(isMobile ? 12 : 8), // Match card radius
+        borderRadius: BorderRadius.circular(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              flex: isMobile ? 3 : 2, // Less space for image on desktop
+              flex: 3,
               child: Stack(
                 children: [
                   Container(
@@ -743,13 +715,13 @@ class _POSScreenState extends State<POSScreen> {
                     decoration: BoxDecoration(
                       color: Colors.grey[200],
                       borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(8), // Smaller radius for desktop
+                        top: Radius.circular(12),
                       ),
                     ),
                     child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
                         ? ClipRRect(
                             borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(8), // Match container radius
+                              top: Radius.circular(12),
                             ),
                             child: Image.network(
                               Api.getFullImageUrl(product.imageUrl),
@@ -842,9 +814,9 @@ class _POSScreenState extends State<POSScreen> {
               ),
             ),
             Expanded(
-              flex: isMobile ? 2 : 3, // More space for content on desktop
+              flex: 2,
               child: Padding(
-                padding: EdgeInsets.all(isSmallMobile ? 4 : (isMobile ? 6 : 6)), // Reduced padding for desktop
+                padding: EdgeInsets.all(isSmallMobile ? 4 : (isMobile ? 6 : 8)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -852,12 +824,12 @@ class _POSScreenState extends State<POSScreen> {
                       product.name,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: isSmallMobile ? 11 : (isMobile ? 12 : 11), // Smaller font for desktop
+                        fontSize: isSmallMobile ? 11 : (isMobile ? 12 : 14),
                       ),
-                      maxLines: isMobile ? 2 : 1, // Single line on desktop
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: isSmallMobile ? 3 : (isMobile ? 4 : 2)), // Reduced spacing for desktop
+                    SizedBox(height: isSmallMobile ? 3 : 4),
                     Row(
                       children: [
                         Expanded(
@@ -866,7 +838,7 @@ class _POSScreenState extends State<POSScreen> {
                             style: TextStyle(
                               color: Colors.green[700],
                               fontWeight: FontWeight.bold,
-                              fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 10), // Smaller font for desktop
+                              fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
                             ),
                           ),
                         ),
@@ -876,19 +848,19 @@ class _POSScreenState extends State<POSScreen> {
                             style: TextStyle(
                               color: Colors.purple[700],
                               fontWeight: FontWeight.bold,
-                              fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 10), // Smaller font for desktop
+                              fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
                             ),
                             textAlign: TextAlign.end,
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: isSmallMobile ? 3 : (isMobile ? 4 : 2)), // Reduced spacing for desktop
+                    SizedBox(height: isSmallMobile ? 3 : 4),
                     Text(
                       '${t(context, 'stock')}: ${product.stockQuantity}',
                       style: TextStyle(
                         color: Colors.grey[600],
-                        fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 9), // Smaller font for desktop
+                        fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 12),
                       ),
                     ),
                   ],
@@ -904,8 +876,6 @@ class _POSScreenState extends State<POSScreen> {
   Widget _buildCartSection(bool isMobile, bool isSmallMobile) {
     return Consumer<CartProvider>(
       builder: (context, cart, child) {
-        // Debug: Print cart items count to verify updates
-        print('🛒 Cart section updated: ${cart.items.length} items');
         return Column(
           children: [
             // Ultra-compact cart header for mobile

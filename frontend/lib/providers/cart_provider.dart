@@ -135,8 +135,6 @@ class CartProvider with ChangeNotifier {
       print('✅ Added ${product.name} (${mode}) to cart: ${quantity}');
     }
     
-    // Force immediate notification
-    print('🔄 Notifying listeners - Cart now has ${_items.length} items');
     notifyListeners();
     
     return {
@@ -180,12 +178,9 @@ class CartProvider with ChangeNotifier {
     if (existingIndex >= 0) {
       if (_items[existingIndex].quantity > 1) {
         _items[existingIndex].quantity--;
-        print('✅ Reduced quantity for ${product.name}: ${_items[existingIndex].quantity}');
       } else {
         _items.removeAt(existingIndex);
-        print('✅ Removed ${product.name} from cart');
       }
-      print('🔄 Notifying listeners - Cart now has ${_items.length} items');
       notifyListeners();
     }
   }
@@ -197,16 +192,12 @@ class CartProvider with ChangeNotifier {
 
     if (existingIndex >= 0) {
       _items.removeAt(existingIndex);
-      print('✅ Completely removed ${product.name} from cart');
-      print('🔄 Notifying listeners - Cart now has ${_items.length} items');
       notifyListeners();
     }
   }
 
   void clearCart() {
     _items.clear();
-    print('✅ Cart cleared');
-    print('🔄 Notifying listeners - Cart now has ${_items.length} items');
     notifyListeners();
   }
 

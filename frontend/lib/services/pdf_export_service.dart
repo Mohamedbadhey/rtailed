@@ -441,7 +441,7 @@ class PdfExportService {
                     pw.Text(
                       tagline,
                       style: pw.TextStyle(
-                        color: PdfColors.white,
+                        color: PdfColors.grey300,
                         fontSize: 9, // Reduced font size
                         fontWeight: pw.FontWeight.normal,
                       ),
@@ -459,14 +459,13 @@ class PdfExportService {
             width: double.infinity,
             padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reduced padding
             decoration: pw.BoxDecoration(
-              color: PdfColors.white,
+              color: PdfColors.grey300,
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)), // Smaller radius
-              border: pw.Border.all(color: PdfColors.white, width: 1.0),
             ),
             child: pw.Text(
               reportTitle,
               style: pw.TextStyle(
-                color: primaryColor,
+                color: PdfColors.white,
                 fontSize: 9, // Reduced font size
                 fontWeight: pw.FontWeight.bold,
               ),
@@ -914,117 +913,46 @@ class PdfExportService {
     final totalProducts = stockData.length;
     
     return pw.Container(
-      padding: const pw.EdgeInsets.all(16),
+      padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
         color: PdfColors.grey50,
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-        border: pw.Border.all(color: PdfColors.grey400, width: 1.0),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        border: pw.Border.all(color: PdfColors.grey400),
       ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.end,
         children: [
-          // Header
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.all(8),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.green100,
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-              border: pw.Border.all(color: PdfColors.green300, width: 1.0),
-            ),
-            child: pw.Text(
-              'STOCK SUMMARY',
-              style: pw.TextStyle(
-                fontSize: 12,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.green800,
-              ),
-              textAlign: pw.TextAlign.center,
-            ),
-          ),
-          
-          pw.SizedBox(height: 12),
-          
-          // Product Summary
-          _buildEnhancedSummaryRow('Total Products:', totalProducts, isCurrency: false, isHighlight: false),
+          // Summary rows
+          _buildSummaryRow('Total Products:', totalProducts, isCurrency: false),
+          pw.SizedBox(height: 4),
+          _buildSummaryRow('Total Sold Quantity:', totalSold, isCurrency: false),
+          pw.SizedBox(height: 4),
+          _buildSummaryRow('Total Remaining Quantity:', totalRemaining, isCurrency: false),
+          pw.SizedBox(height: 8),
+          pw.Divider(color: PdfColors.grey400, thickness: 0.5),
           pw.SizedBox(height: 6),
-          _buildEnhancedSummaryRow('Total Sold Quantity:', totalSold, isCurrency: false, isHighlight: false),
-          pw.SizedBox(height: 6),
-          _buildEnhancedSummaryRow('Total Remaining Quantity:', totalRemaining, isCurrency: false, isHighlight: false),
-          
-          pw.SizedBox(height: 12),
-          
-          // Separator line
-          pw.Container(
-            height: 1,
-            color: PdfColors.grey400,
-          ),
-          
-          pw.SizedBox(height: 12),
           
           // Financial Summary
-          _buildEnhancedSummaryRow('Total Revenue:', totalRevenue, isHighlight: false),
+          _buildSummaryRow('Total Revenue:', totalRevenue),
+          pw.SizedBox(height: 4),
+          _buildSummaryRow('Total Profit:', totalProfit),
+          pw.SizedBox(height: 8),
+          pw.Divider(color: PdfColors.grey400, thickness: 0.5),
           pw.SizedBox(height: 6),
-          _buildEnhancedSummaryRow('Total Profit:', totalProfit, isHighlight: true),
           
-          pw.SizedBox(height: 12),
-          
-          // Separator line
+          // Footer
           pw.Container(
-            height: 1,
-            color: PdfColors.grey400,
-          ),
-          
-          pw.SizedBox(height: 12),
-          
-          // Grand Total with enhanced styling
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.all(12),
+            padding: const pw.EdgeInsets.all(8),
             decoration: pw.BoxDecoration(
               color: PdfColors.grey100,
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-              border: pw.Border.all(color: PdfColors.grey500, width: 1.5),
-            ),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  'TOTAL PROFIT:',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.grey900,
-                  ),
-                ),
-                pw.Text(
-                  '\$${totalProfit.toStringAsFixed(2)}',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.grey900,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          pw.SizedBox(height: 12),
-          
-          // Footer with better styling
-          pw.Container(
-            padding: const pw.EdgeInsets.all(10),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.green50,
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-              border: pw.Border.all(color: PdfColors.green200),
             ),
             child: pw.Text(
-              'Stock Summary Report Generated Successfully',
+              'Stock Summary Report Generated',
               style: pw.TextStyle(
-                fontSize: 11,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.green700,
+                fontSize: 10,
+                fontWeight: pw.FontWeight.normal,
+                color: PdfColors.grey700,
               ),
               textAlign: pw.TextAlign.center,
             ),
@@ -1043,106 +971,67 @@ class PdfExportService {
     final totalTransactions = transactions.length;
     
     return pw.Container(
-      padding: const pw.EdgeInsets.all(16),
+      padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
         color: PdfColors.grey50,
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-        border: pw.Border.all(color: PdfColors.grey400, width: 1.0),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        border: pw.Border.all(color: PdfColors.grey400),
       ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.end,
         children: [
-          // Header
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.all(8),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.blue100,
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-              border: pw.Border.all(color: PdfColors.blue300, width: 1.0),
-            ),
-            child: pw.Text(
-              'TRANSACTION SUMMARY',
-              style: pw.TextStyle(
-                fontSize: 12,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.blue800,
+          // Summary rows
+          _buildSummaryRow('Subtotal:', subtotal),
+          pw.SizedBox(height: 4),
+          _buildSummaryRow('Total Cost:', totalCost),
+          pw.SizedBox(height: 4),
+          _buildSummaryRow('Total Profit:', totalProfit),
+          pw.SizedBox(height: 4),
+          _buildSummaryRow('Total Items:', totalQuantity, isCurrency: false),
+          pw.SizedBox(height: 4),
+          _buildSummaryRow('Transactions:', totalTransactions, isCurrency: false),
+          pw.SizedBox(height: 8),
+          pw.Divider(color: PdfColors.grey400, thickness: 0.5),
+          pw.SizedBox(height: 6),
+          
+          // Grand Total
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'GRAND TOTAL:',
+                style: pw.TextStyle(
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.grey900,
+                ),
               ),
-              textAlign: pw.TextAlign.center,
-            ),
+              pw.Text(
+                '\$${subtotal.toStringAsFixed(2)}',
+                style: pw.TextStyle(
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.grey900,
+                ),
+              ),
+            ],
           ),
           
           pw.SizedBox(height: 12),
           
-          // Summary rows with better styling
-          _buildEnhancedSummaryRow('Total Revenue:', subtotal, isHighlight: false),
-          pw.SizedBox(height: 6),
-          _buildEnhancedSummaryRow('Total Cost:', totalCost, isHighlight: false),
-          pw.SizedBox(height: 6),
-          _buildEnhancedSummaryRow('Total Profit:', totalProfit, isHighlight: true),
-          pw.SizedBox(height: 6),
-          _buildEnhancedSummaryRow('Total Items Sold:', totalQuantity, isCurrency: false, isHighlight: false),
-          pw.SizedBox(height: 6),
-          _buildEnhancedSummaryRow('Total Transactions:', totalTransactions, isCurrency: false, isHighlight: false),
-          
-          pw.SizedBox(height: 12),
-          
-          // Separator line
+          // Footer
           pw.Container(
-            height: 1,
-            color: PdfColors.grey400,
-          ),
-          
-          pw.SizedBox(height: 12),
-          
-          // Grand Total with enhanced styling
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.all(12),
+            padding: const pw.EdgeInsets.all(8),
             decoration: pw.BoxDecoration(
               color: PdfColors.grey100,
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-              border: pw.Border.all(color: PdfColors.grey500, width: 1.5),
-            ),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  'GRAND TOTAL REVENUE:',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.grey900,
-                  ),
-                ),
-                pw.Text(
-                  '\$${subtotal.toStringAsFixed(2)}',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.grey900,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          pw.SizedBox(height: 12),
-          
-          // Footer with better styling
-          pw.Container(
-            padding: const pw.EdgeInsets.all(10),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.blue50,
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-              border: pw.Border.all(color: PdfColors.blue200),
             ),
             child: pw.Text(
-              'Transaction Report Generated Successfully',
+              'Thank you for your business!',
               style: pw.TextStyle(
-                fontSize: 11,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.blue700,
+                fontSize: 10,
+                fontWeight: pw.FontWeight.normal,
+                color: PdfColors.grey700,
               ),
               textAlign: pw.TextAlign.center,
             ),
@@ -1166,42 +1055,6 @@ class PdfExportService {
           style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
         ),
       ],
-    );
-  }
-  
-  // Build enhanced summary row with better styling
-  static pw.Widget _buildEnhancedSummaryRow(String label, dynamic value, {bool isCurrency = true, bool isHighlight = false}) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: pw.BoxDecoration(
-        color: isHighlight ? PdfColors.grey100 : PdfColors.white,
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-        border: pw.Border.all(
-          color: isHighlight ? PdfColors.grey400 : PdfColors.grey300, 
-          width: isHighlight ? 1.0 : 0.5
-        ),
-      ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(
-            label,
-            style: pw.TextStyle(
-              fontSize: 10,
-              fontWeight: isHighlight ? pw.FontWeight.bold : pw.FontWeight.normal,
-              color: isHighlight ? PdfColors.grey800 : PdfColors.grey700,
-            ),
-          ),
-          pw.Text(
-            isCurrency ? '\$${value.toStringAsFixed(2)}' : value.toString(),
-            style: pw.TextStyle(
-              fontSize: 10,
-              fontWeight: isHighlight ? pw.FontWeight.bold : pw.FontWeight.normal,
-              color: isHighlight ? PdfColors.grey900 : PdfColors.grey700,
-            ),
-          ),
-        ],
-      ),
     );
   }
   

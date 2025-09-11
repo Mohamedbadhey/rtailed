@@ -1,57 +1,58 @@
 name: retail_management
-description: "A new Flutter project."
+description: SmartLedger - Retail Management System
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ^3.0.0
 
 dependencies:
   flutter:
     sdk: flutter
-
-  # UI and Navigation
-  cupertino_icons: ^1.0.2
-  provider: ^6.1.5
-  google_fonts: ^6.2.1
-
-  # HTTP and API
-  http: ^1.4.0
-  dio: ^5.8.0+1
-
-  # State Management
-  shared_preferences: ^2.2.5
-
-  # Image Handling
-  image_picker: ^1.1.2
-  file_picker: ^10.2.0
-
-  # Charts and Visualization
-  fl_chart: ^0.63.0
-
-  # QR Code and Barcode
-  mobile_scanner: ^3.5.7
-
-  # Security
-  flutter_secure_storage: ^8.1.0
-
-  # Connectivity
-  connectivity_plus: ^4.0.2
-
-  # URL Launcher
-  url_launcher: ^6.3.1
-
-  # Internationalization
+  cupertino_icons: ^1.0.6
+  http: ^1.1.0
+  http_parser: ^4.0.2
+  provider: ^6.0.5
+  shared_preferences: ^2.2.0
+  flutter_secure_storage: ^8.0.0
   intl: ^0.18.1
+  image_picker: ^1.0.7
+  mobile_scanner: ^3.5.6
+  fl_chart: ^0.63.0
+  pdf: ^3.10.4
+  printing: ^5.11.0
+  path_provider: ^2.1.0
+  url_launcher: ^6.1.12
+  connectivity_plus: ^4.0.2
+  dio: ^5.3.2
+  json_annotation: ^4.8.1
+  freezed_annotation: ^2.4.1
+  google_fonts: ^6.1.0
+  file_picker: ^10.2.0
+  quickalert: ^1.1.0
+  permission_handler: ^11.0.1
+  toast: ^0.3.0
 
-  # PDF Generation
-  pdf: ^3.10.7
-  path_provider: ^2.1.2
 
+
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.3
+  build_runner: ^2.4.6
+  json_serializable: ^6.7.1
+  freezed: ^2.4.5
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: false
+  image_path: "../backend/uploads/branding/logo.png"
+  min_sdk_android: 21
+ 

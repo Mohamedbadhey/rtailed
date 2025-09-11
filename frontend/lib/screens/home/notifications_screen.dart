@@ -148,6 +148,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     return Scaffold(
       appBar: BrandedAppBar(
         title: t(context, 'Notifications'),
+        showBackButton: true,
         actions: [
           IconButton(
             icon: Icon(
@@ -241,7 +242,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           children: [
             Text(
               t(context, 'Filters'),
-              style: Theme.of(context).textTheme.titleMedium,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+              ),
             ),
             const SizedBox(height: 16),
             Row(
@@ -339,7 +342,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('${t(context, 'Error: ')}${notificationProvider.error}'),
+            Text(
+              '${t(context, 'Error: ')}${notificationProvider.error}',
+              style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+            ),
             ElevatedButton(
               onPressed: () => notificationProvider.fetchMyNotifications(),
               child: Text(t(context, 'Retry')),
@@ -392,7 +398,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                           t(context, 'No notifications'),
                           style: TextStyle(
                             fontSize: 18,
-                            color: Colors.grey,
+                            color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
                           ),
                         ),
                       ],
@@ -435,11 +441,15 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   children: [
                     Text(
                       _selectedNotification?.title ?? '',
-                      style: Theme.of(context).textTheme.titleMedium,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+                      ),
                     ),
                     Text(
                       'Thread with ${_selectedNotification?.createdByName ?? 'Unknown'}',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+                      ),
                     ),
                   ],
                 ),
@@ -523,6 +533,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                     notification.message,
                     style: TextStyle(
                       fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+                      color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -567,12 +578,16 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           notification.title + (isSent ? ' (You)' : ''),
           style: TextStyle(
             fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+            color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
           ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(notification.message),
+            Text(
+              notification.message,
+              style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+            ),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -655,7 +670,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   children: [
                     Text(
                       t(context, 'Send Message to Cashiers'),
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -745,7 +762,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   children: [
                     Text(
                       t(context, 'Select Cashiers'),
-                      style: Theme.of(context).textTheme.titleMedium,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     if (_isLoadingCashiers)
@@ -754,14 +773,17 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                       Center(
                         child: Text(
                           t(context, 'No cashiers found'),
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
                         ),
                       )
                     else
                       Column(
                         children: [
                           CheckboxListTile(
-                            title: Text(t(context, 'Send to all cashiers')),
+                            title: Text(
+                              t(context, 'Send to all cashiers'),
+                              style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                            ),
                             value: _selectedCashiers.isEmpty,
                             onChanged: (value) {
                               setState(() {
@@ -776,8 +798,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                           const Divider(),
                           ...(_cashiers.map((cashier) {
                             return CheckboxListTile(
-                              title: Text(cashier['username'] ?? ''),
-                              subtitle: Text(cashier['email'] ?? ''),
+                              title: Text(
+                                cashier['username'] ?? '',
+                                style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                              ),
+                              subtitle: Text(
+                                cashier['email'] ?? '',
+                                style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                              ),
                               value: _selectedCashiers.isEmpty || _selectedCashiers.contains(cashier['id']),
                               onChanged: (value) {
                                 setState(() {
@@ -870,7 +898,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   children: [
                     Text(
                       t(context, 'Send Message to Admin'),
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(

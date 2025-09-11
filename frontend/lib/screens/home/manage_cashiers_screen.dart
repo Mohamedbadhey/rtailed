@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/translate.dart';
+import '../../utils/theme.dart';
 import 'package:provider/provider.dart';
 
 class ManageCashiersScreen extends StatefulWidget {
@@ -105,8 +106,8 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                         isUsernameTaken = false;
                       });
                       
-                      // Check username availability after user stops typing
-                      if (value.length >= 3 && !isEdit) {
+                      // Check username availability after user stops typing (for both new and edit)
+                      if (value.length >= 3) {
                         Future.delayed(const Duration(milliseconds: 500), () async {
                           if (usernameController.text == value) {
                             setState(() {
@@ -124,7 +125,7 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                               
                               final response = await ApiService.postStatic(endpoint, {
                                 'username': value,
-                                'exclude_id': cashier?['id']
+                                'exclude_id': isEdit ? (cashier?['id']) : null
                               });
                               
                               setState(() {
@@ -147,7 +148,7 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
                         t(context, 'Username must be 3-20 characters long'),
-                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                        style: TextStyle(color: Colors.red, fontSize: 12),
                       ),
                     ),
                   if (isUsernameTaken)
@@ -155,15 +156,15 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
                         t(context, 'Username is already taken'),
-                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                        style: TextStyle(color: Colors.red, fontSize: 12),
                       ),
                     ),
-                  if (isUsernameAvailable && usernameController.text.length >= 3 && !isEdit)
+                  if (isUsernameAvailable && usernameController.text.length >= 3)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
                         t(context, 'Username is available'),
-                        style: const TextStyle(color: Colors.green, fontSize: 12),
+                        style: TextStyle(color: Colors.green, fontSize: 12),
                       ),
                     ),
                   const SizedBox(height: 16),
@@ -206,7 +207,7 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           t(context, 'Password must be at least 6 characters'),
-                          style: const TextStyle(color: Colors.red, fontSize: 12),
+                          style: TextStyle(color: Colors.red, fontSize: 12),
                         ),
                       ),
                     const SizedBox(height: 16),
@@ -238,9 +239,9 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           t(context, 'Passwords do not match'),
-                          style: const TextStyle(color: Colors.red, fontSize: 12),
+                          style: TextStyle(color: Colors.red, fontSize: 12),
                         ),
-                ),
+                      ),
             ],
                 ],
               ),
@@ -250,7 +251,10 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
         actions: [
           TextButton(
             onPressed: isCreating ? null : () => Navigator.pop(context), 
-            child: Text(t(context, 'Cancel'))
+            child: Text(
+              t(context, 'Cancel'),
+              style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+            ),
           ),
           ElevatedButton(
             onPressed: isCreating ? null : () async {
@@ -275,12 +279,23 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                 return;
               }
               
-              // Check if username is taken (only for new cashiers)
-              if (!isEdit && isUsernameTaken) {
+              // Check if username is taken (for both new and edit)
+              if (isUsernameTaken) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(t(context, 'Username is already taken. Please choose a different one.')),
                     backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+              
+              // For editing, also check if username is being changed and is available
+              if (isEdit && usernameController.text != cashier!['username'] && !isUsernameAvailable) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(t(context, 'Please wait for username availability check to complete.')),
+                    backgroundColor: Colors.orange,
                   ),
                 );
                 return;
@@ -404,7 +419,10 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                   width: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Text(isEdit ? t(context, 'Save') : t(context, 'Add')),
+              : Text(
+                  isEdit ? t(context, 'Save') : t(context, 'Add'),
+                  style: TextStyle(color: Colors.white),
+                ),
           ),
         ],
       ),
@@ -428,7 +446,13 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(t(context, 'Cancel'))),
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: Text(
+              t(context, 'Cancel'),
+              style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+            ),
+          ),
           ElevatedButton(
             onPressed: () async {
               if (!_formKey.currentState!.validate()) return;
@@ -442,7 +466,10 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${t(context, 'Failed to reset password: ')}$e')));
               }
             },
-            child: Text(t(context, 'Reset')),
+            child: Text(
+              t(context, 'Reset'),
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -482,15 +509,30 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
     
     if (!canManageCashiers) {
       return Scaffold(
-        appBar: AppBar(title: Text(t(context, 'Manage Cashiers'))),
+        appBar: AppBar(
+          title: Text(
+            t(context, 'Manage Cashiers'),
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Theme.of(context).primaryColor,
+        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(t(context, 'You do not have permission to manage cashiers')),
+              Text(
+                t(context, 'You do not have permission to manage cashiers'),
+                style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+              ),
               SizedBox(height: 16),
-              Text('${t(context, 'Current role: ')}${user?.role ?? t(context, 'Unknown')}'),
-              Text('${t(context, 'Business ID: ')}${user?.businessId ?? 'None'}'),
+              Text(
+                '${t(context, 'Current role: ')}${user?.role ?? t(context, 'Unknown')}',
+                style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+              ),
+              Text(
+                '${t(context, 'Business ID: ')}${user?.businessId ?? 'None'}',
+                style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+              ),
             ],
           ),
         ),
@@ -498,11 +540,22 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
     }
     
     return Scaffold(
-      appBar: AppBar(title: Text(t(context, 'Manage Cashiers'))),
+      appBar: AppBar(
+        title: Text(
+          t(context, 'Manage Cashiers'),
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Theme.of(context).primaryColor,
+      ),
       body: loading
           ? Center(child: CircularProgressIndicator())
           : error != null
-              ? Center(child: Text(error!))
+              ? Center(
+                  child: Text(
+                    error!,
+                    style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                  ),
+                )
               : RefreshIndicator(
                   onRefresh: fetchCashiers,
                   child: cashiers.isEmpty
@@ -512,9 +565,15 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                             children: [
                               Icon(Icons.people_outline, size: 64, color: Colors.grey),
                               SizedBox(height: 16),
-                              Text(t(context, 'No cashiers found')),
+                              Text(
+                                t(context, 'No cashiers found'),
+                                style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                              ),
                               SizedBox(height: 8),
-                              Text(t(context, 'Add your first cashier to get started')),
+                              Text(
+                                t(context, 'Add your first cashier to get started'),
+                                style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                              ),
                             ],
                           ),
                         )
@@ -523,8 +582,14 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                           itemBuilder: (context, i) {
                             final cashier = cashiers[i];
                             return ListTile(
-                              title: Text(cashier['username'] ?? ''),
-                              subtitle: Text(cashier['email'] ?? ''),
+                              title: Text(
+                                cashier['username'] ?? '',
+                                style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                              ),
+                              subtitle: Text(
+                                cashier['email'] ?? '',
+                                style: TextStyle(color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black).withOpacity(0.7)),
+                              ),
                               trailing: PopupMenuButton<String>(
                                 onSelected: (value) {
                                   if (value == 'edit') showAddEditDialog(cashier: cashier);
@@ -533,12 +598,36 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                                   if (value == 'reset') showResetPasswordDialog(cashier);
                                 },
                                 itemBuilder: (context) => [
-                                  PopupMenuItem(value: 'edit', child: Text(t(context, 'Edit'))),
-                                  PopupMenuItem(value: 'reset', child: Text(t(context, 'Reset Password'))),
+                                  PopupMenuItem(
+                                    value: 'edit', 
+                                    child: Text(
+                                      t(context, 'Edit'),
+                                      style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'reset', 
+                                    child: Text(
+                                      t(context, 'Reset Password'),
+                                      style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                                    ),
+                                  ),
                                   if (cashier['is_active'] == true || cashier['is_active'] == 1)
-                                    PopupMenuItem(value: 'deactivate', child: Text(t(context, 'Deactivate')))
+                                    PopupMenuItem(
+                                      value: 'deactivate', 
+                                      child: Text(
+                                        t(context, 'Deactivate'),
+                                        style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                                      ),
+                                    )
                                   else
-                                    PopupMenuItem(value: 'activate', child: Text(t(context, 'Activate'))),
+                                    PopupMenuItem(
+                                      value: 'activate', 
+                                      child: Text(
+                                        t(context, 'Activate'),
+                                        style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                                      ),
+                                    ),
                                 ],
                               ),
                             );

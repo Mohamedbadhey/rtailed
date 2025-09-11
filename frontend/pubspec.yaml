@@ -1,5 +1,5 @@
-name: retail_management
-description: SmartLedger - Retail Management System
+name: SmartLedger
+description: SmartLedger
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -55,4 +55,5 @@ flutter_launcher_icons:
   ios: false
   image_path: "../backend/uploads/branding/logo.png"
   min_sdk_android: 21
- 
+  adaptive_icon_background: "#0175C2"
+  adaptive_icon_foreground: "../backend/uploads/branding/logo.png"

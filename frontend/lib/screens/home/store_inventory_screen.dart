@@ -37,7 +37,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   List<Map<String, dynamic>> _inventory = [];
   List<Map<String, dynamic>> _movements = [];
   Map<String, dynamic> _reports = {};
-  bool _loading = false;
+  bool _loading = true; // Start with loading true to prevent showing "No inventory found" initially
   String? _error;
   
   // Filter variables
@@ -425,54 +425,16 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   void _onInventoryScroll() {
-    if (_inventoryScrollController.position.pixels >=
-        _inventoryScrollController.position.maxScrollExtent - 200) {
-      _loadMoreInventory();
-    }
+    // Disabled: No pagination needed since API returns all data at once
+    // This was causing data duplication issues
+    return;
   }
 
   Future<void> _loadMoreInventory() async {
-    if (_inventoryLoadingMore || !_inventoryHasMore) return;
-
-    setState(() {
-      _inventoryLoadingMore = true;
-    });
-
-    try {
-      final user = context.read<AuthProvider>().user;
-      int? businessId;
-      
-      if (user?.role == 'superadmin') {
-        businessId = _selectedBusinessId;
-      } else {
-        businessId = user?.businessId;
-      }
-
-      if (businessId != null) {
-        final newInventory = await _apiService.getStoreInventory(
-          widget.storeId, 
-          businessId,
-        );
-        
-        if (newInventory.isNotEmpty) {
-          setState(() {
-            _inventory.addAll(newInventory);
-            _inventoryCurrentPage++;
-            _inventoryHasMore = newInventory.length == _itemsPerPage;
-          });
-        } else {
-          setState(() {
-            _inventoryHasMore = false;
-          });
-        }
-      }
-    } catch (e) {
-      print('Error loading more inventory: $e');
-    } finally {
-      setState(() {
-        _inventoryLoadingMore = false;
-      });
-    }
+    // Disabled: The getStoreInventory API returns all data at once, not paginated
+    // This method was causing data duplication by adding all inventory data again
+    print('🔍 DEBUG: _loadMoreInventory called but disabled - API returns all data at once');
+    return;
   }
 
   // Cache helper methods
@@ -527,18 +489,11 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         }
       }
       
-      // Check cache first
-      final cacheKey = 'inventory_${widget.storeId}_$businessId';
-      final cachedInventory = _getFromCache<List<Map<String, dynamic>>>(cacheKey);
+      // Clear cache to prevent duplicate data issues
+      _clearCache();
       
       print('🔍 DEBUG: Loading inventory for store: ${widget.storeId}, business: $businessId');
       
-      if (cachedInventory != null) {
-        print('🔍 DEBUG: Using cached inventory data. Count: ${cachedInventory.length}');
-        setState(() {
-          _inventory = cachedInventory;
-        });
-      } else {
         // Load inventory
         print('🔍 DEBUG: Fetching inventory from API...');
         final inventory = await _apiService.getStoreInventory(widget.storeId, businessId);
@@ -552,19 +507,9 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         setState(() {
           _inventory = inventory;
         });
-        _setCache(cacheKey, inventory);
-        print('🔍 DEBUG: Inventory loaded and cached successfully');
-      }
+      print('🔍 DEBUG: Inventory loaded successfully');
       
-      // Load movements (with cache)
-      final movementsCacheKey = 'movements_${widget.storeId}_$businessId';
-      final cachedMovements = _getFromCache<List<Map<String, dynamic>>>(movementsCacheKey);
-      
-      if (cachedMovements != null) {
-        setState(() {
-          _movements = cachedMovements;
-        });
-      } else {
+      // Load movements
         final movements = await _apiService.getStoreInventoryMovements(
           widget.storeId, 
           businessId,
@@ -575,18 +520,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         setState(() {
           _movements = movements;
         });
-        _setCache(movementsCacheKey, movements);
-      }
       
-      // Load reports (with cache)
-      final reportsCacheKey = 'reports_${widget.storeId}_$businessId';
-      final cachedReports = _getFromCache<Map<String, dynamic>>(reportsCacheKey);
-      
-      if (cachedReports != null) {
-        setState(() {
-          _reports = cachedReports;
-        });
-      } else {
+      // Load reports
         print('🔍 Loading reports for storeId: ${widget.storeId}, businessId: $businessId');
         final reports = await _apiService.getStoreInventoryReports(widget.storeId, businessId);
         print('📊 Reports loaded: ${reports.keys}');
@@ -596,8 +531,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         setState(() {
           _reports = reports;
         });
-        _setCache(reportsCacheKey, reports);
-      }
       
     } catch (e) {
       print('Store Inventory Error: $e');
@@ -641,8 +574,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       final data = await _apiService.getDetailedMovementsReport(
         widget.storeId,
         businessId,
-        startDate: _detailedMovementsStartDate?.toIso8601String().split('T')[0],
-        endDate: _detailedMovementsEndDate?.toIso8601String().split('T')[0],
+        startDate: _detailedMovementsStartDate?.toIso8601String(),
+        endDate: _detailedMovementsEndDate?.toIso8601String(),
         productId: _selectedProductForDetailed,
         categoryId: _selectedCategoryForDetailed != null ? int.tryParse(_selectedCategoryForDetailed!) : null,
         movementType: _selectedMovementTypeForDetailed,
@@ -695,8 +628,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       final data = await _apiService.getPurchasesReport(
         widget.storeId,
         businessId,
-        startDate: _purchasesStartDate?.toIso8601String().split('T')[0],
-        endDate: _purchasesEndDate?.toIso8601String().split('T')[0],
+        startDate: _purchasesStartDate?.toIso8601String(),
+        endDate: _purchasesEndDate?.toIso8601String(),
         productId: _selectedProductForPurchases,
         categoryId: _selectedCategoryForPurchases != null ? int.tryParse(_selectedCategoryForPurchases!) : null,
         page: 1,
@@ -746,8 +679,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       final data = await _apiService.getIncrementsReport(
         widget.storeId,
         businessId,
-        startDate: _incrementsStartDate?.toIso8601String().split('T')[0],
-        endDate: _incrementsEndDate?.toIso8601String().split('T')[0],
+        startDate: _incrementsStartDate?.toIso8601String(),
+        endDate: _incrementsEndDate?.toIso8601String(),
         productId: _selectedProductForIncrements,
         categoryId: _selectedCategoryForIncrements != null ? int.tryParse(_selectedCategoryForIncrements!) : null,
         page: 1,
@@ -792,8 +725,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         widget.storeId,
         businessId,
         timePeriod: _businessTransfersTimePeriod,
-        startDate: _businessTransfersStartDate?.toIso8601String().split('T')[0],
-        endDate: _businessTransfersEndDate?.toIso8601String().split('T')[0],
+        startDate: _businessTransfersStartDate?.toIso8601String(),
+        endDate: _businessTransfersEndDate?.toIso8601String(),
         page: 1,
         limit: _detailedReportsPageSize,
       );
@@ -848,8 +781,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         widget.storeId,
         businessId,
         timePeriod: _transferReportsTimePeriod,
-        startDate: _transferReportsStartDate?.toIso8601String().split('T')[0],
-        endDate: _transferReportsEndDate?.toIso8601String().split('T')[0],
+        startDate: _transferReportsStartDate?.toIso8601String(),
+        endDate: _transferReportsEndDate?.toIso8601String(),
         page: 1,
         limit: _detailedReportsPageSize,
       );
@@ -1201,6 +1134,11 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   Widget _buildInventoryList() {
     print('🔍 DEBUG: Building inventory list. Total inventory items: ${_inventory.length}');
     
+    // Check loading state first - show loading if data is being fetched
+    if (_loading) {
+      return _buildLoadingState();
+    }
+    
     final filteredInventory = _inventory.where((item) {
       // Search filter
       final matchesSearch = _searchQuery.isEmpty ||
@@ -1237,16 +1175,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       child: ListView.builder(
         controller: _inventoryScrollController,
         padding: const EdgeInsets.all(16),
-        itemCount: filteredInventory.length + (_inventoryLoadingMore ? 1 : 0),
+        itemCount: filteredInventory.length,
         itemBuilder: (context, index) {
-          if (index == filteredInventory.length) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: CircularProgressIndicator(),
-              ),
-            );
-          }
           final item = filteredInventory[index];
           print('🔍 DEBUG: Building card for item at index $index: ${item['product_name']}');
           return _buildProfessionalInventoryCard(item);
@@ -2110,6 +2040,11 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildMovementsList() {
+    // Check loading state first - show loading if data is being fetched
+    if (_loading) {
+      return _buildLoadingState();
+    }
+    
     // Apply client-side filtering
     final filteredMovements = _movements.where((movement) {
       // Filter by movement type
@@ -2480,14 +2415,20 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       return _buildErrorState();
     }
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final isSmallScreen = screenWidth < 768;
+        final isMediumScreen = screenWidth >= 768 && screenWidth < 1024;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Modern Report Header
+              // Responsive Report Header
           Container(
-            padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
@@ -2497,7 +2438,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 20),
               boxShadow: [
                 BoxShadow(
                   color: Theme.of(context).primaryColor.withOpacity(0.3),
@@ -2509,23 +2450,27 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                      padding: EdgeInsets.all(isSmallScreen ? 8 : 12),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(isSmallScreen ? 8 : 16),
                   ),
-                  child: const Icon(Icons.analytics, color: Colors.white, size: 28),
+                      child: Icon(
+                        Icons.analytics, 
+                        color: Colors.white, 
+                        size: isSmallScreen ? 20 : 28,
                 ),
-                const SizedBox(width: 16),
+                    ),
+                    SizedBox(width: isSmallScreen ? 12 : 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         t(context, 'Store Inventory Analytics'),
-                        style: const TextStyle(
+                            style: TextStyle(
                           color: Colors.white,
-                          fontSize: 24,
+                              fontSize: isSmallScreen ? 18 : 24,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -2534,14 +2479,14 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                         widget.storeName,
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.9),
-                          fontSize: 16,
+                              fontSize: isSmallScreen ? 14 : 16,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
                 ),
-                if (_reports.isNotEmpty && _reports['report_metadata'] != null)
+                    if (_reports.isNotEmpty && _reports['report_metadata'] != null && !isSmallScreen)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
@@ -2561,22 +2506,175 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             ),
           ),
           
+              SizedBox(height: isSmallScreen ? 16 : 24),
+              
+              // Use responsive content based on screen size
+              if (isSmallScreen)
+                _buildUnifiedReportsContent() // Use mobile-optimized content
+              else
+                _buildResponsiveReportsContent(isMediumScreen), // Use responsive desktop content
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // =====================================================
+  // RESPONSIVE REPORTS CONTENT
+  // =====================================================
+
+  Widget _buildResponsiveReportsContent(bool isMediumScreen) {
+    final currentStock = _reports['current_stock']?['summary'] ?? {};
+    final financialSummary = _reports['financial_summary'] ?? {};
+    final movementSummary = _reports['movement_summary'] ?? {};
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Responsive Key Metrics Dashboard
+        _buildResponsiveKeyMetricsDashboard(isMediumScreen),
+          
           const SizedBox(height: 24),
           
-          // Key Metrics Dashboard
-          _buildKeyMetricsDashboard(),
-          
-          const SizedBox(height: 24),
-          
-          // Charts and Analytics Grid
-          _buildAnalyticsGrid(),
+        // Responsive Charts and Analytics Grid
+        _buildResponsiveAnalyticsGrid(isMediumScreen),
           
           const SizedBox(height: 24),
           
           // Detailed Reports Section
           _buildDetailedReportsSection(),
         ],
-      ),
+    );
+  }
+
+  Widget _buildResponsiveKeyMetricsDashboard(bool isMediumScreen) {
+    final currentStock = _reports['current_stock']?['summary'] ?? {};
+    final financialSummary = _reports['financial_summary'] ?? {};
+    final movementSummary = _reports['movement_summary'] ?? {};
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Key Performance Indicators',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 16),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const ClampingScrollPhysics(), // Enable scrolling
+          crossAxisCount: isMediumScreen ? 1 : 2, // Single column on medium, two columns on large for horizontal cards
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: isMediumScreen ? 3.5 : 3.0, // Wider aspect ratio for horizontal cards
+          children: [
+            _buildHorizontalMetricCardWithSubtitle(
+              'Total Products',
+              (currentStock['total_products'] ?? 0).toString(),
+              Icons.inventory_2,
+              Colors.blue,
+              'Active inventory items',
+            ),
+            _buildHorizontalMetricCardWithSubtitle(
+              'Total Units',
+              (currentStock['total_units'] ?? 0).toString(),
+              Icons.shopping_cart,
+              Colors.green,
+              'Units in stock',
+            ),
+            _buildHorizontalMetricCardWithSubtitle(
+              'Total Value',
+              '₦${(double.tryParse(financialSummary['total_selling_value']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
+              Icons.attach_money,
+              Colors.purple,
+              'Inventory value',
+            ),
+            _buildHorizontalMetricCardWithSubtitle(
+              'Low Stock Items',
+              (currentStock['low_stock'] ?? 0).toString(),
+              Icons.warning,
+              Colors.orange,
+              'Need restocking',
+            ),
+            if (!isMediumScreen) ...[ // Only show additional metrics on large screens
+              _buildHorizontalMetricCardWithSubtitle(
+                'Out of Stock',
+                (currentStock['out_of_stock'] ?? 0).toString(),
+                Icons.error,
+                Colors.red,
+                'Critical items',
+              ),
+              _buildHorizontalMetricCardWithSubtitle(
+                'Total Movements',
+                (movementSummary['total_products_with_movements'] ?? 0).toString(),
+                Icons.trending_up,
+                Colors.teal,
+                'Active products',
+              ),
+              _buildHorizontalMetricCardWithSubtitle(
+                'Stock Added',
+                (movementSummary['total_stock_in'] ?? 0).toString(),
+                Icons.add_box,
+                Colors.indigo,
+                'Units added',
+              ),
+              _buildHorizontalMetricCardWithSubtitle(
+                'Transferred Out',
+                (movementSummary['total_transferred_out'] ?? 0).toString(),
+                Icons.send,
+                Colors.cyan,
+                'Units transferred',
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResponsiveAnalyticsGrid(bool isMediumScreen) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Analytics Overview',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 16),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const ClampingScrollPhysics(), // Enable scrolling
+          crossAxisCount: isMediumScreen ? 1 : 2, // Single column on medium, two columns on large
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: isMediumScreen ? 2.5 : 1.8,
+          children: [
+            // Current Stock Summary
+            if (_reports['current_stock'] != null) ...[
+              _buildCurrentStockSection(),
+            ],
+            
+            // Financial Overview
+            if (_reports['financial_summary'] != null && _reports['financial_summary'].isNotEmpty) ...[
+              _buildFinancialOverviewSection(_reports['financial_summary']),
+            ],
+          ],
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Recent Movements (always full width)
+        if (_reports['recent_movements'] != null) ...[
+          _buildRecentMovementsSection(),
+        ],
+      ],
     );
   }
 
@@ -2602,7 +2700,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         const SizedBox(height: 16),
         GridView.count(
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+          physics: const ClampingScrollPhysics(), // Enable scrolling
           crossAxisCount: 4,
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
@@ -2739,6 +2837,73 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     );
   }
 
+  Widget _buildHorizontalMetricCardWithSubtitle(String title, String value, IconData icon, Color color, String subtitle) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Icon section
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          // Content section
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: ThemeAwareColors.getSecondaryTextColor(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAnalyticsGrid() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2753,7 +2918,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         const SizedBox(height: 16),
         GridView.count(
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+          physics: const ClampingScrollPhysics(), // Enable scrolling
           crossAxisCount: 2,
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
@@ -3161,15 +3326,20 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       return _buildLoadingState();
     }
 
-    final screenSize = MediaQuery.of(context).size;
-    final isSmallScreen = screenSize.width < 768;
-    final isMediumScreen = screenSize.width >= 768 && screenSize.width < 1024;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final isSmallScreen = screenWidth < 768;
+        final isMediumScreen = screenWidth >= 768 && screenWidth < 1024;
+        final isLargeScreen = screenWidth >= 1024;
 
-    return Column(
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(isSmallScreen ? 12 : isMediumScreen ? 16 : 20),
+      child: Column(
       children: [
         // Enhanced Header with filters - Responsive
         Container(
-          padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
+            padding: EdgeInsets.all(isSmallScreen ? 12 : isMediumScreen ? 16 : 20),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
             boxShadow: [
@@ -3197,6 +3367,17 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                       // Quick Actions - Stacked on mobile
                       Row(
                         children: [
+                            // Refresh icon for whole screen
+                            IconButton(
+                              onPressed: _loadDetailedMovements,
+                              icon: const Icon(Icons.refresh, size: 18),
+                              tooltip: 'Refresh Data',
+                              style: IconButton.styleFrom(
+                                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                                foregroundColor: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: _clearDetailedMovementsFilters,
@@ -3235,6 +3416,17 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                       // Quick Actions - Side by side on desktop
                       Row(
                         children: [
+                            // Refresh icon for whole screen
+                            IconButton(
+                              onPressed: _loadDetailedMovements,
+                              icon: const Icon(Icons.refresh, size: 20),
+                              tooltip: 'Refresh Data',
+                              style: IconButton.styleFrom(
+                                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                                foregroundColor: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                           OutlinedButton.icon(
                             onPressed: _clearDetailedMovementsFilters,
                             icon: const Icon(Icons.clear, size: 18),
@@ -3256,23 +3448,26 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                       ),
                     ],
                   ),
-              const SizedBox(height: 16),
+                SizedBox(height: isSmallScreen ? 12 : 16),
               
-              // Enhanced Filters - Responsive
+                // Enhanced Filters - Responsive (No longer scrollable separately)
               _buildResponsiveDetailedMovementsFilters(),
             ],
           ),
         ),
         
-        // Data Display - Scrollable and Responsive
-        Expanded(
-          child: _detailedMovementsLoading
+          const SizedBox(height: 16),
+          
+          // Data Display - Now part of the main scroll
+          _detailedMovementsLoading
               ? const Center(child: CircularProgressIndicator())
               : _detailedMovementsData.isEmpty
                   ? _buildEmptyDetailedMovements()
                   : _buildResponsiveDetailedMovementsTable(),
-        ),
       ],
+      ),
+    );
+      },
     );
   }
 
@@ -3495,13 +3690,18 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildMobileReportsTab() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final isSmallMobile = screenWidth < 480;
+        
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // Mobile Header
+              // Responsive Mobile Header
           Container(
-            padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(isSmallMobile ? 12 : 16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
@@ -3511,34 +3711,40 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(isSmallMobile ? 12 : 16),
             ),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                      padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
                   ),
-                  child: const Icon(Icons.analytics, color: Colors.white),
+                      child: Icon(
+                        Icons.analytics, 
+                        color: Colors.white,
+                        size: isSmallMobile ? 16 : 20,
                 ),
-                const SizedBox(width: 12),
+                    ),
+                    SizedBox(width: isSmallMobile ? 8 : 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Inventory Reports',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            style: TextStyle(
                           color: Colors.white,
+                              fontSize: isSmallMobile ? 16 : 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         'Comprehensive analytics',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: TextStyle(
                           color: Colors.white.withOpacity(0.9),
+                              fontSize: isSmallMobile ? 12 : 14,
                         ),
                       ),
                     ],
@@ -3547,7 +3753,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
               ],
             ),
           ),
-          const SizedBox(height: 16),
+              SizedBox(height: isSmallMobile ? 12 : 16),
           
           // Reports Content
           if (_reports.isEmpty)
@@ -3557,9 +3763,11 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
               subtitle: 'Reports will appear here when data is loaded',
             )
           else
-            _buildUnifiedReportsContent(),
+                _buildResponsiveUnifiedReportsContent(isSmallMobile),
         ],
       ),
+        );
+      },
     );
   }
 
@@ -3699,17 +3907,15 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildDesktopQuickStats() {
-    final totalProducts = _inventory.length;
-    final inStock = _inventory.where((item) => item['stock_status'] == 'IN_STOCK').length;
-    final lowStock = _inventory.where((item) => item['stock_status'] == 'LOW_STOCK').length;
-    final outOfStock = _inventory.where((item) => item['stock_status'] == 'OUT_OF_STOCK').length;
+    // Use the same data source as mobile for consistency
+    final currentStock = _reports['current_stock']?['summary'] ?? {};
 
     return Row(
       children: [
         Expanded(
           child: _buildStatCard(
             'Total Products',
-            totalProducts.toString(),
+            (currentStock['total_products'] ?? 0).toString(),
             Icons.inventory_2,
             Colors.blue,
           ),
@@ -3717,9 +3923,9 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
-            'In Stock',
-            inStock.toString(),
-            Icons.check_circle,
+            'Total Units',
+            (currentStock['total_units'] ?? 0).toString(),
+            Icons.shopping_cart,
             Colors.green,
           ),
         ),
@@ -3727,7 +3933,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         Expanded(
           child: _buildStatCard(
             'Low Stock',
-            lowStock.toString(),
+            (currentStock['low_stock'] ?? 0).toString(),
             Icons.warning,
             Colors.orange,
           ),
@@ -3736,7 +3942,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         Expanded(
           child: _buildStatCard(
             'Out of Stock',
-            outOfStock.toString(),
+            (currentStock['out_of_stock'] ?? 0).toString(),
             Icons.error,
             Colors.red,
           ),
@@ -3783,16 +3989,22 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildDesktopInventoryGrid() {
+    // Check loading state first - show loading if data is being fetched
+    if (_loading) {
+      return _buildLoadingState();
+    }
+    
     final filteredInventory = _inventory.where((item) {
       final matchesSearch = _searchQuery.isEmpty ||
-          (item['product_name']?.toString().toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
-          (item['sku']?.toString().toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+          item['product_name'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          item['sku'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (item['category_name'] ?? item['category'] ?? '').toString().toLowerCase().contains(_searchQuery.toLowerCase());
       
       final matchesStockStatus = _selectedStockStatus.isEmpty ||
-          (item['stock_status'] == _selectedStockStatus);
+          (item['stock_status'] ?? '').toString() == _selectedStockStatus;
       
       final matchesCategory = _selectedCategory.isEmpty ||
-          (item['category_name']?.toString() == _selectedCategory);
+          (item['category_name'] ?? item['category'] ?? '').toString() == _selectedCategory;
       
       final price = double.tryParse(item['price']?.toString() ?? '0') ?? 0.0;
       final matchesMinPrice = _minPrice == null || price >= _minPrice!;
@@ -3809,21 +4021,24 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+    return RefreshIndicator(
+      onRefresh: _loadData,
       child: LayoutBuilder(
         builder: (context, constraints) {
           // Calculate responsive grid columns based on screen width
           int crossAxisCount;
           double childAspectRatio;
           
-          if (constraints.maxWidth > 1400) {
+          if (constraints.maxWidth > 1600) {
+            crossAxisCount = 5;
+            childAspectRatio = 1.2;
+          } else if (constraints.maxWidth > 1200) {
             crossAxisCount = 4;
             childAspectRatio = 1.1;
-          } else if (constraints.maxWidth > 1000) {
+          } else if (constraints.maxWidth > 900) {
             crossAxisCount = 3;
             childAspectRatio = 1.0;
-          } else if (constraints.maxWidth > 700) {
+          } else if (constraints.maxWidth > 600) {
             crossAxisCount = 2;
             childAspectRatio = 0.9;
           } else {
@@ -3832,8 +4047,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           }
 
           return GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            controller: _inventoryScrollController,
+            padding: const EdgeInsets.all(20),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: crossAxisCount,
               childAspectRatio: childAspectRatio,
@@ -3875,6 +4090,9 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
+      child: InkWell(
+        onTap: () => _showEditCostPriceDialog(item),
+        borderRadius: BorderRadius.circular(16),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -3946,8 +4164,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                       Icon(statusIcon, color: statusColor, size: 10),
                       const SizedBox(width: 2),
                       Text(
-                        stockStatus == 'LOW_STOCK' ? 'Low' :
-                        stockStatus == 'OUT_OF_STOCK' ? 'Out' : 'In',
+                        stockStatus == 'LOW_STOCK' ? 'Low Stock' :
+                        stockStatus == 'OUT_OF_STOCK' ? 'Out of Stock' : 'In Stock',
                         style: TextStyle(
                           color: statusColor,
                           fontSize: 9,
@@ -4091,6 +4309,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             ),
           ],
         ),
+        ),
       ),
     );
   }
@@ -4136,34 +4355,104 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     );
   }
 
+  Widget _buildResponsiveUnifiedReportsContent(bool isSmallMobile) {
+    final currentStock = _reports['current_stock']?['summary'] ?? {};
+    final financialSummary = _reports['financial_summary'] ?? {};
+    final movementSummary = _reports['movement_summary'] ?? {};
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Responsive Key Metrics Cards
+        _buildResponsiveKeyMetricsGrid(currentStock, financialSummary, movementSummary, isSmallMobile),
+        
+        SizedBox(height: isSmallMobile ? 16 : 24),
+        
+        // Current Stock Summary
+        if (_reports['current_stock'] != null) ...[
+          _buildCurrentStockSection(),
+          SizedBox(height: isSmallMobile ? 16 : 24),
+        ],
+        
+        // Recent Movements
+        if (_reports['recent_movements'] != null) ...[
+          _buildRecentMovementsSection(),
+          SizedBox(height: isSmallMobile ? 16 : 24),
+        ],
+        
+        // Financial Overview
+        if (financialSummary.isNotEmpty) ...[
+          _buildFinancialOverviewSection(financialSummary),
+        ],
+      ],
+    );
+  }
+
   Widget _buildKeyMetricsGrid(Map<String, dynamic> currentStock, Map<String, dynamic> financialSummary, Map<String, dynamic> movementSummary) {
     return GridView.count(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
+      physics: const ClampingScrollPhysics(), // Enable scrolling
+      crossAxisCount: 1, // Single column for horizontal cards
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-      childAspectRatio: 1.5,
+      childAspectRatio: 3.5, // Wide aspect ratio for horizontal cards
       children: [
-        _buildSimpleMetricCard(
+        _buildHorizontalMetricCard(
           'Total Products',
           _safeToInt(currentStock['total_products']).toString(),
           Icons.inventory_2,
           Colors.blue,
         ),
-        _buildSimpleMetricCard(
+        _buildHorizontalMetricCard(
           'Total Units',
           _safeToInt(currentStock['total_units']).toString(),
           Icons.shopping_cart,
           Colors.green,
         ),
-        _buildSimpleMetricCard(
+        _buildHorizontalMetricCard(
           'Low Stock',
           _safeToInt(currentStock['low_stock']).toString(),
           Icons.warning,
           Colors.orange,
         ),
-        _buildSimpleMetricCard(
+        _buildHorizontalMetricCard(
+          'Out of Stock',
+          _safeToInt(currentStock['out_of_stock']).toString(),
+          Icons.error,
+          Colors.red,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResponsiveKeyMetricsGrid(Map<String, dynamic> currentStock, Map<String, dynamic> financialSummary, Map<String, dynamic> movementSummary, bool isSmallMobile) {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const ClampingScrollPhysics(), // Enable scrolling
+      crossAxisCount: 1, // Always single column for horizontal cards on mobile
+      crossAxisSpacing: isSmallMobile ? 12 : 16,
+      mainAxisSpacing: isSmallMobile ? 12 : 16,
+      childAspectRatio: isSmallMobile ? 3.0 : 3.5, // Wide aspect ratio for horizontal cards
+      children: [
+        _buildHorizontalMetricCard(
+          'Total Products',
+          _safeToInt(currentStock['total_products']).toString(),
+          Icons.inventory_2,
+          Colors.blue,
+        ),
+        _buildHorizontalMetricCard(
+          'Total Units',
+          _safeToInt(currentStock['total_units']).toString(),
+          Icons.shopping_cart,
+          Colors.green,
+        ),
+        _buildHorizontalMetricCard(
+          'Low Stock',
+          _safeToInt(currentStock['low_stock']).toString(),
+          Icons.warning,
+          Colors.orange,
+        ),
+        _buildHorizontalMetricCard(
           'Out of Stock',
           _safeToInt(currentStock['out_of_stock']).toString(),
           Icons.error,
@@ -4207,6 +4496,66 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
               color: ThemeAwareColors.getSecondaryTextColor(context),
             ),
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHorizontalMetricCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Icon section
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          // Content section
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: ThemeAwareColors.getSecondaryTextColor(context),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -4792,7 +5141,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         // Table Body
         ListView.builder(
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+          physics: const ClampingScrollPhysics(), // Enable scrolling
           itemCount: transfers.length,
           itemBuilder: (context, index) {
             final transfer = transfers[index] as Map<String, dynamic>;
@@ -4881,7 +5230,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   Widget _buildMobileTransferReportsList(List<dynamic> transfers) {
     return ListView.builder(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics: const ClampingScrollPhysics(), // Enable scrolling
       itemCount: transfers.length,
       itemBuilder: (context, index) {
         final transfer = transfers[index] as Map<String, dynamic>;
@@ -5142,28 +5491,108 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   // DETAILED MOVEMENTS HELPER METHODS
   // =====================================================
 
+  Widget _buildMobileFilterSection(String title, Widget child) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$title:',
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+          ),
+        ),
+        const SizedBox(height: 8),
+        child,
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildTabletFilterSection(String title, Widget child) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$title:',
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+          ),
+        ),
+        const SizedBox(height: 8),
+        child,
+      ],
+    );
+  }
+
   Widget _buildResponsiveDetailedMovementsFilters() {
     final screenSize = MediaQuery.of(context).size;
     final isSmallScreen = screenSize.width < 768;
     final isMediumScreen = screenSize.width >= 768 && screenSize.width < 1024;
     
     if (isSmallScreen) {
-      // Mobile layout - Stack all filters vertically
-      return Column(
+      // Mobile layout - Stack all filters vertically (no separate scrolling)
+      return Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
         children: [
-          // Time Period Filter
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+              // Collapsible Filter Header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Time Period:', style: TextStyle(fontWeight: FontWeight.w500)),
-              const SizedBox(height: 8),
+                    Text(
+                      'Filters (Scrollable)',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.swipe_up,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.filter_list,
+                          size: 20,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              
+              // Time Period Filter
+              _buildMobileFilterSection(
+                'Time Period',
               DropdownButtonFormField<String>(
                 value: _detailedMovementsTimeFilter,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surface,
                 ),
                 items: const [
                   DropdownMenuItem(value: 'today', child: Text('Today')),
@@ -5178,57 +5607,66 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   }
                 },
               ),
-            ],
           ),
-          const SizedBox(height: 16),
           
           // Custom Date Range (only show if custom is selected)
           if (_detailedMovementsTimeFilter == 'custom') ...[
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Custom Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
-                const SizedBox(height: 8),
+                _buildMobileFilterSection(
+                  'Custom Date Range',
                 Row(
                   children: [
                     Expanded(
                       child: InkWell(
                         onTap: () => _showDetailedMovementsStartDatePicker(context),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                           decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
+                              border: Border.all(color: Colors.grey.shade400),
                             borderRadius: BorderRadius.circular(8),
+                              color: Theme.of(context).colorScheme.surface,
                           ),
                           child: Text(
                             _detailedMovementsStartDate != null
                                 ? '${_detailedMovementsStartDate!.day}/${_detailedMovementsStartDate!.month}/${_detailedMovementsStartDate!.year}'
                                 : 'Start Date',
                             style: TextStyle(
-                              color: _detailedMovementsStartDate != null ? Colors.black : Colors.grey,
+                                color: _detailedMovementsStartDate != null 
+                                    ? Theme.of(context).colorScheme.onSurface 
+                                    : Colors.grey.shade600,
+                                fontSize: 14,
                             ),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Text('to'),
+                      Text(
+                        'to',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                          fontSize: 12,
+                        ),
+                      ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: InkWell(
                         onTap: () => _showDetailedMovementsEndDatePicker(context),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                           decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
+                              border: Border.all(color: Colors.grey.shade400),
                             borderRadius: BorderRadius.circular(8),
+                              color: Theme.of(context).colorScheme.surface,
                           ),
                           child: Text(
                             _detailedMovementsEndDate != null
                                 ? '${_detailedMovementsEndDate!.day}/${_detailedMovementsEndDate!.month}/${_detailedMovementsEndDate!.year}'
                                 : 'End Date',
                             style: TextStyle(
-                              color: _detailedMovementsEndDate != null ? Colors.black : Colors.grey,
+                                color: _detailedMovementsEndDate != null 
+                                    ? Theme.of(context).colorScheme.onSurface 
+                                    : Colors.grey.shade600,
+                                fontSize: 14,
                             ),
                           ),
                         ),
@@ -5236,25 +5674,22 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     ),
                   ],
                 ),
-              ],
             ),
-            const SizedBox(height: 16),
           ],
           
           // Category Filter
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Category:', style: TextStyle(fontWeight: FontWeight.w500)),
-              const SizedBox(height: 8),
+              _buildMobileFilterSection(
+                'Category',
               DropdownButtonFormField<String>(
                 value: _selectedCategoryForDetailed,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   hintText: 'All Categories',
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surface,
                 ),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('All Categories')),
@@ -5269,24 +5704,21 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   _loadDetailedMovements();
                 },
               ),
-            ],
           ),
-          const SizedBox(height: 16),
           
           // Product Filter
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Product:', style: TextStyle(fontWeight: FontWeight.w500)),
-              const SizedBox(height: 8),
+              _buildMobileFilterSection(
+                'Product',
               DropdownButtonFormField<int?>(
                 value: _selectedProductForDetailed,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   hintText: 'All Products',
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surface,
                 ),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('All Products')),
@@ -5302,24 +5734,21 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   _loadDetailedMovements();
                 },
               ),
-            ],
           ),
-          const SizedBox(height: 16),
           
           // Business Filter
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Business:', style: TextStyle(fontWeight: FontWeight.w500)),
-              const SizedBox(height: 8),
+              _buildMobileFilterSection(
+                'Business',
               DropdownButtonFormField<int?>(
                 value: _selectedBusinessForDetailed,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   hintText: 'All Businesses',
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surface,
                 ),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('All Businesses')),
@@ -5335,24 +5764,21 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   _loadDetailedMovements();
                 },
               ),
-            ],
           ),
-          const SizedBox(height: 16),
           
           // Movement Type Filter
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Movement Type:', style: TextStyle(fontWeight: FontWeight.w500)),
-              const SizedBox(height: 8),
+              _buildMobileFilterSection(
+                'Movement Type',
               DropdownButtonFormField<String>(
                 value: _selectedMovementTypeForDetailed,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   hintText: 'All Types',
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surface,
                 ),
                 items: const [
                   DropdownMenuItem(value: null, child: Text('All Types')),
@@ -5367,31 +5793,102 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   });
                   _loadDetailedMovements();
                 },
+                ),
+              ),
+              
+              // Mobile Action Buttons
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _clearDetailedMovementsFilters,
+                      icon: const Icon(Icons.clear, size: 18),
+                      label: const Text('Clear'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        _detailedMovementsPage = 1;
+                        _loadDetailedMovements();
+                      },
+                      icon: const Icon(Icons.search, size: 18),
+                      label: const Text('Apply'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
               ),
             ],
           ),
         ],
+          ),
+        ),
       );
     } else if (isMediumScreen) {
-      // Tablet layout - 2 columns
-      return Column(
+      // Tablet layout - 2 columns (no separate scrolling)
+      return Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
         children: [
+              // Filter Header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Filters',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Icon(
+                      Icons.filter_list,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              
           // First Row - Date and Category
           Row(
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Time Period:', style: TextStyle(fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 8),
+                    child: _buildTabletFilterSection(
+                      'Time Period',
                     DropdownButtonFormField<String>(
                       value: _detailedMovementsTimeFilter,
                       decoration: InputDecoration(
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          filled: true,
+                          fillColor: Theme.of(context).colorScheme.surface,
                       ),
                       items: const [
                         DropdownMenuItem(value: 'today', child: Text('Today')),
@@ -5406,24 +5903,22 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                         }
                       },
                     ),
-                  ],
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Category:', style: TextStyle(fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 8),
+                    child: _buildTabletFilterSection(
+                      'Category',
                     DropdownButtonFormField<String>(
                       value: _selectedCategoryForDetailed,
                       decoration: InputDecoration(
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         hintText: 'All Categories',
+                          filled: true,
+                          fillColor: Theme.of(context).colorScheme.surface,
                       ),
                       items: [
                         const DropdownMenuItem(value: null, child: Text('All Categories')),
@@ -5438,7 +5933,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                         _loadDetailedMovements();
                       },
                     ),
-                  ],
                 ),
               ),
             ],
@@ -5449,19 +5943,18 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           Row(
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Product:', style: TextStyle(fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 8),
+                    child: _buildTabletFilterSection(
+                      'Product',
                     DropdownButtonFormField<int?>(
                       value: _selectedProductForDetailed,
                       decoration: InputDecoration(
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         hintText: 'All Products',
+                          filled: true,
+                          fillColor: Theme.of(context).colorScheme.surface,
                       ),
                       items: [
                         const DropdownMenuItem(value: null, child: Text('All Products')),
@@ -5477,24 +5970,22 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                         _loadDetailedMovements();
                       },
                     ),
-                  ],
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Business:', style: TextStyle(fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 8),
+                    child: _buildTabletFilterSection(
+                      'Business',
                     DropdownButtonFormField<int?>(
                       value: _selectedBusinessForDetailed,
                       decoration: InputDecoration(
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         hintText: 'All Businesses',
+                          filled: true,
+                          fillColor: Theme.of(context).colorScheme.surface,
                       ),
                       items: [
                         const DropdownMenuItem(value: null, child: Text('All Businesses')),
@@ -5510,7 +6001,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                         _loadDetailedMovements();
                       },
                     ),
-                  ],
                 ),
               ),
             ],
@@ -5521,19 +6011,18 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           Row(
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Movement Type:', style: TextStyle(fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 8),
+                    child: _buildTabletFilterSection(
+                      'Movement Type',
                     DropdownButtonFormField<String>(
                       value: _selectedMovementTypeForDetailed,
                       decoration: InputDecoration(
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         hintText: 'All Types',
+                          filled: true,
+                          fillColor: Theme.of(context).colorScheme.surface,
                       ),
                       items: const [
                         DropdownMenuItem(value: null, child: Text('All Types')),
@@ -5549,74 +6038,131 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                         _loadDetailedMovements();
                       },
                     ),
-                  ],
                 ),
               ),
               const SizedBox(width: 16),
               if (_detailedMovementsTimeFilter == 'custom')
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Custom Date Range:', style: TextStyle(fontWeight: FontWeight.w500)),
-                      const SizedBox(height: 8),
+                      child: _buildTabletFilterSection(
+                        'Custom Date Range',
                       Row(
                         children: [
                           Expanded(
                             child: InkWell(
                               onTap: () => _showDetailedMovementsStartDatePicker(context),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey),
+                                    border: Border.all(color: Colors.grey.shade400),
                                   borderRadius: BorderRadius.circular(8),
+                                    color: Theme.of(context).colorScheme.surface,
                                 ),
                                 child: Text(
                                   _detailedMovementsStartDate != null
                                       ? '${_detailedMovementsStartDate!.day}/${_detailedMovementsStartDate!.month}/${_detailedMovementsStartDate!.year}'
                                       : 'Start Date',
                                   style: TextStyle(
-                                    color: _detailedMovementsStartDate != null ? Colors.black : Colors.grey,
+                                      color: _detailedMovementsStartDate != null 
+                                          ? Theme.of(context).colorScheme.onSurface 
+                                          : Colors.grey.shade600,
+                                      fontSize: 14,
                                   ),
                                 ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Text('to'),
+                            Text(
+                              'to',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                fontSize: 12,
+                              ),
+                            ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: InkWell(
                               onTap: () => _showDetailedMovementsEndDatePicker(context),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey),
+                                    border: Border.all(color: Colors.grey.shade400),
                                   borderRadius: BorderRadius.circular(8),
+                                    color: Theme.of(context).colorScheme.surface,
                                 ),
                                 child: Text(
                                   _detailedMovementsEndDate != null
                                       ? '${_detailedMovementsEndDate!.day}/${_detailedMovementsEndDate!.month}/${_detailedMovementsEndDate!.year}'
                                       : 'End Date',
                                   style: TextStyle(
-                                    color: _detailedMovementsEndDate != null ? Colors.black : Colors.grey,
+                                      color: _detailedMovementsEndDate != null 
+                                          ? Theme.of(context).colorScheme.onSurface 
+                                          : Colors.grey.shade600,
+                                      fontSize: 14,
                                   ),
                                 ),
                               ),
                             ),
                           ),
                         ],
+                        ),
                       ),
-                    ],
+                    ),
+                ],
+              ),
+              
+              // Tablet Action Buttons
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _clearDetailedMovementsFilters,
+                      icon: const Icon(Icons.clear, size: 18),
+                      label: const Text('Clear Filters'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        _detailedMovementsPage = 1;
+                        _loadDetailedMovements();
+                      },
+                      icon: const Icon(Icons.search, size: 18),
+                      label: const Text('Apply Filters'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
                   ),
                 ),
             ],
           ),
         ],
+          ),
+        ),
       );
     } else {
-      // Desktop layout - Original 4-column layout
-      return _buildEnhancedDetailedMovementsFilters();
+      // Desktop layout - No separate scrolling (part of main scroll)
+      return Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: _buildEnhancedDetailedMovementsFilters(),
+        ),
+      );
     }
   }
 
@@ -6218,24 +6764,25 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     final movements = _detailedMovementsData['movements'] as List<dynamic>? ?? [];
     final summary = _detailedMovementsData['summary'] as Map<String, dynamic>? ?? {};
     final pagination = _detailedMovementsData['report_metadata']?['pagination'] as Map<String, dynamic>? ?? {};
-    final screenSize = MediaQuery.of(context).size;
-    final isSmallScreen = screenSize.width < 768;
-    final isMediumScreen = screenSize.width >= 768 && screenSize.width < 1024;
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final isSmallScreen = screenWidth < 768;
+        final isMediumScreen = screenWidth >= 768 && screenWidth < 1024;
+        final isLargeScreen = screenWidth >= 1024;
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
-      child: Column(
+     return Column(
         children: [
           // Summary Cards - Responsive
           if (summary.isNotEmpty) _buildResponsiveDetailedMovementsSummary(summary),
-          if (summary.isNotEmpty) const SizedBox(height: 16),
+         if (summary.isNotEmpty) SizedBox(height: isSmallScreen ? 12 : 16),
           
           // Data Table - Responsive
           Card(
             elevation: 2,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+                 borderRadius: BorderRadius.circular(isSmallScreen ? 8 : 12),
             ),
             child: isSmallScreen 
                 ? _buildMobileMovementsList(movements)
@@ -6246,11 +6793,12 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           
           // Pagination - Responsive
           if (pagination.isNotEmpty) ...[
-            const SizedBox(height: 16),
+                SizedBox(height: isSmallScreen ? 12 : 16),
             _buildResponsivePagination(pagination),
           ],
         ],
-      ),
+     );
+      },
     );
   }
 
@@ -6596,7 +7144,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         // Table Body
         ListView.builder(
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+          physics: const ClampingScrollPhysics(), // Enable scrolling
           itemCount: movements.length,
           itemBuilder: (context, index) {
             final movement = movements[index] as Map<String, dynamic>;
@@ -6804,7 +7352,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         // Table Body
         ListView.builder(
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+          physics: const ClampingScrollPhysics(), // Enable scrolling
           itemCount: movements.length,
           itemBuilder: (context, index) {
             final movement = movements[index] as Map<String, dynamic>;
@@ -6924,7 +7472,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   Widget _buildMobileMovementsList(List<dynamic> movements) {
     return ListView.builder(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics: const ClampingScrollPhysics(), // Enable scrolling
       itemCount: movements.length,
       itemBuilder: (context, index) {
         final movement = movements[index] as Map<String, dynamic>;
@@ -7848,7 +8396,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         // Table Body
         ListView.builder(
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+          physics: const ClampingScrollPhysics(), // Enable scrolling
           itemCount: purchases.length,
           itemBuilder: (context, index) {
             final purchase = purchases[index] as Map<String, dynamic>;
@@ -7916,7 +8464,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   Widget _buildMobilePurchasesList(List<dynamic> purchases) {
     return ListView.builder(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics: const ClampingScrollPhysics(), // Enable scrolling
       itemCount: purchases.length,
       itemBuilder: (context, index) {
         final purchase = purchases[index] as Map<String, dynamic>;
@@ -8655,7 +9203,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         // Table Body
         ListView.builder(
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+          physics: const ClampingScrollPhysics(), // Enable scrolling
           itemCount: increments.length,
           itemBuilder: (context, index) {
             final increment = increments[index] as Map<String, dynamic>;
@@ -8734,7 +9282,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   Widget _buildMobileIncrementsList(List<dynamic> increments) {
     return ListView.builder(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics: const ClampingScrollPhysics(), // Enable scrolling
       itemCount: increments.length,
       itemBuilder: (context, index) {
         final increment = increments[index] as Map<String, dynamic>;
@@ -9460,7 +10008,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         // Table Body
         ListView.builder(
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+          physics: const ClampingScrollPhysics(), // Enable scrolling
           itemCount: transfers.length,
           itemBuilder: (context, index) {
             final transfer = transfers[index] as Map<String, dynamic>;
@@ -9547,7 +10095,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   Widget _buildMobileBusinessTransfersList(List<dynamic> transfers) {
     return ListView.builder(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics: const ClampingScrollPhysics(), // Enable scrolling
       itemCount: transfers.length,
       itemBuilder: (context, index) {
         final transfer = transfers[index] as Map<String, dynamic>;
@@ -11647,18 +12195,24 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
 
 
   Widget _buildMobileInventoryList() {
+    // Check loading state first - show loading if data is being fetched
+    if (_loading) {
+      return _buildLoadingState();
+    }
+    
     final filteredInventory = _inventory.where((item) {
       final matchesSearch = _searchQuery.isEmpty ||
-          (item['product_name']?.toString().toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
-          (item['sku']?.toString().toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+          item['product_name'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          item['sku'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (item['category_name'] ?? item['category'] ?? '').toString().toLowerCase().contains(_searchQuery.toLowerCase());
       
       final matchesStockStatus = _selectedStockStatus.isEmpty ||
-          (item['stock_status'] == _selectedStockStatus);
+          (item['stock_status'] ?? '').toString() == _selectedStockStatus;
       
       final matchesCategory = _selectedCategory.isEmpty ||
-          (item['category_name']?.toString() == _selectedCategory);
+          (item['category_name'] ?? item['category'] ?? '').toString() == _selectedCategory;
       
-      final price = double.tryParse(item['selling_price']?.toString() ?? '0') ?? 0.0;
+      final price = double.tryParse(item['price']?.toString() ?? '0') ?? 0.0;
       final matchesMinPrice = _minPrice == null || price >= _minPrice!;
       final matchesMaxPrice = _maxPrice == null || price <= _maxPrice!;
       
@@ -11673,14 +12227,17 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       );
     }
 
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: ListView.builder(
+        controller: _inventoryScrollController,
+        padding: const EdgeInsets.all(16),
       itemCount: filteredInventory.length,
       itemBuilder: (context, index) {
         final item = filteredInventory[index];
         return _buildMobileInventoryCard(item);
       },
+      ),
     );
   }
 
@@ -11705,6 +12262,13 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: () => _showEditCostPriceDialog(item),
+        borderRadius: BorderRadius.circular(12),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -11841,6 +12405,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
               ],
             ),
           ],
+        ),
         ),
       ),
     );

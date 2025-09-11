@@ -77,7 +77,7 @@ router.get('/', auth, async (req, res) => {
              END as category_name 
       FROM products p 
       LEFT JOIN categories c ON p.category_id = c.id 
-      WHERE (p.business_id = ? OR p.business_id IS NULL) AND p.is_deleted = 0
+      WHERE p.business_id = ? AND p.is_deleted = 0
       ORDER BY p.name
     `;
     let params = [req.user.business_id];
@@ -196,7 +196,7 @@ router.get('/:id', auth, async (req, res) => {
              END as category_name 
       FROM products p 
       LEFT JOIN categories c ON p.category_id = c.id 
-      WHERE p.id = ? AND (p.business_id = ? OR p.business_id IS NULL)
+      WHERE p.id = ? AND p.business_id = ?
     `;
     let params = [req.params.id, req.user.business_id];
     if (req.user.role === 'superadmin') {

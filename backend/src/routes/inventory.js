@@ -601,10 +601,9 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
       if (start_date) {
         // Get all sales after start_date
         const [[{ sold_after = 0 } = {}]] = await pool.query(
-          `SELECT IFNULL(SUM(si.quantity),0) as sold_after
-           FROM sale_items si
-           JOIN sales s ON si.sale_id = s.id
-           WHERE si.product_id = ? AND s.created_at >= ? AND s.status IN ('completed', 'unpaid') AND s.business_id = ? AND si.business_id = ?` , [p.id, start_date, req.user.business_id, req.user.business_id]);
+          `SELECT IFNULL(SUM(ABS(it.quantity)),0) as sold_after
+           FROM inventory_transactions it
+           WHERE it.product_id = ? AND it.created_at >= ? AND it.business_id = ? AND it.transaction_type = 'sale'` , [p.id, start_date, req.user.business_id]);
         // Get all stock added after start_date (purchases, adjustments, etc.)
         const [[{ added_after = 0 } = {}]] = await pool.query(
           `SELECT IFNULL(SUM(CASE WHEN quantity > 0 THEN quantity ELSE 0 END),0) as added_after
@@ -614,68 +613,71 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
       } else {
         // All-time starting quantity
         const [[{ sold_all = 0 } = {}]] = await pool.query(
-          `SELECT IFNULL(SUM(si.quantity),0) as sold_all
-           FROM sale_items si 
-           JOIN sales s ON si.sale_id = s.id
-           WHERE si.product_id = ? AND s.status IN ('completed', 'unpaid') AND s.business_id = ? AND si.business_id = ?`, [p.id, req.user.business_id, req.user.business_id]);
+          `SELECT IFNULL(SUM(ABS(it.quantity)),0) as sold_all
+           FROM inventory_transactions it
+           WHERE it.product_id = ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, req.user.business_id]);
         startingQuantity = p.quantity_remaining + sold_all;
       }
       // Sold quantity, revenue, profit in period
       if (start_date && end_date) {
         const [[sales = {}]] = await pool.query(
           `SELECT 
-            IFNULL(SUM(si.quantity),0) as sold_qty,
+            IFNULL(SUM(ABS(it.quantity)),0) as sold_qty,
             IFNULL(SUM(si.total_price),0) as revenue,
-            IFNULL(SUM((si.unit_price - COALESCE(p.cost_price, 0)) * si.quantity),0) as profit
-           FROM sale_items si
-           JOIN sales s ON si.sale_id = s.id
-           JOIN products p ON si.product_id = p.id
-           WHERE si.product_id = ? AND s.created_at >= ? AND s.created_at <= ? AND s.status IN ('completed', 'unpaid') AND s.business_id = ? AND si.business_id = ? AND p.business_id = ?`, [p.id, start_date, end_date, req.user.business_id, req.user.business_id, req.user.business_id]);
+            IFNULL(SUM((si.unit_price - COALESCE(p.cost_price, 0)) * ABS(it.quantity)),0) as profit
+           FROM inventory_transactions it
+           LEFT JOIN sales s ON it.reference_id = s.id
+           LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id
+           LEFT JOIN products p ON it.product_id = p.id
+           WHERE it.product_id = ? AND it.created_at >= ? AND it.created_at <= ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, start_date, end_date, req.user.business_id]);
         soldQty = sales.sold_qty || 0;
         revenue = sales.revenue || 0;
         profit = sales.profit || 0;
       } else if (start_date) {
         const [[sales = {}]] = await pool.query(
           `SELECT 
-            IFNULL(SUM(si.quantity),0) as sold_qty,
+            IFNULL(SUM(ABS(it.quantity)),0) as sold_qty,
             IFNULL(SUM(si.total_price),0) as revenue,
-            IFNULL(SUM((si.unit_price - COALESCE(p.cost_price, 0)) * si.quantity),0) as profit
-           FROM sale_items si
-           JOIN sales s ON si.sale_id = s.id
-           JOIN products p ON si.product_id = p.id
-           WHERE si.product_id = ? AND s.created_at >= ? AND s.status IN ('completed', 'unpaid') AND s.business_id = ? AND si.business_id = ? AND p.business_id = ?`, [p.id, start_date, req.user.business_id, req.user.business_id, req.user.business_id]);
+            IFNULL(SUM((si.unit_price - COALESCE(p.cost_price, 0)) * ABS(it.quantity)),0) as profit
+           FROM inventory_transactions it
+           LEFT JOIN sales s ON it.reference_id = s.id
+           LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id
+           LEFT JOIN products p ON it.product_id = p.id
+           WHERE it.product_id = ? AND it.created_at >= ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, start_date, req.user.business_id]);
         soldQty = sales.sold_qty || 0;
         revenue = sales.revenue || 0;
         profit = sales.profit || 0;
       } else if (end_date) {
         const [[sales = {}]] = await pool.query(
           `SELECT 
-            IFNULL(SUM(si.quantity),0) as sold_qty,
+            IFNULL(SUM(ABS(it.quantity)),0) as sold_qty,
             IFNULL(SUM(si.total_price),0) as revenue,
-            IFNULL(SUM((si.unit_price - COALESCE(p.cost_price, 0)) * si.quantity),0) as profit
-           FROM sale_items si
-           JOIN sales s ON si.sale_id = s.id
-           JOIN products p ON si.product_id = p.id
-           WHERE si.product_id = ? AND s.created_at <= ? AND s.status IN ('completed', 'unpaid') AND s.business_id = ? AND si.business_id = ? AND p.business_id = ?`, [p.id, end_date, req.user.business_id, req.user.business_id, req.user.business_id]);
+            IFNULL(SUM((si.unit_price - COALESCE(p.cost_price, 0)) * ABS(it.quantity)),0) as profit
+           FROM inventory_transactions it
+           LEFT JOIN sales s ON it.reference_id = s.id
+           LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id
+           LEFT JOIN products p ON it.product_id = p.id
+           WHERE it.product_id = ? AND it.created_at <= ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, end_date, req.user.business_id]);
         soldQty = sales.sold_qty || 0;
         revenue = sales.revenue || 0;
         profit = sales.profit || 0;
       } else {
         const [[sales = {}]] = await pool.query(
       `SELECT 
-            IFNULL(SUM(si.quantity),0) as sold_qty,
+            IFNULL(SUM(ABS(it.quantity)),0) as sold_qty,
             IFNULL(SUM(si.total_price),0) as revenue,
-            IFNULL(SUM((si.unit_price - COALESCE(p.cost_price, 0)) * si.quantity),0) as profit
-           FROM sale_items si
-           JOIN sales s ON si.sale_id = s.id
-           JOIN products p ON si.product_id = p.id
-           WHERE si.product_id = ? AND s.status IN ('completed', 'unpaid') AND s.business_id = ? AND si.business_id = ? AND p.business_id = ?`, [p.id, req.user.business_id, req.user.business_id, req.user.business_id]);
+            IFNULL(SUM((si.unit_price - COALESCE(p.cost_price, 0)) * ABS(it.quantity)),0) as profit
+           FROM inventory_transactions it
+           LEFT JOIN sales s ON it.reference_id = s.id
+           LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id
+           LEFT JOIN products p ON it.product_id = p.id
+           WHERE it.product_id = ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, req.user.business_id]);
         soldQty = sales.sold_qty || 0;
         revenue = sales.revenue || 0;
         profit = sales.profit || 0;
       }
       // Debug logging
-      console.log(`Product ${p.id} (${p.name}): sold=${soldQty} (includes completed & unpaid sales), revenue=${revenue}, profit=${profit}, cost_price=${p.cost_price}`);
+      console.log(`Product ${p.id} (${p.name}): sold=${soldQty} (from inventory_transactions, transaction_type='sale'), revenue=${revenue}, profit=${profit}, cost_price=${p.cost_price}`);
       
       return {
         product_id: p.id,

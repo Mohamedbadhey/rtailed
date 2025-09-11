@@ -4750,7 +4750,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text('Sold: ${_filteredStockSummaryData.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt()}', 
+                          Text('Sold: ${_safeToDouble(row['quantity_sold']).toInt()}', 
                                style: const TextStyle(fontWeight: FontWeight.bold)),
                           Text('Remaining: ${row['quantity_remaining']?.toString() ?? ''}'),
                         ],
@@ -4867,7 +4867,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               ),
               DataCell(Text(row['sku'] ?? '')),
               DataCell(Text(row['category_name'] ?? '')),
-              DataCell(Text(_valueReportRows.fold<double>(0, (sum, r) => sum + _safeToDouble(r['quantity_sold'])).toInt().toString(), style: const TextStyle(fontWeight: FontWeight.bold))),
+              DataCell(Text(_safeToDouble(row['quantity_sold']).toInt().toString(), style: const TextStyle(fontWeight: FontWeight.bold))),
               DataCell(Text(row['quantity_remaining']?.toString() ?? '')),
               DataCell(Text(_safeToDouble(row['revenue']).toStringAsFixed(2))),
               DataCell(Text(_safeToDouble(row['profit']).toStringAsFixed(2))),

@@ -600,15 +600,27 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
       let profit = 0;
       if (start_date) {
         // Get all sales after start_date
+        // Format start date the same way as transactions
+        let startDateTime;
+        
+        if (start_date.includes('T')) {
+          const datePart = start_date.split('T')[0];
+          startDateTime = datePart + ' 00:00:00';
+        } else if (start_date.includes(' ')) {
+          startDateTime = start_date;
+        } else {
+          startDateTime = start_date + ' 00:00:00';
+        }
+        
         const [[{ sold_after = 0 } = {}]] = await pool.query(
           `SELECT IFNULL(SUM(ABS(it.quantity)),0) as sold_after
            FROM inventory_transactions it
-           WHERE it.product_id = ? AND it.created_at >= ? AND it.business_id = ? AND it.transaction_type = 'sale'` , [p.id, start_date, req.user.business_id]);
+           WHERE it.product_id = ? AND it.created_at >= ? AND it.business_id = ? AND it.transaction_type = 'sale'` , [p.id, startDateTime, req.user.business_id]);
         // Get all stock added after start_date (purchases, adjustments, etc.)
         const [[{ added_after = 0 } = {}]] = await pool.query(
           `SELECT IFNULL(SUM(CASE WHEN quantity > 0 THEN quantity ELSE 0 END),0) as added_after
            FROM inventory_transactions
-           WHERE product_id = ? AND created_at >= ?`, [p.id, start_date]);
+           WHERE product_id = ? AND created_at >= ?`, [p.id, startDateTime]);
         startingQuantity = p.quantity_remaining + sold_after - added_after;
       } else {
         // All-time starting quantity
@@ -620,44 +632,89 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
       }
       // Sold quantity, revenue, profit in period
       if (start_date && end_date) {
+        // Format dates the same way as transactions
+        let startDateTime, endDateTime;
+        
+        if (start_date.includes('T')) {
+          const datePart = start_date.split('T')[0];
+          startDateTime = datePart + ' 00:00:00';
+        } else if (start_date.includes(' ')) {
+          startDateTime = start_date;
+        } else {
+          startDateTime = start_date + ' 00:00:00';
+        }
+        
+        if (end_date.includes('T')) {
+          const datePart = end_date.split('T')[0];
+          endDateTime = datePart + ' 23:59:59';
+        } else if (end_date.includes(' ')) {
+          endDateTime = end_date;
+        } else {
+          endDateTime = end_date + ' 23:59:59';
+        }
+        
         const [[sales = {}]] = await pool.query(
           `SELECT 
             IFNULL(SUM(ABS(it.quantity)),0) as sold_qty,
-            IFNULL(SUM(si.total_price),0) as revenue,
-            IFNULL(SUM((si.unit_price - COALESCE(p.cost_price, 0)) * ABS(it.quantity)),0) as profit
+            IFNULL(SUM(COALESCE(si.total_price, 0)),0) as revenue,
+            IFNULL(SUM(COALESCE((si.unit_price - COALESCE(p.cost_price, 0)) * ABS(it.quantity), 0)),0) as profit
            FROM inventory_transactions it
-           LEFT JOIN sales s ON it.reference_id = s.id
-           LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id
-           LEFT JOIN products p ON it.product_id = p.id
-           WHERE it.product_id = ? AND it.created_at >= ? AND it.created_at <= ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, start_date, end_date, req.user.business_id]);
+           LEFT JOIN sales s ON it.reference_id = s.id AND s.business_id = it.business_id
+           LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id AND si.business_id = it.business_id
+           LEFT JOIN products p ON it.product_id = p.id AND p.business_id = it.business_id
+           WHERE it.product_id = ? AND it.created_at >= ? AND it.created_at <= ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, startDateTime, endDateTime, req.user.business_id]);
         soldQty = sales.sold_qty || 0;
         revenue = sales.revenue || 0;
         profit = sales.profit || 0;
       } else if (start_date) {
+        // Format start date the same way as transactions
+        let startDateTime;
+        
+        if (start_date.includes('T')) {
+          const datePart = start_date.split('T')[0];
+          startDateTime = datePart + ' 00:00:00';
+        } else if (start_date.includes(' ')) {
+          startDateTime = start_date;
+        } else {
+          startDateTime = start_date + ' 00:00:00';
+        }
+        
         const [[sales = {}]] = await pool.query(
           `SELECT 
             IFNULL(SUM(ABS(it.quantity)),0) as sold_qty,
-            IFNULL(SUM(si.total_price),0) as revenue,
-            IFNULL(SUM((si.unit_price - COALESCE(p.cost_price, 0)) * ABS(it.quantity)),0) as profit
+            IFNULL(SUM(COALESCE(si.total_price, 0)),0) as revenue,
+            IFNULL(SUM(COALESCE((si.unit_price - COALESCE(p.cost_price, 0)) * ABS(it.quantity), 0)),0) as profit
            FROM inventory_transactions it
-           LEFT JOIN sales s ON it.reference_id = s.id
-           LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id
-           LEFT JOIN products p ON it.product_id = p.id
-           WHERE it.product_id = ? AND it.created_at >= ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, start_date, req.user.business_id]);
+           LEFT JOIN sales s ON it.reference_id = s.id AND s.business_id = it.business_id
+           LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id AND si.business_id = it.business_id
+           LEFT JOIN products p ON it.product_id = p.id AND p.business_id = it.business_id
+           WHERE it.product_id = ? AND it.created_at >= ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, startDateTime, req.user.business_id]);
         soldQty = sales.sold_qty || 0;
         revenue = sales.revenue || 0;
         profit = sales.profit || 0;
       } else if (end_date) {
+        // Format end date the same way as transactions
+        let endDateTime;
+        
+        if (end_date.includes('T')) {
+          const datePart = end_date.split('T')[0];
+          endDateTime = datePart + ' 23:59:59';
+        } else if (end_date.includes(' ')) {
+          endDateTime = end_date;
+        } else {
+          endDateTime = end_date + ' 23:59:59';
+        }
+        
         const [[sales = {}]] = await pool.query(
           `SELECT 
             IFNULL(SUM(ABS(it.quantity)),0) as sold_qty,
-            IFNULL(SUM(si.total_price),0) as revenue,
-            IFNULL(SUM((si.unit_price - COALESCE(p.cost_price, 0)) * ABS(it.quantity)),0) as profit
+            IFNULL(SUM(COALESCE(si.total_price, 0)),0) as revenue,
+            IFNULL(SUM(COALESCE((si.unit_price - COALESCE(p.cost_price, 0)) * ABS(it.quantity), 0)),0) as profit
            FROM inventory_transactions it
-           LEFT JOIN sales s ON it.reference_id = s.id
-           LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id
-           LEFT JOIN products p ON it.product_id = p.id
-           WHERE it.product_id = ? AND it.created_at <= ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, end_date, req.user.business_id]);
+           LEFT JOIN sales s ON it.reference_id = s.id AND s.business_id = it.business_id
+           LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id AND si.business_id = it.business_id
+           LEFT JOIN products p ON it.product_id = p.id AND p.business_id = it.business_id
+           WHERE it.product_id = ? AND it.created_at <= ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, endDateTime, req.user.business_id]);
         soldQty = sales.sold_qty || 0;
         revenue = sales.revenue || 0;
         profit = sales.profit || 0;
@@ -665,19 +722,20 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
         const [[sales = {}]] = await pool.query(
       `SELECT 
             IFNULL(SUM(ABS(it.quantity)),0) as sold_qty,
-            IFNULL(SUM(si.total_price),0) as revenue,
-            IFNULL(SUM((si.unit_price - COALESCE(p.cost_price, 0)) * ABS(it.quantity)),0) as profit
+            IFNULL(SUM(COALESCE(si.total_price, 0)),0) as revenue,
+            IFNULL(SUM(COALESCE((si.unit_price - COALESCE(p.cost_price, 0)) * ABS(it.quantity), 0)),0) as profit
            FROM inventory_transactions it
-           LEFT JOIN sales s ON it.reference_id = s.id
-           LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id
-           LEFT JOIN products p ON it.product_id = p.id
+           LEFT JOIN sales s ON it.reference_id = s.id AND s.business_id = it.business_id
+           LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id AND si.business_id = it.business_id
+           LEFT JOIN products p ON it.product_id = p.id AND p.business_id = it.business_id
            WHERE it.product_id = ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, req.user.business_id]);
         soldQty = sales.sold_qty || 0;
         revenue = sales.revenue || 0;
         profit = sales.profit || 0;
       }
       // Debug logging
-      console.log(`Product ${p.id} (${p.name}): sold=${soldQty} (from inventory_transactions, transaction_type='sale'), revenue=${revenue}, profit=${profit}, cost_price=${p.cost_price}`);
+      console.log(`🔍 STOCK SUMMARY: Product ${p.id} (${p.name}): sold=${soldQty} (from inventory_transactions, transaction_type='sale'), revenue=${revenue}, profit=${profit}, cost_price=${p.cost_price}`);
+      console.log(`🔍 STOCK SUMMARY: Date filters - start_date: ${start_date}, end_date: ${end_date}`);
       
       return {
         product_id: p.id,

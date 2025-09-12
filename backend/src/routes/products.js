@@ -230,6 +230,53 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
+// Check product name availability
+router.post('/check-name', auth, async (req, res) => {
+  try {
+    const { name, exclude_id } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ 
+        message: 'Product name is required' 
+      });
+    }
+
+    let query = 'SELECT id FROM products WHERE name = ? AND is_deleted = 0';
+    let params = [name];
+    
+    // Exclude specific product ID if provided (for editing)
+    if (exclude_id) {
+      query += ' AND id != ?';
+      params.push(exclude_id);
+    }
+    
+    // Filter by business_id for non-superadmin users
+    if (req.user.role !== 'superadmin') {
+      if (!req.user.business_id) {
+        return res.status(400).json({ 
+          message: 'Business ID is required for this operation' 
+        });
+      }
+      query += ' AND (business_id = ? OR business_id IS NULL)';
+      params.push(req.user.business_id);
+    }
+    
+    const [products] = await pool.query(query, params);
+    const isAvailable = products.length === 0;
+    
+    res.json({ 
+      available: isAvailable,
+      message: isAvailable ? 'Product name is available' : 'Product name already exists'
+    });
+    
+  } catch (error) {
+    console.error('Error checking product name:', error);
+    res.status(500).json({ 
+      message: 'Error checking product name availability' 
+    });
+  }
+});
+
 // Create product
 router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')], async (req, res, next) => {
   const connection = await pool.getConnection();

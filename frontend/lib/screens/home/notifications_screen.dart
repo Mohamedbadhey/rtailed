@@ -146,12 +146,19 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final isCashier = authProvider.user?.role == 'cashier';
 
     return Scaffold(
-      appBar: BrandedAppBar(
-        title: t(context, 'Notifications'),
+      appBar: AppBar(
+        title: Text(t(context, 'Notifications')),
+        backgroundColor: Theme.of(context).primaryColor,
+        foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         actions: [
           IconButton(
             icon: Icon(
               _showFilters ? Icons.filter_list : Icons.filter_list_outlined,
+              color: Colors.white,
             ),
             onPressed: () {
               setState(() {

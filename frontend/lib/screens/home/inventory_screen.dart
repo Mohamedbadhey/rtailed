@@ -5223,12 +5223,20 @@ class _ProductDialogState extends State<_ProductDialog> {
   bool _isLoading = false;
   int? _selectedCategoryId;
   List<Map<String, dynamic>> _categories = [];
+  
+  // Product name validation
+  bool _isCheckingName = false;
+  bool _isNameAvailable = true;
+  bool _isNameTaken = false;
 
   @override
   void initState() {
     super.initState();
     _loadCategories();
     if (widget.product != null) {
+      // Initialize name validation state for editing
+      _isNameAvailable = true;
+      _isNameTaken = false;
       _nameController.text = widget.product!.name;
       _descriptionController.text = widget.product!.description ?? '';
       _priceController.text = widget.product!.price.toString();
@@ -5486,6 +5494,17 @@ class _ProductDialogState extends State<_ProductDialog> {
 
   void _save() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    // Check if product name is taken
+    if (_isNameTaken) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(t(context, 'Product name already exists. Please choose a different one.')),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -5766,10 +5785,55 @@ class _ProductDialogState extends State<_ProductDialog> {
               horizontal: isSmallMobile ? 12 : 16,
               vertical: isSmallMobile ? 10 : 14,
             ),
+                          suffixIcon: _nameController.text.isNotEmpty ? 
+                            (_isCheckingName ? 
+                              SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) :
+                              (_isNameTaken ? 
+                                Icon(Icons.error, color: Colors.red) : 
+                                Icon(Icons.check_circle, color: Colors.green)
+                              )
+                            ) : null,
                         ),
+                        onChanged: (value) {
+                          setState(() {
+                            _isNameAvailable = true;
+                            _isNameTaken = false;
+                          });
+                          
+                          // Check product name availability after user stops typing
+                          if (value.length >= 2) {
+                            Future.delayed(const Duration(milliseconds: 500), () async {
+                              if (_nameController.text == value) {
+                                setState(() {
+                                  _isCheckingName = true;
+                                });
+                                
+                                try {
+                                  final response = await ApiService.postStatic('/api/products/check-name', {
+                                    'name': value,
+                                    'exclude_id': widget.product?.id
+                                  });
+                                  
+                                  setState(() {
+                                    _isNameAvailable = response['available'] ?? true;
+                                    _isNameTaken = !(response['available'] ?? true);
+                                    _isCheckingName = false;
+                                  });
+                                } catch (e) {
+                                  setState(() {
+                                    _isCheckingName = false;
+                                  });
+                                }
+                              }
+                            });
+                          }
+                        },
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return t(context, 'Product name is required');
+                          }
+                          if (_isNameTaken) {
+                            return t(context, 'Product name already exists');
                           }
                           return null;
                         },
@@ -5927,10 +5991,55 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 prefixIcon: const Icon(Icons.inventory_2),
                                 filled: true,
                                 fillColor: Colors.grey[50],
+                                suffixIcon: _nameController.text.isNotEmpty ? 
+                                  (_isCheckingName ? 
+                                    SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) :
+                                    (_isNameTaken ? 
+                                      Icon(Icons.error, color: Colors.red) : 
+                                      Icon(Icons.check_circle, color: Colors.green)
+                                    )
+                                  ) : null,
                               ),
+                              onChanged: (value) {
+                                setState(() {
+                                  _isNameAvailable = true;
+                                  _isNameTaken = false;
+                                });
+                                
+                                // Check product name availability after user stops typing
+                                if (value.length >= 2) {
+                                  Future.delayed(const Duration(milliseconds: 500), () async {
+                                    if (_nameController.text == value) {
+                                      setState(() {
+                                        _isCheckingName = true;
+                                      });
+                                      
+                                      try {
+                                        final response = await ApiService.postStatic('/api/products/check-name', {
+                                          'name': value,
+                                          'exclude_id': widget.product?.id
+                                        });
+                                        
+                                        setState(() {
+                                          _isNameAvailable = response['available'] ?? true;
+                                          _isNameTaken = !(response['available'] ?? true);
+                                          _isCheckingName = false;
+                                        });
+                                      } catch (e) {
+                                        setState(() {
+                                          _isCheckingName = false;
+                                        });
+                                      }
+                                    }
+                                  });
+                                }
+                              },
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return t(context, 'Product name is required');
+                                }
+                                if (_isNameTaken) {
+                                  return t(context, 'Product name already exists');
                                 }
                                 return null;
                               },

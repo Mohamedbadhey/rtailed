@@ -68,6 +68,12 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
     bool isUsernameTaken = false;
     bool showPassword = false;
     bool showConfirmPassword = false;
+    
+    // Initialize username state for editing
+    if (isEdit) {
+      isUsernameAvailable = true;
+      isUsernameTaken = false;
+    }
 
     showDialog(
       context: context,
@@ -106,7 +112,7 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                       });
                       
                       // Check username availability after user stops typing
-                      if (value.length >= 3 && !isEdit) {
+                      if (value.length >= 3) {
                         Future.delayed(const Duration(milliseconds: 500), () async {
                           if (usernameController.text == value) {
                             setState(() {
@@ -275,8 +281,8 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                 return;
               }
               
-              // Check if username is taken (only for new cashiers)
-              if (!isEdit && isUsernameTaken) {
+              // Check if username is taken (only if it's different from original)
+              if (isUsernameTaken && (!isEdit || usernameController.text != cashier?['username'])) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(t(context, 'Username is already taken. Please choose a different one.')),
@@ -482,7 +488,15 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
     
     if (!canManageCashiers) {
       return Scaffold(
-        appBar: AppBar(title: Text(t(context, 'Manage Cashiers'))),
+        appBar: AppBar(
+          title: Text(t(context, 'Manage Cashiers')),
+          backgroundColor: Theme.of(context).primaryColor,
+          foregroundColor: Colors.white,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -498,7 +512,15 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
     }
     
     return Scaffold(
-      appBar: AppBar(title: Text(t(context, 'Manage Cashiers'))),
+      appBar: AppBar(
+        title: Text(t(context, 'Manage Cashiers')),
+        backgroundColor: Theme.of(context).primaryColor,
+        foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
       body: loading
           ? Center(child: CircularProgressIndicator())
           : error != null

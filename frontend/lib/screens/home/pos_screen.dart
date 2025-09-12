@@ -140,8 +140,9 @@ class _POSScreenState extends State<POSScreen> {
         final categoryMatch = _selectedCategory == 'All' ||
             (product.categoryName ?? 'Uncategorized') == _selectedCategory;
 
-        // Only show products with stock
-        final stockMatch = product.stockQuantity > 0;
+        // Only show products with available stock (stock - damaged)
+        final availableStock = product.stockQuantity - product.damagedQuantity;
+        final stockMatch = availableStock > 0;
 
         return searchMatch && categoryMatch && stockMatch;
       }).toList();
@@ -484,17 +485,73 @@ class _POSScreenState extends State<POSScreen> {
                         ],
                       ),
                     )
-                  : GridView.builder(
-                      padding: EdgeInsets.all(isSmallMobile ? 4 : (isMobile ? 6 : 16)),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: isSmallMobile ? 2 : (isMobile ? 2 : 3),
-                        childAspectRatio: isSmallMobile ? 0.65 : (isMobile ? 0.7 : 0.8), // Better proportions for mobile
-                        crossAxisSpacing: isSmallMobile ? 6 : (isMobile ? 8 : 16),
-                        mainAxisSpacing: isSmallMobile ? 6 : (isMobile ? 8 : 16),
-                      ),
-                      itemCount: _filteredProducts.length,
-                      itemBuilder: (context, index) {
-                        return _buildProductCard(_filteredProducts[index], isMobile, isSmallMobile);
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Advanced responsive breakpoints
+                        final screenWidth = constraints.maxWidth;
+                        final isExtraSmall = screenWidth <= 360;  // Very small phones
+                        final isSmallMobile = screenWidth <= 480; // Small phones
+                        final isMobile = screenWidth <= 768;      // Mobile/tablet portrait
+                        final isTablet = screenWidth <= 1024;     // Tablet landscape
+                        final isDesktop = screenWidth <= 1440;    // Desktop
+                        final isLargeDesktop = screenWidth > 1440; // Large desktop
+                        
+                        // Dynamic grid configuration
+                        int crossAxisCount;
+                        double childAspectRatio;
+                        double spacing;
+                        double padding;
+                        
+                        if (isExtraSmall) {
+                          crossAxisCount = 1;
+                          childAspectRatio = 1.2;
+                          spacing = 4;
+                          padding = 4;
+                        } else if (isSmallMobile) {
+                          crossAxisCount = 2;
+                          childAspectRatio = 0.8;
+                          spacing = 6;
+                          padding = 6;
+                        } else if (isMobile) {
+                          crossAxisCount = 3;
+                          childAspectRatio = 0.85;
+                          spacing = 8;
+                          padding = 8;
+                        } else if (isTablet) {
+                          crossAxisCount = 4;
+                          childAspectRatio = 0.9;
+                          spacing = 10;
+                          padding = 10;
+                        } else if (isDesktop) {
+                          crossAxisCount = 5;
+                          childAspectRatio = 0.95;
+                          spacing = 12;
+                          padding = 12;
+                        } else {
+                          crossAxisCount = 6;
+                          childAspectRatio = 1.0;
+                          spacing = 14;
+                          padding = 16;
+                        }
+                        
+                        return GridView.builder(
+                          padding: EdgeInsets.all(padding),
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: crossAxisCount,
+                            childAspectRatio: childAspectRatio,
+                            crossAxisSpacing: spacing,
+                            mainAxisSpacing: spacing,
+                          ),
+                          itemCount: _filteredProducts.length,
+                          itemBuilder: (context, index) {
+                            return _buildProductCard(
+                              _filteredProducts[index], 
+                              isMobile, 
+                              isSmallMobile,
+                              screenWidth
+                            );
+                          },
+                        );
                       },
                     ),
         ),
@@ -502,21 +559,36 @@ class _POSScreenState extends State<POSScreen> {
     );
   }
 
-  Widget _buildProductCard(Product product, bool isMobile, bool isSmallMobile) {
-    final isLowStock = product.stockQuantity <= product.lowStockThreshold;
+  Widget _buildProductCard(Product product, bool isMobile, bool isSmallMobile, double screenWidth) {
+    final availableStock = product.stockQuantity - product.damagedQuantity;
+    final isLowStock = availableStock <= product.lowStockThreshold;
+    
+    // Responsive sizing based on screen width
+    final isExtraSmall = screenWidth <= 360;
+    final isSmall = screenWidth <= 480;
+    final isMedium = screenWidth <= 768;
+    final isLarge = screenWidth <= 1024;
+    final isXLarge = screenWidth <= 1440;
+    
+    // Dynamic sizing values
+    final cardElevation = isExtraSmall ? 0.5 : (isSmall ? 1.0 : 1.5);
+    final borderRadius = isExtraSmall ? 6.0 : (isSmall ? 8.0 : 10.0);
+    final imageFlex = isExtraSmall ? 3 : (isSmall ? 2 : 2);
+    final textFlex = isExtraSmall ? 2 : (isSmall ? 1 : 1);
     
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: cardElevation,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(borderRadius)),
       child: InkWell(
         onTap: () async {
-          if (product.stockQuantity > 0) {
+          if (availableStock > 0) {
             final mode = await showDialog<String>(
               context: context,
               builder: (context) => LayoutBuilder(
                 builder: (context, constraints) {
-                  final isMobile = constraints.maxWidth <= 600;
-                  final isSmallMobile = constraints.maxWidth <= 480;
+                  final dialogWidth = constraints.maxWidth;
+                  final isMobile = dialogWidth <= 600;
+                  final isSmallMobile = dialogWidth <= 480;
                   
                   return AlertDialog(
                     title: Text(
@@ -707,7 +779,7 @@ class _POSScreenState extends State<POSScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              flex: 3,
+              flex: imageFlex,
               child: Stack(
                 children: [
                   Container(
@@ -749,7 +821,7 @@ class _POSScreenState extends State<POSScreen> {
                                 return Center(
                                   child: Icon(
                                     Icons.image,
-                                    size: isSmallMobile ? 20 : (isMobile ? 28 : 48),
+                                    size: isExtraSmall ? 12 : (isSmall ? 16 : (isMedium ? 20 : (isLarge ? 24 : 28))),
                                     color: Colors.grey,
                                   ),
                                 );
@@ -759,19 +831,19 @@ class _POSScreenState extends State<POSScreen> {
                         : Center(
                             child: Icon(
                               Icons.image,
-                              size: isSmallMobile ? 20 : (isMobile ? 28 : 48),
+                              size: isExtraSmall ? 12 : (isSmall ? 16 : (isMedium ? 20 : (isLarge ? 24 : 28))),
                               color: Colors.grey,
                             ),
                           ),
                   ),
                   if (isLowStock)
                     Positioned(
-                      top: 8,
-                      right: 8,
+                      top: isExtraSmall ? 2 : (isSmall ? 4 : 6),
+                      right: isExtraSmall ? 2 : (isSmall ? 4 : 6),
                       child: Container(
                         padding: EdgeInsets.symmetric(
-                          horizontal: isSmallMobile ? 2 : (isMobile ? 3 : 6),
-                          vertical: isSmallMobile ? 1 : (isMobile ? 1 : 2),
+                          horizontal: isExtraSmall ? 2 : (isSmall ? 2 : (isMedium ? 3 : 4)),
+                          vertical: isExtraSmall ? 1 : (isSmall ? 1 : 1),
                         ),
                         decoration: BoxDecoration(
                           color: Colors.red,
@@ -781,20 +853,20 @@ class _POSScreenState extends State<POSScreen> {
                           t(context, 'low'),
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: isSmallMobile ? 6 : (isMobile ? 7 : 10),
+                            fontSize: isExtraSmall ? 5 : (isSmall ? 6 : (isMedium ? 7 : 8)),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                     ),
-                  if (product.stockQuantity == 0)
+                  if (availableStock == 0)
                     Positioned(
-                      top: 8,
-                      left: 8,
+                      top: isExtraSmall ? 2 : (isSmall ? 4 : 6),
+                      left: isExtraSmall ? 2 : (isSmall ? 4 : 6),
                       child: Container(
                         padding: EdgeInsets.symmetric(
-                          horizontal: isSmallMobile ? 2 : (isMobile ? 3 : 6),
-                          vertical: isSmallMobile ? 1 : (isMobile ? 1 : 2),
+                          horizontal: isExtraSmall ? 2 : (isSmall ? 2 : (isMedium ? 3 : 4)),
+                          vertical: isExtraSmall ? 1 : (isSmall ? 1 : 1),
                         ),
                         decoration: BoxDecoration(
                           color: Colors.grey[700],
@@ -804,7 +876,7 @@ class _POSScreenState extends State<POSScreen> {
                           t(context, 'out'),
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: isSmallMobile ? 6 : (isMobile ? 7 : 10),
+                            fontSize: isExtraSmall ? 5 : (isSmall ? 6 : (isMedium ? 7 : 8)),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -814,9 +886,11 @@ class _POSScreenState extends State<POSScreen> {
               ),
             ),
             Expanded(
-              flex: 2,
+              flex: textFlex,
               child: Padding(
-                padding: EdgeInsets.all(isSmallMobile ? 4 : (isMobile ? 6 : 8)),
+                padding: EdgeInsets.all(
+                  isExtraSmall ? 2 : (isSmall ? 3 : (isMedium ? 4 : 6))
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -824,12 +898,12 @@ class _POSScreenState extends State<POSScreen> {
                       product.name,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: isSmallMobile ? 11 : (isMobile ? 12 : 14),
+                        fontSize: isExtraSmall ? 9 : (isSmall ? 10 : (isMedium ? 11 : (isLarge ? 12 : 13))),
                       ),
-                      maxLines: 2,
+                      maxLines: isExtraSmall ? 1 : (isSmall ? 1 : 2),
                       overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: isSmallMobile ? 3 : 4),
+                    SizedBox(height: isExtraSmall ? 1 : (isSmall ? 2 : (isMedium ? 3 : 4))),
                     Row(
                       children: [
                         Expanded(
@@ -838,7 +912,7 @@ class _POSScreenState extends State<POSScreen> {
                             style: TextStyle(
                               color: Colors.green[700],
                               fontWeight: FontWeight.bold,
-                              fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
+                              fontSize: isExtraSmall ? 8 : (isSmall ? 9 : (isMedium ? 10 : (isLarge ? 11 : 12))),
                             ),
                           ),
                         ),
@@ -848,19 +922,19 @@ class _POSScreenState extends State<POSScreen> {
                             style: TextStyle(
                               color: Colors.purple[700],
                               fontWeight: FontWeight.bold,
-                              fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
+                              fontSize: isExtraSmall ? 8 : (isSmall ? 9 : (isMedium ? 10 : (isLarge ? 11 : 12))),
                             ),
                             textAlign: TextAlign.end,
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: isSmallMobile ? 3 : 4),
+                    SizedBox(height: isExtraSmall ? 1 : (isSmall ? 2 : (isMedium ? 3 : 4))),
                     Text(
-                      '${t(context, 'stock')}: ${product.stockQuantity}',
+                      '${t(context, 'stock')}: $availableStock',
                       style: TextStyle(
                         color: Colors.grey[600],
-                        fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 12),
+                        fontSize: isExtraSmall ? 7 : (isSmall ? 8 : (isMedium ? 9 : (isLarge ? 10 : 11))),
                       ),
                     ),
                   ],
@@ -1191,7 +1265,8 @@ class _POSScreenState extends State<POSScreen> {
                                                         ElevatedButton(
                                                           onPressed: () {
                                                             final qty = int.tryParse(controller.text);
-                                                            if (qty != null && qty > 0 && qty <= item.product.stockQuantity) {
+                                                            final availableStock = item.product.stockQuantity - item.product.damagedQuantity;
+                                                            if (qty != null && qty > 0 && qty <= availableStock) {
                                                               Navigator.of(context).pop(qty);
                                                             }
                                                           },
@@ -1394,6 +1469,12 @@ class _POSScreenState extends State<POSScreen> {
         onSaleCompleted: () async {
           // Refresh the POS after successful sale
           await _loadProducts();
+          // Force UI update to reflect cart changes
+          if (mounted) {
+            setState(() {});
+          }
+          // Debug: Print cart state after sale completion
+          print('🛒 POS: Cart state after sale completion: ${cart.items.length} items');
         },
       ),
     );

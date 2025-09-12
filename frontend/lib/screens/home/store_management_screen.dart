@@ -127,8 +127,14 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
     print('Store Management Screen - Building UI');
     
     return Scaffold(
-      appBar: BrandedAppBar(
-        title: t(context, 'Store Management'),
+      appBar: AppBar(
+        title: Text(t(context, 'Store Management')),
+        backgroundColor: Theme.of(context).primaryColor,
+        foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         actions: [
           if (isSuperAdmin)
             IconButton(

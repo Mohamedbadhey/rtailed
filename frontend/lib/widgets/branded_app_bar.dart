@@ -111,10 +111,11 @@ class BrandedAppBar extends StatelessWidget implements PreferredSizeWidget {
           foregroundColor: foregroundColor ?? Colors.white,
           elevation: elevation,
           centerTitle: centerTitle,
-          automaticallyImplyLeading: showBackButton ? true : automaticallyImplyLeading,
+          automaticallyImplyLeading: showBackButton ? false : automaticallyImplyLeading,
           leading: showBackButton ? IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
             onPressed: () => Navigator.of(context).pop(),
+            tooltip: 'Back',
           ) : leading,
           actions: actions,
           bottom: bottom,

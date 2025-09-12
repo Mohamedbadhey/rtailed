@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:retail_management/providers/auth_provider.dart';
 import 'package:retail_management/utils/translate.dart';
 import 'package:retail_management/widgets/custom_text_field.dart';
+import 'package:retail_management/widgets/branded_app_bar.dart';
 import 'package:retail_management/services/api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -62,6 +63,12 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     return Scaffold(
       appBar: AppBar(
         title: Text(t(context, 'Profile')),
+        backgroundColor: Theme.of(context).primaryColor,
+        foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         bottom: TabBar(
           controller: _tabController,
           tabs: [

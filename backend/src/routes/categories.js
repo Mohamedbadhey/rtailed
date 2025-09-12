@@ -101,6 +101,43 @@ router.put('/:id', [auth, checkRole(['admin', 'manager'])], async (req, res) => 
   }
 });
 
+// Check category name availability
+router.post('/check-name', auth, async (req, res) => {
+  try {
+    const { name, exclude_id } = req.body;
+    if (!name) {
+      return res.status(400).json({ message: 'Category name is required' });
+    }
+    
+    let query = 'SELECT id FROM categories WHERE name = ?';
+    let params = [name];
+    
+    if (exclude_id) {
+      query += ' AND id != ?';
+      params.push(exclude_id);
+    }
+    
+    if (req.user.role !== 'superadmin') {
+      if (!req.user.business_id) {
+        return res.status(400).json({ message: 'Business ID is required for this operation' });
+      }
+      query += ' AND (business_id = ? OR business_id IS NULL)';
+      params.push(req.user.business_id);
+    }
+    
+    const [categories] = await pool.query(query, params);
+    const isAvailable = categories.length === 0;
+    
+    res.json({
+      available: isAvailable,
+      message: isAvailable ? 'Category name is available' : 'Category name already exists'
+    });
+  } catch (error) {
+    console.error('Error checking category name:', error);
+    res.status(500).json({ message: 'Error checking category name availability' });
+  }
+});
+
 // Delete category
 router.delete('/:id', [auth, checkRole(['admin'])], async (req, res) => {
   try {

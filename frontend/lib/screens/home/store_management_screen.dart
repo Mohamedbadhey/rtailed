@@ -2451,12 +2451,20 @@ class _ProductDialogState extends State<_ProductDialog> {
   bool _isLoading = false;
   int? _selectedCategoryId;
   List<Map<String, dynamic>> _categories = [];
+  
+  // Product name validation
+  bool _isCheckingName = false;
+  bool _isNameAvailable = true;
+  bool _isNameTaken = false;
 
   @override
   void initState() {
     super.initState();
     _loadCategories();
     if (widget.product != null) {
+      // Initialize name validation state for editing
+      _isNameAvailable = true;
+      _isNameTaken = false;
       _nameController.text = widget.product!.name;
       _descriptionController.text = widget.product!.description ?? '';
       _priceController.text = widget.product!.price.toString();
@@ -2487,6 +2495,44 @@ class _ProductDialogState extends State<_ProductDialog> {
       });
     } catch (e) {
       print('Error loading categories: $e');
+    }
+  }
+
+  Future<void> _checkProductName(String value) async {
+    if (value.trim().isEmpty) {
+      setState(() {
+        _isCheckingName = false;
+        _isNameAvailable = true;
+        _isNameTaken = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isCheckingName = true;
+    });
+
+    try {
+      final response = await ApiService.postStatic('/api/products/check-name', {
+        'name': value.trim(),
+        'exclude_id': widget.product?.id
+      });
+
+      if (mounted) {
+        setState(() {
+          _isCheckingName = false;
+          _isNameAvailable = response['available'];
+          _isNameTaken = !response['available'];
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isCheckingName = false;
+          _isNameAvailable = true;
+          _isNameTaken = false;
+        });
+      }
     }
   }
 
@@ -2721,6 +2767,17 @@ class _ProductDialogState extends State<_ProductDialog> {
   void _save() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Check if name is taken
+    if (_isNameTaken) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(t(context, 'Product name already exists')),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -2921,10 +2978,43 @@ class _ProductDialogState extends State<_ProductDialog> {
                           prefixIcon: const Icon(Icons.inventory_2),
                           filled: true,
                           fillColor: Colors.grey[50],
+                          suffixIcon: _isCheckingName
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[600]!),
+                                  ),
+                                )
+                              : _isNameTaken
+                                  ? Icon(
+                                      Icons.error,
+                                      color: Colors.red,
+                                      size: 20,
+                                    )
+                                  : _isNameAvailable && _nameController.text.isNotEmpty
+                                      ? Icon(
+                                          Icons.check_circle,
+                                          color: Colors.green,
+                                          size: 20,
+                                        )
+                                      : null,
                         ),
+                        onChanged: (value) {
+                          // Debounce the API call
+                          Future.delayed(const Duration(milliseconds: 500), () {
+                            if (_nameController.text == value) {
+                              _checkProductName(value);
+                            }
+                          });
+                        },
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return t(context, 'Product name is required');
+                          }
+                          if (_isNameTaken) {
+                            return t(context, 'Product name already exists');
                           }
                           return null;
                         },
@@ -2975,12 +3065,24 @@ class _ProductDialogState extends State<_ProductDialog> {
                           fillColor: Colors.green[50],
                         ),
                         keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          // Trigger validation of cost field when price changes
+                          if (_costController.text.isNotEmpty) {
+                            _formKey.currentState?.validate();
+                          }
+                        },
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return t(context, 'Price is required');
                           }
                           if (double.tryParse(value) == null) {
                             return t(context, 'Please enter a valid number');
+                          }
+                          // Check if price is less than cost
+                          final price = double.tryParse(value);
+                          final cost = double.tryParse(_costController.text);
+                          if (price != null && cost != null && price < cost) {
+                            return t(context, 'Price cannot be less than cost');
                           }
                           return null;
                         },
@@ -2998,12 +3100,24 @@ class _ProductDialogState extends State<_ProductDialog> {
                           fillColor: Colors.orange[50],
                         ),
                         keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          // Trigger validation of price field when cost changes
+                          if (_priceController.text.isNotEmpty) {
+                            _formKey.currentState?.validate();
+                          }
+                        },
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return t(context, 'Cost is required');
                           }
                           if (double.tryParse(value) == null) {
                             return t(context, 'Please enter a valid number');
+                          }
+                          // Check if cost is greater than price
+                          final cost = double.tryParse(value);
+                          final price = double.tryParse(_priceController.text);
+                          if (cost != null && price != null && cost > price) {
+                            return t(context, 'Cost cannot be greater than price');
                           }
                           return null;
                         },
@@ -3078,10 +3192,43 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 prefixIcon: const Icon(Icons.inventory_2),
                                 filled: true,
                                 fillColor: Colors.grey[50],
+                                suffixIcon: _isCheckingName
+                                    ? SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[600]!),
+                                        ),
+                                      )
+                                    : _isNameTaken
+                                        ? Icon(
+                                            Icons.error,
+                                            color: Colors.red,
+                                            size: 20,
+                                          )
+                                        : _isNameAvailable && _nameController.text.isNotEmpty
+                                            ? Icon(
+                                                Icons.check_circle,
+                                                color: Colors.green,
+                                                size: 20,
+                                              )
+                                            : null,
                               ),
+                              onChanged: (value) {
+                                // Debounce the API call
+                                Future.delayed(const Duration(milliseconds: 500), () {
+                                  if (_nameController.text == value) {
+                                    _checkProductName(value);
+                                  }
+                                });
+                              },
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return t(context, 'Product name is required');
+                                }
+                                if (_isNameTaken) {
+                                  return t(context, 'Product name already exists');
                                 }
                                 return null;
                               },
@@ -3140,12 +3287,24 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 fillColor: Colors.green[50],
                               ),
                               keyboardType: TextInputType.number,
+                              onChanged: (value) {
+                                // Trigger validation of cost field when price changes
+                                if (_costController.text.isNotEmpty) {
+                                  _formKey.currentState?.validate();
+                                }
+                              },
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return t(context, 'Price is required');
                                 }
                                 if (double.tryParse(value) == null) {
                                   return t(context, 'Please enter a valid number');
+                                }
+                                // Check if price is less than cost
+                                final price = double.tryParse(value);
+                                final cost = double.tryParse(_costController.text);
+                                if (price != null && cost != null && price < cost) {
+                                  return t(context, 'Price cannot be less than cost');
                                 }
                                 return null;
                               },
@@ -3165,12 +3324,24 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 fillColor: Colors.orange[50],
                               ),
                               keyboardType: TextInputType.number,
+                              onChanged: (value) {
+                                // Trigger validation of price field when cost changes
+                                if (_priceController.text.isNotEmpty) {
+                                  _formKey.currentState?.validate();
+                                }
+                              },
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return t(context, 'Cost is required');
                                 }
                                 if (double.tryParse(value) == null) {
                                   return t(context, 'Please enter a valid number');
+                                }
+                                // Check if cost is greater than price
+                                final cost = double.tryParse(value);
+                                final price = double.tryParse(_priceController.text);
+                                if (cost != null && price != null && cost > price) {
+                                  return t(context, 'Cost cannot be greater than price');
                                 }
                                 return null;
                               },
@@ -3372,11 +3543,19 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
   List<Map<String, dynamic>> _categories = [];
   Map<String, dynamic>? _editingCategory;
   bool _isAddingNew = true;
+  bool _isCheckingName = false;
+  bool _isNameAvailable = true;
+  bool _isNameTaken = false;
 
   @override
   void initState() {
     super.initState();
     _loadCategories();
+    // Initialize validation state for editing
+    if (_editingCategory != null) {
+      _isNameAvailable = true;
+      _isNameTaken = false;
+    }
   }
 
   @override
@@ -3400,6 +3579,44 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
     }
   }
 
+  Future<void> _checkCategoryName(String value) async {
+    if (value.trim().isEmpty) {
+      setState(() {
+        _isCheckingName = false;
+        _isNameAvailable = true;
+        _isNameTaken = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isCheckingName = true;
+    });
+
+    try {
+      final response = await ApiService.postStatic('/api/categories/check-name', {
+        'name': value.trim(),
+        'exclude_id': _editingCategory?['id']
+      });
+
+      if (mounted) {
+        setState(() {
+          _isCheckingName = false;
+          _isNameAvailable = response['available'];
+          _isNameTaken = !response['available'];
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isCheckingName = false;
+          _isNameAvailable = true;
+          _isNameTaken = false;
+        });
+      }
+    }
+  }
+
   void _showAddForm() {
     setState(() {
       _isAddingNew = true;
@@ -3415,11 +3632,24 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
       _editingCategory = category;
       _nameController.text = category['name'] ?? '';
       _descriptionController.text = category['description'] ?? '';
+      _isNameAvailable = true;
+      _isNameTaken = false;
     });
   }
 
   Future<void> _saveCategory() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Check if name is taken
+    if (_isNameTaken) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(t(context, 'Category name already exists')),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -3603,9 +3833,42 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
           CustomTextField(
             controller: _nameController,
             labelText: t(context, 'Category Name'),
+            onChanged: (value) {
+              // Debounce the API call
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (_nameController.text == value) {
+                  _checkCategoryName(value);
+                }
+              });
+            },
+            suffixIcon: _isCheckingName
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[600]!),
+                    ),
+                  )
+                : _isNameTaken
+                    ? Icon(
+                        Icons.error,
+                        color: Colors.red,
+                        size: 20,
+                      )
+                    : _isNameAvailable && _nameController.text.isNotEmpty
+                        ? Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                            size: 20,
+                          )
+                        : null,
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return t(context, 'Please enter a category name');
+              }
+              if (_isNameTaken) {
+                return t(context, 'Category name already exists');
               }
               return null;
             },

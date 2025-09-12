@@ -4122,7 +4122,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   borderRadius: BorderRadius.circular(8),
                   child: item['image_url'] != null
                       ? Image.network(
-                          item['image_url'],
+                          'https://rtailed-production.up.railway.app${item['image_url']}',
                           width: 50,
                           height: 50,
                           fit: BoxFit.cover,
@@ -12297,7 +12297,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   borderRadius: BorderRadius.circular(8),
                   child: item['image_url'] != null
                       ? Image.network(
-                          item['image_url'],
+                          'https://rtailed-production.up.railway.app${item['image_url']}',
                           width: 60,
                           height: 60,
                           fit: BoxFit.cover,
@@ -12559,7 +12559,7 @@ class _ProductDialogState extends State<_ProductDialog> {
   bool _isLoading = false;
   int? _selectedCategoryId;
   List<Map<String, dynamic>> _categories = [];
-  
+
   // Product name validation
   bool _isCheckingName = false;
   bool _isNameAvailable = true;
@@ -13147,12 +13147,24 @@ class _ProductDialogState extends State<_ProductDialog> {
                           fillColor: Colors.green[50],
                         ),
                         keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          // Trigger validation of cost field when price changes
+                          if (_costController.text.isNotEmpty) {
+                            _formKey.currentState?.validate();
+                          }
+                        },
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return t(context, 'Price is required');
                           }
                           if (double.tryParse(value) == null) {
                             return t(context, 'Please enter a valid number');
+                          }
+                          // Check if price is less than cost
+                          final price = double.tryParse(value);
+                          final cost = double.tryParse(_costController.text);
+                          if (price != null && cost != null && price < cost) {
+                            return t(context, 'Price cannot be less than cost');
                           }
                           return null;
                         },
@@ -13170,12 +13182,24 @@ class _ProductDialogState extends State<_ProductDialog> {
                           fillColor: Colors.orange[50],
                         ),
                         keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          // Trigger validation of price field when cost changes
+                          if (_priceController.text.isNotEmpty) {
+                            _formKey.currentState?.validate();
+                          }
+                        },
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return t(context, 'Cost is required');
                           }
                           if (double.tryParse(value) == null) {
                             return t(context, 'Please enter a valid number');
+                          }
+                          // Check if cost is greater than price
+                          final cost = double.tryParse(value);
+                          final price = double.tryParse(_priceController.text);
+                          if (cost != null && price != null && cost > price) {
+                            return t(context, 'Cost cannot be greater than price');
                           }
                           return null;
                         },
@@ -13250,10 +13274,69 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 prefixIcon: const Icon(Icons.inventory_2),
                                 filled: true,
                                 fillColor: Colors.grey[50],
+                                suffixIcon: _isCheckingName
+                                    ? SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[600]!),
+                                        ),
+                                      )
+                                    : _isNameTaken
+                                        ? Icon(
+                                            Icons.error,
+                                            color: Colors.red,
+                                            size: 20,
+                                          )
+                                        : _isNameAvailable && _nameController.text.isNotEmpty
+                                            ? Icon(
+                                                Icons.check_circle,
+                                                color: Colors.green,
+                                                size: 20,
+                                              )
+                                            : null,
                               ),
+                              onChanged: (value) {
+                                setState(() {
+                                  _isNameAvailable = true;
+                                  _isNameTaken = false;
+                                });
+                                
+                                // Check product name availability after user stops typing
+                                if (value.length >= 2) {
+                                  Future.delayed(const Duration(milliseconds: 500), () async {
+                                    if (_nameController.text == value) {
+                                      setState(() {
+                                        _isCheckingName = true;
+                                      });
+                                      
+                                      try {
+                                        final response = await ApiService.postStatic('/api/products/check-name', {
+                                          'name': value,
+                                          'exclude_id': widget.product?.id
+                                        });
+                                        
+                                        setState(() {
+                                          _isNameAvailable = response['available'] ?? true;
+                                          _isNameTaken = !(response['available'] ?? true);
+                                          _isCheckingName = false;
+                                        });
+                                      } catch (e) {
+                                        setState(() {
+                                          _isCheckingName = false;
+                                        });
+                                      }
+                                    }
+                                  });
+                                }
+                              },
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return t(context, 'Product name is required');
+                                }
+                                if (_isNameTaken) {
+                                  return t(context, 'Product name already exists');
                                 }
                                 return null;
                               },
@@ -13312,12 +13395,24 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 fillColor: Colors.green[50],
                               ),
                               keyboardType: TextInputType.number,
+                              onChanged: (value) {
+                                // Trigger validation of cost field when price changes
+                                if (_costController.text.isNotEmpty) {
+                                  _formKey.currentState?.validate();
+                                }
+                              },
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return t(context, 'Price is required');
                                 }
                                 if (double.tryParse(value) == null) {
                                   return t(context, 'Please enter a valid number');
+                                }
+                                // Check if price is less than cost
+                                final price = double.tryParse(value);
+                                final cost = double.tryParse(_costController.text);
+                                if (price != null && cost != null && price < cost) {
+                                  return t(context, 'Price cannot be less than cost');
                                 }
                                 return null;
                               },
@@ -13337,12 +13432,24 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 fillColor: Colors.orange[50],
                               ),
                               keyboardType: TextInputType.number,
+                              onChanged: (value) {
+                                // Trigger validation of price field when cost changes
+                                if (_priceController.text.isNotEmpty) {
+                                  _formKey.currentState?.validate();
+                                }
+                              },
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return t(context, 'Cost is required');
                                 }
                                 if (double.tryParse(value) == null) {
                                   return t(context, 'Please enter a valid number');
+                                }
+                                // Check if cost is greater than price
+                                final cost = double.tryParse(value);
+                                final price = double.tryParse(_priceController.text);
+                                if (cost != null && price != null && cost > price) {
+                                  return t(context, 'Cost cannot be greater than price');
                                 }
                                 return null;
                               },
@@ -13699,6 +13806,11 @@ class _IncrementDialogState extends State<_IncrementDialog> {
                 if (costPrice == null || costPrice < 0) {
                   return t(context, 'Please enter a valid cost price');
                 }
+                // Check if cost price is greater than selling price
+                final sellingPrice = double.tryParse(widget.item['price']?.toString() ?? '0');
+                if (sellingPrice != null && costPrice > sellingPrice) {
+                  return t(context, 'Cost price cannot be greater than selling price');
+                }
                 return null;
               },
             ),
@@ -13883,6 +13995,11 @@ class _EditCostPriceDialogState extends State<_EditCostPriceDialog> {
                 if (costPrice == null || costPrice < 0) {
                   return t(context, 'Please enter a valid cost price');
                 }
+                // Check if cost price is greater than selling price
+                final sellingPrice = double.tryParse(widget.item['price']?.toString() ?? '0');
+                if (sellingPrice != null && costPrice > sellingPrice) {
+                  return t(context, 'Cost price cannot be greater than selling price');
+                }
                 return null;
               },
             ),
@@ -13941,6 +14058,7 @@ class _TransferDialogState extends State<_TransferDialog> {
   int? _selectedBusinessId;
   final Map<int, int> _selectedQuantities = {};
   final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   bool _isLoading = false;
   
   // Filter variables for transfer dialog
@@ -13958,6 +14076,19 @@ class _TransferDialogState extends State<_TransferDialog> {
   }
   Map<String, dynamic> _reports = {};
 
+  List<Map<String, dynamic>> get _filteredInventory {
+    if (_searchController.text.trim().isEmpty) {
+      return widget.inventory;
+    }
+    
+    final searchTerm = _searchController.text.toLowerCase().trim();
+    return widget.inventory.where((item) {
+      final productName = (item['product_name'] ?? '').toString().toLowerCase();
+      final sku = (item['sku'] ?? '').toString().toLowerCase();
+      return productName.contains(searchTerm) || sku.contains(searchTerm);
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -13970,43 +14101,54 @@ class _TransferDialogState extends State<_TransferDialog> {
   @override
   void dispose() {
     _notesController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    final isSmallScreen = screenSize.width < 600;
+    final isMobile = screenSize.width < 768;
+    final isTablet = screenSize.width >= 768 && screenSize.width < 1024;
+    final isDesktop = screenSize.width >= 1024;
     
     return Dialog(
       child: Container(
-        width: isSmallScreen ? screenSize.width * 0.95 : screenSize.width * 0.8,
-        height: isSmallScreen ? screenSize.height * 0.9 : screenSize.height * 0.8,
-        padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
+        width: isMobile ? screenSize.width * 0.95 : 
+               isTablet ? screenSize.width * 0.85 : 
+               screenSize.width * 0.75,
+        constraints: BoxConstraints(
+          maxHeight: screenSize.height * 0.9,
+          maxWidth: screenSize.width * 0.95,
+        ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(isMobile ? 16 : isTablet ? 20 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
+                // Header Section (Fixed)
             Row(
               children: [
                 Icon(
                   Icons.send,
                   color: Theme.of(context).primaryColor,
-                  size: 28,
+                      size: isMobile ? 24 : 28,
                 ),
-                const SizedBox(width: 12),
+                    SizedBox(width: isMobile ? 8 : 12),
                 Expanded(
                   child: Text(
-                    'Transfer Products to Business',
+                        isMobile ? 'Transfer Products' : 'Transfer Products to Business',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).primaryColor,
+                          fontSize: isMobile ? 18 : 22,
                     ),
                   ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close),
+                      icon: Icon(Icons.close, size: isMobile ? 20 : 24),
                 ),
               ],
             ),
@@ -14024,21 +14166,30 @@ class _TransferDialogState extends State<_TransferDialog> {
               'Select Business:',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
+                fontSize: isMobile ? 16 : 18,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: isMobile ? 8 : 12),
             DropdownButtonFormField<int>(
               value: _selectedBusinessId,
               decoration: InputDecoration(
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 12 : 16, 
+                  vertical: isMobile ? 12 : 16
+                ),
+                filled: true,
+                fillColor: Colors.grey[50],
               ),
               items: widget.businesses.map((business) {
                 return DropdownMenuItem<int>(
                   value: business['id'],
-                  child: Text(business['name'] ?? 'Business ${business['id']}'),
+                  child: Text(
+                    business['name'] ?? 'Business ${business['id']}',
+                    style: TextStyle(fontSize: isMobile ? 14 : 16),
+                  ),
                 );
               }).toList(),
               onChanged: (value) {
@@ -14049,52 +14200,152 @@ class _TransferDialogState extends State<_TransferDialog> {
             ),
             const SizedBox(height: 24),
 
-            // Products Selection
+            // Notes Section (moved up)
             Text(
+              'Notes (Optional):',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: isMobile ? 16 : 18,
+              ),
+            ),
+            SizedBox(height: isMobile ? 8 : 12),
+            TextFormField(
+              controller: _notesController,
+              decoration: InputDecoration(
+                labelText: 'Add any notes about this transfer...',
+                hintText: 'e.g., Urgent delivery, Special handling',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 12 : 16, 
+                  vertical: isMobile ? 12 : 16
+                ),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 24),
+
+            // Products Selection
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
               'Select Products and Quantities:',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-              ),
+                      fontSize: isMobile ? 16 : 18,
+                    ),
+                  ),
+                ),
+                if (_filteredInventory.length != widget.inventory.length)
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${_filteredInventory.length} of ${widget.inventory.length}',
+                      style: TextStyle(
+                        color: Colors.blue[700],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: isMobile ? 12 : 16),
+
+            // Search Bar
+            TextFormField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Search Products',
+                hintText: 'Search by product name or SKU...',
+                prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear, color: Colors.grey[600]),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 12 : 16, 
+                  vertical: isMobile ? 12 : 16
+                ),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+              onChanged: (value) {
+                setState(() {});
+              },
+            ),
+            SizedBox(height: isMobile ? 12 : 16),
 
             // Products List
-            Expanded(
-              child: widget.inventory.isEmpty
+                _filteredInventory.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.inventory_2_outlined,
+                                  _searchController.text.isNotEmpty 
+                                      ? Icons.search_off 
+                                      : Icons.inventory_2_outlined,
                             size: 64,
                             color: Colors.grey[400],
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'No products available for transfer',
+                                  _searchController.text.isNotEmpty
+                                      ? 'No products found matching "${_searchController.text}"'
+                                      : 'No products available for transfer',
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.grey[600],
                             ),
-                          ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                if (_searchController.text.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  TextButton(
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() {});
+                                    },
+                                    child: Text('Clear search'),
+                                  ),
+                                ],
                         ],
                       ),
                     )
-                  : ListView.builder(
-                      itemCount: widget.inventory.length,
-                      itemBuilder: (context, index) {
-                        final item = widget.inventory[index];
+                        : Column(
+                            children: _filteredInventory.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final item = entry.value;
                         final productId = item['product_id'];
                         final currentQuantity = _selectedQuantities[productId] ?? 0;
                         final availableQuantity = _safeToInt(item['store_quantity']);
 
                         return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          elevation: 2,
+                                margin: EdgeInsets.only(bottom: isMobile ? 8 : 12),
+                                elevation: 3,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                           child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: isSmallScreen
+                                  padding: EdgeInsets.all(isMobile ? 12 : 16),
+                                  child: isMobile
                                 ? Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
@@ -14102,35 +14353,47 @@ class _TransferDialogState extends State<_TransferDialog> {
                                       Row(
                                         children: [
                                           // Product Image
-                                          _buildProductImage(item, isSmallScreen),
-                                          const SizedBox(width: 12),
+                                                _buildProductImage(item, isMobile),
+                                                SizedBox(width: isMobile ? 12 : 16),
                                           Expanded(
                                             child: Column(
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
                                                 Text(
                                                   item['product_name'] ?? 'Unknown Product',
-                                                  style: const TextStyle(
+                                                        style: TextStyle(
                                                     fontWeight: FontWeight.w600,
-                                                    fontSize: 14,
+                                                          fontSize: isMobile ? 14 : 16,
                                                   ),
                                                   maxLines: 2,
                                                   overflow: TextOverflow.ellipsis,
                                                 ),
-                                                const SizedBox(height: 4),
+                                                      SizedBox(height: isMobile ? 4 : 6),
                                                 Text(
                                                   'SKU: ${item['sku'] ?? 'N/A'}',
                                                   style: TextStyle(
                                                     color: Colors.grey[600],
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                                Text(
+                                                          fontSize: isMobile ? 12 : 14,
+                                                        ),
+                                                      ),
+                                                      SizedBox(height: isMobile ? 2 : 4),
+                                                      Container(
+                                                        padding: EdgeInsets.symmetric(
+                                                          horizontal: isMobile ? 6 : 8,
+                                                          vertical: isMobile ? 2 : 4,
+                                                        ),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.blue[50],
+                                                          borderRadius: BorderRadius.circular(6),
+                                                          border: Border.all(color: Colors.blue[200]!),
+                                                        ),
+                                                        child: Text(
                                                   'Available: $availableQuantity',
                                                   style: TextStyle(
-                                                    color: Colors.grey[600],
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w500,
+                                                            color: Colors.blue[700],
+                                                            fontSize: isMobile ? 12 : 14,
+                                                            fontWeight: FontWeight.w600,
+                                                          ),
                                                   ),
                                                 ),
                                               ],
@@ -14145,19 +14408,44 @@ class _TransferDialogState extends State<_TransferDialog> {
                                         keyboardType: TextInputType.number,
                                         decoration: InputDecoration(
                                           labelText: 'Quantity to Transfer',
+                                                hintText: 'Enter quantity (Max: $availableQuantity)',
                                           border: OutlineInputBorder(
                                             borderRadius: BorderRadius.circular(8),
                                           ),
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                          suffixText: 'Max: $availableQuantity',
-                                        ),
+                                                contentPadding: EdgeInsets.symmetric(
+                                                  horizontal: isMobile ? 12 : 16, 
+                                                  vertical: isMobile ? 12 : 16
+                                                ),
+                                                filled: true,
+                                                fillColor: Colors.grey[50],
+                                                suffixIcon: currentQuantity > 0 
+                                                  ? Icon(Icons.check_circle, color: Colors.green[600])
+                                                  : null,
+                                                errorText: currentQuantity > availableQuantity 
+                                                  ? 'Cannot exceed available quantity ($availableQuantity)'
+                                                  : null,
+                                              ),
+                                              validator: (value) {
+                                                if (value == null || value.trim().isEmpty) {
+                                                  return null; // Allow empty values
+                                                }
+                                                final quantity = int.tryParse(value.trim());
+                                                if (quantity == null) {
+                                                  return 'Please enter a valid number';
+                                                }
+                                                if (quantity < 0) {
+                                                  return 'Quantity cannot be negative';
+                                                }
+                                                if (quantity > availableQuantity) {
+                                                  return 'Cannot exceed available quantity ($availableQuantity)';
+                                                }
+                                                return null;
+                                              },
                                         onChanged: (value) {
                                           final quantity = int.tryParse(value) ?? 0;
-                                          if (quantity <= availableQuantity) {
                                             setState(() {
                                               _selectedQuantities[productId] = quantity;
                                             });
-                                          }
                                         },
                                       ),
                                     ],
@@ -14165,60 +14453,97 @@ class _TransferDialogState extends State<_TransferDialog> {
                                 : Row(
                                     children: [
                                       // Desktop layout
-                                      _buildProductImage(item, isSmallScreen),
-                                      const SizedBox(width: 12),
+                                            _buildProductImage(item, isMobile),
+                                            SizedBox(width: isDesktop ? 16 : 12),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               item['product_name'] ?? 'Unknown Product',
-                                              style: const TextStyle(
+                                                    style: TextStyle(
                                                 fontWeight: FontWeight.w600,
-                                                fontSize: 14,
+                                                      fontSize: isDesktop ? 16 : 14,
                                               ),
                                             ),
-                                            const SizedBox(height: 4),
+                                                  SizedBox(height: isDesktop ? 6 : 4),
                                             Text(
                                               'SKU: ${item['sku'] ?? 'N/A'}',
                                               style: TextStyle(
                                                 color: Colors.grey[600],
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                            Text(
+                                                      fontSize: isDesktop ? 14 : 12,
+                                                    ),
+                                                  ),
+                                                  SizedBox(height: isDesktop ? 4 : 2),
+                                                  Container(
+                                                    padding: EdgeInsets.symmetric(
+                                                      horizontal: isDesktop ? 8 : 6,
+                                                      vertical: isDesktop ? 4 : 2,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.blue[50],
+                                                      borderRadius: BorderRadius.circular(6),
+                                                      border: Border.all(color: Colors.blue[200]!),
+                                                    ),
+                                                    child: Text(
                                               'Available: $availableQuantity',
                                               style: TextStyle(
-                                                color: Colors.grey[600],
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
+                                                        color: Colors.blue[700],
+                                                        fontSize: isDesktop ? 14 : 12,
+                                                        fontWeight: FontWeight.w600,
+                                                      ),
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                      const SizedBox(width: 16),
+                                            SizedBox(width: isDesktop ? 20 : 16),
                                       // Quantity Input
                                       SizedBox(
-                                        width: 120,
+                                              width: isDesktop ? 140 : 120,
                                         child: TextFormField(
                                           initialValue: currentQuantity.toString(),
                                           keyboardType: TextInputType.number,
                                           decoration: InputDecoration(
-                                            labelText: 'Qty',
+                                                  labelText: 'Quantity',
+                                                  hintText: 'Max: $availableQuantity',
                                             border: OutlineInputBorder(
                                               borderRadius: BorderRadius.circular(8),
                                             ),
-                                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            suffixText: 'Max: $availableQuantity',
-                                          ),
+                                                  contentPadding: EdgeInsets.symmetric(
+                                                    horizontal: isDesktop ? 12 : 8, 
+                                                    vertical: isDesktop ? 12 : 8
+                                                  ),
+                                                  filled: true,
+                                                  fillColor: Colors.grey[50],
+                                                  suffixIcon: currentQuantity > 0 
+                                                    ? Icon(Icons.check_circle, color: Colors.green[600])
+                                                    : null,
+                                                  errorText: currentQuantity > availableQuantity 
+                                                    ? 'Cannot exceed available quantity ($availableQuantity)'
+                                                    : null,
+                                                ),
+                                                validator: (value) {
+                                                  if (value == null || value.trim().isEmpty) {
+                                                    return null; // Allow empty values
+                                                  }
+                                                  final quantity = int.tryParse(value.trim());
+                                                  if (quantity == null) {
+                                                    return 'Please enter a valid number';
+                                                  }
+                                                  if (quantity < 0) {
+                                                    return 'Quantity cannot be negative';
+                                                  }
+                                                  if (quantity > availableQuantity) {
+                                                    return 'Cannot exceed available quantity ($availableQuantity)';
+                                                  }
+                                                  return null;
+                                                },
                                           onChanged: (value) {
                                             final quantity = int.tryParse(value) ?? 0;
-                                            if (quantity <= availableQuantity) {
                                               setState(() {
                                                 _selectedQuantities[productId] = quantity;
                                               });
-                                            }
                                           },
                                         ),
                                       ),
@@ -14226,25 +14551,45 @@ class _TransferDialogState extends State<_TransferDialog> {
                                   ),
                           ),
                         );
-                      },
-                    ),
-            ),
+                            }).toList(),
+                          ),
 
-            const SizedBox(height: 16),
+            SizedBox(height: isMobile ? 20 : 24),
 
-            // Notes
-            TextFormField(
-              controller: _notesController,
-              decoration: InputDecoration(
-                labelText: 'Notes (Optional)',
-                border: OutlineInputBorder(
+            // Transfer Summary
+            if (_getTotalSelectedQuantity() > 0)
+              Container(
+                padding: EdgeInsets.all(isMobile ? 12 : 16),
+                decoration: BoxDecoration(
+                  color: _hasInvalidQuantities() ? Colors.red[50] : Colors.green[50],
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _hasInvalidQuantities() ? Colors.red[200]! : Colors.green[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _hasInvalidQuantities() ? Icons.error : Icons.check_circle, 
+                      color: _hasInvalidQuantities() ? Colors.red[600] : Colors.green[600], 
+                      size: 20
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _hasInvalidQuantities() 
+                          ? 'Please fix invalid quantities before transferring'
+                          : '${_getSelectedProductsCount()} product(s) selected • Total quantity: ${_getTotalSelectedQuantity()}',
+                        style: TextStyle(
+                          color: _hasInvalidQuantities() ? Colors.red[700] : Colors.green[700],
+                          fontWeight: FontWeight.w600,
+                          fontSize: isMobile ? 14 : 16,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              maxLines: 2,
-            ),
 
-            const SizedBox(height: 24),
+            SizedBox(height: isMobile ? 16 : 20),
 
             // Action Buttons
             Row(
@@ -14252,27 +14597,51 @@ class _TransferDialogState extends State<_TransferDialog> {
               children: [
                 TextButton(
                   onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-                  child: Text(t(context, 'Cancel')),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 16 : 20, 
+                      vertical: isMobile ? 8 : 12
+                    ),
+                  ),
+                  child: Text(
+                    t(context, 'Cancel'),
+                    style: TextStyle(fontSize: isMobile ? 14 : 16),
+                  ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: isMobile ? 8 : 12),
                 ElevatedButton(
-                  onPressed: _isLoading || _selectedBusinessId == null || _getTotalSelectedQuantity() == 0
+                  onPressed: _isLoading || _selectedBusinessId == null || _getTotalSelectedQuantity() == 0 || _hasInvalidQuantities()
                       ? null
                       : _performTransfer,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 16 : 20, 
+                      vertical: isMobile ? 8 : 12
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                   child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
+                      ? SizedBox(
+                          width: isMobile ? 16 : 20,
+                          height: isMobile ? 16 : 20,
+                          child: const CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : Text(t(context, 'Transfer')),
+                      : Text(
+                          t(context, 'Transfer'),
+                          style: TextStyle(fontSize: isMobile ? 14 : 16),
+                        ),
                 ),
               ],
             ),
           ],
+          ),
         ),
       ),
     );
@@ -14282,8 +14651,30 @@ class _TransferDialogState extends State<_TransferDialog> {
     return _selectedQuantities.values.fold(0, (sum, quantity) => sum + quantity);
   }
 
-  Widget _buildProductImage(Map<String, dynamic> item, bool isSmallScreen) {
-    final imageSize = isSmallScreen ? 60.0 : 50.0;
+  int _getSelectedProductsCount() {
+    return _selectedQuantities.values.where((quantity) => quantity > 0).length;
+  }
+
+  bool _hasInvalidQuantities() {
+    for (var entry in _selectedQuantities.entries) {
+      final productId = entry.key;
+      final quantity = entry.value;
+      if (quantity > 0) {
+        final item = widget.inventory.firstWhere(
+          (item) => item['product_id'] == productId,
+          orElse: () => {'store_quantity': 0},
+        );
+        final availableQuantity = _safeToInt(item['store_quantity']);
+        if (quantity > availableQuantity) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  Widget _buildProductImage(Map<String, dynamic> item, bool isMobile) {
+    final imageSize = isMobile ? 60.0 : 50.0;
     
     if (item['image_url'] != null && item['image_url'].toString().isNotEmpty) {
       return ClipRRect(
@@ -14587,3 +14978,5 @@ class _TransferDialogState extends State<_TransferDialog> {
     return categories.toList()..sort();
   }
 } 
+
+

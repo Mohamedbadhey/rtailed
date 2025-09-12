@@ -536,14 +536,14 @@ class _POSScreenState extends State<POSScreen> {
                         
                         return GridView.builder(
                           padding: EdgeInsets.all(padding),
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: crossAxisCount,
                             childAspectRatio: childAspectRatio,
                             crossAxisSpacing: spacing,
                             mainAxisSpacing: spacing,
-                          ),
-                          itemCount: _filteredProducts.length,
-                          itemBuilder: (context, index) {
+                      ),
+                      itemCount: _filteredProducts.length,
+                      itemBuilder: (context, index) {
                             return _buildProductCard(
                               _filteredProducts[index], 
                               isMobile, 

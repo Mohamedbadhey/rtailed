@@ -629,7 +629,8 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
         const [[{ sold_after = 0 } = {}]] = await pool.query(
           `SELECT IFNULL(SUM(ABS(it.quantity)),0) as sold_after
            FROM inventory_transactions it
-           WHERE it.product_id = ? AND it.created_at >= ? AND it.business_id = ? AND it.transaction_type = 'sale'` , [p.id, startDateTime, req.user.business_id]);
+           LEFT JOIN sales s ON it.reference_id = s.id AND s.business_id = it.business_id
+           WHERE it.product_id = ? AND it.created_at >= ? AND it.business_id = ? AND it.transaction_type = 'sale' AND (s.status IS NULL OR s.status != 'cancelled')` , [p.id, startDateTime, req.user.business_id]);
         // Get all stock added after start_date (purchases, adjustments, etc.)
         const [[{ added_after = 0 } = {}]] = await pool.query(
           `SELECT IFNULL(SUM(CASE WHEN quantity > 0 THEN quantity ELSE 0 END),0) as added_after
@@ -641,7 +642,8 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
         const [[{ sold_all = 0 } = {}]] = await pool.query(
           `SELECT IFNULL(SUM(ABS(it.quantity)),0) as sold_all
            FROM inventory_transactions it
-           WHERE it.product_id = ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, req.user.business_id]);
+           LEFT JOIN sales s ON it.reference_id = s.id AND s.business_id = it.business_id
+           WHERE it.product_id = ? AND it.business_id = ? AND it.transaction_type = 'sale' AND (s.status IS NULL OR s.status != 'cancelled')`, [p.id, req.user.business_id]);
         startingQuantity = p.quantity_remaining + sold_all;
       }
       // Sold quantity, revenue, profit in period
@@ -676,7 +678,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
            LEFT JOIN sales s ON it.reference_id = s.id AND s.business_id = it.business_id
            LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id AND si.business_id = it.business_id
            LEFT JOIN products p ON it.product_id = p.id AND p.business_id = it.business_id
-           WHERE it.product_id = ? AND it.created_at >= ? AND it.created_at <= ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, startDateTime, endDateTime, req.user.business_id]);
+           WHERE it.product_id = ? AND it.created_at >= ? AND it.created_at <= ? AND it.business_id = ? AND it.transaction_type = 'sale' AND (s.status IS NULL OR s.status != 'cancelled')`, [p.id, startDateTime, endDateTime, req.user.business_id]);
         soldQty = sales.sold_qty || 0;
         revenue = sales.revenue || 0;
         profit = sales.profit || 0;
@@ -702,7 +704,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
            LEFT JOIN sales s ON it.reference_id = s.id AND s.business_id = it.business_id
            LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id AND si.business_id = it.business_id
            LEFT JOIN products p ON it.product_id = p.id AND p.business_id = it.business_id
-           WHERE it.product_id = ? AND it.created_at >= ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, startDateTime, req.user.business_id]);
+           WHERE it.product_id = ? AND it.created_at >= ? AND it.business_id = ? AND it.transaction_type = 'sale' AND (s.status IS NULL OR s.status != 'cancelled')`, [p.id, startDateTime, req.user.business_id]);
         soldQty = sales.sold_qty || 0;
         revenue = sales.revenue || 0;
         profit = sales.profit || 0;
@@ -728,7 +730,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
            LEFT JOIN sales s ON it.reference_id = s.id AND s.business_id = it.business_id
            LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id AND si.business_id = it.business_id
            LEFT JOIN products p ON it.product_id = p.id AND p.business_id = it.business_id
-           WHERE it.product_id = ? AND it.created_at <= ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, endDateTime, req.user.business_id]);
+           WHERE it.product_id = ? AND it.created_at <= ? AND it.business_id = ? AND it.transaction_type = 'sale' AND (s.status IS NULL OR s.status != 'cancelled')`, [p.id, endDateTime, req.user.business_id]);
         soldQty = sales.sold_qty || 0;
         revenue = sales.revenue || 0;
         profit = sales.profit || 0;
@@ -742,7 +744,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
            LEFT JOIN sales s ON it.reference_id = s.id AND s.business_id = it.business_id
            LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id AND si.business_id = it.business_id
            LEFT JOIN products p ON it.product_id = p.id AND p.business_id = it.business_id
-           WHERE it.product_id = ? AND it.business_id = ? AND it.transaction_type = 'sale'`, [p.id, req.user.business_id]);
+           WHERE it.product_id = ? AND it.business_id = ? AND it.transaction_type = 'sale' AND (s.status IS NULL OR s.status != 'cancelled')`, [p.id, req.user.business_id]);
         soldQty = sales.sold_qty || 0;
         revenue = sales.revenue || 0;
         profit = sales.profit || 0;

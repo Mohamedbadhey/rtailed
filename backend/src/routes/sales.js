@@ -610,14 +610,14 @@ router.get('/report', auth, async (req, res) => {
     // Product breakdown - exclude credit payments
     console.log('SALES REPORT: Running product breakdown query with whereClause =', whereClause, 'params =', params);
     const [productBreakdown] = await pool.query(
-      `SELECT p.id, p.name, SUM(si.quantity) as quantity_sold, SUM(si.total_price) as revenue, SUM(si.total_price - (si.quantity * p.cost_price)) as profit FROM sale_items si JOIN products p ON si.product_id = p.id JOIN sales s ON si.sale_id = s.id ${whereClause} GROUP BY p.id, p.name ORDER BY revenue DESC`,
+      `SELECT p.id, p.name, SUM(si.quantity) as quantity_sold, SUM(si.total_price) as revenue, SUM(si.total_price - (si.quantity * COALESCE(si.costprice, p.cost_price))) as profit FROM sale_items si JOIN products p ON si.product_id = p.id JOIN sales s ON si.sale_id = s.id ${whereClause} GROUP BY p.id, p.name ORDER BY revenue DESC`,
       params
     );
     console.log('SALES REPORT: Product breakdown result =', productBreakdown);
     
     // Calculate total cost of goods sold (COGS) for profit calculation - exclude credit payments and cancelled sales
     let cogsQuery = `
-      SELECT SUM(si.quantity * p.cost_price) as total_cost 
+      SELECT SUM(si.quantity * COALESCE(si.costprice, p.cost_price)) as total_cost 
       FROM sale_items si 
       JOIN products p ON si.product_id = p.id 
       JOIN sales s ON si.sale_id = s.id 

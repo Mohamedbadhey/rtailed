@@ -4410,7 +4410,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         const SizedBox(height: 8),
                                                 Text('Date: ${_formatTimestamp(tx['created_at'] ?? '')}', style: const TextStyle(fontSize: 12)),
                 Text('Qty: ${tx['quantity']?.toString() ?? ''}', style: const TextStyle(fontSize: 12)),
-                Text('Cost: \$${_safeToDouble(tx['product_cost_price']).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
+                Text('Cost: \$${_safeToDouble(tx['sale_cost_price'] ?? tx['product_cost_price']).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
                 Text('Amount: \$${_safeToDouble(tx['sale_total_price']).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
                 if (tx['notes'] != null && tx['notes'].toString().isNotEmpty)
                   Text('Notes: ${tx['notes']}', style: const TextStyle(fontSize: 12)),
@@ -4509,7 +4509,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           DataCell(Text(tx['product_name'] ?? '')),
           DataCell(Text(tx['transaction_type'] ?? '')),
           DataCell(Text(tx['quantity']?.toString() ?? '')),
-          DataCell(Text('\$${_safeToDouble(tx['product_cost_price']).toStringAsFixed(2)}')),
+          DataCell(Text('\$${_safeToDouble(tx['sale_cost_price'] ?? tx['product_cost_price']).toStringAsFixed(2)}')),
           DataCell(Text(_safeToDouble(tx['sale_total_price']).toStringAsFixed(2))),
           DataCell(Text(_safeToDouble(tx['profit']).toStringAsFixed(2))),
           DataCell(Text(tx['notes'] ?? '')),

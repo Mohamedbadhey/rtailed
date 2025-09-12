@@ -175,6 +175,10 @@ router.post('/', auth, async (req, res) => {
         [item.product_id, req.user.business_id]
       );
 
+      // Get the current cost price for this product
+      const currentCostPrice = product.length > 0 ? product[0].cost_price : 0.00;
+      console.log('💰 Current cost price for product', item.product_id, ':', currentCostPrice);
+
       // Add sale item
       const itemMode = item.mode || 'retail';
       console.log('Inserting sale item with mode:', itemMode);
@@ -187,14 +191,15 @@ router.post('/', auth, async (req, res) => {
         item.unit_price,
         item.unit_price * item.quantity,
         itemMode,
-        businessId
+        businessId,
+        currentCostPrice
       ];
       console.log('📝 INSERT VALUES:', JSON.stringify(insertValues, null, 2));
       
       await connection.query(
         `INSERT INTO sale_items (
-          sale_id, product_id, quantity, unit_price, total_price, mode, business_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          sale_id, product_id, quantity, unit_price, total_price, mode, business_id, costprice
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         insertValues
       );
       

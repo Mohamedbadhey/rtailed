@@ -1104,10 +1104,13 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
 
     return Column(
       children: [
-        // Search Bar
+        // Search Bar and Filters
         Container(
           padding: const EdgeInsets.all(16),
-          child: TextField(
+          child: Column(
+            children: [
+              // Search Bar
+              TextField(
             decoration: InputDecoration(
               hintText: t(context,'Search products...'),
               prefixIcon: const Icon(Icons.search),
@@ -1120,6 +1123,87 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 _searchQuery = value;
               });
             },
+          ),
+              const SizedBox(height: 16),
+              
+              // Stock Status Filter
+              Row(
+                children: [
+                  Text(
+                    'Filter by Stock Status:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  
+                  // All Products Radio
+                  Row(
+                    children: [
+                      Radio<String>(
+                        value: '',
+                        groupValue: _selectedStockStatus,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedStockStatus = value!;
+                          });
+                        },
+                        activeColor: Theme.of(context).primaryColor,
+                      ),
+                      const Text('All'),
+                    ],
+                  ),
+                  
+                  // Low Stock Radio
+                  Row(
+                    children: [
+                      Radio<String>(
+                        value: 'LOW_STOCK',
+                        groupValue: _selectedStockStatus,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedStockStatus = value!;
+                          });
+                        },
+                        activeColor: Colors.orange,
+                      ),
+                      Row(
+                        children: [
+                          Icon(Icons.warning, color: Colors.orange, size: 16),
+                          const SizedBox(width: 4),
+                          Text('Low Stock', style: TextStyle(color: Colors.orange[700])),
+                        ],
+                      ),
+                    ],
+                  ),
+                  
+                  // Out of Stock Radio
+                  Row(
+                    children: [
+                      Radio<String>(
+                        value: 'OUT_OF_STOCK',
+                        groupValue: _selectedStockStatus,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedStockStatus = value!;
+                          });
+                        },
+                        activeColor: Colors.red,
+                      ),
+                      Row(
+                        children: [
+                          Icon(Icons.error, color: Colors.red, size: 16),
+                          const SizedBox(width: 4),
+                          Text('Out of Stock', style: TextStyle(color: Colors.red[700])),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
         
@@ -3625,6 +3709,91 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 },
               ),
               const SizedBox(height: 12),
+              
+              // Stock Status Filter (Mobile)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Filter by Stock Status:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  // Radio buttons in a column for mobile
+                  Column(
+                    children: [
+                      // All Products Radio
+                      Row(
+                        children: [
+                          Radio<String>(
+                            value: '',
+                            groupValue: _selectedStockStatus,
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedStockStatus = value!;
+                              });
+                            },
+                            activeColor: Theme.of(context).primaryColor,
+                          ),
+                          const Text('All Products'),
+                        ],
+                      ),
+                      
+                      // Low Stock Radio
+                      Row(
+                        children: [
+                          Radio<String>(
+                            value: 'LOW_STOCK',
+                            groupValue: _selectedStockStatus,
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedStockStatus = value!;
+                              });
+                            },
+                            activeColor: Colors.orange,
+                          ),
+                          Row(
+                            children: [
+                              Icon(Icons.warning, color: Colors.orange, size: 16),
+                              const SizedBox(width: 4),
+                              Text('Low Stock', style: TextStyle(color: Colors.orange[700])),
+                            ],
+                          ),
+                        ],
+                      ),
+                      
+                      // Out of Stock Radio
+                      Row(
+                        children: [
+                          Radio<String>(
+                            value: 'OUT_OF_STOCK',
+                            groupValue: _selectedStockStatus,
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedStockStatus = value!;
+                              });
+                            },
+                            activeColor: Colors.red,
+                          ),
+                          Row(
+                            children: [
+                              Icon(Icons.error, color: Colors.red, size: 16),
+                              const SizedBox(width: 4),
+                              Text('Out of Stock', style: TextStyle(color: Colors.red[700])),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
               // Quick Stats
               _buildMobileQuickStats(),
             ],
@@ -3863,7 +4032,9 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   // Search Bar
                   Expanded(
                     flex: 2,
-                    child: TextField(
+                    child: Column(
+                      children: [
+                        TextField(
                       decoration: InputDecoration(
                         hintText: t(context,'Search products...'),
                         prefixIcon: const Icon(Icons.search),
@@ -3880,6 +4051,90 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                           _searchQuery = value;
                         });
                       },
+                        ),
+                        const SizedBox(height: 8),
+                        
+                        // Stock Status Filter (Desktop)
+                        Row(
+                          children: [
+                            Text(
+                              'Filter:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            
+                            // All Products Radio
+                            Row(
+                              children: [
+                                Radio<String>(
+                                  value: '',
+                                  groupValue: _selectedStockStatus,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedStockStatus = value!;
+                                    });
+                                  },
+                                  activeColor: Theme.of(context).primaryColor,
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                const Text('All', style: TextStyle(fontSize: 12)),
+                              ],
+                            ),
+                            
+                            // Low Stock Radio
+                            Row(
+                              children: [
+                                Radio<String>(
+                                  value: 'LOW_STOCK',
+                                  groupValue: _selectedStockStatus,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedStockStatus = value!;
+                                    });
+                                  },
+                                  activeColor: Colors.orange,
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                Row(
+                                  children: [
+                                    Icon(Icons.warning, color: Colors.orange, size: 14),
+                                    const SizedBox(width: 2),
+                                    Text('Low', style: TextStyle(color: Colors.orange[700], fontSize: 12)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            
+                            // Out of Stock Radio
+                            Row(
+                              children: [
+                                Radio<String>(
+                                  value: 'OUT_OF_STOCK',
+                                  groupValue: _selectedStockStatus,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedStockStatus = value!;
+                                    });
+                                  },
+                                  activeColor: Colors.red,
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                Row(
+                                  children: [
+                                    Icon(Icons.error, color: Colors.red, size: 14),
+                                    const SizedBox(width: 2),
+                                    Text('Out', style: TextStyle(color: Colors.red[700], fontSize: 12)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 16),

@@ -148,7 +148,8 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
           c.name AS customer_name,
           si.unit_price AS sale_unit_price,
           si.total_price AS sale_total_price,
-          (si.total_price - (si.quantity * p.cost_price)) AS profit
+          si.costprice AS sale_cost_price,
+          (si.total_price - (si.quantity * COALESCE(si.costprice, p.cost_price))) AS profit
         FROM inventory_transactions it
         LEFT JOIN products p ON it.product_id = p.id
         LEFT JOIN sales s ON it.reference_id = s.id
@@ -218,7 +219,8 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
         c.name AS customer_name,
         si.unit_price AS sale_unit_price,
         si.total_price AS sale_total_price,
-        (si.total_price - (si.quantity * p.cost_price)) AS profit
+        si.costprice AS sale_cost_price,
+        (si.total_price - (si.quantity * COALESCE(si.costprice, p.cost_price))) AS profit
       FROM inventory_transactions it
       LEFT JOIN products p ON it.product_id = p.id
       LEFT JOIN sales s ON it.reference_id = s.id
@@ -440,8 +442,9 @@ router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier']
         c.name AS customer_name,
         si.unit_price AS sale_unit_price,
         si.total_price AS sale_total_price,
-        (si.total_price - (si.quantity * p.cost_price)) AS profit,
-        (si.quantity * p.cost_price) AS total_cost
+        si.costprice AS sale_cost_price,
+        (si.total_price - (si.quantity * COALESCE(si.costprice, p.cost_price))) AS profit,
+        (si.quantity * COALESCE(si.costprice, p.cost_price)) AS total_cost
       FROM inventory_transactions it
       LEFT JOIN products p ON it.product_id = p.id
       LEFT JOIN sales s ON it.reference_id = s.id
@@ -673,7 +676,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
           `SELECT 
             IFNULL(SUM(ABS(it.quantity)),0) as sold_qty,
             IFNULL(SUM(COALESCE(si.total_price, 0)),0) as revenue,
-            IFNULL(SUM(COALESCE((si.unit_price - COALESCE(p.cost_price, 0)) * ABS(it.quantity), 0)),0) as profit
+            IFNULL(SUM(COALESCE((si.unit_price - COALESCE(si.costprice, p.cost_price, 0)) * ABS(it.quantity), 0)),0) as profit
            FROM inventory_transactions it
            LEFT JOIN sales s ON it.reference_id = s.id AND s.business_id = it.business_id
            LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id AND si.business_id = it.business_id
@@ -699,7 +702,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
           `SELECT 
             IFNULL(SUM(ABS(it.quantity)),0) as sold_qty,
             IFNULL(SUM(COALESCE(si.total_price, 0)),0) as revenue,
-            IFNULL(SUM(COALESCE((si.unit_price - COALESCE(p.cost_price, 0)) * ABS(it.quantity), 0)),0) as profit
+            IFNULL(SUM(COALESCE((si.unit_price - COALESCE(si.costprice, p.cost_price, 0)) * ABS(it.quantity), 0)),0) as profit
            FROM inventory_transactions it
            LEFT JOIN sales s ON it.reference_id = s.id AND s.business_id = it.business_id
            LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id AND si.business_id = it.business_id
@@ -725,7 +728,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
           `SELECT 
             IFNULL(SUM(ABS(it.quantity)),0) as sold_qty,
             IFNULL(SUM(COALESCE(si.total_price, 0)),0) as revenue,
-            IFNULL(SUM(COALESCE((si.unit_price - COALESCE(p.cost_price, 0)) * ABS(it.quantity), 0)),0) as profit
+            IFNULL(SUM(COALESCE((si.unit_price - COALESCE(si.costprice, p.cost_price, 0)) * ABS(it.quantity), 0)),0) as profit
            FROM inventory_transactions it
            LEFT JOIN sales s ON it.reference_id = s.id AND s.business_id = it.business_id
            LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id AND si.business_id = it.business_id
@@ -739,7 +742,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
       `SELECT 
             IFNULL(SUM(ABS(it.quantity)),0) as sold_qty,
             IFNULL(SUM(COALESCE(si.total_price, 0)),0) as revenue,
-            IFNULL(SUM(COALESCE((si.unit_price - COALESCE(p.cost_price, 0)) * ABS(it.quantity), 0)),0) as profit
+            IFNULL(SUM(COALESCE((si.unit_price - COALESCE(si.costprice, p.cost_price, 0)) * ABS(it.quantity), 0)),0) as profit
            FROM inventory_transactions it
            LEFT JOIN sales s ON it.reference_id = s.id AND s.business_id = it.business_id
            LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id AND si.business_id = it.business_id
@@ -750,7 +753,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
         profit = sales.profit || 0;
       }
       // Debug logging
-      console.log(`🔍 STOCK SUMMARY: Product ${p.id} (${p.name}): sold=${soldQty} (from inventory_transactions, transaction_type='sale'), revenue=${revenue}, profit=${profit}, cost_price=${p.cost_price}`);
+      console.log(`🔍 STOCK SUMMARY: Product ${p.id} (${p.name}): sold=${soldQty} (from inventory_transactions, transaction_type='sale'), revenue=${revenue}, profit=${profit}, current_cost_price=${p.cost_price}`);
       console.log(`🔍 STOCK SUMMARY: Date filters - start_date: ${start_date}, end_date: ${end_date}`);
       
       return {

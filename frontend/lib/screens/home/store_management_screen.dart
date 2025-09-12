@@ -910,6 +910,22 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
     }
   }
 
+  String _formatTimestamp(String timestamp) {
+    try {
+      if (timestamp.isEmpty) return '';
+      
+      // Parse the timestamp and convert to local time
+      final dateTime = DateTime.parse(timestamp);
+      final localDateTime = dateTime.toLocal();
+      
+      // Format: "2025-08-27 19:15:33" (same as inventory screen)
+      return '${localDateTime.year}-${localDateTime.month.toString().padLeft(2, '0')}-${localDateTime.day.toString().padLeft(2, '0')} ${localDateTime.hour.toString().padLeft(2, '0')}:${localDateTime.minute.toString().padLeft(2, '0')}:${localDateTime.second.toString().padLeft(2, '0')}';
+    } catch (e) {
+      // Fallback to original timestamp if parsing fails
+      return timestamp;
+    }
+  }
+
   bool _canApproveTransfer(Map<String, dynamic> transfer) {
     final user = context.read<AuthProvider>().user;
     return user?.role == 'superadmin' && transfer['status'] == 'pending';

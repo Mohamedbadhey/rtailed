@@ -1815,6 +1815,22 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     }
   }
 
+  String _formatTimestamp(String timestamp) {
+    try {
+      if (timestamp.isEmpty) return '';
+      
+      // Parse the timestamp and convert to local time
+      final dateTime = DateTime.parse(timestamp);
+      final localDateTime = dateTime.toLocal();
+      
+      // Format: "2025-08-27 19:15:33" (same as inventory screen)
+      return '${localDateTime.year}-${localDateTime.month.toString().padLeft(2, '0')}-${localDateTime.day.toString().padLeft(2, '0')} ${localDateTime.hour.toString().padLeft(2, '0')}:${localDateTime.minute.toString().padLeft(2, '0')}:${localDateTime.second.toString().padLeft(2, '0')}';
+    } catch (e) {
+      // Fallback to original timestamp if parsing fails
+      return timestamp;
+    }
+  }
+
   Widget _buildMovementsTab() {
     return Column(
       children: [
@@ -2320,7 +2336,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                         ),
                       ),
                       Text(
-                        _formatDate(movement['created_at']),
+                        _formatTimestamp(movement['created_at']),
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -7242,7 +7258,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   ),
                   Expanded(
                     child: Text(
-                      _formatDate(movement['created_at']),
+                      _formatTimestamp(movement['created_at']),
                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ),
@@ -7450,7 +7466,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   ),
                   Expanded(
                     child: Text(
-                      _formatDate(movement['created_at']),
+                      _formatTimestamp(movement['created_at']),
                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ),
@@ -7568,7 +7584,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                       children: [
                         Text('Date', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                         Text(
-                          _formatDate(movement['created_at']),
+                          _formatTimestamp(movement['created_at']),
                           style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
                       ],

@@ -96,9 +96,9 @@ router.post('/', auth, async (req, res) => {
 
     // Validate stock for each item
     for (const item of items) {
-      const [productRows] = await connection.query('SELECT stock_quantity FROM products WHERE id = ?', [item.product_id]);
+      const [productRows] = await connection.query('SELECT stock_quantity FROM products WHERE id = ? AND business_id = ?', [item.product_id, req.user.business_id]);
       if (!productRows.length) {
-        throw new Error(`Product with ID ${item.product_id} not found`);
+        throw new Error(`Product with ID ${item.product_id} not found in your business`);
       }
       const availableStock = productRows[0].stock_quantity;
       if (item.quantity > availableStock) {
@@ -171,8 +171,8 @@ router.post('/', auth, async (req, res) => {
       console.log('Item mode === "retail":', item.mode === 'retail');
       
       const [product] = await connection.query(
-        'SELECT cost_price FROM products WHERE id = ?',
-        [item.product_id]
+        'SELECT cost_price FROM products WHERE id = ? AND business_id = ?',
+        [item.product_id, req.user.business_id]
       );
 
       // Add sale item

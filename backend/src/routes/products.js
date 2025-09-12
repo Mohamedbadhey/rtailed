@@ -196,7 +196,7 @@ router.get('/:id', auth, async (req, res) => {
              END as category_name 
       FROM products p 
       LEFT JOIN categories c ON p.category_id = c.id 
-      WHERE p.id = ? AND p.business_id = ?
+      WHERE p.id = ? AND (p.business_id = ? OR p.business_id IS NULL)
     `;
     let params = [req.params.id, req.user.business_id];
     if (req.user.role === 'superadmin') {
@@ -204,8 +204,8 @@ router.get('/:id', auth, async (req, res) => {
         SELECT p.*, 
                CASE 
                  WHEN p.category_id IS NULL THEN 'Uncategorized'
-                 ELSE c.name 
-               END as category_name 
+               ELSE c.name 
+             END as category_name 
         FROM products p 
         LEFT JOIN categories c ON p.category_id = c.id 
         WHERE p.id = ?
@@ -278,9 +278,20 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
 
 
     const image_url = req.file ? `/uploads/products/${req.file.filename}` : null;
-    // For store management system, products are global (business_id = NULL)
-    // They get assigned to stores via store_product_inventory table
-    const businessId = null;
+    
+    // Determine business_id based on the creation context:
+    // - If storeId is provided: This is store management (global products, business_id = NULL)
+    // - If storeId is NOT provided: This is inventory screen (business-specific products, business_id = req.user.business_id)
+    const { storeId } = req.body;
+    const businessId = storeId ? null : req.user.business_id;
+    
+    console.log('=== BUSINESS ID LOGIC ===');
+    console.log('storeId provided:', !!storeId);
+    console.log('storeId value:', storeId);
+    console.log('user business_id:', req.user.business_id);
+    console.log('final businessId:', businessId);
+    console.log('context:', storeId ? 'Store Management (Global Product)' : 'Inventory Screen (Business-Specific Product)');
+    console.log('========================');
     
     const insertValues = [
       name, 
@@ -324,7 +335,6 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
     console.log('Product created with ID:', productId);
 
     // If storeId is provided, immediately add product to store inventory
-    const { storeId } = req.body;
     if (storeId && parseInt(stock_quantity) > 0) {
       console.log('Adding product to store inventory - Store ID:', storeId, 'Product ID:', productId, 'Quantity:', stock_quantity);
       
@@ -389,8 +399,9 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
       }
     }
 
-    // Note: Products are created as global entities (business_id = NULL)
-    // If storeId is provided, they are immediately added to store inventory
+    // Note: Product creation logic:
+    // - Inventory Screen: Products are business-specific (business_id = user.business_id)
+    // - Store Management: Products are global (business_id = NULL) and added to store inventory
     // This follows the two-tier inventory system: Store Warehouse → Business Inventory
 
     await connection.commit();
@@ -432,7 +443,7 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
       low_stock_threshold
     } = req.body;
 
-    // First, check if product exists and belongs to user's business
+    // First, check if product exists and belongs to user's business or is global
     let checkQuery = 'SELECT * FROM products WHERE id = ?';
     let checkParams = [req.params.id];
     
@@ -440,7 +451,7 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
       if (!req.user.business_id) {
         return res.status(400).json({ message: 'Business ID is required for this operation.' });
       }
-      checkQuery += ' AND business_id = ?';
+      checkQuery += ' AND (business_id = ? OR business_id IS NULL)';
       checkParams.push(req.user.business_id);
     }
     
@@ -558,7 +569,7 @@ router.delete('/:id', [auth, checkRole(['admin'])], async (req, res) => {
         await connection.rollback();
         return res.status(400).json({ message: 'Business ID is required for this operation.' });
       }
-      checkQuery += ' AND business_id = ?';
+      checkQuery += ' AND (business_id = ? OR business_id IS NULL)';
       checkParams.push(req.user.business_id);
     }
     
@@ -614,7 +625,7 @@ router.put('/:id/restore', [auth, checkRole(['admin'])], async (req, res) => {
         await connection.rollback();
         return res.status(400).json({ message: 'Business ID is required for this operation.' });
       }
-      checkQuery += ' AND business_id = ?';
+      checkQuery += ' AND (business_id = ? OR business_id IS NULL)';
       checkParams.push(req.user.business_id);
     }
     

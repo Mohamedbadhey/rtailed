@@ -55,5 +55,20 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Allow opening PDF files -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:mimeType="application/pdf"/>
+        </intent>
+        <!-- Allow opening files with file:// URI -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="file"/>
+        </intent>
+        <!-- Allow opening files with content:// URI -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="content"/>
+        </intent>
     </queries>
 </manifest>

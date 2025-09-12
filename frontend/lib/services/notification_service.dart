@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:open_file/open_file.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
@@ -54,9 +55,17 @@ class NotificationService {
   /// Handle notification tap
   static void _onNotificationTapped(NotificationResponse response) {
     print('🔔 Notification tapped: ${response.payload}');
+    print('🔔 Action ID: ${response.actionId}');
     
-    if (response.payload != null && response.payload!.isNotEmpty) {
-      _openPdfFile(response.payload!);
+    // Handle action buttons
+    if (response.actionId == 'open' || response.actionId == null) {
+      // Open PDF when "Open PDF" button is tapped or notification body is tapped
+      if (response.payload != null && response.payload!.isNotEmpty) {
+        _openPdfFile(response.payload!);
+      }
+    } else if (response.actionId == 'dismiss') {
+      // Dismiss notification - no action needed
+      print('🔔 Notification dismissed');
     }
   }
 
@@ -65,23 +74,65 @@ class NotificationService {
     try {
       print('🔔 Opening PDF file: $filePath');
       
-      if (Platform.isAndroid) {
-        // For Android, use file:// URI
-        final uri = Uri.file(filePath);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-          print('🔔 PDF opened successfully');
+      // Check if file exists
+      final file = File(filePath);
+      if (!await file.exists()) {
+        print('🔔 PDF file does not exist: $filePath');
+        return;
+      }
+      
+      // Method 1: Try open_file package (most reliable for Android)
+      try {
+        print('🔔 Trying to open with open_file package');
+        final result = await OpenFile.open(filePath);
+        
+        if (result.type == ResultType.done) {
+          print('🔔 PDF opened successfully with open_file package');
+          return;
         } else {
-          print('🔔 Could not launch PDF file');
+          print('🔔 open_file failed: ${result.message}');
         }
+      } catch (e) {
+        print('🔔 open_file package failed: $e');
+      }
+      
+      // Method 2: Fallback to url_launcher
+      if (Platform.isAndroid) {
+        try {
+          // Use file:// URI with external application
+          final uri = Uri.file(filePath);
+          print('🔔 Trying to open with file URI: $uri');
+          
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+            print('🔔 PDF opened successfully with file URI');
+            return;
+          }
+        } catch (e) {
+          print('🔔 File URI method failed: $e');
+        }
+        
+        try {
+          // Use intent with MIME type
+          final uri = Uri.file(filePath);
+          await launchUrl(
+            uri,
+            mode: LaunchMode.externalApplication,
+            webOnlyWindowName: '_blank',
+          );
+          print('🔔 PDF opened successfully with intent');
+        } catch (e) {
+          print('🔔 Intent method failed: $e');
+        }
+        
       } else if (Platform.isIOS) {
         // For iOS, use file:// URI
         final uri = Uri.file(filePath);
         if (await canLaunchUrl(uri)) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
-          print('🔔 PDF opened successfully');
+          print('🔔 PDF opened successfully on iOS');
         } else {
-          print('🔔 Could not launch PDF file');
+          print('🔔 Could not launch PDF file on iOS');
         }
       }
     } catch (e) {

@@ -14,6 +14,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:retail_management/utils/api.dart';
+import 'package:retail_management/utils/responsive_utils.dart';
 
 class StoreManagementScreen extends StatefulWidget {
   const StoreManagementScreen({super.key});
@@ -149,15 +150,55 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
             color: Theme.of(context).primaryColor,
             child: TabBar(
               controller: _tabController,
-              isScrollable: true,
+              isScrollable: ResponsiveUtils.isMobile(context),
               indicatorColor: Colors.white,
               labelColor: Colors.white,
               unselectedLabelColor: Colors.white70,
+              labelStyle: TextStyle(
+                fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 14, desktop: 16),
+                fontWeight: FontWeight.w600,
+              ),
+              unselectedLabelStyle: TextStyle(
+                fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 11, tablet: 13, desktop: 15),
+                fontWeight: FontWeight.w400,
+              ),
               tabs: [
-                Tab(text: t(context, 'Stores')),
-                Tab(text: t(context, 'Transfers')),
-                Tab(text: t(context, 'Inventory')),
-                if (isSuperAdmin) Tab(text: t(context, 'Assignments')),
+                Tab(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: ResponsiveUtils.isMobile(context) ? 8 : 16,
+                      vertical: ResponsiveUtils.isMobile(context) ? 4 : 8,
+                    ),
+                    child: Text(t(context, 'Stores')),
+                  ),
+                ),
+                Tab(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: ResponsiveUtils.isMobile(context) ? 8 : 16,
+                      vertical: ResponsiveUtils.isMobile(context) ? 4 : 8,
+                    ),
+                    child: Text(t(context, 'Transfers')),
+                  ),
+                ),
+                Tab(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: ResponsiveUtils.isMobile(context) ? 8 : 16,
+                      vertical: ResponsiveUtils.isMobile(context) ? 4 : 8,
+                    ),
+                    child: Text(t(context, 'Inventory')),
+                  ),
+                ),
+                if (isSuperAdmin) Tab(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: ResponsiveUtils.isMobile(context) ? 8 : 16,
+                      vertical: ResponsiveUtils.isMobile(context) ? 4 : 8,
+                    ),
+                    child: Text(t(context, 'Assignments')),
+                  ),
+                ),
               ],
             ),
           ),
@@ -1000,38 +1041,100 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
       children: [
         // Header
         Container(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  t(context, 'Store Inventory Management'),
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Row(
+          padding: ResponsiveUtils.getResponsivePadding(context),
+          child: ResponsiveUtils.isMobile(context) 
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: _showCategoryManagementDialog,
-                    icon: const Icon(Icons.category),
-                    label: Text(t(context, 'Manage Categories')),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple[700],
-                      foregroundColor: Colors.white,
+                  Text(
+                    t(context, 'Store Inventory Management'),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 18, tablet: 20, desktop: 22),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: _showAddProductsDialog,
-                    icon: const Icon(Icons.add),
-                    label: Text(t(context, 'Add Products')),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _showCategoryManagementDialog,
+                          icon: const Icon(Icons.category, size: 18),
+                          label: Text(
+                            t(context, 'Manage Categories'),
+                            style: TextStyle(fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 14, desktop: 16)),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.purple[700],
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(
+                              vertical: ResponsiveUtils.getResponsiveButtonHeight(context) * 0.4,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _showAddProductsDialog,
+                          icon: const Icon(Icons.add, size: 18),
+                          label: Text(
+                            t(context, 'Add Products'),
+                            style: TextStyle(fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 14, desktop: 16)),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(
+                              vertical: ResponsiveUtils.getResponsiveButtonHeight(context) * 0.4,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      t(context, 'Store Inventory Management'),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 18, tablet: 20, desktop: 22),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _showCategoryManagementDialog,
+                        icon: const Icon(Icons.category),
+                        label: Text(t(context, 'Manage Categories')),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.purple[700],
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: ResponsiveUtils.getResponsiveButtonHeight(context) * 0.4,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: _showAddProductsDialog,
+                        icon: const Icon(Icons.add),
+                        label: Text(t(context, 'Add Products')),
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: ResponsiveUtils.getResponsiveButtonHeight(context) * 0.4,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
         ),
         
         // Inventory List
@@ -1065,7 +1168,7 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: ResponsiveUtils.getResponsivePadding(context),
       itemCount: _stores.length,
       itemBuilder: (context, index) {
         final store = _stores[index];
@@ -1076,33 +1179,78 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
 
   Widget _buildStoreInventoryCard(Map<String, dynamic> store) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: EdgeInsets.only(
+        bottom: ResponsiveUtils.getResponsiveSpacing(context) * 0.5,
+        left: ResponsiveUtils.isMobile(context) ? 0 : 4,
+        right: ResponsiveUtils.isMobile(context) ? 0 : 4,
+      ),
       child: ListTile(
+        contentPadding: ResponsiveUtils.getResponsivePadding(context).copyWith(
+          left: ResponsiveUtils.getResponsivePadding(context).left,
+          right: ResponsiveUtils.getResponsivePadding(context).right,
+        ),
         leading: CircleAvatar(
+          radius: ResponsiveUtils.isMobile(context) ? 20 : 24,
           backgroundColor: Theme.of(context).primaryColor,
           child: Icon(
             Icons.store,
             color: Colors.white,
+            size: ResponsiveUtils.isMobile(context) ? 20 : 24,
           ),
         ),
         title: Text(
           store['name'] ?? '',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
+            fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 14, tablet: 16, desktop: 18),
           ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${t(context, 'Store Code')}: ${store['store_code'] ?? ''}'),
-            Text('${t(context, 'Type')}: ${store['store_type'] ?? ''}'),
-            Text('${t(context, 'Status')}: ${store['is_active'] == 1 ? t(context, 'Active') : t(context, 'Inactive')}'),
+            Text(
+              '${t(context, 'Store Code')}: ${store['store_code'] ?? ''}',
+              style: TextStyle(
+                fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 14, desktop: 16),
+              ),
+            ),
+            Text(
+              '${t(context, 'Type')}: ${store['store_type'] ?? ''}',
+              style: TextStyle(
+                fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 14, desktop: 16),
+              ),
+            ),
+            Text(
+              '${t(context, 'Status')}: ${store['is_active'] == 1 ? t(context, 'Active') : t(context, 'Inactive')}',
+              style: TextStyle(
+                fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 14, desktop: 16),
+              ),
+            ),
           ],
         ),
-        trailing: ElevatedButton(
-          onPressed: () => _navigateToStoreInventory(store),
-          child: Text(t(context, 'Manage')),
-        ),
+        trailing: ResponsiveUtils.isMobile(context)
+          ? IconButton(
+              onPressed: () => _navigateToStoreInventory(store),
+              icon: Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+              ),
+            )
+          : ElevatedButton(
+              onPressed: () => _navigateToStoreInventory(store),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: ResponsiveUtils.getResponsiveButtonHeight(context) * 0.3,
+                ),
+              ),
+              child: Text(
+                t(context, 'Manage'),
+                style: TextStyle(
+                  fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 14, desktop: 16),
+                ),
+              ),
+            ),
         onTap: () => _navigateToStoreInventory(store),
       ),
     );
@@ -3339,17 +3487,170 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
     }
   }
 
+  Widget _buildCategoriesList() {
+    return _categories.isEmpty
+        ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.category_outlined, size: 48, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  t(context, 'No categories found'),
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  t(context, 'Add your first category'),
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                ),
+              ],
+            ),
+          )
+        : ListView.builder(
+            itemCount: _categories.length,
+            itemBuilder: (context, index) {
+              final category = _categories[index];
+              return ListTile(
+                title: Text(
+                  category['name'] ?? '',
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 14, tablet: 16, desktop: 18),
+                  ),
+                ),
+                subtitle: Text(
+                  category['description'] ?? '',
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 14, desktop: 16),
+                  ),
+                ),
+                trailing: PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _showEditForm(category);
+                    } else if (value == 'delete') {
+                      _deleteCategory(category['id']);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Text(
+                        t(context, 'Edit'),
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+                        ),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text(
+                        t(context, 'Delete'),
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                onTap: () => _showEditForm(category),
+              );
+            },
+          );
+  }
+
+  Widget _buildCategoryForm() {
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _isAddingNew ? t(context, 'Add New Category') : t(context, 'Edit Category'),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+              fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 16, tablet: 18, desktop: 20),
+            ),
+          ),
+          SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context) * 0.5),
+          
+          // Name Field
+          CustomTextField(
+            controller: _nameController,
+            labelText: t(context, 'Category Name'),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return t(context, 'Please enter a category name');
+              }
+              return null;
+            },
+          ),
+          SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context) * 0.5),
+          
+          // Description Field
+          CustomTextField(
+            controller: _descriptionController,
+            labelText: t(context, 'Description'),
+            maxLines: 3,
+          ),
+          SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context)),
+          
+          // Save Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _saveCategory,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple[700],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(
+                  vertical: ResponsiveUtils.getResponsiveButtonHeight(context) * 0.4,
+                ),
+              ),
+              child: _isLoading
+                  ? SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      _isAddingNew ? t(context, 'Add Category') : t(context, 'Update Category'),
+                      style: TextStyle(
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 14, desktop: 16),
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final isTablet = ResponsiveUtils.isTablet(context);
+    
     return Dialog(
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+        width: isMobile 
+          ? MediaQuery.of(context).size.width * 0.95
+          : MediaQuery.of(context).size.width * 0.9,
+        constraints: BoxConstraints(
+          maxWidth: isMobile ? 400 : (isTablet ? 700 : 800),
+          maxHeight: isMobile ? 600 : 700,
+        ),
         child: Column(
           children: [
             // Header
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: ResponsiveUtils.getResponsivePadding(context),
               decoration: BoxDecoration(
                 color: Colors.purple[700],
                 borderRadius: const BorderRadius.only(
@@ -3359,21 +3660,29 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.category, color: Colors.white),
-                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.category, 
+                    color: Colors.white,
+                    size: isMobile ? 20 : 24,
+                  ),
+                  SizedBox(width: isMobile ? 8 : 12),
                   Expanded(
                     child: Text(
                       t(context, 'Manage Categories'),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 18,
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 16, tablet: 18, desktop: 20),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close, color: Colors.white),
+                    icon: Icon(
+                      Icons.close, 
+                      color: Colors.white,
+                      size: isMobile ? 20 : 24,
+                    ),
                   ),
                 ],
               ),
@@ -3381,180 +3690,99 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
             
             // Content
             Expanded(
-              child: Row(
-                children: [
-                  // Categories List
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border(
-                          right: BorderSide(color: Colors.grey[300]!),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          // Add Category Button
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            child: ElevatedButton.icon(
-                              onPressed: _showAddForm,
-                              icon: const Icon(Icons.add),
-                              label: Text(t(context, 'Add Category')),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.purple[700],
-                                foregroundColor: Colors.white,
-                              ),
+              child: isMobile 
+                ? Column(
+                    children: [
+                      // Add Category Button
+                      Container(
+                        width: double.infinity,
+                        padding: ResponsiveUtils.getResponsivePadding(context),
+                        child: ElevatedButton.icon(
+                          onPressed: _showAddForm,
+                          icon: Icon(Icons.add, size: isMobile ? 18 : 20),
+                          label: Text(
+                            t(context, 'Add Category'),
+                            style: TextStyle(
+                              fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 14, desktop: 16),
                             ),
                           ),
-                          
-                          // Categories List
-                          Expanded(
-                            child: _categories.isEmpty
-                                ? Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.category_outlined, size: 48, color: Colors.grey[400]),
-                                        const SizedBox(height: 16),
-                                        Text(
-                                          t(context, 'No categories found'),
-                                          style: TextStyle(color: Colors.grey[600]),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          t(context, 'Add your first category'),
-                                          style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                                        ),
-                                      ],
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.purple[700],
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(
+                              vertical: ResponsiveUtils.getResponsiveButtonHeight(context) * 0.4,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Categories List
+                      Expanded(
+                        child: _buildCategoriesList(),
+                      ),
+                      // Form
+                      if (_isAddingNew || _editingCategory != null)
+                        Container(
+                          height: MediaQuery.of(context).size.height * 0.4,
+                          padding: ResponsiveUtils.getResponsivePadding(context),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              top: BorderSide(color: Colors.grey[300]!),
+                            ),
+                          ),
+                          child: _buildCategoryForm(),
+                        ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      // Categories List
+                      Expanded(
+                        flex: 1,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border(
+                              right: BorderSide(color: Colors.grey[300]!),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              // Add Category Button
+                              Container(
+                                width: double.infinity,
+                                padding: ResponsiveUtils.getResponsivePadding(context),
+                                child: ElevatedButton.icon(
+                                  onPressed: _showAddForm,
+                                  icon: const Icon(Icons.add),
+                                  label: Text(t(context, 'Add Category')),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.purple[700],
+                                    foregroundColor: Colors.white,
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: ResponsiveUtils.getResponsiveButtonHeight(context) * 0.4,
                                     ),
-                                  )
-                                : ListView.builder(
-                                    itemCount: _categories.length,
-                                    itemBuilder: (context, index) {
-                                      final category = _categories[index];
-                                      return ListTile(
-                                        title: Text(
-                                          category['name'] ?? '',
-                                          style: TextStyle(
-                                            color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
-                                          ),
-                                        ),
-                                        subtitle: Text(
-                                          category['description'] ?? '',
-                                          style: TextStyle(
-                                            color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
-                                          ),
-                                        ),
-                                        trailing: PopupMenuButton<String>(
-                                          onSelected: (value) {
-                                            if (value == 'edit') {
-                                              _showEditForm(category);
-                                            } else if (value == 'delete') {
-                                              _deleteCategory(category['id']);
-                                            }
-                                          },
-                                          itemBuilder: (context) => [
-                                            PopupMenuItem(
-                                              value: 'edit',
-                                              child: Text(
-                                                t(context, 'Edit'),
-                                                style: TextStyle(
-                                                  color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
-                                                ),
-                                              ),
-                                            ),
-                                            PopupMenuItem(
-                                              value: 'delete',
-                                              child: Text(
-                                                t(context, 'Delete'),
-                                                style: TextStyle(
-                                                  color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        onTap: () => _showEditForm(category),
-                                      );
-                                    },
                                   ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  // Form
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _isAddingNew ? t(context, 'Add New Category') : t(context, 'Edit Category'),
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            
-                            // Name Field
-                            CustomTextField(
-                              controller: _nameController,
-                              labelText: t(context, 'Category Name'),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return t(context, 'Please enter a category name');
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            
-                            // Description Field
-                            CustomTextField(
-                              controller: _descriptionController,
-                              labelText: t(context, 'Description'),
-                              maxLines: 3,
-                            ),
-                            const SizedBox(height: 24),
-                            
-                            // Save Button
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: _isLoading ? null : _saveCategory,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.purple[700],
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
                                 ),
-                                child: _isLoading
-                                    ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                        ),
-                                      )
-                                    : Text(_isAddingNew ? t(context, 'Add Category') : t(context, 'Update Category')),
                               ),
-                            ),
-                          ],
+                          
+                              // Categories List
+                              Expanded(
+                                child: _buildCategoriesList(),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
+                      
+                      // Form
+                      Expanded(
+                        flex: 1,
+                        child: Container(
+                          padding: ResponsiveUtils.getResponsivePadding(context),
+                          child: _buildCategoryForm(),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
             ),
           ],
         ),

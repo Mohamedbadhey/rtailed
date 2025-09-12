@@ -16,6 +16,7 @@ import 'package:retail_management/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:retail_management/providers/settings_provider.dart';
 import 'package:retail_management/providers/branding_provider.dart';
+import 'package:retail_management/services/notification_service.dart';
 
 import 'package:retail_management/widgets/branding_initializer.dart';
 
@@ -32,6 +33,9 @@ void main() async {
   try {
     // Initialize path_provider for platform support
     await Future.delayed(Duration.zero);
+    
+    // Initialize notification service
+    await NotificationService.initialize();
   } catch (e) {
     print('Platform initialization warning: $e');
   }

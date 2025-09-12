@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:toast/toast.dart';
+import 'notification_service.dart';
 
 abstract class PdfExportPlatform {
   static Future<Map<String, dynamic>> savePdf(Uint8List pdfBytes, String fileName) async {
@@ -130,8 +131,8 @@ abstract class PdfExportPlatform {
              }
            }
            
-           // Show success notification
-           await _showDownloadNotification(cleanFileName, userFriendlyPath);
+           // Show success notification with system notification
+           await _showDownloadNotification(cleanFileName, userFriendlyPath, file.path);
           
           // Return success info with user-friendly path
           return {
@@ -156,18 +157,36 @@ abstract class PdfExportPlatform {
   }
   
   // Show download notification
-  static Future<void> _showDownloadNotification(String fileName, String location) async {
+  static Future<void> _showDownloadNotification(String fileName, String location, String filePath) async {
     try {
-      // Show a toast notification
+      // Show system notification that can be tapped to open PDF
+      await NotificationService.showPdfDownloadNotification(
+        fileName: fileName,
+        filePath: filePath,
+        location: location,
+      );
+      
+      // Also show toast as backup
       Toast.show(
         'PDF Downloaded! 📄\n$fileName saved to $location',
         duration: Toast.lengthLong,
         gravity: Toast.bottom,
       );
       
-      print('🔍 PDF: Notification shown for $fileName');
+      print('🔍 PDF: System notification and toast shown for $fileName');
     } catch (e) {
       print('🔍 PDF: Error showing notification: $e');
+      
+      // Fallback to toast only if system notification fails
+      try {
+        Toast.show(
+          'PDF Downloaded! 📄\n$fileName saved to $location',
+          duration: Toast.lengthLong,
+          gravity: Toast.bottom,
+        );
+      } catch (toastError) {
+        print('🔍 PDF: Error showing toast notification: $toastError');
+      }
     }
   }
 }

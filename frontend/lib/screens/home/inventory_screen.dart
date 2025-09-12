@@ -2898,6 +2898,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
         }
       }
       
+      // Add transaction type filter if selected
+      if (_selectedTransactionType != null && _selectedTransactionType != 'All') {
+        params['transaction_type'] = _selectedTransactionType;
+        print('🔍 PDF Export: Added transaction type filter: $_selectedTransactionType');
+      }
+      
       print('🔍 PDF Export: Fetching filtered transactions with params: $params');
       final data = await _apiService.getInventoryTransactions(params);
       print('🔍 PDF Export: Received ${data.length} filtered transactions');

@@ -227,7 +227,7 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
       LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id
       LEFT JOIN damaged_products dp ON it.notes LIKE CONCAT('%Damaged:%') AND dp.product_id = it.product_id AND dp.created_at = it.created_at
       LEFT JOIN users dp_reporter ON dp.reported_by = dp_reporter.id
-      WHERE it.business_id = ?
+      WHERE it.business_id = ? AND (s.status IS NULL OR s.status != 'cancelled')
     `;
     let params = [req.user.business_id];
     
@@ -302,7 +302,7 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
     query += ' ORDER BY it.created_at DESC';
     
     if (req.user.role === 'superadmin') {
-      query = query.replace('WHERE it.business_id = ?', '');
+      query = query.replace('WHERE it.business_id = ? AND (s.status IS NULL OR s.status != \'cancelled\')', 'WHERE (s.status IS NULL OR s.status != \'cancelled\')');
       params = params.slice(1); // Remove business_id from params
       console.log('🔍 INVENTORY TRANSACTIONS: Superadmin - removed business_id filter');
     } else {
@@ -450,7 +450,7 @@ router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier']
       LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id
       LEFT JOIN damaged_products dp ON it.notes LIKE CONCAT('%Damaged:%') AND dp.product_id = it.product_id AND dp.created_at = it.created_at
       LEFT JOIN users dp_reporter ON dp.reported_by = dp_reporter.id
-      WHERE it.business_id = ?
+      WHERE it.business_id = ? AND (s.status IS NULL OR s.status != 'cancelled')
     `;
     let params = [req.user.business_id];
     
@@ -522,7 +522,7 @@ router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier']
     }
     
     if (req.user.role === 'superadmin') {
-      query = query.replace('WHERE it.business_id = ?', '');
+      query = query.replace('WHERE it.business_id = ? AND (s.status IS NULL OR s.status != \'cancelled\')', 'WHERE (s.status IS NULL OR s.status != \'cancelled\')');
       params = params.slice(1); // Remove business_id from params
       console.log('📄 PDF TRANSACTIONS: Superadmin - removed business_id filter');
     }

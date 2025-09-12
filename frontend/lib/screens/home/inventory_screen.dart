@@ -56,19 +56,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
   List<Map<String, dynamic>> _drilldownTransactions = [];
   String? _drilldownError;
   String? _drilldownProductName;
-  // Add state for recent, today, week, and filtered transactions
-  List<Map<String, dynamic>> _recentTransactions = [];
-  List<Map<String, dynamic>> _todayTransactions = [];
-  List<Map<String, dynamic>> _weekTransactions = [];
+  // Add state for filtered transactions
   List<Map<String, dynamic>> _filteredTransactions = [];
-  bool _recentLoading = false;
-  bool _todayLoading = false;
-  bool _weekLoading = false;
   bool _filteredLoading = false;
-  String? _recentError;
-  String? _todayError;
-  String? _weekError;
   String? _filteredError;
+  String? _selectedTransactionType;
   // Add separate state for stock summary date filters
   DateTime? _stockSummaryStartDate;
   DateTime? _stockSummaryEndDate;
@@ -83,9 +75,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
   // Pagination state variables
   static const int _itemsPerPage = 10;
   int _stockSummaryCurrentPage = 0;
-  int _recentTransactionsCurrentPage = 0;
-  int _todayTransactionsCurrentPage = 0;
-  int _weekTransactionsCurrentPage = 0;
   int _filteredTransactionsCurrentPage = 0;
 
   @override
@@ -94,9 +83,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
     _loadData();
     _stockSummaryFilterType = 'Today';
     _applyStockSummaryPreset('Today');
-    _fetchRecentTransactions();
-    _fetchTodayTransactions();
-    _fetchWeekTransactions();
     _fetchBusinessDetails(); // Load business details for PDF generation
   }
 
@@ -1147,483 +1133,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                isSmallMobile ? 'Recent Transactions' : t(context, 'Recent Transactions'), 
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold, 
-                                  fontSize: isSmallMobile ? 11 : 13,
-                                ),
-                                    ),
-                                  ),
-                                  if (_recentTransactions.isNotEmpty)
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.red[50],
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: Colors.red[200]!),
-                                      ),
-                                      child: IconButton(
-                                        icon: Icon(Icons.picture_as_pdf, color: Colors.red[600], size: 16),
-                                        onPressed: () => _exportTransactionsToPdf(
-                                          transactions: _recentTransactions,
-                                          reportTitle: _getFilteredReportTitle('Recent Transactions'),
-                                          fileName: _generatePdfFileName('recent_transactions'),
-                                        ),
-                                        tooltip: 'Export to PDF',
-                                        padding: EdgeInsets.all(4),
-                                        constraints: BoxConstraints(
-                                          minWidth: 24,
-                                          minHeight: 24,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              SizedBox(height: isSmallMobile ? 4 : 6),
-                              
-                              // Category and Product Filters for Recent Transactions
-                              Container(
-                                width: double.infinity,
-                                padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
-                                margin: EdgeInsets.only(bottom: isSmallMobile ? 6 : 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.red[50],
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: Colors.red[200]!),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Filter Recent Transactions',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: isSmallMobile ? 10 : 12,
-                                        color: Colors.red[700],
-                                      ),
-                                    ),
-                                    SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        // Category Dropdown
-                                        Expanded(
-                                          child: Container(
-                                            height: isSmallMobile ? 28 : 32,
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius: BorderRadius.circular(4),
-                                              border: Border.all(color: Colors.red[300]!),
-                                            ),
-                                            child: DropdownButtonHideUnderline(
-                                              child: DropdownButton<String>(
-                                                value: _selectedReportCategory ?? 'All',
-                                                isExpanded: true,
-                                                icon: Icon(
-                                                  Icons.keyboard_arrow_down,
-                                                  color: Colors.red[600],
-                                                  size: isSmallMobile ? 12 : 14,
-                                                ),
-                                                items: ['All', ..._categories.where((c) => c != 'All')]
-                                                    .map((cat) => DropdownMenuItem(
-                                                          value: cat,
-                                                          child: Padding(
-                                                            padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 6 : 8),
-                                                            child: Text(
-                                                              cat,
-                                                              style: TextStyle(fontSize: isSmallMobile ? 9 : 10),
-                                                            ),
-                                                          ),
-                                                        ))
-                                                    .toList(),
-                                                onChanged: (val) {
-                                                  setState(() { 
-                                                    _selectedReportCategory = val; 
-                                                  });
-                                                  _fetchRecentTransactions();
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        SizedBox(width: 6),
-                                        // Product Dropdown
-                                        Expanded(
-                                          child: Container(
-                                            height: isSmallMobile ? 28 : 32,
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius: BorderRadius.circular(4),
-                                              border: Border.all(color: Colors.red[300]!),
-                                            ),
-                                            child: DropdownButtonHideUnderline(
-                                              child: DropdownButton<String>(
-                                                value: _selectedReportProduct ?? 'All',
-                                                isExpanded: true,
-                                                icon: Icon(
-                                                  Icons.keyboard_arrow_down,
-                                                  color: Colors.red[600],
-                                                  size: isSmallMobile ? 12 : 14,
-                                                ),
-                                                items: ['All', ..._products.map((p) => p.name)]
-                                                    .map((prod) => DropdownMenuItem(
-                                                          value: prod,
-                                                          child: Padding(
-                                                            padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 6 : 8),
-                                                            child: Text(
-                                                              prod,
-                                                              style: TextStyle(fontSize: isSmallMobile ? 9 : 10),
-                                                            ),
-                                                          ),
-                                                        ))
-                                                    .toList(),
-                                                onChanged: (val) {
-                                                  setState(() { 
-                                                    _selectedReportProduct = val; 
-                                                  });
-                                                  _fetchRecentTransactions();
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              
-                              _buildTransactionsTable(
-                                _recentTransactions, 
-                                _recentLoading, 
-                                _recentError, 
-                                'No recent transactions', 
-                                isSmallMobile,
-                                currentPage: _recentTransactionsCurrentPage,
-                                onPageChanged: (page) => setState(() => _recentTransactionsCurrentPage = page),
-                                paginationLabel: 'Recent',
-                              ),
-                              SizedBox(height: isSmallMobile ? 8 : 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                'Todays Transactions', 
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold, 
-                                  fontSize: isSmallMobile ? 11 : 13,
-                                ),
-                                    ),
-                                  ),
-                                  if (_todayTransactions.isNotEmpty)
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.blue[50],
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: Colors.blue[200]!),
-                                      ),
-                                      child: IconButton(
-                                        icon: Icon(Icons.picture_as_pdf, color: Colors.blue[600], size: 16),
-                                        onPressed: () => _exportTransactionsToPdf(
-                                          transactions: _todayTransactions,
-                                          reportTitle: _getFilteredReportTitle('Today\'s Transactions'),
-                                          fileName: _generatePdfFileName('today_transactions'),
-                                        ),
-                                        tooltip: 'Export to PDF',
-                                        padding: EdgeInsets.all(4),
-                                        constraints: BoxConstraints(
-                                          minWidth: 24,
-                                          minHeight: 24,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              SizedBox(height: isSmallMobile ? 4 : 6),
-                              
-                              // Category and Product Filters for Today's Transactions
-                              Container(
-                                width: double.infinity,
-                                padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
-                                margin: EdgeInsets.only(bottom: isSmallMobile ? 6 : 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue[50],
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: Colors.blue[200]!),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Filter Today\'s Transactions',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: isSmallMobile ? 10 : 12,
-                                        color: Colors.blue[700],
-                                      ),
-                                    ),
-                                    SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        // Category Dropdown
-                                        Expanded(
-                                          child: Container(
-                                            height: isSmallMobile ? 28 : 32,
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius: BorderRadius.circular(4),
-                                              border: Border.all(color: Colors.blue[300]!),
-                                            ),
-                                            child: DropdownButtonHideUnderline(
-                                              child: DropdownButton<String>(
-                                                value: _selectedReportCategory ?? 'All',
-                                                isExpanded: true,
-                                                icon: Icon(
-                                                  Icons.keyboard_arrow_down,
-                                                  color: Colors.blue[600],
-                                                  size: isSmallMobile ? 12 : 14,
-                                                ),
-                                                items: ['All', ..._categories.where((c) => c != 'All')]
-                                                    .map((cat) => DropdownMenuItem(
-                                                          value: cat,
-                                                          child: Padding(
-                                                            padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 6 : 8),
-                                                            child: Text(
-                                                              cat,
-                                                              style: TextStyle(fontSize: isSmallMobile ? 9 : 10),
-                                                            ),
-                                                          ),
-                                                        ))
-                                                    .toList(),
-                                                onChanged: (val) {
-                                                  setState(() { 
-                                                    _selectedReportCategory = val; 
-                                                  });
-                                                  _fetchTodayTransactions();
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        SizedBox(width: 6),
-                                        // Product Dropdown
-                                        Expanded(
-                                          child: Container(
-                                            height: isSmallMobile ? 28 : 32,
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius: BorderRadius.circular(4),
-                                              border: Border.all(color: Colors.blue[300]!),
-                                            ),
-                                            child: DropdownButtonHideUnderline(
-                                              child: DropdownButton<String>(
-                                                value: _selectedReportProduct ?? 'All',
-                                                isExpanded: true,
-                                                icon: Icon(
-                                                  Icons.keyboard_arrow_down,
-                                                  color: Colors.blue[600],
-                                                  size: isSmallMobile ? 12 : 14,
-                                                ),
-                                                items: ['All', ..._products.map((p) => p.name)]
-                                                    .map((prod) => DropdownMenuItem(
-                                                          value: prod,
-                                                          child: Padding(
-                                                            padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 6 : 8),
-                                                            child: Text(
-                                                              prod,
-                                                              style: TextStyle(fontSize: isSmallMobile ? 9 : 10),
-                                                            ),
-                                                          ),
-                                                        ))
-                                                    .toList(),
-                                                onChanged: (val) {
-                                                  setState(() { 
-                                                    _selectedReportProduct = val; 
-                                                  });
-                                                  _fetchTodayTransactions();
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              
-                              _buildTransactionsTable(
-                                _todayTransactions, 
-                                _todayLoading, 
-                                _todayError, 
-                                'No transactions today', 
-                                isSmallMobile,
-                                currentPage: _todayTransactionsCurrentPage,
-                                onPageChanged: (page) => setState(() => _todayTransactionsCurrentPage = page),
-                                paginationLabel: 'Today',
-                              ),
-                              SizedBox(height: isSmallMobile ? 8 : 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                'This Weeks Transactions', 
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold, 
-                                  fontSize: isSmallMobile ? 11 : 13,
-                                ),
-                                    ),
-                                  ),
-                                  if (_weekTransactions.isNotEmpty)
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.green[50],
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: Colors.green[200]!),
-                                      ),
-                                      child: IconButton(
-                                        icon: Icon(Icons.picture_as_pdf, color: Colors.green[600], size: 16),
-                                        onPressed: () => _exportTransactionsToPdf(
-                                          transactions: _weekTransactions,
-                                          reportTitle: _getFilteredReportTitle('This Week\'s Transactions'),
-                                          fileName: _generatePdfFileName('week_transactions'),
-                                        ),
-                                        tooltip: 'Export to PDF',
-                                        padding: EdgeInsets.all(4),
-                                        constraints: BoxConstraints(
-                                          minWidth: 24,
-                                          minHeight: 24,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              SizedBox(height: isSmallMobile ? 4 : 6),
-                              
-                              // Category and Product Filters for This Week's Transactions
-                              Container(
-                                width: double.infinity,
-                                padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
-                                margin: EdgeInsets.only(bottom: isSmallMobile ? 6 : 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.green[50],
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: Colors.green[200]!),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Filter This Week\'s Transactions',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: isSmallMobile ? 10 : 12,
-                                        color: Colors.green[700],
-                                      ),
-                                    ),
-                                    SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        // Category Dropdown
-                                        Expanded(
-                                          child: Container(
-                                            height: isSmallMobile ? 28 : 32,
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius: BorderRadius.circular(4),
-                                              border: Border.all(color: Colors.green[300]!),
-                                            ),
-                                            child: DropdownButtonHideUnderline(
-                                              child: DropdownButton<String>(
-                                                value: _selectedReportCategory ?? 'All',
-                                                isExpanded: true,
-                                                icon: Icon(
-                                                  Icons.keyboard_arrow_down,
-                                                  color: Colors.green[600],
-                                                  size: isSmallMobile ? 12 : 14,
-                                                ),
-                                                items: ['All', ..._categories.where((c) => c != 'All')]
-                                                    .map((cat) => DropdownMenuItem(
-                                                          value: cat,
-                                                          child: Padding(
-                                                            padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 6 : 8),
-                                                            child: Text(
-                                                              cat,
-                                                              style: TextStyle(fontSize: isSmallMobile ? 9 : 10),
-                                                            ),
-                                                          ),
-                                                        ))
-                                                    .toList(),
-                                                onChanged: (val) {
-                                                  setState(() { 
-                                                    _selectedReportCategory = val; 
-                                                  });
-                                                  _fetchWeekTransactions();
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        SizedBox(width: 6),
-                                        // Product Dropdown
-                                        Expanded(
-                                          child: Container(
-                                            height: isSmallMobile ? 28 : 32,
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius: BorderRadius.circular(4),
-                                              border: Border.all(color: Colors.green[300]!),
-                                            ),
-                                            child: DropdownButtonHideUnderline(
-                                              child: DropdownButton<String>(
-                                                value: _selectedReportProduct ?? 'All',
-                                                isExpanded: true,
-                                                icon: Icon(
-                                                  Icons.keyboard_arrow_down,
-                                                  color: Colors.green[600],
-                                                  size: isSmallMobile ? 12 : 14,
-                                                ),
-                                                items: ['All', ..._products.map((p) => p.name)]
-                                                    .map((prod) => DropdownMenuItem(
-                                                          value: prod,
-                                                          child: Padding(
-                                                            padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 6 : 8),
-                                                            child: Text(
-                                                              prod,
-                                                              style: TextStyle(fontSize: isSmallMobile ? 9 : 10),
-                                                            ),
-                                                          ),
-                                                        ))
-                                                    .toList(),
-                                                onChanged: (val) {
-                                                  setState(() { 
-                                                    _selectedReportProduct = val; 
-                                                  });
-                                                  _fetchWeekTransactions();
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              
-                              _buildTransactionsTable(
-                                _weekTransactions, 
-                                _weekLoading, 
-                                _weekError, 
-                                'No transactions this week', 
-                                isSmallMobile,
-                                currentPage: _weekTransactionsCurrentPage,
-                                onPageChanged: (page) => setState(() => _weekTransactionsCurrentPage = page),
-                                paginationLabel: 'Week',
-                              ),
-                              SizedBox(height: isSmallMobile ? 8 : 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
                                 'Filter Transactions by Date', 
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold, 
@@ -1671,7 +1180,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Filter by Category & Product',
+                                      'Filter by Category, Product & Type',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: isSmallMobile ? 10 : 12,
@@ -1757,6 +1266,49 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                                 onChanged: (val) {
                                                   setState(() { 
                                                     _selectedReportProduct = val; 
+                                                  });
+                                                  if (_filterStartDate != null && _filterEndDate != null) {
+                                                    _loadFilteredTransactions();
+                                                  }
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(width: 6),
+                                        // Transaction Type Dropdown
+                                        Expanded(
+                                          child: Container(
+                                            height: isSmallMobile ? 28 : 32,
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius: BorderRadius.circular(4),
+                                              border: Border.all(color: Colors.purple[300]!),
+                                            ),
+                                            child: DropdownButtonHideUnderline(
+                                              child: DropdownButton<String>(
+                                                value: _selectedTransactionType ?? 'All',
+                                                isExpanded: true,
+                                                icon: Icon(
+                                                  Icons.keyboard_arrow_down,
+                                                  color: Colors.purple[600],
+                                                  size: isSmallMobile ? 12 : 14,
+                                                ),
+                                                items: ['All', 'sale', 'purchase', 'adjustment', 'transfer_in', 'transfer_out', 'damaged']
+                                                    .map((type) => DropdownMenuItem(
+                                                          value: type,
+                                                          child: Padding(
+                                                            padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 6 : 8),
+                                                            child: Text(
+                                                              type.toUpperCase(),
+                                                              style: TextStyle(fontSize: isSmallMobile ? 9 : 10),
+                                                            ),
+                                                          ),
+                                                        ))
+                                                    .toList(),
+                                                onChanged: (val) {
+                                                  setState(() { 
+                                                    _selectedTransactionType = val; 
                                                   });
                                                   if (_filterStartDate != null && _filterEndDate != null) {
                                                     _loadFilteredTransactions();
@@ -3545,163 +3097,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
   }
 
-  Future<void> _fetchRecentTransactions() async {
-    setState(() { _recentLoading = true; _recentError = null; });
-    try {
-      final params = <String, dynamic>{'limit': 10};
-      
-      // Add category filter if selected
-      if (_selectedReportCategory != null && _selectedReportCategory != 'All') {
-        final cat = _categoryList.firstWhere(
-          (c) => c['name'] == _selectedReportCategory,
-          orElse: () => <String, dynamic>{},
-        );
-        if (cat.isNotEmpty) {
-          params['category_id'] = cat['id'];
-        }
-      }
-      
-      // Add product filter if selected
-      if (_selectedReportProduct != null && _selectedReportProduct != 'All') {
-        final prod = _products.firstWhere(
-          (p) => p.name == _selectedReportProduct,
-          orElse: () => Product(
-            id: -1,
-            name: '',
-            sku: '',
-            price: 0,
-            costPrice: 0,
-            stockQuantity: 0,
-            damagedQuantity: 0,
-            lowStockThreshold: 0,
-          ),
-        );
-        if (prod.id != -1) {
-          params['product_id'] = prod.id;
-        }
-      }
-      
-      final data = await _apiService.getInventoryTransactions(params);
-        setState(() { 
-          _recentTransactions = List<Map<String, dynamic>>.from(data);
-          _resetRecentTransactionsPagination();
-        });
-    } catch (e) {
-      setState(() { _recentError = 'Failed to load recent transactions: $e'; });
-    } finally {
-      setState(() { _recentLoading = false; });
-    }
-  }
-
-  Future<void> _fetchTodayTransactions() async {
-    setState(() { _todayLoading = true; _todayError = null; });
-    try {
-      final today = DateTime.now();
-      final start = DateTime(today.year, today.month, today.day);
-      final end = start.add(Duration(days: 1)).subtract(Duration(milliseconds: 1));
-      
-      final params = <String, dynamic>{
-        'start_date': start.toIso8601String(),
-        'end_date': end.toIso8601String(),
-      };
-      
-      // Add category filter if selected
-      if (_selectedReportCategory != null && _selectedReportCategory != 'All') {
-        final cat = _categoryList.firstWhere(
-          (c) => c['name'] == _selectedReportCategory,
-          orElse: () => <String, dynamic>{},
-        );
-        if (cat.isNotEmpty) {
-          params['category_id'] = cat['id'];
-        }
-      }
-      
-      // Add product filter if selected
-      if (_selectedReportProduct != null && _selectedReportProduct != 'All') {
-        final prod = _products.firstWhere(
-          (p) => p.name == _selectedReportProduct,
-          orElse: () => Product(
-            id: -1,
-            name: '',
-            sku: '',
-            price: 0,
-            costPrice: 0,
-            stockQuantity: 0,
-            damagedQuantity: 0,
-            lowStockThreshold: 0,
-          ),
-        );
-        if (prod.id != -1) {
-          params['product_id'] = prod.id;
-        }
-      }
-      
-      final data = await _apiService.getInventoryTransactions(params);
-        setState(() { 
-          _todayTransactions = List<Map<String, dynamic>>.from(data);
-          _resetTodayTransactionsPagination();
-        });
-    } catch (e) {
-      setState(() { _todayError = 'Failed to load today\'s transactions: $e'; });
-    } finally {
-      setState(() { _todayLoading = false; });
-    }
-  }
-
-  Future<void> _fetchWeekTransactions() async {
-    setState(() { _weekLoading = true; _weekError = null; });
-    try {
-      final now = DateTime.now();
-      final start = now.subtract(Duration(days: now.weekday - 1));
-      final end = start.add(Duration(days: 7)).subtract(Duration(milliseconds: 1));
-      
-      final params = <String, dynamic>{
-        'start_date': start.toIso8601String(),
-        'end_date': end.toIso8601String(),
-      };
-      
-      // Add category filter if selected
-      if (_selectedReportCategory != null && _selectedReportCategory != 'All') {
-        final cat = _categoryList.firstWhere(
-          (c) => c['name'] == _selectedReportCategory,
-          orElse: () => <String, dynamic>{},
-        );
-        if (cat.isNotEmpty) {
-          params['category_id'] = cat['id'];
-        }
-      }
-      
-      // Add product filter if selected
-      if (_selectedReportProduct != null && _selectedReportProduct != 'All') {
-        final prod = _products.firstWhere(
-          (p) => p.name == _selectedReportProduct,
-          orElse: () => Product(
-            id: -1,
-            name: '',
-            sku: '',
-            price: 0,
-            costPrice: 0,
-            stockQuantity: 0,
-            damagedQuantity: 0,
-            lowStockThreshold: 0,
-          ),
-        );
-        if (prod.id != -1) {
-          params['product_id'] = prod.id;
-        }
-      }
-      
-      final data = await _apiService.getInventoryTransactions(params);
-        setState(() { 
-          _weekTransactions = List<Map<String, dynamic>>.from(data);
-          _resetWeekTransactionsPagination();
-        });
-    } catch (e) {
-      setState(() { _weekError = 'Failed to load this week\'s transactions: $e'; });
-    } finally {
-      setState(() { _weekLoading = false; });
-    }
-  }
 
   void _loadFilteredTransactions() {
     print('🔍 INVENTORY: _loadFilteredTransactions called');
@@ -3709,6 +3104,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     print('🔍 INVENTORY: _filterEndDate: $_filterEndDate');
     print('🔍 INVENTORY: _selectedReportCategory: $_selectedReportCategory');
     print('🔍 INVENTORY: _selectedReportProduct: $_selectedReportProduct');
+    print('🔍 INVENTORY: _selectedTransactionType: $_selectedTransactionType');
     
     if (_filterStartDate != null && _filterEndDate != null) {
       setState(() {
@@ -3754,6 +3150,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
         }
       }
       
+      // Add transaction type filter if selected
+      if (_selectedTransactionType != null && _selectedTransactionType != 'All') {
+        params['transaction_type'] = _selectedTransactionType;
+        print('🔍 INVENTORY: Added transaction type filter: $_selectedTransactionType');
+      }
+      
       print('🔍 INVENTORY: Sending params to API: $params');
       
       _apiService.getInventoryTransactions(params).then((transactions) {
@@ -3796,17 +3198,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
     _stockSummaryCurrentPage = 0;
   }
   
-  void _resetRecentTransactionsPagination() {
-    _recentTransactionsCurrentPage = 0;
-  }
-  
-  void _resetTodayTransactionsPagination() {
-    _todayTransactionsCurrentPage = 0;
-  }
-  
-  void _resetWeekTransactionsPagination() {
-    _weekTransactionsCurrentPage = 0;
-  }
   
   void _resetFilteredTransactionsPagination() {
     _filteredTransactionsCurrentPage = 0;
@@ -3984,9 +3375,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       });
                       // Refresh all reports when category changes
                       _fetchInventoryValueReport();
-                      _fetchRecentTransactions();
-                      _fetchTodayTransactions();
-                      _fetchWeekTransactions();
                       if (_filterStartDate != null && _filterEndDate != null) {
                         _loadFilteredTransactions();
                       }
@@ -4035,9 +3423,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       });
                       // Refresh all reports when product changes
                       _fetchInventoryValueReport();
-                      _fetchRecentTransactions();
-                      _fetchTodayTransactions();
-                      _fetchWeekTransactions();
                       if (_filterStartDate != null && _filterEndDate != null) {
                         _loadFilteredTransactions();
                       }
@@ -4367,9 +3752,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
             });
             // Refresh all reports when category changes
             _fetchInventoryValueReport();
-            _fetchRecentTransactions();
-            _fetchTodayTransactions();
-            _fetchWeekTransactions();
             if (_filterStartDate != null && _filterEndDate != null) {
               _loadFilteredTransactions();
             }
@@ -4391,9 +3773,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
              });
             // Refresh all reports when product changes
             _fetchInventoryValueReport();
-            _fetchRecentTransactions();
-            _fetchTodayTransactions();
-            _fetchWeekTransactions();
             if (_filterStartDate != null && _filterEndDate != null) {
               _loadFilteredTransactions();
             }

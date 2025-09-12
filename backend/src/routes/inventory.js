@@ -120,7 +120,7 @@ router.put('/:id/stock', [auth, checkRole(['admin', 'manager'])], async (req, re
 // Get inventory transactions
 router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
-    const { start_date, end_date, user_id, category_id, product_id } = req.query;
+    const { start_date, end_date, user_id, category_id, product_id, transaction_type } = req.query;
     
     console.log('🔍 INVENTORY TRANSACTIONS: Request params:', { start_date, end_date, user_id });
     console.log('🔍 INVENTORY TRANSACTIONS: User:', req.user.id, req.user.role, req.user.business_id);
@@ -292,6 +292,13 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
       console.log('🔍 INVENTORY TRANSACTIONS: Added product filter:', product_id);
     }
     
+    // Add transaction type filter if provided
+    if (transaction_type) {
+      query += ' AND it.transaction_type = ?';
+      params.push(transaction_type);
+      console.log('🔍 INVENTORY TRANSACTIONS: Added transaction_type filter:', transaction_type);
+    }
+    
     query += ' ORDER BY it.created_at DESC';
     
     if (req.user.role === 'superadmin') {
@@ -407,7 +414,7 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
 // Get enhanced inventory transactions for PDF export
 router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
-    const { start_date, end_date, user_id, category_id, product_id, limit } = req.query;
+    const { start_date, end_date, user_id, category_id, product_id, transaction_type, limit } = req.query;
     
     console.log('📄 PDF TRANSACTIONS: Request params:', { start_date, end_date, user_id, limit });
     console.log('📄 PDF TRANSACTIONS: User:', req.user.id, req.user.role, req.user.business_id);
@@ -497,6 +504,13 @@ router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier']
       query += ' AND it.product_id = ?';
       params.push(product_id);
       console.log('📄 PDF TRANSACTIONS: Added product filter:', product_id);
+    }
+    
+    // Add transaction type filter if provided
+    if (transaction_type) {
+      query += ' AND it.transaction_type = ?';
+      params.push(transaction_type);
+      console.log('📄 PDF TRANSACTIONS: Added transaction_type filter:', transaction_type);
     }
     
     query += ' ORDER BY it.created_at DESC';

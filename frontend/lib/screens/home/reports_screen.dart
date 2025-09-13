@@ -1352,26 +1352,31 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               ? Text(t(context, 'no_transactions_found_for_product'))
                               : isMobile
                                   ? _buildMobileProductTransactionsCards(_productTransactions, isSmallMobile)
-                              : SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: DataTable(
-                                    columns: [
-                                      DataColumn(label: Text(t(context, 'Product'))),
-                                      DataColumn(label: Text(t(context, 'Date'))),
-                                      DataColumn(label: Text(t(context, 'Type'))),
-                                      DataColumn(label: Text(t(context, 'Quantity'))),
-                                      DataColumn(label: Text(t(context, 'Notes'))),
-                                      DataColumn(label: Text(t(context, 'Cost Price'))),
-                                      DataColumn(label: Text(t(context, 'Unit Price'))),
-                                      DataColumn(label: Text(t(context, 'Total Price'))),
-                                      DataColumn(label: Text(t(context, 'Profit'))),
-                                      DataColumn(label: Text(t(context, 'Customer'))),
-                                      DataColumn(label: Text(t(context, 'Payment Method'))),
-                                      DataColumn(label: Text(t(context, 'Sale ID'))),
-                                      DataColumn(label: Text(t(context, 'Status'))),
-                                      DataColumn(label: Text(t(context, 'Mode'))),
-                                      DataColumn(label: Text(t(context, 'Cashier'))),
-                                    ],
+                              : Card(
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: DataTable(
+                                      columnSpacing: 20,
+                                      horizontalMargin: 12,
+                                      columns: [
+                                        DataColumn(label: Text(t(context, 'Product'))),
+                                        DataColumn(label: Text(t(context, 'Date'))),
+                                        DataColumn(label: Text(t(context, 'Type'))),
+                                        DataColumn(label: Text(t(context, 'Quantity'))),
+                                        DataColumn(label: Text(t(context, 'Notes'))),
+                                        DataColumn(label: Text(t(context, 'Cost Price'))),
+                                        DataColumn(label: Text(t(context, 'Unit Price'))),
+                                        DataColumn(label: Text(t(context, 'Total Price'))),
+                                        DataColumn(label: Text(t(context, 'Profit'))),
+                                        DataColumn(label: Text(t(context, 'Customer'))),
+                                        DataColumn(label: Text(t(context, 'Payment Method'))),
+                                        DataColumn(label: Text(t(context, 'Sale ID'))),
+                                        DataColumn(label: Text(t(context, 'Status'))),
+                                        DataColumn(label: Text(t(context, 'Mode'))),
+                                        DataColumn(label: Text(t(context, 'Cashier'))),
+                                      ],
                                     rows: _productTransactions.map((tx) {
                                       // Debug: Log transaction data being rendered
                                       if (tx['product_name'] != null) {
@@ -1463,6 +1468,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                         ],
                                       );
                                     }).toList(),
+                                    ),
                                   ),
                                 ),
                 ],

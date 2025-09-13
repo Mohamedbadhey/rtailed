@@ -1425,6 +1425,41 @@ class PdfExportService {
     }
   }
   
+  // Export customer invoice PDF (generates and saves)
+  static Future<dynamic> exportCustomerInvoiceToPdf({
+    required Map<String, dynamic> customerData,
+    required List<Map<String, dynamic>> transactions,
+    required String fileName,
+    required Map<String, dynamic> businessInfo,
+    String? startDate,
+    String? endDate,
+  }) async {
+    try {
+      print('🔍 PDF Customer Invoice Export: Starting export for ${transactions.length} transactions');
+      
+      // Pre-load logo if available
+      await _preloadBusinessLogo(businessInfo);
+      
+      // Generate PDF bytes
+      final pdfBytes = await generateCustomerInvoice(
+        customerData: customerData,
+        transactions: transactions,
+        businessData: businessInfo,
+        startDate: startDate,
+        endDate: endDate,
+      );
+      
+      // Save PDF using platform-specific implementation
+      return await PdfExportPlatform.savePdf(pdfBytes, fileName);
+    } catch (e) {
+      print('🔍 PDF: Error exporting customer invoice: $e');
+      return {
+        'success': false,
+        'message': 'Failed to export customer invoice: $e',
+      };
+    }
+  }
+
   // Generate customer invoice PDF
   static Future<Uint8List> generateCustomerInvoice({
     required Map<String, dynamic> customerData,
@@ -1453,16 +1488,39 @@ class PdfExportService {
       reportTitle += ' - Until ${_formatDate(endDate)}';
     }
     
-    // Calculate pages needed
-    const itemsPerPage = 15; // Reduced for better readability
-    final totalPages = (transactions.length / itemsPerPage).ceil();
+    // Calculate pages needed - now based on total products across all transactions
+    final totalProducts = transactions.fold(0, (sum, tx) {
+      final items = tx['items'] as List<dynamic>? ?? [];
+      return sum + items.length;
+    });
+    const itemsPerPage = 45; // Maximum products per page with minimal header/footer
+    final totalPages = (totalProducts / itemsPerPage).ceil();
     
     print('🔍 PDF Customer Invoice: Creating $totalPages pages for ${transactions.length} transactions');
     
+    // Flatten all products for pagination
+    final allProducts = <Map<String, dynamic>>[];
+    for (final tx in transactions) {
+      final items = tx['items'] as List<dynamic>? ?? [];
+      for (final item in items) {
+        allProducts.add({
+          'product_name': item['product_name'] ?? 'Unknown Product',
+          'quantity': _safeToInt(item['quantity']),
+          'unit_price': _safeToDouble(item['unit_price']),
+          'total_price': _safeToDouble(item['total_price']),
+          'transaction_id': tx['id'],
+          'transaction_date': tx['created_at'],
+        });
+      }
+    }
+    
     for (int pageIndex = 0; pageIndex < totalPages; pageIndex++) {
       final startIndex = pageIndex * itemsPerPage;
-      final endIndex = (startIndex + itemsPerPage).clamp(0, transactions.length);
-      final pageTransactions = transactions.sublist(startIndex, endIndex);
+      final endIndex = (startIndex + itemsPerPage).clamp(0, allProducts.length);
+      final pageProducts = allProducts.sublist(startIndex, endIndex);
+      
+      // Group products back by transaction for the table
+      final pageTransactions = _groupProductsByTransaction(pageProducts, transactions);
       
       pdf.addPage(
         pw.Page(
@@ -1474,7 +1532,7 @@ class PdfExportService {
                 // Header (only on first page)
                 if (pageIndex == 0) ...[
                   _buildCustomerInvoiceHeader(customerData, businessData, reportTitle),
-                  pw.SizedBox(height: 8),
+                  pw.SizedBox(height: 4),
                 ],
                 
                 // Page number indicator
@@ -1496,16 +1554,16 @@ class PdfExportService {
                       textAlign: pw.TextAlign.center,
                     ),
                   ),
-                  pw.SizedBox(height: 6),
+                  pw.SizedBox(height: 2),
                 ],
                 
                 // Transactions Table for this page
                 _buildCustomerInvoiceTable(pageTransactions, showTotals: pageIndex == totalPages - 1, allTransactions: transactions),
                 
-                // Summary (only on last page)
+                // Business details (only on last page)
                 if (pageIndex == totalPages - 1) ...[
-                  pw.SizedBox(height: 8),
-                  _buildCustomerInvoiceSummary(transactions, customerData),
+                  pw.SizedBox(height: 4),
+                  _buildBusinessDetailsFooter(businessData),
                 ],
               ],
             );
@@ -1527,127 +1585,156 @@ class PdfExportService {
     final customerPhone = customerData['phone'] ?? '';
     final customerAddress = customerData['address'] ?? '';
     
+    // Generate invoice ID and date
+    final invoiceId = 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+    final invoiceDate = DateFormat('MMM dd, yyyy').format(DateTime.now());
+    
     return pw.Container(
       width: double.infinity,
-      padding: const pw.EdgeInsets.all(12),
+      padding: const pw.EdgeInsets.all(6),
       decoration: pw.BoxDecoration(
         color: primaryColor,
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(3)),
       ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          // Business Info Row
+          // Top Row: Business Info + Invoice Details
           pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              // Business Logo
-              _buildBusinessLogo(businessData, primaryColor),
-              
-              pw.SizedBox(width: 12),
-              
-              // Business Info
+              // Left: Business Logo + Info
               pw.Expanded(
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                flex: 2,
+                child: pw.Row(
                   children: [
-                    pw.Text(
-                      businessName,
-                      style: pw.TextStyle(
-                        color: PdfColors.white,
-                        fontSize: 16,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                    ),
-                    pw.Text(
-                      tagline,
-                      style: pw.TextStyle(
-                        color: PdfColors.grey200,
-                        fontSize: 10,
-                        fontWeight: pw.FontWeight.normal,
+                    // Business Logo
+                    _buildBusinessLogo(businessData, primaryColor),
+                    
+                    pw.SizedBox(width: 6),
+                    
+                    // Business Info
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            businessName,
+                            style: pw.TextStyle(
+                              color: PdfColors.white,
+                              fontSize: 12,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                          ),
+                          pw.Text(
+                            tagline,
+                            style: pw.TextStyle(
+                              color: PdfColors.grey200,
+                              fontSize: 8,
+                              fontWeight: pw.FontWeight.normal,
+                            ),
+                          ),
+                          if (businessData['address'] != null && businessData['address'].toString().isNotEmpty) ...[
+                            pw.SizedBox(height: 1),
+                            pw.Text(
+                              businessData['address'].toString(),
+                              style: pw.TextStyle(
+                                color: PdfColors.grey200,
+                                fontSize: 7,
+                                fontWeight: pw.FontWeight.normal,
+                              ),
+                              maxLines: 2,
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
               
-              // Customer Info
+              // Right: Invoice Details
               pw.Expanded(
-                child: pw.Container(
-                  padding: const pw.EdgeInsets.all(8),
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.grey100,
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'BILL TO:',
-                        style: pw.TextStyle(
-                          color: PdfColors.white,
-                          fontSize: 8,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
+                flex: 1,
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      'INVOICE',
+                      style: pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.bold,
                       ),
-                      pw.SizedBox(height: 4),
-                      pw.Text(
-                        customerName,
-                        style: pw.TextStyle(
-                          color: PdfColors.white,
-                          fontSize: 12,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
+                    ),
+                    pw.SizedBox(height: 1),
+                    pw.Text(
+                      'ID: $invoiceId',
+                      style: pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: 8,
+                        fontWeight: pw.FontWeight.bold,
                       ),
-                      if (customerEmail.isNotEmpty) ...[
-                        pw.SizedBox(height: 2),
-                        pw.Text(
-                          customerEmail,
-                          style: pw.TextStyle(
-                            color: PdfColors.grey200,
-                            fontSize: 9,
-                          ),
-                        ),
-                      ],
-                      if (customerPhone.isNotEmpty) ...[
-                        pw.SizedBox(height: 2),
-                        pw.Text(
-                          customerPhone,
-                          style: pw.TextStyle(
-                            color: PdfColors.grey200,
-                            fontSize: 9,
-                          ),
-                        ),
-                      ],
-                      if (customerAddress.isNotEmpty) ...[
-                        pw.SizedBox(height: 2),
-                        pw.Text(
-                          customerAddress,
-                          style: pw.TextStyle(
-                            color: PdfColors.grey200,
-                            fontSize: 9,
-                          ),
-                          maxLines: 2,
-                        ),
-                      ],
-                    ],
-                  ),
+                    ),
+                    pw.SizedBox(height: 1),
+                    pw.Text(
+                      'Date: $invoiceDate',
+                      style: pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: 8,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
           
-          pw.SizedBox(height: 8),
+          pw.SizedBox(height: 4),
+          
+          // Customer Info Row
+          pw.Row(
+            children: [
+              // Bill To Section
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'BILL TO:',
+                      style: pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: 8,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.SizedBox(height: 1),
+                    pw.Text(
+                      customerName,
+                      style: pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          
+          pw.SizedBox(height: 3),
           
           // Report Title
           pw.Container(
             width: double.infinity,
-            padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             child: pw.Text(
               reportTitle,
               style: pw.TextStyle(
                 color: PdfColors.white,
-                fontSize: 11,
+                fontSize: 9,
                 fontWeight: pw.FontWeight.bold,
               ),
               textAlign: pw.TextAlign.center,
@@ -1658,34 +1745,46 @@ class PdfExportService {
     );
   }
   
-  // Build customer invoice table
+  // Build customer invoice table - Simple product-based format
   static pw.Widget _buildCustomerInvoiceTable(List<Map<String, dynamic>> transactions, {
     bool showTotals = true,
     List<Map<String, dynamic>>? allTransactions,
   }) {
-    // Calculate totals from ALL data if provided
+    // Flatten all products from all transactions
+    final allProducts = <Map<String, dynamic>>[];
     final dataForTotals = allTransactions ?? transactions;
-    final totalAmount = dataForTotals.fold(0.0, (sum, tx) => sum + _safeToDouble(tx['total_amount']));
-    final totalTransactions = dataForTotals.length;
-    final totalItems = dataForTotals.fold(0, (sum, tx) {
+    
+    for (final tx in dataForTotals) {
       final items = tx['items'] as List<dynamic>? ?? [];
-      return sum + items.fold(0, (itemSum, item) => itemSum + _safeToInt(item['quantity']));
-    });
+      for (final item in items) {
+        allProducts.add({
+          'product_name': item['product_name'] ?? 'Unknown Product',
+          'quantity': _safeToInt(item['quantity']),
+          'unit_price': _safeToDouble(item['unit_price']),
+          'total_price': _safeToDouble(item['total_price']),
+          'transaction_date': tx['created_at'],
+          'transaction_id': tx['id'],
+        });
+      }
+    }
+    
+    // Calculate totals
+    final totalAmount = allProducts.fold(0.0, (sum, product) => sum + product['total_price']);
+    final totalQuantity = allProducts.fold(0, (sum, product) => sum + _safeToInt(product['quantity']));
+    final totalProducts = allProducts.length;
     
     return pw.Container(
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey400),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
       ),
       child: pw.Table(
         border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.3),
         columnWidths: const {
-          0: pw.FlexColumnWidth(1), // Date
-          1: pw.FlexColumnWidth(1.5), // Transaction ID
-          2: pw.FlexColumnWidth(2), // Products
-          3: pw.FlexColumnWidth(0.8), // Items
-          4: pw.FlexColumnWidth(1), // Payment
-          5: pw.FlexColumnWidth(1.2), // Total
+          0: pw.FlexColumnWidth(3), // Product Name
+          1: pw.FlexColumnWidth(1), // Quantity
+          2: pw.FlexColumnWidth(1.5), // Unit Price
+          3: pw.FlexColumnWidth(1.5), // Total
         },
         children: [
           // Table Header
@@ -1693,66 +1792,44 @@ class PdfExportService {
             decoration: const pw.BoxDecoration(color: PdfColors.grey200),
             children: [
               pw.Padding(
-                padding: const pw.EdgeInsets.all(3),
+                padding: const pw.EdgeInsets.all(4),
                 child: pw.Text(
-                  'Date',
+                  'Product',
                   style: pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
-                    fontSize: 8,
+                    fontSize: 9,
+                  ),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  'Qty',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 9,
                   ),
                   textAlign: pw.TextAlign.center,
                 ),
               ),
               pw.Padding(
-                padding: const pw.EdgeInsets.all(3),
+                padding: const pw.EdgeInsets.all(4),
                 child: pw.Text(
-                  'Transaction',
+                  'Price',
                   style: pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
-                    fontSize: 8,
+                    fontSize: 9,
                   ),
                   textAlign: pw.TextAlign.center,
                 ),
               ),
               pw.Padding(
-                padding: const pw.EdgeInsets.all(3),
-                child: pw.Text(
-                  'Products',
-                  style: pw.TextStyle(
-                    fontWeight: pw.FontWeight.bold,
-                    fontSize: 8,
-                  ),
-                ),
-              ),
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(3),
-                child: pw.Text(
-                  'Items',
-                  style: pw.TextStyle(
-                    fontWeight: pw.FontWeight.bold,
-                    fontSize: 8,
-                  ),
-                  textAlign: pw.TextAlign.center,
-                ),
-              ),
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(3),
-                child: pw.Text(
-                  'Payment',
-                  style: pw.TextStyle(
-                    fontWeight: pw.FontWeight.bold,
-                    fontSize: 8,
-                  ),
-                  textAlign: pw.TextAlign.center,
-                ),
-              ),
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(3),
+                padding: const pw.EdgeInsets.all(4),
                 child: pw.Text(
                   'Total',
                   style: pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
-                    fontSize: 8,
+                    fontSize: 9,
                   ),
                   textAlign: pw.TextAlign.center,
                 ),
@@ -1760,55 +1837,38 @@ class PdfExportService {
             ],
           ),
           
-          // Table Rows
-          ...transactions.map((tx) => pw.TableRow(
+          // Table Rows - Show products from current page transactions
+          ..._getProductsFromTransactions(transactions).map((product) => pw.TableRow(
             children: [
               pw.Padding(
-                padding: const pw.EdgeInsets.all(2),
+                padding: const pw.EdgeInsets.all(3),
                 child: pw.Text(
-                  _formatDate(tx['created_at'] ?? ''),
-                  style: const pw.TextStyle(fontSize: 7),
+                  product['product_name'],
+                  style: const pw.TextStyle(fontSize: 8),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(3),
+                child: pw.Text(
+                  product['quantity'].toString(),
+                  style: const pw.TextStyle(fontSize: 8),
                   textAlign: pw.TextAlign.center,
                 ),
               ),
               pw.Padding(
-                padding: const pw.EdgeInsets.all(2),
+                padding: const pw.EdgeInsets.all(3),
                 child: pw.Text(
-                  '#${tx['id']}',
-                  style: const pw.TextStyle(fontSize: 7),
+                  '\$${product['unit_price'].toStringAsFixed(2)}',
+                  style: const pw.TextStyle(fontSize: 8),
                   textAlign: pw.TextAlign.center,
                 ),
               ),
               pw.Padding(
-                padding: const pw.EdgeInsets.all(2),
+                padding: const pw.EdgeInsets.all(3),
                 child: pw.Text(
-                  _getTransactionProducts(tx),
-                  style: const pw.TextStyle(fontSize: 7),
-                  maxLines: 2,
-                ),
-              ),
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(2),
-                child: pw.Text(
-                  _getTransactionItemCount(tx).toString(),
-                  style: const pw.TextStyle(fontSize: 7),
-                  textAlign: pw.TextAlign.center,
-                ),
-              ),
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(2),
-                child: pw.Text(
-                  tx['payment_method'] ?? '',
-                  style: const pw.TextStyle(fontSize: 7),
-                  textAlign: pw.TextAlign.center,
-                ),
-              ),
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(2),
-                child: pw.Text(
-                  '\$${_safeToDouble(tx['total_amount']).toStringAsFixed(2)}',
+                  '\$${product['total_price'].toStringAsFixed(2)}',
                   style: const pw.TextStyle(
-                    fontSize: 7,
+                    fontSize: 8,
                     fontWeight: pw.FontWeight.bold,
                   ),
                   textAlign: pw.TextAlign.center,
@@ -1818,78 +1878,242 @@ class PdfExportService {
           )).toList(),
           
           // Column Totals Row - Only show on last page
-          if (showTotals) pw.TableRow(
-            decoration: const pw.BoxDecoration(color: PdfColors.grey100),
-            children: [
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(4),
-                child: pw.Text(
-                  'TOTALS:',
-                  style: pw.TextStyle(
-                    fontSize: 8,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.grey800,
+          if (showTotals) ...[
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+              children: [
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(4),
+                  child: pw.Text(
+                    'TOTAL:',
+                    style: pw.TextStyle(
+                      fontSize: 9,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.grey800,
+                    ),
                   ),
-                  textAlign: pw.TextAlign.center,
                 ),
-              ),
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(4),
-                child: pw.Text(
-                  totalTransactions.toString(),
-                  style: pw.TextStyle(
-                    fontSize: 8,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.grey800,
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(4),
+                  child: pw.Text(
+                    totalQuantity.toString(),
+                    style: pw.TextStyle(
+                      fontSize: 9,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.grey800,
+                    ),
+                    textAlign: pw.TextAlign.center,
                   ),
-                  textAlign: pw.TextAlign.center,
                 ),
-              ),
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(4),
-                child: pw.Text(
-                  '', // Empty for products column
-                  style: const pw.TextStyle(fontSize: 7),
-                ),
-              ),
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(4),
-                child: pw.Text(
-                  totalItems.toString(),
-                  style: pw.TextStyle(
-                    fontSize: 8,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.grey800,
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(4),
+                  child: pw.Text(
+                    '', // Empty for unit price column
+                    style: const pw.TextStyle(fontSize: 8),
                   ),
-                  textAlign: pw.TextAlign.center,
                 ),
-              ),
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(4),
-                child: pw.Text(
-                  '', // Empty for payment column
-                  style: const pw.TextStyle(fontSize: 7),
-                ),
-              ),
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(4),
-                child: pw.Text(
-                  '\$${totalAmount.toStringAsFixed(2)}',
-                  style: pw.TextStyle(
-                    fontSize: 9,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.grey900,
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(4),
+                  child: pw.Text(
+                    '\$${totalAmount.toStringAsFixed(2)}',
+                    style: pw.TextStyle(
+                      fontSize: 9,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.grey800,
+                    ),
+                    textAlign: pw.TextAlign.center,
                   ),
-                  textAlign: pw.TextAlign.center,
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+            // Balance Due Row
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+              children: [
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(4),
+                  child: pw.Text(
+                    'BALANCE DUE:',
+                    style: pw.TextStyle(
+                      fontSize: 9,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.grey800,
+                    ),
+                  ),
+                ),
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(4),
+                  child: pw.Text(
+                    '', // Empty for quantity column
+                    style: const pw.TextStyle(fontSize: 8),
+                  ),
+                ),
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(4),
+                  child: pw.Text(
+                    '', // Empty for unit price column
+                    style: const pw.TextStyle(fontSize: 8),
+                  ),
+                ),
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(4),
+                  child: pw.Text(
+                    '\$${totalAmount.toStringAsFixed(2)}',
+                    style: pw.TextStyle(
+                      fontSize: 9,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.grey800,
+                    ),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
   
+  // Helper method to get products from transactions
+  static List<Map<String, dynamic>> _getProductsFromTransactions(List<Map<String, dynamic>> transactions) {
+    final products = <Map<String, dynamic>>[];
+    for (final tx in transactions) {
+      final items = tx['items'] as List<dynamic>? ?? [];
+      for (final item in items) {
+        products.add({
+          'product_name': item['product_name'] ?? 'Unknown Product',
+          'quantity': _safeToInt(item['quantity']),
+          'unit_price': _safeToDouble(item['unit_price']),
+          'total_price': _safeToDouble(item['total_price']),
+        });
+      }
+    }
+    return products;
+  }
+  
+  // Helper method to group products back by transaction for pagination
+  static List<Map<String, dynamic>> _groupProductsByTransaction(List<Map<String, dynamic>> pageProducts, List<Map<String, dynamic>> allTransactions) {
+    final Map<int, List<Map<String, dynamic>>> groupedProducts = {};
+    
+    // Group products by transaction ID
+    for (final product in pageProducts) {
+      final txId = product['transaction_id'] as int;
+      if (!groupedProducts.containsKey(txId)) {
+        groupedProducts[txId] = [];
+      }
+      groupedProducts[txId]!.add({
+        'product_name': product['product_name'],
+        'quantity': product['quantity'],
+        'unit_price': product['unit_price'],
+        'total_price': product['total_price'],
+      });
+    }
+    
+    // Create transaction objects with their products
+    final result = <Map<String, dynamic>>[];
+    for (final tx in allTransactions) {
+      final txId = tx['id'] as int;
+      if (groupedProducts.containsKey(txId)) {
+        result.add({
+          ...tx,
+          'items': groupedProducts[txId]!,
+        });
+      }
+    }
+    
+    return result;
+  }
+  
+  // Build business details footer
+  static pw.Widget _buildBusinessDetailsFooter(Map<String, dynamic> businessData) {
+    final businessName = businessData['name'] ?? 'XXX';
+    final tagline = businessData['tagline'] ?? 'XXX';
+    final primaryColor = _parseColor(businessData['primary_color'] ?? '#1976D2');
+    
+    return pw.Column(
+      children: [
+        // Business Details
+        pw.Container(
+          width: double.infinity,
+          padding: const pw.EdgeInsets.all(8),
+          decoration: pw.BoxDecoration(
+            color: primaryColor,
+            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(3)),
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Text(
+                businessName,
+                style: pw.TextStyle(
+                  color: PdfColors.white,
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
+              if (tagline.isNotEmpty) ...[
+                pw.SizedBox(height: 1),
+                pw.Text(
+                  tagline,
+                  style: pw.TextStyle(
+                    color: PdfColors.white,
+                    fontSize: 8,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ],
+              if (businessData['address'] != null && businessData['address'].toString().isNotEmpty) ...[
+                pw.SizedBox(height: 1),
+                pw.Text(
+                  businessData['address'].toString(),
+                  style: pw.TextStyle(
+                    color: PdfColors.white,
+                    fontSize: 7,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                  maxLines: 2,
+                ),
+              ],
+              pw.SizedBox(height: 2),
+              pw.Text(
+                'Thank you for your business!',
+                style: pw.TextStyle(
+                  color: PdfColors.white,
+                  fontSize: 9,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+        
+        pw.SizedBox(height: 4),
+        
+        // Kismayo ICT Solution Footer
+        pw.Container(
+          width: double.infinity,
+          padding: const pw.EdgeInsets.all(6),
+          decoration: pw.BoxDecoration(
+            color: PdfColors.grey100,
+            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(3)),
+          ),
+          child: pw.Text(
+            'Generated by Kismayo ICT Solution | Phone: 0614112537 | Website: kismayoict.com',
+            style: pw.TextStyle(
+              color: PdfColors.grey700,
+              fontSize: 6,
+              fontWeight: pw.FontWeight.normal,
+            ),
+            textAlign: pw.TextAlign.center,
+          ),
+        ),
+      ],
+    );
+  }
+
   // Build customer invoice summary
   static pw.Widget _buildCustomerInvoiceSummary(List<Map<String, dynamic>> transactions, Map<String, dynamic> customerData) {
     final totalAmount = transactions.fold(0.0, (sum, tx) => sum + _safeToDouble(tx['total_amount']));

@@ -320,46 +320,122 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: EdgeInsets.only(
-          left: isSmallMobile ? 8 : (isMobile ? 12 : 16),
-          right: isSmallMobile ? 8 : (isMobile ? 12 : 16),
-          bottom: isSmallMobile ? 8 : (isMobile ? 12 : 16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Summary Cards - Scrollable within main scroll
-            _buildSummaryCards(isSmallMobile, isMobile, isTablet, isDesktop, isLargeDesktop),
-            
-            SizedBox(height: isSmallMobile ? 12 : (isMobile ? 16 : 24)),
-            
-            // Filters - Scrollable within main scroll
-            _buildFilters(isSmallMobile, isMobile, isTablet, isDesktop),
-            
-            SizedBox(height: isSmallMobile ? 12 : (isMobile ? 16 : 24)),
-            
-            // Sales List - Scrollable within main scroll
-            _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? Center(child: Text(_error!))
-                    : _filteredSales.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.receipt, size: 64, color: Colors.grey),
-                                const SizedBox(height: 16),
-                                Text(t(context, 'No sales found')),
-                              ],
-                            ),
-                          )
-                        : _buildSalesList(isSmallMobile, isMobile, isTablet, isDesktop),
-          ],
-        ),
-      ),
+      body: _isLoading
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).primaryColor,
+                    ),
+                  ),
+                  SizedBox(height: isSmallMobile ? 16 : (isMobile ? 20 : 24)),
+                  Text(
+                    t(context, 'Loading Sales Data...'),
+                    style: TextStyle(
+                      fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18),
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: isSmallMobile ? 8 : (isMobile ? 12 : 16)),
+                  Text(
+                    t(context, 'Please wait while we fetch your sales information'),
+                    style: TextStyle(
+                      fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
+                      color: Colors.grey[500],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            )
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: isSmallMobile ? 48 : (isMobile ? 64 : 80),
+                        color: Colors.red[400],
+                      ),
+                      SizedBox(height: isSmallMobile ? 16 : (isMobile ? 20 : 24)),
+                      Text(
+                        t(context, 'Error Loading Sales'),
+                        style: TextStyle(
+                          fontSize: isSmallMobile ? 16 : (isMobile ? 18 : 20),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red[700],
+                        ),
+                      ),
+                      SizedBox(height: isSmallMobile ? 8 : (isMobile ? 12 : 16)),
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isSmallMobile ? 16 : (isMobile ? 24 : 32),
+                        ),
+                        child: Text(
+                          _error!,
+                          style: TextStyle(
+                            fontSize: isSmallMobile ? 12 : (isMobile ? 14 : 16),
+                            color: Colors.grey[600],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      SizedBox(height: isSmallMobile ? 16 : (isMobile ? 20 : 24)),
+                      ElevatedButton.icon(
+                        onPressed: _loadSales,
+                        icon: const Icon(Icons.refresh),
+                        label: Text(t(context, 'Retry')),
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isSmallMobile ? 16 : (isMobile ? 20 : 24),
+                            vertical: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.only(
+                    left: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                    right: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                    bottom: isSmallMobile ? 8 : (isMobile ? 12 : 16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Summary Cards - Scrollable within main scroll
+                      _buildSummaryCards(isSmallMobile, isMobile, isTablet, isDesktop, isLargeDesktop),
+                      
+                      SizedBox(height: isSmallMobile ? 12 : (isMobile ? 16 : 24)),
+                      
+                      // Filters - Scrollable within main scroll
+                      _buildFilters(isSmallMobile, isMobile, isTablet, isDesktop),
+                      
+                      SizedBox(height: isSmallMobile ? 12 : (isMobile ? 16 : 24)),
+                      
+                      // Sales List - Scrollable within main scroll
+                      _filteredSales.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.receipt, size: 64, color: Colors.grey),
+                                  const SizedBox(height: 16),
+                                  Text(t(context, 'No sales found')),
+                                ],
+                              ),
+                            )
+                          : _buildSalesList(isSmallMobile, isMobile, isTablet, isDesktop),
+                    ],
+                  ),
+                ),
     );
   }
 
@@ -369,41 +445,75 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
     final cancelledSales = _sales.where((s) => s.status == 'cancelled').length;
     final creditSales = _sales.where((s) => s.status == 'unpaid').length;
     
-    // Truly responsive grid layout
+    // Enhanced responsive grid layout with better sizing
     int crossAxisCount;
+    double childAspectRatio;
+    double mainAxisSpacing;
+    double crossAxisSpacing;
     
     if (isSmallMobile) {
       crossAxisCount = 2; // 2 columns on very small screens
+      childAspectRatio = 1.4; // Taller cards for mobile
+      mainAxisSpacing = 8;
+      crossAxisSpacing = 8;
     } else if (isMobile) {
       crossAxisCount = 2; // 2 columns on mobile
+      childAspectRatio = 1.5; // Even taller cards for better content
+      mainAxisSpacing = 10;
+      crossAxisSpacing = 10;
     } else if (isTablet) {
       crossAxisCount = 3; // 3 columns on tablet for better balance
+      childAspectRatio = 1.2; // Slightly taller
+      mainAxisSpacing = 12;
+      crossAxisSpacing = 12;
     } else if (isDesktop) {
       crossAxisCount = 4; // 4 columns on desktop
+      childAspectRatio = 1.1; // Compact but readable
+      mainAxisSpacing = 16;
+      crossAxisSpacing = 16;
     } else {
       crossAxisCount = 4; // 4 columns on large desktop
+      childAspectRatio = 1.0; // Square cards
+      mainAxisSpacing = 20;
+      crossAxisSpacing = 20;
     }
     
     return Card(
+      elevation: isSmallMobile ? 2 : (isMobile ? 3 : 4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(isSmallMobile ? 8 : (isMobile ? 10 : 12)),
+      ),
       child: Padding(
         padding: EdgeInsets.all(isSmallMobile ? 12 : (isMobile ? 14 : 16)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Sales Overview',
-              style: TextStyle(
-                fontSize: isSmallMobile ? 16 : (isMobile ? 17 : 18),
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                Icon(
+                  Icons.analytics,
+                  size: isSmallMobile ? 18 : (isMobile ? 20 : 22),
+                  color: Colors.blue[700],
+                ),
+                SizedBox(width: isSmallMobile ? 6 : 8),
+                Text(
+                  'Sales Overview',
+                  style: TextStyle(
+                    fontSize: isSmallMobile ? 16 : (isMobile ? 17 : 18),
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: isSmallMobile ? 12 : 16),
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               crossAxisCount: crossAxisCount,
-              crossAxisSpacing: isSmallMobile ? 2 : (isMobile ? 4 : 8),
-              mainAxisSpacing: isSmallMobile ? 2 : (isMobile ? 4 : 8),
+              crossAxisSpacing: crossAxisSpacing,
+              mainAxisSpacing: mainAxisSpacing,
+              childAspectRatio: childAspectRatio,
               children: [
                 _buildSummaryCard('Total', totalSales.toString(), Icons.receipt, Colors.blue, isSmallMobile, isMobile),
                 _buildSummaryCard('Completed', completedSales.toString(), Icons.check_circle, Colors.green, isSmallMobile, isMobile),
@@ -424,49 +534,103 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
         final cardWidth = constraints.maxWidth;
         final cardHeight = constraints.maxHeight;
         
-        // Responsive padding based on card size
-        final padding = cardWidth < 100 ? 4.0 : (cardWidth < 150 ? 6.0 : 8.0);
+        // More responsive padding based on card size and screen type
+        final padding = isSmallMobile 
+            ? (cardWidth < 100 ? 4.0 : 6.0)
+            : isMobile 
+                ? (cardWidth < 120 ? 6.0 : 8.0)
+                : (cardWidth < 150 ? 8.0 : 12.0);
         
-        // Responsive icon size based on card size
-        final iconSize = cardWidth < 100 ? 16.0 : (cardWidth < 150 ? 20.0 : 24.0);
+        // More responsive icon size based on card size and screen type
+        final iconSize = isSmallMobile 
+            ? (cardWidth < 100 ? 16.0 : 20.0)
+            : isMobile 
+                ? (cardWidth < 120 ? 20.0 : 24.0)
+                : (cardWidth < 150 ? 24.0 : 32.0);
         
-        // Responsive font sizes based on card size
-        final valueFontSize = cardWidth < 100 ? 12.0 : (cardWidth < 150 ? 14.0 : 16.0);
-        final titleFontSize = cardWidth < 100 ? 8.0 : (cardWidth < 150 ? 10.0 : 12.0);
+        // More responsive font sizes based on card size and screen type
+        final valueFontSize = isSmallMobile 
+            ? (cardWidth < 100 ? 12.0 : 14.0)
+            : isMobile 
+                ? (cardWidth < 120 ? 14.0 : 16.0)
+                : (cardWidth < 150 ? 16.0 : 22.0);
+        final titleFontSize = isSmallMobile 
+            ? (cardWidth < 100 ? 8.0 : 9.0)
+            : isMobile 
+                ? (cardWidth < 120 ? 9.0 : 10.0)
+                : (cardWidth < 150 ? 10.0 : 12.0);
         
-        // Responsive spacing based on card size
-        final spacing = cardHeight < 80 ? 2.0 : (cardHeight < 120 ? 4.0 : 6.0);
+        // More responsive spacing based on card size and screen type
+        final spacing = isSmallMobile 
+            ? (cardHeight < 80 ? 2.0 : 4.0)
+            : isMobile 
+                ? (cardHeight < 100 ? 4.0 : 6.0)
+                : (cardHeight < 120 ? 6.0 : 10.0);
         
         return Container(
           padding: EdgeInsets.all(padding),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(padding),
-            border: Border.all(color: color.withOpacity(0.3)),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                color.withOpacity(0.1),
+                color.withOpacity(0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(isSmallMobile ? 8 : (isMobile ? 10 : 12)),
+            border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: color, size: iconSize),
+              // Icon with background circle
+              Container(
+                padding: EdgeInsets.all(
+                  isSmallMobile 
+                      ? (cardWidth < 100 ? 3.0 : 4.0)
+                      : isMobile 
+                          ? (cardWidth < 120 ? 4.0 : 6.0)
+                          : (cardWidth < 150 ? 6.0 : 10.0)
+                ),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: iconSize),
+              ),
               SizedBox(height: spacing),
+              // Value with enhanced styling
               Text(
                 value,
                 style: TextStyle(
                   fontSize: valueFontSize,
                   fontWeight: FontWeight.bold,
                   color: color,
+                  letterSpacing: 0.5,
                 ),
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: spacing / 2),
+              // Title with enhanced styling
               Text(
                 title,
                 style: TextStyle(
                   fontSize: titleFontSize,
-                  color: color,
-                  fontWeight: FontWeight.w500,
+                  color: color.withOpacity(0.8),
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.3,
                 ),
                 textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -477,17 +641,32 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
 
   Widget _buildFilters(bool isSmallMobile, bool isMobile, bool isTablet, bool isDesktop) {
     return Card(
+      elevation: isSmallMobile ? 2 : (isMobile ? 3 : 4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(isSmallMobile ? 8 : (isMobile ? 10 : 12)),
+      ),
       child: Padding(
         padding: EdgeInsets.all(isSmallMobile ? 12 : (isMobile ? 14 : 16)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              t(context, 'Filters'),
-              style: TextStyle(
-                fontSize: isSmallMobile ? 16 : (isMobile ? 17 : 18),
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                Icon(
+                  Icons.filter_list,
+                  size: isSmallMobile ? 18 : (isMobile ? 20 : 22),
+                  color: Colors.orange[700],
+                ),
+                SizedBox(width: isSmallMobile ? 6 : 8),
+                Text(
+                  t(context, 'Filters'),
+                  style: TextStyle(
+                    fontSize: isSmallMobile ? 16 : (isMobile ? 17 : 18),
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: isSmallMobile ? 12 : 16),
             
@@ -717,12 +896,16 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
         final canCancel = sale.status == 'completed' || sale.status == 'unpaid';
         
         return Card(
-          margin: EdgeInsets.only(bottom: isSmallMobile ? 4 : (isMobile ? 6 : 16)),
+          elevation: isSmallMobile ? 2 : (isMobile ? 3 : 4),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(isSmallMobile ? 8 : (isMobile ? 10 : 12)),
+          ),
+          margin: EdgeInsets.only(bottom: isSmallMobile ? 8 : (isMobile ? 10 : 16)),
           child: ListTile(
             dense: isSmallMobile || isMobile, // Make it dense on mobile
             contentPadding: EdgeInsets.symmetric(
-              horizontal: isSmallMobile ? 8 : (isMobile ? 12 : 16),
-              vertical: isSmallMobile ? 4 : (isMobile ? 6 : 8),
+              horizontal: isSmallMobile ? 12 : (isMobile ? 16 : 24),
+              vertical: isSmallMobile ? 10 : (isMobile ? 12 : 16),
             ),
             title: Text(
               'Sale #${sale.id ?? 'Unknown'}',
@@ -789,7 +972,7 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
                  SizedBox(height: isSmallMobile ? 1 : 2),
                  // Date and time
                  Text(
-                   'Date: ${_formatDate(sale.createdAt)}',
+                   'Date: ${_formatTimestamp(sale.createdAt?.toIso8601String() ?? '')}',
                    style: TextStyle(
                      fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 12),
                      color: Colors.grey[600],
@@ -878,7 +1061,7 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
                    if (sale.cancelledAt != null) ...[
                      SizedBox(height: isSmallMobile ? 1 : 2),
                      Text(
-                       'Cancelled: ${_formatDate(sale.cancelledAt)}',
+                       'Cancelled: ${_formatTimestamp(sale.cancelledAt?.toIso8601String() ?? '')}',
                        style: TextStyle(
                          fontSize: isSmallMobile ? 8 : (isMobile ? 9 : 10),
                          color: Colors.red[600],
@@ -904,12 +1087,17 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
    }
 
   Widget _buildSalesTable(bool isSmallMobile, bool isMobile, bool isTablet, bool isDesktop) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columnSpacing: isTablet ? 12 : (isDesktop ? 20 : 24),
-        dataRowHeight: isTablet ? 56 : (isDesktop ? 68 : 72),
-        headingRowHeight: isTablet ? 48 : (isDesktop ? 60 : 64),
+    return Card(
+      elevation: isTablet ? 2 : (isDesktop ? 3 : 4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(isTablet ? 8 : (isDesktop ? 10 : 12)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columnSpacing: isTablet ? 16 : (isDesktop ? 24 : 28),
+          dataRowHeight: isTablet ? 60 : (isDesktop ? 72 : 80),
+          headingRowHeight: isTablet ? 52 : (isDesktop ? 64 : 72),
         columns: [
           DataColumn(
             label: Text(
@@ -1032,7 +1220,7 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
               ),
               DataCell(
                 Text(
-                  _formatDate(sale.createdAt),
+                  _formatTimestamp(sale.createdAt?.toIso8601String() ?? ''),
                   style: TextStyle(
                     fontSize: isTablet ? 12 : 14,
                     color: Colors.grey[600],
@@ -1053,6 +1241,7 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
             ],
           );
         }).toList(),
+        ),
       ),
     );
   }
@@ -1072,7 +1261,23 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
 
   String _formatDate(DateTime? date) {
     if (date == null) return 'Unknown';
-    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}:${date.second.toString().padLeft(2, '0')}';
+  }
+
+  String _formatTimestamp(String timestamp) {
+    try {
+      if (timestamp.isEmpty) return '';
+      
+      // Parse the timestamp and convert to local time
+      final dateTime = DateTime.parse(timestamp);
+      final localDateTime = dateTime.toLocal();
+      
+      // Format: "2025-08-27 19:15:33" (same as inventory screen)
+      return '${localDateTime.year}-${localDateTime.month.toString().padLeft(2, '0')}-${localDateTime.day.toString().padLeft(2, '0')} ${localDateTime.hour.toString().padLeft(2, '0')}:${localDateTime.minute.toString().padLeft(2, '0')}:${localDateTime.second.toString().padLeft(2, '0')}';
+    } catch (e) {
+      // Fallback to original timestamp if parsing fails
+      return timestamp;
+    }
   }
 
   String _formatPaymentMethod(String? method) {
@@ -1122,7 +1327,7 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
               title: Text(t(context, 'Date Range')),
               subtitle: Text(
                 _filterStartDate != null && _filterEndDate != null
-                    ? '${_formatDate(_filterStartDate)} - ${_formatDate(_filterEndDate)}'
+                    ? '${_formatTimestamp(_filterStartDate?.toIso8601String() ?? '')} - ${_formatTimestamp(_filterEndDate?.toIso8601String() ?? '')}'
                     : 'No date filter',
               ),
               onTap: () async {

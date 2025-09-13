@@ -13,6 +13,7 @@ import 'package:retail_management/screens/home/settings_screen.dart';
 import 'package:retail_management/screens/home/admin_settings_screen.dart';
 import 'package:retail_management/screens/home/profile_screen.dart';
 import 'package:retail_management/screens/home/notifications_screen.dart';
+import 'package:retail_management/screens/home/customer_invoice_screen.dart';
 import 'package:retail_management/screens/accounting/accounting_dashboard_screen.dart';
 import 'package:retail_management/screens/accounting/expenses_screen.dart';
 import 'package:retail_management/screens/accounting/vendors_screen.dart';

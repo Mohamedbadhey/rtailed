@@ -6,6 +6,7 @@ import 'package:retail_management/screens/home/damaged_products_screen.dart';
 import 'package:retail_management/screens/home/sales_management_screen.dart';
 import 'package:retail_management/screens/accounting/accounting_dashboard_screen.dart';
 import 'package:retail_management/screens/home/store_management_screen.dart';
+import 'package:retail_management/screens/home/customer_invoice_screen.dart';
 
 import 'package:retail_management/utils/translate.dart';
 import 'package:retail_management/services/api_service.dart';
@@ -31,8 +32,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     final user = context.read<AuthProvider>().user;
     final isAdmin = user != null && user.role == 'admin';
     
-    // Number of tabs: General Settings, Damages, Credit, Sales Management, Store Management, and optionally Accounting for admins
-    final tabCount = isAdmin ? 6 : 5;
+    // Number of tabs: General Settings, Damages, Credit, Sales Management, Store Management, Customer Invoice, and optionally Accounting for admins
+    final tabCount = isAdmin ? 7 : 6;
     _tabController = TabController(length: tabCount, vsync: this);
     _loadCreditCustomers();
   }
@@ -123,6 +124,13 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
               ),
               text: isSmallMobile ? 'Stores' : t(context, 'Store Management'),
             ),
+            Tab(
+              icon: Icon(
+                Icons.receipt_long,
+                size: isSmallMobile ? 18 : (isMobile ? 20 : 24),
+              ),
+              text: isSmallMobile ? 'Invoice' : t(context, 'Customer Invoice'),
+            ),
             if (isAdmin)
               Tab(
                 icon: Icon(
@@ -151,6 +159,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
           
           // Store Management
           const StoreManagementScreen(),
+          
+          // Customer Invoice
+          const CustomerInvoiceScreen(),
           
           // Accounting (only for admins)
           if (isAdmin)

@@ -149,7 +149,7 @@ class PdfExportService {
                   ],
                   
                   // Transactions Table for this page
-                  _buildCompactInvoiceTable(pageTransactions),
+                  _buildCompactInvoiceTable(pageTransactions, showTotals: pageIndex == totalPages - 1, allTransactions: transactions),
                   
                   // Summary (only on last page)
                   if (pageIndex == totalPages - 1) ...[
@@ -341,7 +341,7 @@ class PdfExportService {
                   ],
                   
                   // Stock Summary Table for this page
-                  _buildStockSummaryTable(pageStockData),
+                  _buildStockSummaryTable(pageStockData, showTotals: pageIndex == totalPages - 1, allStockData: stockData),
                   
                   // Summary (only on last page)
                   if (pageIndex == totalPages - 1) ...[
@@ -458,10 +458,6 @@ class PdfExportService {
           pw.Container(
             width: double.infinity,
             padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reduced padding
-            decoration: pw.BoxDecoration(
-              color: PdfColors.grey300,
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)), // Smaller radius
-            ),
             child: pw.Text(
               reportTitle,
               style: pw.TextStyle(
@@ -588,7 +584,18 @@ class PdfExportService {
   }
   
   // Build stock summary table
-  static pw.Widget _buildStockSummaryTable(List<Map<String, dynamic>> stockData) {
+  static pw.Widget _buildStockSummaryTable(List<Map<String, dynamic>> stockData, {
+    bool showTotals = true,
+    List<Map<String, dynamic>>? allStockData,
+  }) {
+    // Calculate column totals from ALL data if provided, otherwise from current page data
+    final dataForTotals = allStockData ?? stockData;
+    final totalSold = dataForTotals.fold(0, (sum, row) => sum + _safeToInt(row['quantity_sold']));
+    final totalRemaining = dataForTotals.fold(0, (sum, row) => sum + _safeToInt(row['quantity_remaining']));
+    final totalRevenue = dataForTotals.fold(0.0, (sum, row) => sum + _safeToDouble(row['revenue']));
+    final totalProfit = dataForTotals.fold(0.0, (sum, row) => sum + _safeToDouble(row['profit']));
+    final totalProducts = dataForTotals.length;
+    
     return pw.Container(
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey400),
@@ -748,13 +755,115 @@ class PdfExportService {
               ),
             ],
           )).toList(),
+          
+          // Column Totals Row - Only show on last page
+          if (showTotals) pw.TableRow(
+            decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+            children: [
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  'TOTALS:',
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey800,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  totalProducts.toString(),
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey800,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  '', // Empty for category column
+                  style: const pw.TextStyle(fontSize: 7),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  totalSold.toString(),
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey800,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  totalRemaining.toString(),
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey800,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  '\$${totalRevenue.toStringAsFixed(2)}',
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey800,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  '\$${totalProfit.toStringAsFixed(2)}',
+                  style: pw.TextStyle(
+                    fontSize: 9,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey900,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
   // Build compact invoice table
-  static pw.Widget _buildCompactInvoiceTable(List<Map<String, dynamic>> transactions) {
+  static pw.Widget _buildCompactInvoiceTable(List<Map<String, dynamic>> transactions, {
+    bool showTotals = true,
+    List<Map<String, dynamic>>? allTransactions,
+  }) {
+    // Calculate column totals from ALL data if provided, otherwise from current page data
+    final dataForTotals = allTransactions ?? transactions;
+    final totalCost = dataForTotals.fold(0.0, (sum, tx) {
+      final quantity = _safeToInt(tx['quantity']);
+      final costPrice = _getCostPrice(tx);
+      return sum + (quantity * costPrice);
+    });
+    
+    // Price column doesn't need a total - it shows unit prices
+    
+    final totalQuantity = dataForTotals.fold(0, (sum, tx) => sum + _safeToInt(tx['quantity']));
+    final grandTotal = dataForTotals.fold(0.0, (sum, tx) => sum + _calculateRowTotal(tx));
+    
     return pw.Container(
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey400),
@@ -899,6 +1008,75 @@ class PdfExportService {
               ),
             ],
           )).toList(),
+          
+          // Column Totals Row - Only show on last page
+          if (showTotals) pw.TableRow(
+            decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+            children: [
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  'TOTALS:',
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey800,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  '', // Empty for product column
+                  style: const pw.TextStyle(fontSize: 7),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  totalQuantity.toString(),
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey800,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  '\$${totalCost.toStringAsFixed(2)}',
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey800,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  '', // Empty for Price column - unit prices don't need totals
+                  style: const pw.TextStyle(fontSize: 7),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  '\$${grandTotal.toStringAsFixed(2)}',
+                  style: pw.TextStyle(
+                    fontSize: 9,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey900,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -911,48 +1089,98 @@ class PdfExportService {
     final totalRevenue = stockData.fold(0.0, (sum, row) => sum + _safeToDouble(row['revenue']));
     final totalProfit = stockData.fold(0.0, (sum, row) => sum + _safeToDouble(row['profit']));
     final totalProducts = stockData.length;
+    final avgRevenuePerProduct = totalProducts > 0 ? (totalRevenue / totalProducts) : 0.0;
+    final profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100) : 0.0;
     
     return pw.Container(
-      padding: const pw.EdgeInsets.all(12),
+      padding: const pw.EdgeInsets.all(16),
       decoration: pw.BoxDecoration(
         color: PdfColors.grey50,
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-        border: pw.Border.all(color: PdfColors.grey400),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+        border: pw.Border.all(color: PdfColors.grey400, width: 1),
       ),
       child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.end,
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          // Summary rows
-          _buildSummaryRow('Total Products:', totalProducts, isCurrency: false),
-          pw.SizedBox(height: 4),
-          _buildSummaryRow('Total Sold Quantity:', totalSold, isCurrency: false),
-          pw.SizedBox(height: 4),
-          _buildSummaryRow('Total Remaining Quantity:', totalRemaining, isCurrency: false),
-          pw.SizedBox(height: 8),
-          pw.Divider(color: PdfColors.grey400, thickness: 0.5),
-          pw.SizedBox(height: 6),
-          
-          // Financial Summary
-          _buildSummaryRow('Total Revenue:', totalRevenue),
-          pw.SizedBox(height: 4),
-          _buildSummaryRow('Total Profit:', totalProfit),
-          pw.SizedBox(height: 8),
-          pw.Divider(color: PdfColors.grey400, thickness: 0.5),
-          pw.SizedBox(height: 6),
-          
-          // Footer
+          // Header
           pw.Container(
-            padding: const pw.EdgeInsets.all(8),
+            width: double.infinity,
+            padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
             decoration: pw.BoxDecoration(
-              color: PdfColors.grey100,
+              color: PdfColors.grey200,
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
             ),
             child: pw.Text(
-              'Stock Summary Report Generated',
+              'STOCK SUMMARY REPORT',
               style: pw.TextStyle(
-                fontSize: 10,
+                fontSize: 12,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.grey800,
+              ),
+              textAlign: pw.TextAlign.center,
+            ),
+          ),
+          
+          pw.SizedBox(height: 12),
+          
+          // Summary Grid - Professional Layout
+          pw.Row(
+            children: [
+              // Left Column - Inventory Metrics
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _buildProfessionalSummaryRow('Total Products:', totalProducts, isCurrency: false),
+                    pw.SizedBox(height: 6),
+                    _buildProfessionalSummaryRow('Total Sold Qty:', totalSold, isCurrency: false),
+                    pw.SizedBox(height: 6),
+                    _buildProfessionalSummaryRow('Total Remaining Qty:', totalRemaining, isCurrency: false),
+                    pw.SizedBox(height: 6),
+                    _buildProfessionalSummaryRow('Avg. Revenue/Product:', avgRevenuePerProduct),
+                  ],
+                ),
+              ),
+              
+              pw.SizedBox(width: 20),
+              
+              // Right Column - Financial Metrics
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _buildProfessionalSummaryRow('Total Revenue:', totalRevenue, isHighlight: true),
+                    pw.SizedBox(height: 6),
+                    _buildProfessionalSummaryRow('Total Profit:', totalProfit, isHighlight: true),
+                    pw.SizedBox(height: 6),
+                    _buildProfessionalSummaryRow('Profit Margin:', profitMargin, suffix: '%'),
+                    pw.SizedBox(height: 8),
+                    pw.Divider(color: PdfColors.grey400, thickness: 0.5),
+                    pw.SizedBox(height: 8),
+                    _buildProfessionalSummaryRow('GRAND TOTAL:', totalRevenue, isGrandTotal: true),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          
+          pw.SizedBox(height: 16),
+          
+          // Footer
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey100,
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+              border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+            ),
+            child: pw.Text(
+              'Stock Summary Report Generated on ${DateFormat('MMM dd, yyyy \'at\' HH:mm').format(DateTime.now())}',
+              style: pw.TextStyle(
+                fontSize: 9,
                 fontWeight: pw.FontWeight.normal,
-                color: PdfColors.grey700,
+                color: PdfColors.grey600,
               ),
               textAlign: pw.TextAlign.center,
             ),
@@ -971,67 +1199,94 @@ class PdfExportService {
     final totalTransactions = transactions.length;
     
     return pw.Container(
-      padding: const pw.EdgeInsets.all(12),
+      padding: const pw.EdgeInsets.all(16),
       decoration: pw.BoxDecoration(
         color: PdfColors.grey50,
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-        border: pw.Border.all(color: PdfColors.grey400),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+        border: pw.Border.all(color: PdfColors.grey400, width: 1),
       ),
       child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.end,
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          // Summary rows
-          _buildSummaryRow('Subtotal:', subtotal),
-          pw.SizedBox(height: 4),
-          _buildSummaryRow('Total Cost:', totalCost),
-          pw.SizedBox(height: 4),
-          _buildSummaryRow('Total Profit:', totalProfit),
-          pw.SizedBox(height: 4),
-          _buildSummaryRow('Total Items:', totalQuantity, isCurrency: false),
-          pw.SizedBox(height: 4),
-          _buildSummaryRow('Transactions:', totalTransactions, isCurrency: false),
-          pw.SizedBox(height: 8),
-          pw.Divider(color: PdfColors.grey400, thickness: 0.5),
-          pw.SizedBox(height: 6),
+          // Header
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey200,
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+            ),
+            child: pw.Text(
+              'TRANSACTION SUMMARY',
+              style: pw.TextStyle(
+                fontSize: 12,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.grey800,
+              ),
+              textAlign: pw.TextAlign.center,
+            ),
+          ),
           
-          // Grand Total
+          pw.SizedBox(height: 12),
+          
+          // Summary Grid - Professional Layout
           pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text(
-                'GRAND TOTAL:',
-                style: pw.TextStyle(
-                  fontSize: 14,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.grey900,
+              // Left Column - Financial Metrics
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _buildProfessionalSummaryRow('Total Revenue:', subtotal, isHighlight: true),
+                    pw.SizedBox(height: 6),
+                    _buildProfessionalSummaryRow('Total Cost:', totalCost),
+                    pw.SizedBox(height: 6),
+                    _buildProfessionalSummaryRow('Total Profit:', totalProfit, isHighlight: true),
+                    pw.SizedBox(height: 8),
+                    pw.Divider(color: PdfColors.grey400, thickness: 0.5),
+                    pw.SizedBox(height: 8),
+                    _buildProfessionalSummaryRow('GRAND TOTAL:', subtotal, isGrandTotal: true),
+                  ],
                 ),
               ),
-              pw.Text(
-                '\$${subtotal.toStringAsFixed(2)}',
-                style: pw.TextStyle(
-                  fontSize: 14,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.grey900,
+              
+              pw.SizedBox(width: 20),
+              
+              // Right Column - Transaction Metrics
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _buildProfessionalSummaryRow('Total Items:', totalQuantity, isCurrency: false),
+                    pw.SizedBox(height: 6),
+                    _buildProfessionalSummaryRow('Transactions:', totalTransactions, isCurrency: false),
+                    pw.SizedBox(height: 6),
+                    _buildProfessionalSummaryRow('Avg. per Transaction:', totalTransactions > 0 ? (subtotal / totalTransactions) : 0.0),
+                    pw.SizedBox(height: 6),
+                    _buildProfessionalSummaryRow('Profit Margin:', subtotal > 0 ? ((totalProfit / subtotal) * 100) : 0.0, suffix: '%'),
+                  ],
                 ),
               ),
             ],
           ),
           
-          pw.SizedBox(height: 12),
+          pw.SizedBox(height: 16),
           
           // Footer
           pw.Container(
-            padding: const pw.EdgeInsets.all(8),
+            width: double.infinity,
+            padding: const pw.EdgeInsets.all(12),
             decoration: pw.BoxDecoration(
               color: PdfColors.grey100,
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+              border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
             ),
             child: pw.Text(
-              'Thank you for your business!',
+              'Report generated on ${DateFormat('MMM dd, yyyy \'at\' HH:mm').format(DateTime.now())}',
               style: pw.TextStyle(
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: pw.FontWeight.normal,
-                color: PdfColors.grey700,
+                color: PdfColors.grey600,
               ),
               textAlign: pw.TextAlign.center,
             ),
@@ -1055,6 +1310,53 @@ class PdfExportService {
           style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
         ),
       ],
+    );
+  }
+  
+  // Build professional summary row helper
+  static pw.Widget _buildProfessionalSummaryRow(String label, dynamic value, {
+    bool isCurrency = true, 
+    bool isHighlight = false, 
+    bool isGrandTotal = false,
+    String? suffix,
+  }) {
+    String displayValue;
+    if (isCurrency) {
+      displayValue = '\$${value.toStringAsFixed(2)}';
+    } else if (suffix != null) {
+      displayValue = '${value.toStringAsFixed(1)}$suffix';
+    } else {
+      displayValue = value.toString();
+    }
+    
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      decoration: isGrandTotal ? pw.BoxDecoration(
+        color: PdfColors.grey200,
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+        border: pw.Border.all(color: PdfColors.grey400, width: 1),
+      ) : null,
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(
+            label,
+            style: pw.TextStyle(
+              fontSize: isGrandTotal ? 11 : 10,
+              fontWeight: isGrandTotal || isHighlight ? pw.FontWeight.bold : pw.FontWeight.normal,
+              color: isGrandTotal ? PdfColors.grey900 : PdfColors.grey700,
+            ),
+          ),
+          pw.Text(
+            displayValue,
+            style: pw.TextStyle(
+              fontSize: isGrandTotal ? 12 : 10,
+              fontWeight: isGrandTotal || isHighlight ? pw.FontWeight.bold : pw.FontWeight.normal,
+              color: isGrandTotal ? PdfColors.grey900 : PdfColors.grey700,
+            ),
+          ),
+        ],
+      ),
     );
   }
   
@@ -1121,6 +1423,591 @@ class PdfExportService {
     } else {
       print('🔍 PDF: No logo data available for pre-loading');
     }
+  }
+  
+  // Generate customer invoice PDF
+  static Future<Uint8List> generateCustomerInvoice({
+    required Map<String, dynamic> customerData,
+    required List<Map<String, dynamic>> transactions,
+    required Map<String, dynamic> businessData,
+    String? startDate,
+    String? endDate,
+  }) async {
+    final pdf = pw.Document();
+    
+    // Calculate totals
+    final totalAmount = transactions.fold(0.0, (sum, tx) => sum + _safeToDouble(tx['total_amount']));
+    final totalTransactions = transactions.length;
+    final totalItems = transactions.fold(0, (sum, tx) {
+      final items = tx['items'] as List<dynamic>? ?? [];
+      return sum + items.fold(0, (itemSum, item) => itemSum + _safeToInt(item['quantity']));
+    });
+    
+    // Create report title
+    String reportTitle = 'CUSTOMER INVOICE';
+    if (startDate != null && endDate != null) {
+      reportTitle += ' - ${_formatDate(startDate)} to ${_formatDate(endDate)}';
+    } else if (startDate != null) {
+      reportTitle += ' - From ${_formatDate(startDate)}';
+    } else if (endDate != null) {
+      reportTitle += ' - Until ${_formatDate(endDate)}';
+    }
+    
+    // Calculate pages needed
+    const itemsPerPage = 15; // Reduced for better readability
+    final totalPages = (transactions.length / itemsPerPage).ceil();
+    
+    print('🔍 PDF Customer Invoice: Creating $totalPages pages for ${transactions.length} transactions');
+    
+    for (int pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+      final startIndex = pageIndex * itemsPerPage;
+      final endIndex = (startIndex + itemsPerPage).clamp(0, transactions.length);
+      final pageTransactions = transactions.sublist(startIndex, endIndex);
+      
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Header (only on first page)
+                if (pageIndex == 0) ...[
+                  _buildCustomerInvoiceHeader(customerData, businessData, reportTitle),
+                  pw.SizedBox(height: 8),
+                ],
+                
+                // Page number indicator
+                if (pageIndex > 0) ...[
+                  pw.Container(
+                    width: double.infinity,
+                    padding: const pw.EdgeInsets.all(4),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.grey100,
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                    ),
+                    child: pw.Text(
+                      'Page ${pageIndex + 1} of $totalPages',
+                      style: const pw.TextStyle(
+                        fontSize: 8,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.grey700,
+                      ),
+                      textAlign: pw.TextAlign.center,
+                    ),
+                  ),
+                  pw.SizedBox(height: 6),
+                ],
+                
+                // Transactions Table for this page
+                _buildCustomerInvoiceTable(pageTransactions, showTotals: pageIndex == totalPages - 1, allTransactions: transactions),
+                
+                // Summary (only on last page)
+                if (pageIndex == totalPages - 1) ...[
+                  pw.SizedBox(height: 8),
+                  _buildCustomerInvoiceSummary(transactions, customerData),
+                ],
+              ],
+            );
+          },
+        ),
+      );
+    }
+    
+    return pdf.save();
+  }
+  
+  // Build customer invoice header
+  static pw.Widget _buildCustomerInvoiceHeader(Map<String, dynamic> customerData, Map<String, dynamic> businessData, String reportTitle) {
+    final businessName = businessData['name'] ?? 'XXX';
+    final primaryColor = _parseColor(businessData['primary_color'] ?? '#1976D2');
+    final tagline = businessData['tagline'] ?? 'XXX';
+    final customerName = customerData['name'] ?? 'Customer';
+    final customerEmail = customerData['email'] ?? '';
+    final customerPhone = customerData['phone'] ?? '';
+    final customerAddress = customerData['address'] ?? '';
+    
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        color: primaryColor,
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          // Business Info Row
+          pw.Row(
+            children: [
+              // Business Logo
+              _buildBusinessLogo(businessData, primaryColor),
+              
+              pw.SizedBox(width: 12),
+              
+              // Business Info
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      businessName,
+                      style: pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                    ),
+                    pw.Text(
+                      tagline,
+                      style: pw.TextStyle(
+                        color: PdfColors.grey200,
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Customer Info
+              pw.Expanded(
+                child: pw.Container(
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'BILL TO:',
+                        style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontSize: 8,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        customerName,
+                        style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontSize: 12,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      if (customerEmail.isNotEmpty) ...[
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          customerEmail,
+                          style: pw.TextStyle(
+                            color: PdfColors.grey200,
+                            fontSize: 9,
+                          ),
+                        ),
+                      ],
+                      if (customerPhone.isNotEmpty) ...[
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          customerPhone,
+                          style: pw.TextStyle(
+                            color: PdfColors.grey200,
+                            fontSize: 9,
+                          ),
+                        ),
+                      ],
+                      if (customerAddress.isNotEmpty) ...[
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          customerAddress,
+                          style: pw.TextStyle(
+                            color: PdfColors.grey200,
+                            fontSize: 9,
+                          ),
+                          maxLines: 2,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          
+          pw.SizedBox(height: 8),
+          
+          // Report Title
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: pw.Text(
+              reportTitle,
+              style: pw.TextStyle(
+                color: PdfColors.white,
+                fontSize: 11,
+                fontWeight: pw.FontWeight.bold,
+              ),
+              textAlign: pw.TextAlign.center,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Build customer invoice table
+  static pw.Widget _buildCustomerInvoiceTable(List<Map<String, dynamic>> transactions, {
+    bool showTotals = true,
+    List<Map<String, dynamic>>? allTransactions,
+  }) {
+    // Calculate totals from ALL data if provided
+    final dataForTotals = allTransactions ?? transactions;
+    final totalAmount = dataForTotals.fold(0.0, (sum, tx) => sum + _safeToDouble(tx['total_amount']));
+    final totalTransactions = dataForTotals.length;
+    final totalItems = dataForTotals.fold(0, (sum, tx) {
+      final items = tx['items'] as List<dynamic>? ?? [];
+      return sum + items.fold(0, (itemSum, item) => itemSum + _safeToInt(item['quantity']));
+    });
+    
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey400),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+      ),
+      child: pw.Table(
+        border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.3),
+        columnWidths: const {
+          0: pw.FlexColumnWidth(1), // Date
+          1: pw.FlexColumnWidth(1.5), // Transaction ID
+          2: pw.FlexColumnWidth(2), // Products
+          3: pw.FlexColumnWidth(0.8), // Items
+          4: pw.FlexColumnWidth(1), // Payment
+          5: pw.FlexColumnWidth(1.2), // Total
+        },
+        children: [
+          // Table Header
+          pw.TableRow(
+            decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+            children: [
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(3),
+                child: pw.Text(
+                  'Date',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 8,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(3),
+                child: pw.Text(
+                  'Transaction',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 8,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(3),
+                child: pw.Text(
+                  'Products',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 8,
+                  ),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(3),
+                child: pw.Text(
+                  'Items',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 8,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(3),
+                child: pw.Text(
+                  'Payment',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 8,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(3),
+                child: pw.Text(
+                  'Total',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 8,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+          
+          // Table Rows
+          ...transactions.map((tx) => pw.TableRow(
+            children: [
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(2),
+                child: pw.Text(
+                  _formatDate(tx['created_at'] ?? ''),
+                  style: const pw.TextStyle(fontSize: 7),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(2),
+                child: pw.Text(
+                  '#${tx['id']}',
+                  style: const pw.TextStyle(fontSize: 7),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(2),
+                child: pw.Text(
+                  _getTransactionProducts(tx),
+                  style: const pw.TextStyle(fontSize: 7),
+                  maxLines: 2,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(2),
+                child: pw.Text(
+                  _getTransactionItemCount(tx).toString(),
+                  style: const pw.TextStyle(fontSize: 7),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(2),
+                child: pw.Text(
+                  tx['payment_method'] ?? '',
+                  style: const pw.TextStyle(fontSize: 7),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(2),
+                child: pw.Text(
+                  '\$${_safeToDouble(tx['total_amount']).toStringAsFixed(2)}',
+                  style: const pw.TextStyle(
+                    fontSize: 7,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+            ],
+          )).toList(),
+          
+          // Column Totals Row - Only show on last page
+          if (showTotals) pw.TableRow(
+            decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+            children: [
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  'TOTALS:',
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey800,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  totalTransactions.toString(),
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey800,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  '', // Empty for products column
+                  style: const pw.TextStyle(fontSize: 7),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  totalItems.toString(),
+                  style: pw.TextStyle(
+                    fontSize: 8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey800,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  '', // Empty for payment column
+                  style: const pw.TextStyle(fontSize: 7),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  '\$${totalAmount.toStringAsFixed(2)}',
+                  style: pw.TextStyle(
+                    fontSize: 9,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey900,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Build customer invoice summary
+  static pw.Widget _buildCustomerInvoiceSummary(List<Map<String, dynamic>> transactions, Map<String, dynamic> customerData) {
+    final totalAmount = transactions.fold(0.0, (sum, tx) => sum + _safeToDouble(tx['total_amount']));
+    final totalTransactions = transactions.length;
+    final totalItems = transactions.fold(0, (sum, tx) {
+      final items = tx['items'] as List<dynamic>? ?? [];
+      return sum + items.fold(0, (itemSum, item) => itemSum + _safeToInt(item['quantity']));
+    });
+    final avgTransactionValue = totalTransactions > 0 ? totalAmount / totalTransactions : 0.0;
+    
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(16),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.grey50,
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+        border: pw.Border.all(color: PdfColors.grey400, width: 1),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          // Header
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey200,
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+            ),
+            child: pw.Text(
+              'INVOICE SUMMARY',
+              style: pw.TextStyle(
+                fontSize: 12,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.grey800,
+              ),
+              textAlign: pw.TextAlign.center,
+            ),
+          ),
+          
+          pw.SizedBox(height: 12),
+          
+          // Summary Grid
+          pw.Row(
+            children: [
+              // Left Column
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _buildProfessionalSummaryRow('Customer:', customerData['name'] ?? 'N/A', isCurrency: false),
+                    pw.SizedBox(height: 6),
+                    _buildProfessionalSummaryRow('Total Transactions:', totalTransactions, isCurrency: false),
+                    pw.SizedBox(height: 6),
+                    _buildProfessionalSummaryRow('Total Items:', totalItems, isCurrency: false),
+                    pw.SizedBox(height: 6),
+                    _buildProfessionalSummaryRow('Avg. per Transaction:', avgTransactionValue),
+                  ],
+                ),
+              ),
+              
+              pw.SizedBox(width: 20),
+              
+              // Right Column
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _buildProfessionalSummaryRow('Total Amount:', totalAmount, isHighlight: true),
+                    pw.SizedBox(height: 8),
+                    pw.Divider(color: PdfColors.grey400, thickness: 0.5),
+                    pw.SizedBox(height: 8),
+                    _buildProfessionalSummaryRow('GRAND TOTAL:', totalAmount, isGrandTotal: true),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          
+          pw.SizedBox(height: 16),
+          
+          // Footer
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey100,
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+            ),
+            child: pw.Text(
+              'Invoice generated on ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}',
+              style: const pw.TextStyle(
+                fontSize: 8,
+                color: PdfColors.grey600,
+              ),
+              textAlign: pw.TextAlign.center,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Helper function to get transaction products summary
+  static String _getTransactionProducts(Map<String, dynamic> transaction) {
+    final items = transaction['items'] as List<dynamic>? ?? [];
+    if (items.isEmpty) return 'No items';
+    
+    if (items.length == 1) {
+      return items[0]['product_name'] ?? 'Unknown Product';
+    } else {
+      return '${items.length} products';
+    }
+  }
+  
+  // Helper function to get transaction item count
+  static int _getTransactionItemCount(Map<String, dynamic> transaction) {
+    final items = transaction['items'] as List<dynamic>? ?? [];
+    return items.fold(0, (sum, item) => sum + _safeToInt(item['quantity']));
   }
   
   // Build business logo widget

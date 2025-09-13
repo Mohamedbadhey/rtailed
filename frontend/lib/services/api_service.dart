@@ -920,6 +920,43 @@ class ApiService {
     }
   }
 
+  // Get all transactions for a specific customer (for invoice generation)
+  Future<Map<String, dynamic>> getCustomerTransactions({
+    required int customerId,
+    String? startDate,
+    String? endDate,
+  }) async {
+    try {
+      String url = '$baseUrl/api/sales/customer/$customerId/all-transactions';
+      List<String> queryParams = [];
+      
+      if (startDate != null) {
+        queryParams.add('start_date=$startDate');
+      }
+      if (endDate != null) {
+        queryParams.add('end_date=$endDate');
+      }
+      
+      if (queryParams.isNotEmpty) {
+        url += '?${queryParams.join('&')}';
+      }
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to get customer transactions: ${response.body}');
+      }
+    } catch (e) {
+      print('Get Customer Transactions Error: $e');
+      rethrow;
+    }
+  }
+
   // Get credit customers
   Future<List<Map<String, dynamic>>> getCreditCustomers() async {
     try {

@@ -66,7 +66,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   DateTime? _stockSummaryEndDate;
   // Add state for stock summary filter type
   String _stockSummaryFilterType = 'Today';
-  final List<String> _stockSummaryFilterOptions = ['Today', 'This Week', 'This Month', 'Custom'];
+  final List<String> _stockSummaryFilterOptions = ['Today', 'All Time', 'Custom'];
   DateTime? _startDate;
   DateTime? _endDate;
   DateTime? _filterStartDate;
@@ -302,13 +302,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
           startDate = DateTime(now.year, now.month, now.day);
           endDate = startDate.add(Duration(days: 1)).subtract(Duration(milliseconds: 1));
           break;
-        case 'This Week':
-          startDate = now.subtract(Duration(days: now.weekday - 1));
-          endDate = startDate.add(Duration(days: 7)).subtract(Duration(milliseconds: 1));
-          break;
-        case 'This Month':
-          startDate = DateTime(now.year, now.month, 1);
-          endDate = DateTime(now.year, now.month + 1, 1).subtract(Duration(milliseconds: 1));
+        case 'All Time':
+          // No date restrictions for all time
+          startDate = null;
+          endDate = null;
           break;
         case 'Custom':
           // Use existing custom date range
@@ -2800,13 +2797,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
       final today = DateTime.now();
       final dateStr = DateFormat('MMM dd, yyyy').format(today);
       filters.add('Date: $dateStr');
-    } else if (baseTitle.contains('Week')) {
-      final now = DateTime.now();
-      final start = now.subtract(Duration(days: now.weekday - 1));
-      final end = start.add(Duration(days: 6));
-      final startStr = DateFormat('MMM dd').format(start);
-      final endStr = DateFormat('MMM dd, yyyy').format(end);
-      filters.add('Date: $startStr - $endStr');
+    } else if (baseTitle.contains('All Time')) {
+      filters.add('Date: All Time');
     } else if (baseTitle.contains('Filtered')) {
       // For custom date range, we'll add this later when we have the actual dates
       if (_filterStartDate != null && _filterEndDate != null) {
@@ -2851,6 +2843,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
           final end = start.add(Duration(days: 1)).subtract(Duration(milliseconds: 1));
           params['start_date'] = start.toIso8601String();
           params['end_date'] = end.toIso8601String();
+          break;
+        case 'all_time':
+          // No date restrictions for all time
           break;
         case 'week':
           final now = DateTime.now();
@@ -2929,8 +2924,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
       
       if (reportTitle.contains('Today')) {
         filterType = 'today';
-      } else if (reportTitle.contains('Week')) {
-        filterType = 'week';
+      } else if (reportTitle.contains('All Time')) {
+        filterType = 'all_time';
+        startDate = null;
+        endDate = null;
       } else if (reportTitle.contains('Filtered')) {
         filterType = 'custom';
         startDate = _filterStartDate;
@@ -3112,16 +3109,20 @@ class _InventoryScreenState extends State<InventoryScreen> {
     print('🔍 INVENTORY: _selectedReportProduct: $_selectedReportProduct');
     print('🔍 INVENTORY: _selectedTransactionType: $_selectedTransactionType');
     
-    if (_filterStartDate != null && _filterEndDate != null) {
+    // Allow loading even with null dates for "All Time" filter
+    if (_filterStartDate != null && _filterEndDate != null || _filterStartDate == null && _filterEndDate == null) {
       setState(() {
         _filteredLoading = true;
         _filteredError = null;
       });
       
-      final params = <String, dynamic>{
-        'start_date': _filterStartDate!.toIso8601String(),
-        'end_date': _filterEndDate!.toIso8601String(),
-      };
+      final params = <String, dynamic>{};
+      
+      // Only add date filters if they are not null (not "All Time")
+      if (_filterStartDate != null && _filterEndDate != null) {
+        params['start_date'] = _filterStartDate!.toIso8601String();
+        params['end_date'] = _filterEndDate!.toIso8601String();
+      }
       
       // Add category filter if selected
       if (_selectedReportCategory != null && _selectedReportCategory != 'All') {
@@ -3188,12 +3189,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
     if (type == 'Today') {
       _stockSummaryStartDate = DateTime(now.year, now.month, now.day);
       _stockSummaryEndDate = _stockSummaryStartDate!.add(Duration(days: 1)).subtract(Duration(milliseconds: 1));
-    } else if (type == 'This Week') {
-      _stockSummaryStartDate = now.subtract(Duration(days: now.weekday - 1));
-      _stockSummaryEndDate = _stockSummaryStartDate!.add(Duration(days: 7)).subtract(Duration(milliseconds: 1));
-    } else if (type == 'This Month') {
-      _stockSummaryStartDate = DateTime(now.year, now.month, 1);
-      _stockSummaryEndDate = DateTime(now.year, now.month + 1, 1).subtract(Duration(milliseconds: 1));
+    } else if (type == 'All Time') {
+      // No date restrictions for all time
+      _stockSummaryStartDate = null;
+      _stockSummaryEndDate = null;
     }
     setState(() {});
     _fetchInventoryValueReport();
@@ -3461,27 +3460,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
             const SizedBox(width: 4),
             Expanded(
-              child: _buildQuickDateButton('Week', () {
-                final now = DateTime.now();
+              child: _buildQuickDateButton('All Time', () {
                 setState(() {
-                  _filterStartDate = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 7)); // Start of day 7 days ago
-                  _filterEndDate = DateTime(now.year, now.month, now.day).add(Duration(days: 1)).subtract(Duration(milliseconds: 1)); // End of today
+                  _filterStartDate = null; // No start date restriction
+                  _filterEndDate = null; // No end date restriction
                 });
                 _loadFilteredTransactions();
                 _fetchInventoryValueReport(); // Also refresh stock summary
-              }, isActive: _filterStartDate?.difference(DateTime.now()).inDays.abs() == 7),
-            ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: _buildQuickDateButton('Month', () {
-                final now = DateTime.now();
-                setState(() {
-                  _filterStartDate = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 30)); // Start of day 30 days ago
-                  _filterEndDate = DateTime(now.year, now.month, now.day).add(Duration(days: 1)).subtract(Duration(milliseconds: 1)); // End of today
-                });
-                _loadFilteredTransactions();
-                _fetchInventoryValueReport(); // Also refresh stock summary
-              }, isActive: _filterStartDate?.difference(DateTime.now()).inDays.abs() == 30),
+              }, isActive: _filterStartDate == null && _filterEndDate == null),
             ),
           ],
         ),
@@ -3677,20 +3663,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
       final today = DateTime.now();
       final dateStr = DateFormat('MMM dd, yyyy').format(today);
       titleParts.add('Date: $dateStr');
-    } else if (_stockSummaryFilterType == 'This Week') {
-      final now = DateTime.now();
-      final start = now.subtract(Duration(days: now.weekday - 1));
-      final end = start.add(Duration(days: 6));
-      final startStr = DateFormat('MMM dd').format(start);
-      final endStr = DateFormat('MMM dd, yyyy').format(end);
-      titleParts.add('Date: $startStr - $endStr');
-    } else if (_stockSummaryFilterType == 'This Month') {
-      final now = DateTime.now();
-      final start = DateTime(now.year, now.month, 1);
-      final end = DateTime(now.year, now.month + 1, 0);
-      final startStr = DateFormat('MMM dd').format(start);
-      final endStr = DateFormat('MMM dd, yyyy').format(end);
-      titleParts.add('Date: $startStr - $endStr');
+    } else if (_stockSummaryFilterType == 'All Time') {
+      titleParts.add('Date: All Time');
     } else if (_stockSummaryFilterType == 'Custom' && _stockSummaryStartDate != null && _stockSummaryEndDate != null) {
       final startStr = DateFormat('MMM dd, yyyy').format(_stockSummaryStartDate!);
       final endStr = DateFormat('MMM dd, yyyy').format(_stockSummaryEndDate!);
@@ -4715,23 +4689,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
             SizedBox(width: isSmallMobile ? 3 : 4),
             Expanded(
-              child: _buildQuickFilterButton('Week', () {
+              child: _buildQuickFilterButton('All Time', () {
                 setState(() {
-                  _filterStartDate = DateTime.now().subtract(const Duration(days: 7));
-                  _filterEndDate = DateTime.now();
+                  _filterStartDate = null; // No start date restriction
+                  _filterEndDate = null; // No end date restriction
                 });
                 _loadFilteredTransactions();
-              }, isActive: _filterStartDate?.difference(DateTime.now()).inDays.abs() == 7),
-            ),
-            SizedBox(width: isSmallMobile ? 3 : 4),
-            Expanded(
-              child: _buildQuickFilterButton('Month', () {
-                setState(() {
-                  _filterStartDate = DateTime.now().subtract(const Duration(days: 30));
-                  _filterEndDate = DateTime.now();
-                });
-                _loadFilteredTransactions();
-              }, isActive: _filterStartDate?.difference(DateTime.now()).inDays.abs() == 30),
+              }, isActive: _filterStartDate == null && _filterEndDate == null),
             ),
           ],
         ),

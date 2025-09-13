@@ -1264,6 +1264,114 @@ router.get('/customer/:customerId/credit-transactions', [auth, checkRole(['admin
   }
 });
 
+// Get all transactions for a specific customer (for invoice generation)
+router.get('/customer/:customerId/all-transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
+  try {
+    const customerId = req.params.customerId;
+    const { start_date, end_date } = req.query;
+    
+    let whereClause = 'WHERE s.customer_id = ?';
+    const params = [customerId];
+    
+    // Add business isolation
+    if (req.user.role !== 'superadmin') {
+      whereClause += ' AND s.business_id = ?';
+      params.push(req.user.business_id);
+    }
+    
+    // Add date filtering if provided
+    if (start_date) {
+      whereClause += ' AND DATE(s.created_at) >= ?';
+      params.push(start_date);
+    }
+    
+    if (end_date) {
+      whereClause += ' AND DATE(s.created_at) <= ?';
+      params.push(end_date);
+    }
+    
+    // Get all sales for this customer with product details
+    const [sales] = await pool.query(
+      `SELECT 
+        s.id,
+        s.total_amount,
+        s.tax_amount,
+        s.payment_method,
+        s.status,
+        s.sale_mode,
+        s.created_at,
+        s.parent_sale_id,
+        u.username as cashier_name,
+        c.name as customer_name,
+        c.email as customer_email,
+        c.phone as customer_phone,
+        c.address as customer_address
+      FROM sales s
+      LEFT JOIN users u ON s.user_id = u.id
+      LEFT JOIN customers c ON s.customer_id = c.id
+      ${whereClause}
+      ORDER BY s.created_at DESC`,
+      params
+    );
+    
+    // Get sale items for each sale
+    const salesWithItems = await Promise.all(sales.map(async (sale) => {
+      const [items] = await pool.query(
+        `SELECT 
+          si.id,
+          si.product_id,
+          si.quantity,
+          si.unit_price,
+          si.total_price,
+          si.mode,
+          p.name as product_name,
+          p.sku,
+          p.description as product_description,
+          cat.name as category_name
+        FROM sale_items si
+        LEFT JOIN products p ON si.product_id = p.id
+        LEFT JOIN categories cat ON p.category_id = cat.id
+        WHERE si.sale_id = ?
+        ORDER BY si.id`,
+        [sale.id]
+      );
+      
+      return {
+        ...sale,
+        items: items
+      };
+    }));
+    
+    // Calculate summary statistics
+    const totalAmount = salesWithItems.reduce((sum, sale) => sum + parseFloat(sale.total_amount || 0), 0);
+    const totalTransactions = salesWithItems.length;
+    const paymentMethods = [...new Set(salesWithItems.map(sale => sale.payment_method))];
+    
+    res.json({
+      customer: salesWithItems.length > 0 ? {
+        id: customerId,
+        name: salesWithItems[0].customer_name,
+        email: salesWithItems[0].customer_email,
+        phone: salesWithItems[0].customer_phone,
+        address: salesWithItems[0].customer_address
+      } : null,
+      transactions: salesWithItems,
+      summary: {
+        total_amount: totalAmount,
+        total_transactions: totalTransactions,
+        payment_methods: paymentMethods,
+        date_range: {
+          start_date: start_date || null,
+          end_date: end_date || null
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error getting customer transactions:', error);
+    res.status(500).json({ message: 'Failed to get customer transactions' });
+  }
+});
+
 // Mark a credit sale as paid (partial payments supported, single sales table)
 router.put('/:id/pay', auth, async (req, res) => {
   const connection = await pool.getConnection();

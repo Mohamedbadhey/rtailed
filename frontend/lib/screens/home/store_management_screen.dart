@@ -8,6 +8,7 @@ import 'package:retail_management/widgets/branded_app_bar.dart';
 import 'package:retail_management/screens/home/store_inventory_screen.dart';
 import 'package:retail_management/screens/home/enhanced_assignment_dialogs.dart';
 import 'package:retail_management/screens/home/store_business_dialog.dart';
+import 'package:retail_management/screens/home/reset_store_dialog.dart';
 import 'package:retail_management/widgets/custom_text_field.dart';
 import 'package:retail_management/models/product.dart';
 import 'package:image_picker/image_picker.dart';
@@ -1550,27 +1551,47 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
 
     return Column(
       children: [
-        // Simple Header
+        // Enhanced Header with Reset Store
         Container(
           padding: const EdgeInsets.all(16),
-          child: Row(
+          child: Column(
             children: [
-              Expanded(
-                child: Text(
-                  t(context, 'Store-Business Assignments'),
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      t(context, 'Store-Business Assignments'),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                ),
+                  ElevatedButton.icon(
+                    onPressed: _showAssignmentHistoryDialog,
+                    icon: const Icon(Icons.history),
+                    label: Text(t(context, 'History')),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purple,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
               ),
-              ElevatedButton.icon(
-                onPressed: _showAssignmentHistoryDialog,
-                icon: const Icon(Icons.history),
-                label: Text(t(context, 'History')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple,
-                  foregroundColor: Colors.white,
-                ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _showResetStoreDialog,
+                      icon: const Icon(Icons.refresh),
+                      label: Text(t(context, 'Reset Store')),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -1908,6 +1929,7 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
       ),
     );
   }
+
 
 }
 

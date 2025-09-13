@@ -460,4 +460,109 @@ router.get('/assignments/all', auth, checkRole(['superadmin']), async (req, res)
   }
 });
 
+// Reset store and all its data (superadmin only)
+router.post('/:storeId/reset', auth, checkRole(['superadmin']), async (req, res) => {
+  try {
+    const { storeId } = req.params;
+    const { reason, confirmReset } = req.body;
+    
+    if (!confirmReset) {
+      return res.status(400).json({ message: 'Reset confirmation required' });
+    }
+    
+    console.log(`=== RESETTING STORE ${storeId} ===`);
+    console.log('Reason:', reason);
+    console.log('User:', req.user.username);
+    
+    // Check if store exists
+    const [store] = await pool.query('SELECT id, name FROM stores WHERE id = ?', [storeId]);
+    if (store.length === 0) {
+      return res.status(404).json({ message: 'Store not found' });
+    }
+    
+    const storeName = store[0].name;
+    
+    // Start transaction
+    await pool.query('START TRANSACTION');
+    
+    try {
+      // 1. Get counts before reset for logging
+      const [assignmentCount] = await pool.query('SELECT COUNT(*) as count FROM store_business_assignments WHERE store_id = ?', [storeId]);
+      const [inventoryCount] = await pool.query('SELECT COUNT(*) as count FROM store_product_inventory WHERE store_id = ?', [storeId]);
+      const [transferCount] = await pool.query('SELECT COUNT(*) as count FROM store_transfers WHERE from_store_id = ? OR to_store_id = ?', [storeId, storeId]);
+      const [movementCount] = await pool.query('SELECT COUNT(*) as count FROM store_inventory_movements WHERE store_id = ?', [storeId]);
+      
+      console.log('Data to be reset:');
+      console.log('- Assignments:', assignmentCount[0].count);
+      console.log('- Inventory records:', inventoryCount[0].count);
+      console.log('- Transfers:', transferCount[0].count);
+      console.log('- Movements:', movementCount[0].count);
+      
+      // 2. Deactivate all business assignments
+      await pool.query(
+        'UPDATE store_business_assignments SET is_active = 0, removed_at = CURRENT_TIMESTAMP WHERE store_id = ?',
+        [storeId]
+      );
+      
+      // 3. Clear all inventory data
+      await pool.query('DELETE FROM store_product_inventory WHERE store_id = ?', [storeId]);
+      
+      // 4. Clear all inventory movements
+      await pool.query('DELETE FROM store_inventory_movements WHERE store_id = ?', [storeId]);
+      
+      // 5. Cancel all pending transfers involving this store
+      await pool.query(
+        'UPDATE store_transfers SET status = "cancelled", notes = CONCAT(COALESCE(notes, ""), " - Cancelled due to store reset") WHERE (from_store_id = ? OR to_store_id = ?) AND status IN ("pending", "approved", "in_transit")',
+        [storeId, storeId]
+      );
+      
+      // 6. Clear transfer items for cancelled transfers
+      await pool.query(
+        'DELETE sti FROM store_transfer_items sti 
+         JOIN store_transfers st ON sti.transfer_id = st.id 
+         WHERE (st.from_store_id = ? OR st.to_store_id = ?) AND st.status = "cancelled"',
+        [storeId, storeId]
+      );
+      
+      // 7. Log the reset action
+      await pool.query(
+        'INSERT INTO system_logs (user_id, action, table_name, record_id, new_values) VALUES (?, ?, ?, ?, ?)',
+        [req.user.id, 'RESET_STORE', 'stores', storeId, JSON.stringify({
+          store_name: storeName,
+          reason: reason || 'Store reset by superadmin',
+          assignments_removed: assignmentCount[0].count,
+          inventory_records_removed: inventoryCount[0].count,
+          transfers_cancelled: transferCount[0].count,
+          movements_removed: movementCount[0].count
+        })]
+      );
+      
+      // Commit transaction
+      await pool.query('COMMIT');
+      
+      console.log('Store reset completed successfully');
+      
+      res.json({
+        message: 'Store reset successfully',
+        store_name: storeName,
+        data_removed: {
+          assignments: assignmentCount[0].count,
+          inventory_records: inventoryCount[0].count,
+          transfers_cancelled: transferCount[0].count,
+          movements: movementCount[0].count
+        }
+      });
+      
+    } catch (error) {
+      // Rollback transaction on error
+      await pool.query('ROLLBACK');
+      throw error;
+    }
+    
+  } catch (error) {
+    console.error('Error resetting store:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;

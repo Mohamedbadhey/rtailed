@@ -1575,6 +1575,25 @@ class ApiService {
     }
   }
 
+  // Reset store and all its data (superadmin only)
+  Future<Map<String, dynamic>> resetStore(int storeId, {String? reason}) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/stores/$storeId/reset'),
+      headers: _headers,
+      body: json.encode({
+        'reason': reason,
+        'confirmReset': true,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      print('RESET STORE ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
   // =====================================================
   // STORE TRANSFER API METHODS
   // =====================================================

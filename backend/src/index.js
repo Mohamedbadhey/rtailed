@@ -273,10 +273,41 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Root endpoint for Railway
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Retail Management API',
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/health',
+      api: '/api'
+    }
+  });
+});
+
 // Railway-specific health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
   console.log('🏥 Railway health check requested');
-  res.status(200).send('OK');
+  try {
+    // Quick database connectivity check
+    const pool = require('./config/database');
+    await pool.query('SELECT 1');
+    
+    res.status(200).json({
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      database: 'connected'
+    });
+  } catch (error) {
+    console.error('❌ Health check failed:', error.message);
+    res.status(503).json({
+      status: 'ERROR',
+      timestamp: new Date().toISOString(),
+      database: 'disconnected',
+      error: error.message
+    });
+  }
 });
 
 // Test image serving endpoint
@@ -486,13 +517,24 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 const server = app.listen(PORT, HOST, () => {
   console.log(`🚀 Server is running on http://${HOST}:${PORT}`);
-  console.log(`📊 Health check: http://${HOST}:${PORT}/`);
+  console.log(`📊 Health check: http://${HOST}:${PORT}/health`);
   console.log(`🔗 API Base URL: http://${HOST}:${PORT}/api`);
   console.log(`📁 Uploads served from: http://${HOST}:${PORT}/uploads`);
   console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔧 Railway Volume: ${process.env.RAILWAY_VOLUME_MOUNT_PATH || 'Not set'}`);
   console.log(`🔧 Port: ${PORT}`);
   console.log(`🔧 Host: ${HOST}`);
+  
+  // Test health endpoint immediately after startup
+  setTimeout(async () => {
+    try {
+      const pool = require('./config/database');
+      await pool.query('SELECT 1');
+      console.log('✅ Database connection test successful');
+    } catch (error) {
+      console.error('❌ Database connection test failed:', error.message);
+    }
+  }, 2000);
 });
 
 // Graceful shutdown handling

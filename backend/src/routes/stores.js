@@ -326,4 +326,112 @@ router.get('/:storeId/businesses', auth, checkRole(['admin', 'manager', 'superad
   }
 });
 
+// Remove business from store (superadmin only)
+router.delete('/:storeId/assign-business/:businessId', auth, checkRole(['superadmin']), async (req, res) => {
+  try {
+    const { storeId, businessId } = req.params;
+    
+    // Check if assignment exists
+    const [assignment] = await pool.query(
+      'SELECT id FROM store_business_assignments WHERE store_id = ? AND business_id = ?',
+      [storeId, businessId]
+    );
+    
+    if (assignment.length === 0) {
+      return res.status(404).json({ message: 'Assignment not found' });
+    }
+    
+    // Deactivate the assignment instead of deleting it
+    await pool.query(
+      'UPDATE store_business_assignments SET is_active = 0, removed_at = CURRENT_TIMESTAMP WHERE store_id = ? AND business_id = ?',
+      [storeId, businessId]
+    );
+    
+    // Log the action
+    await pool.query(
+      'INSERT INTO system_logs (user_id, action, table_name, record_id, old_values) VALUES (?, ?, ?, ?, ?)',
+      [req.user.id, 'REMOVE_BUSINESS_FROM_STORE', 'store_business_assignments', storeId, JSON.stringify({ business_id: businessId })]
+    );
+    
+    res.json({ message: 'Business removed from store successfully' });
+  } catch (error) {
+    console.error('Error removing business from store:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Reset all business assignments for a store (superadmin only)
+router.post('/:storeId/reset-businesses', auth, checkRole(['superadmin']), async (req, res) => {
+  try {
+    const { storeId } = req.params;
+    const { reason } = req.body;
+    
+    // Check if store exists
+    const [store] = await pool.query('SELECT id, name FROM stores WHERE id = ?', [storeId]);
+    if (store.length === 0) {
+      return res.status(404).json({ message: 'Store not found' });
+    }
+    
+    // Get current assignments before reset
+    const [currentAssignments] = await pool.query(
+      'SELECT business_id FROM store_business_assignments WHERE store_id = ? AND is_active = 1',
+      [storeId]
+    );
+    
+    // Deactivate all current assignments
+    await pool.query(
+      'UPDATE store_business_assignments SET is_active = 0, removed_at = CURRENT_TIMESTAMP WHERE store_id = ? AND is_active = 1',
+      [storeId]
+    );
+    
+    // Log the action
+    await pool.query(
+      'INSERT INTO system_logs (user_id, action, table_name, record_id, old_values, new_values) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.user.id, 'RESET_STORE_BUSINESSES', 'store_business_assignments', storeId, 
+       JSON.stringify({ business_ids: currentAssignments.map(a => a.business_id) }),
+       JSON.stringify({ reason: reason || 'Store business assignments reset' })]
+    );
+    
+    res.json({ 
+      message: 'Store business assignments reset successfully',
+      removed_assignments: currentAssignments.length
+    });
+  } catch (error) {
+    console.error('Error resetting store businesses:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get all assignments for superadmin management
+router.get('/assignments/all', auth, checkRole(['superadmin']), async (req, res) => {
+  try {
+    const [assignments] = await pool.query(
+      `SELECT 
+        sba.id as assignment_id,
+        sba.store_id,
+        sba.business_id,
+        sba.assigned_by,
+        sba.assigned_at,
+        sba.removed_at,
+        sba.is_active,
+        sba.notes,
+        s.name as store_name,
+        s.store_code,
+        b.name as business_name,
+        b.business_code,
+        u.username as assigned_by_username
+       FROM store_business_assignments sba
+       LEFT JOIN stores s ON sba.store_id = s.id
+       LEFT JOIN businesses b ON sba.business_id = b.id
+       LEFT JOIN users u ON sba.assigned_by = u.id
+       ORDER BY sba.assigned_at DESC`
+    );
+    
+    res.json({ assignments });
+  } catch (error) {
+    console.error('Error getting all assignments:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;

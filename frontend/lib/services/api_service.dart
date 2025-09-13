@@ -1529,6 +1529,40 @@ class ApiService {
     }
   }
 
+  // Reset all business assignments for a store (superadmin only)
+  Future<Map<String, dynamic>> resetStoreBusinesses(int storeId, {String? reason}) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/stores/$storeId/reset-businesses'),
+      headers: _headers,
+      body: json.encode({
+        'reason': reason,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      print('RESET STORE BUSINESSES ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  // Get all assignments for superadmin management
+  Future<List<Map<String, dynamic>>> getAllStoreBusinessAssignments() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/stores/assignments/all'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return List<Map<String, dynamic>>.from(data['assignments']);
+    } else {
+      print('GET ALL ASSIGNMENTS ERROR: ${response.statusCode} ${response.body}');
+      throw Exception('Error: ${response.statusCode} ${response.body}');
+    }
+  }
+
   // =====================================================
   // STORE TRANSFER API METHODS
   // =====================================================

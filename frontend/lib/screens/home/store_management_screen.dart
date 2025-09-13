@@ -6,6 +6,8 @@ import 'package:retail_management/utils/translate.dart';
 import 'package:retail_management/utils/success_utils.dart';
 import 'package:retail_management/widgets/branded_app_bar.dart';
 import 'package:retail_management/screens/home/store_inventory_screen.dart';
+import 'package:retail_management/screens/home/enhanced_assignment_dialogs.dart';
+import 'package:retail_management/screens/home/store_business_dialog.dart';
 import 'package:retail_management/widgets/custom_text_field.dart';
 import 'package:retail_management/models/product.dart';
 import 'package:image_picker/image_picker.dart';
@@ -375,12 +377,12 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
       itemCount: filteredStores.length,
       itemBuilder: (context, index) {
         final store = filteredStores[index];
-        return _buildStoreCard(store);
+        return _buildStoreCardForStoresTab(store);
       },
     );
   }
 
-  Widget _buildStoreCard(Map<String, dynamic> store) {
+  Widget _buildStoreCardForStoresTab(Map<String, dynamic> store) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -1548,7 +1550,7 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
 
     return Column(
       children: [
-        // Header with Add Assignment button
+        // Simple Header
         Container(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -1562,9 +1564,13 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
                 ),
               ),
               ElevatedButton.icon(
-                onPressed: _showCreateAssignmentDialog,
-                icon: const Icon(Icons.add),
-                label: Text(t(context, 'Assign Store')),
+                onPressed: _showAssignmentHistoryDialog,
+                icon: const Icon(Icons.history),
+                label: Text(t(context, 'History')),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple,
+                  foregroundColor: Colors.white,
+                ),
               ),
             ],
           ),
@@ -1579,33 +1585,20 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
   }
 
   Widget _buildAssignmentsList() {
-    // Create a list of all possible store-business combinations
-    List<Map<String, dynamic>> allAssignments = [];
-    
-    for (var store in _stores) {
-      for (var business in _businesses) {
-        allAssignments.add({
-          'store': store,
-          'business': business,
-          'is_assigned': _isStoreAssignedToBusiness(store['id'], business['id']),
-        });
-      }
-    }
-
-    if (allAssignments.isEmpty) {
+    if (_stores.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.assignment_outlined, size: 64, color: Colors.grey[400]),
+            Icon(Icons.store_outlined, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
-              t(context, 'No assignments found'),
+              t(context, 'No stores found'),
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
             Text(
-              t(context, 'Create stores and businesses first'),
+              t(context, 'Create stores first to manage assignments'),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
@@ -1615,99 +1608,77 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: allAssignments.length,
+      itemCount: _stores.length,
       itemBuilder: (context, index) {
-        final assignment = allAssignments[index];
-        return _buildAssignmentCard(assignment);
+        final store = _stores[index];
+        return _buildStoreCard(store);
       },
     );
   }
 
-  Widget _buildAssignmentCard(Map<String, dynamic> assignment) {
-    final store = assignment['store'];
-    final business = assignment['business'];
-    final isAssigned = assignment['is_assigned'];
+  Widget _buildStoreCard(Map<String, dynamic> store) {
+    // Count assigned businesses for this store
+    final assignedBusinessCount = _assignments.where((assignment) => 
+      assignment['store_id'] == store['id'] && assignment['is_active'] == true
+    ).length;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Colors.blue,
+          child: Icon(Icons.store, color: Colors.white),
+        ),
+        title: Text(
+          store['name'] ?? '',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    store['name'] ?? '',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${t(context, 'Store Code')}: ${store['store_code'] ?? ''}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    business['name'] ?? '',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${t(context, 'Business Code')}: ${business['business_code'] ?? ''}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Column(
+            Text('${t(context, 'Code')}: ${store['store_code'] ?? ''}'),
+            const SizedBox(height: 4),
+            Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isAssigned ? Colors.green : Colors.grey,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    isAssigned ? t(context, 'Assigned') : t(context, 'Not Assigned'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
+                Icon(Icons.business, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  '$assignedBusinessCount ${t(context, 'businesses assigned')}',
+                  style: TextStyle(
+                    color: assignedBusinessCount > 0 ? Colors.green : Colors.grey[600],
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 8),
-                if (isAssigned)
-                  ElevatedButton(
-                    onPressed: () => _removeAssignment(store['id'], business['id']),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: Text(t(context, 'Remove')),
-                  )
-                else
-                  ElevatedButton(
-                    onPressed: () => _assignStoreToBusiness(store['id'], business['id']),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: Text(t(context, 'Assign')),
-                  ),
               ],
             ),
           ],
         ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (assignedBusinessCount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$assignedBusinessCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            const SizedBox(width: 8),
+            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+          ],
+        ),
+        onTap: () => _showStoreBusinessDialog(store),
       ),
     );
   }
@@ -1823,6 +1794,88 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
       ),
     );
   }
+
+  // =====================================================
+  // ENHANCED SUPERADMIN ASSIGNMENT METHODS
+  // =====================================================
+
+  void _showBulkAssignmentDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => BulkAssignmentDialog(
+        stores: _stores,
+        businesses: _businesses,
+        onAssignmentsCreated: () async {
+          await _loadAssignments();
+          setState(() {});
+        },
+      ),
+    );
+  }
+
+  void _showResetStoreDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => ResetStoreDialog(
+        stores: _stores,
+        onStoreReset: () async {
+          await _loadAssignments();
+          setState(() {});
+        },
+      ),
+    );
+  }
+
+  void _showAssignmentHistoryDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AssignmentHistoryDialog(),
+    );
+  }
+
+  void _showAssignmentDetailsDialog(Map<String, dynamic> store, Map<String, dynamic> business) {
+    showDialog(
+      context: context,
+      builder: (context) => AssignmentDetailsDialog(
+        store: store,
+        business: business,
+        onAssignmentUpdated: () async {
+          await _loadAssignments();
+          setState(() {});
+        },
+      ),
+    );
+  }
+
+  void _showQuickAssignDialog(Map<String, dynamic> store, Map<String, dynamic> business) {
+    showDialog(
+      context: context,
+      builder: (context) => QuickAssignDialog(
+        store: store,
+        business: business,
+        onAssignmentCreated: () async {
+          await _loadAssignments();
+          setState(() {});
+        },
+      ),
+    );
+  }
+
+  void _showStoreBusinessDialog(Map<String, dynamic> store) {
+    showDialog(
+      context: context,
+      builder: (context) => StoreBusinessDialog(
+        store: store,
+        businesses: _businesses,
+        assignments: _assignments,
+        onAssignmentChanged: () async {
+          await _loadAssignments();
+          setState(() {});
+        },
+      ),
+    );
+  }
+
 }
 
 // Create Store Dialog Widget

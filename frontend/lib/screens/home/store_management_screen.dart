@@ -1557,16 +1557,16 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
           child: Column(
             children: [
               Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      t(context, 'Store-Business Assignments'),
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+            children: [
+              Expanded(
+                child: Text(
+                  t(context, 'Store-Business Assignments'),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                  ElevatedButton.icon(
+                ),
+              ),
+              ElevatedButton.icon(
                     onPressed: _showAssignmentHistoryDialog,
                     icon: const Icon(Icons.history),
                     label: Text(t(context, 'History')),
@@ -1675,50 +1675,50 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
           child: Icon(Icons.store, color: Colors.white),
         ),
         title: Text(
-          store['name'] ?? '',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+                    store['name'] ?? '',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('${t(context, 'Code')}: ${store['store_code'] ?? ''}'),
-            const SizedBox(height: 4),
+                  const SizedBox(height: 4),
             Row(
               children: [
                 Icon(Icons.business, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 4),
-                Text(
+                  Text(
                   '$assignedBusinessCount ${t(context, 'businesses assigned')}',
                   style: TextStyle(
                     color: assignedBusinessCount > 0 ? Colors.green : Colors.grey[600],
-                    fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
               ],
-            ),
-          ],
-        ),
+                  ),
+                ],
+              ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
-          children: [
+              children: [
             if (assignedBusinessCount > 0)
-              Container(
+                Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
+                  decoration: BoxDecoration(
                   color: Colors.green,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
                   '$assignedBusinessCount',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
             const SizedBox(width: 8),
             Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
           ],

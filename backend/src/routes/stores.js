@@ -518,9 +518,9 @@ router.post('/:storeId/reset', auth, checkRole(['superadmin']), async (req, res)
       
       // 6. Clear transfer items for cancelled transfers
       await pool.query(
-        'DELETE sti FROM store_transfer_items sti 
+        `DELETE sti FROM store_transfer_items sti 
          JOIN store_transfers st ON sti.transfer_id = st.id 
-         WHERE (st.from_store_id = ? OR st.to_store_id = ?) AND st.status = "cancelled"',
+         WHERE (st.from_store_id = ? OR st.to_store_id = ?) AND st.status = "cancelled"`,
         [storeId, storeId]
       );
       

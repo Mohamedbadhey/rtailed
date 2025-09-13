@@ -405,6 +405,26 @@ router.post('/:storeId/reset-businesses', auth, checkRole(['superadmin']), async
 // Get all assignments for superadmin management
 router.get('/assignments/all', auth, checkRole(['superadmin']), async (req, res) => {
   try {
+    console.log('=== DEBUGGING ASSIGNMENTS ENDPOINT ===');
+    console.log('User making request:', req.user);
+    console.log('User role:', req.user?.role);
+    
+    // First check if the table exists and has data
+    const [tableCheck] = await pool.query('SELECT COUNT(*) as count FROM store_business_assignments');
+    console.log('Total assignments in table:', tableCheck[0].count);
+    
+    // Check stores table
+    const [storesCheck] = await pool.query('SELECT COUNT(*) as count FROM stores');
+    console.log('Total stores in table:', storesCheck[0].count);
+    
+    // Check businesses table
+    const [businessesCheck] = await pool.query('SELECT COUNT(*) as count FROM businesses');
+    console.log('Total businesses in table:', businessesCheck[0].count);
+    
+    // Check users table
+    const [usersCheck] = await pool.query('SELECT COUNT(*) as count FROM users');
+    console.log('Total users in table:', usersCheck[0].count);
+    
     const [assignments] = await pool.query(
       `SELECT 
         sba.id as assignment_id,
@@ -426,6 +446,12 @@ router.get('/assignments/all', auth, checkRole(['superadmin']), async (req, res)
        LEFT JOIN users u ON sba.assigned_by = u.id
        ORDER BY sba.assigned_at DESC`
     );
+    
+    console.log('Query returned assignments:', assignments.length);
+    if (assignments.length > 0) {
+      console.log('Sample assignment:', assignments[0]);
+    }
+    console.log('=====================================');
     
     res.json({ assignments });
   } catch (error) {

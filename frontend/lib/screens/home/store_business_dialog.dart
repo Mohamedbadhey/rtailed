@@ -44,7 +44,7 @@ class _StoreBusinessDialogState extends State<StoreBusinessDialog> {
     final assignedBusinessIds = widget.assignments
         .where((assignment) => 
           assignment['store_id'] == widget.store['id'] && 
-          assignment['is_active'] == true)
+          (assignment['is_active'] == true || assignment['is_active'] == 1 || assignment['is_active'] == '1'))
         .map((assignment) => assignment['business_id'])
         .toList();
 

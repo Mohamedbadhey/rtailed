@@ -1549,14 +1549,26 @@ class ApiService {
 
   // Get all assignments for superadmin management
   Future<List<Map<String, dynamic>>> getAllStoreBusinessAssignments() async {
+    print('=== API SERVICE: Getting all assignments ===');
+    print('URL: $baseUrl/api/stores/assignments/all');
+    
     final response = await http.get(
       Uri.parse('$baseUrl/api/stores/assignments/all'),
       headers: _headers,
     );
 
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      return List<Map<String, dynamic>>.from(data['assignments']);
+      print('Parsed data: $data');
+      final assignments = List<Map<String, dynamic>>.from(data['assignments']);
+      print('Assignments count: ${assignments.length}');
+      if (assignments.isNotEmpty) {
+        print('Sample assignment: ${assignments[0]}');
+      }
+      return assignments;
     } else {
       print('GET ALL ASSIGNMENTS ERROR: ${response.statusCode} ${response.body}');
       throw Exception('Error: ${response.statusCode} ${response.body}');

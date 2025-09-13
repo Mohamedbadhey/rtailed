@@ -1618,9 +1618,33 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
 
   Widget _buildStoreCard(Map<String, dynamic> store) {
     // Count assigned businesses for this store
+    final storeId = store['id'];
+    final storeIdType = storeId.runtimeType;
+    
+    print('=== DEBUGGING STORE ASSIGNMENTS ===');
+    print('Store: ${store['name']} (ID: $storeId, type: $storeIdType)');
+    print('Total assignments loaded: ${_assignments.length}');
+    
+    // Check each assignment for this store
+    for (var assignment in _assignments) {
+      final assignmentStoreId = assignment['store_id'];
+      final assignmentStoreIdType = assignmentStoreId.runtimeType;
+      final isActive = assignment['is_active'];
+      
+      print('Assignment: store_id=$assignmentStoreId (type: $assignmentStoreIdType), is_active=$isActive');
+      
+      if (assignmentStoreId == storeId) {
+        print('  -> MATCH FOUND for store ${store['name']}!');
+      }
+    }
+    
     final assignedBusinessCount = _assignments.where((assignment) => 
-      assignment['store_id'] == store['id'] && assignment['is_active'] == true
+      assignment['store_id'] == store['id'] && 
+      (assignment['is_active'] == true || assignment['is_active'] == 1 || assignment['is_active'] == '1')
     ).length;
+    
+    print('Final count for ${store['name']}: $assignedBusinessCount');
+    print('=====================================');
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1685,27 +1709,36 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
 
   Future<void> _loadAssignments() async {
     try {
-      // Load assignments for all stores
-      List<Map<String, dynamic>> allAssignments = [];
-      
-      for (var store in _stores) {
-        final storeAssignments = await _apiService.getStoreBusinesses(store['id']);
-        for (var assignment in storeAssignments) {
-          allAssignments.add({
-            'store_id': store['id'],
-            'business_id': assignment['business_id'],
-            'assignment_id': assignment['id'],
-            'assigned_at': assignment['assigned_at'],
-            'is_active': assignment['is_active'],
-          });
-        }
+      print('=== LOADING ASSIGNMENTS ===');
+      print('Stores loaded: ${_stores.length}');
+      if (_stores.isNotEmpty) {
+        print('Sample store: ${_stores[0]}');
       }
+      
+      // Use the dedicated assignments endpoint that returns complete assignment data
+      final allAssignments = await _apiService.getAllStoreBusinessAssignments();
       
       setState(() {
         _assignments = allAssignments;
       });
+      
+      print('Loaded ${allAssignments.length} assignments from backend');
+      if (allAssignments.isNotEmpty) {
+        print('Sample assignment: ${allAssignments[0]}');
+        print('Assignment keys: ${allAssignments[0].keys.toList()}');
+        
+        // Check each assignment in detail
+        for (int i = 0; i < allAssignments.length; i++) {
+          final assignment = allAssignments[i];
+          print('Assignment $i: store_id=${assignment['store_id']} (${assignment['store_id'].runtimeType}), business_id=${assignment['business_id']} (${assignment['business_id'].runtimeType}), is_active=${assignment['is_active']} (${assignment['is_active'].runtimeType})');
+        }
+      } else {
+        print('NO ASSIGNMENTS FOUND! This is the problem.');
+      }
+      print('===========================');
     } catch (e) {
       print('Error loading assignments: $e');
+      print('Error type: ${e.runtimeType}');
       // Don't set error state for assignments, just log it
     }
   }
@@ -1715,7 +1748,7 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
     return _assignments.any((assignment) => 
       assignment['store_id'] == storeId && 
       assignment['business_id'] == businessId &&
-      assignment['is_active'] == true
+      (assignment['is_active'] == true || assignment['is_active'] == 1 || assignment['is_active'] == '1')
     );
   }
 

@@ -1102,116 +1102,129 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       return _buildErrorState();
     }
 
-    return Column(
-      children: [
-        // Search Bar and Filters
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              // Search Bar
-              TextField(
-            decoration: InputDecoration(
-              hintText: t(context,'Search products...'),
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-              });
-            },
-          ),
-              const SizedBox(height: 16),
-              
-              // Stock Status Filter
-              Row(
-                children: [
-                  Text(
-                    'Filter by Stock Status:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: Colors.grey[700],
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          // Search Bar and Filters
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Search Bar
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: t(context,'Search products...'),
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  
-                  // All Products Radio
-                  Row(
-                    children: [
-                      Radio<String>(
-                        value: '',
-                        groupValue: _selectedStockStatus,
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedStockStatus = value!;
-                          });
-                        },
-                        activeColor: Theme.of(context).primaryColor,
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // Stock Status Filter - Horizontal layout
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Filter by Stock Status:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: Colors.grey[700],
                       ),
-                      const Text('All'),
-                    ],
-                  ),
-                  
-                  // Low Stock Radio
-                  Row(
-                    children: [
-                      Radio<String>(
-                        value: 'LOW_STOCK',
-                        groupValue: _selectedStockStatus,
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedStockStatus = value!;
-                          });
-                        },
-                        activeColor: Colors.orange,
-                      ),
-                      Row(
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    // Radio buttons in horizontal layout
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
                         children: [
-                          Icon(Icons.warning, color: Colors.orange, size: 16),
-                          const SizedBox(width: 4),
-                          Text('Low Stock', style: TextStyle(color: Colors.orange[700])),
+                          // All Products Radio
+                          Row(
+                            children: [
+                              Radio<String>(
+                                value: '',
+                                groupValue: _selectedStockStatus,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedStockStatus = value!;
+                                  });
+                                },
+                                activeColor: Theme.of(context).primaryColor,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              const Text('All'),
+                            ],
+                          ),
+                          
+                          // Low Stock Radio
+                          Row(
+                            children: [
+                              Radio<String>(
+                                value: 'LOW_STOCK',
+                                groupValue: _selectedStockStatus,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedStockStatus = value!;
+                                  });
+                                },
+                                activeColor: Colors.orange,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              Row(
+                                children: [
+                                  Icon(Icons.warning, color: Colors.orange, size: 16),
+                                  const SizedBox(width: 4),
+                                  Text('Low Stock', style: TextStyle(color: Colors.orange[700])),
+                                ],
+                              ),
+                            ],
+                          ),
+                          
+                          // Out of Stock Radio
+                          Row(
+                            children: [
+                              Radio<String>(
+                                value: 'OUT_OF_STOCK',
+                                groupValue: _selectedStockStatus,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedStockStatus = value!;
+                                  });
+                                },
+                                activeColor: Colors.red,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              Row(
+                                children: [
+                                  Icon(Icons.error, color: Colors.red, size: 16),
+                                  const SizedBox(width: 4),
+                                  Text('Out of Stock', style: TextStyle(color: Colors.red[700])),
+                                ],
+                              ),
+                            ],
+                          ),
                         ],
                       ),
-                    ],
-                  ),
-                  
-                  // Out of Stock Radio
-                  Row(
-                    children: [
-                      Radio<String>(
-                        value: 'OUT_OF_STOCK',
-                        groupValue: _selectedStockStatus,
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedStockStatus = value!;
-                          });
-                        },
-                        activeColor: Colors.red,
-                      ),
-                      Row(
-                        children: [
-                          Icon(Icons.error, color: Colors.red, size: 16),
-                          const SizedBox(width: 4),
-                          Text('Out of Stock', style: TextStyle(color: Colors.red[700])),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-        
-        // Inventory List
-        Expanded(
-          child: _buildInventoryList(),
-        ),
-      ],
+          
+          // Inventory List
+          _buildInventoryList(),
+        ],
+      ),
     );
   }
 
@@ -1257,7 +1270,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     return RefreshIndicator(
       onRefresh: _loadData,
       child: ListView.builder(
-        controller: _inventoryScrollController,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         itemCount: filteredInventory.length,
         itemBuilder: (context, index) {
@@ -2653,128 +2667,306 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     final financialSummary = _reports['financial_summary'] ?? {};
     final movementSummary = _reports['movement_summary'] ?? {};
     
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Key Performance Indicators',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 16),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const ClampingScrollPhysics(), // Enable scrolling
-          crossAxisCount: isMediumScreen ? 1 : 2, // Single column on medium, two columns on large for horizontal cards
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: isMediumScreen ? 3.5 : 3.0, // Wider aspect ratio for horizontal cards
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final isSmallScreen = screenWidth < 768;
+        final isLargeScreen = screenWidth >= 1200;
+        
+        // Determine grid layout based on screen size
+        int crossAxisCount;
+        double childAspectRatio;
+        
+        if (isSmallScreen) {
+          // Mobile: 1 column with vertical cards
+          crossAxisCount = 1;
+          childAspectRatio = 1.2;
+        } else if (isMediumScreen) {
+          // Tablet: 2 columns with horizontal cards
+          crossAxisCount = 2;
+          childAspectRatio = 2.5;
+        } else {
+          // Desktop: 3 columns with horizontal cards
+          crossAxisCount = 3;
+          childAspectRatio = 2.8;
+        }
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHorizontalMetricCardWithSubtitle(
-              'Total Products',
-              (currentStock['total_products'] ?? 0).toString(),
-              Icons.inventory_2,
-              Colors.blue,
-              'Active inventory items',
-            ),
-            _buildHorizontalMetricCardWithSubtitle(
-              'Total Units',
-              (currentStock['total_units'] ?? 0).toString(),
-              Icons.shopping_cart,
-              Colors.green,
-              'Units in stock',
-            ),
-            _buildHorizontalMetricCardWithSubtitle(
-              'Total Value',
-              '\$${(double.tryParse(financialSummary['total_selling_value']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
-              Icons.attach_money,
-              Colors.purple,
-              'Inventory value',
-            ),
-            _buildHorizontalMetricCardWithSubtitle(
-              'Low Stock Items',
-              (currentStock['low_stock'] ?? 0).toString(),
-              Icons.warning,
-              Colors.orange,
-              'Need restocking',
-            ),
-            if (!isMediumScreen) ...[ // Only show additional metrics on large screens
-              _buildHorizontalMetricCardWithSubtitle(
-                'Out of Stock',
-                (currentStock['out_of_stock'] ?? 0).toString(),
-                Icons.error,
-                Colors.red,
-                'Critical items',
+            Text(
+              'Key Performance Indicators',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: isSmallScreen ? 18 : 20,
               ),
-              _buildHorizontalMetricCardWithSubtitle(
-                'Total Movements',
-                (movementSummary['total_products_with_movements'] ?? 0).toString(),
-                Icons.trending_up,
-                Colors.teal,
-                'Active products',
-              ),
-              _buildHorizontalMetricCardWithSubtitle(
-                'Stock Added',
-                (movementSummary['total_stock_in'] ?? 0).toString(),
-                Icons.add_box,
-                Colors.indigo,
-                'Units added',
-              ),
-              _buildHorizontalMetricCardWithSubtitle(
-                'Transferred Out',
-                (movementSummary['total_transferred_out'] ?? 0).toString(),
-                Icons.send,
-                Colors.cyan,
-                'Units transferred',
-              ),
-            ],
+            ),
+            const SizedBox(height: 16),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: childAspectRatio,
+              children: [
+                _buildResponsiveMetricCard(
+                  'Total Products',
+                  (currentStock['total_products'] ?? 0).toString(),
+                  Icons.inventory_2,
+                  Colors.blue,
+                  'Active inventory items',
+                  isSmallScreen,
+                ),
+                _buildResponsiveMetricCard(
+                  'Total Units',
+                  (currentStock['total_units'] ?? 0).toString(),
+                  Icons.shopping_cart,
+                  Colors.green,
+                  'Units in stock',
+                  isSmallScreen,
+                ),
+                _buildResponsiveMetricCard(
+                  'Total Value',
+                  '\$${(double.tryParse(financialSummary['total_selling_value']?.toString() ?? '0') ?? 0.0).toStringAsFixed(0)}',
+                  Icons.attach_money,
+                  Colors.purple,
+                  'Inventory value',
+                  isSmallScreen,
+                ),
+                _buildResponsiveMetricCard(
+                  'Low Stock Items',
+                  (currentStock['low_stock'] ?? 0).toString(),
+                  Icons.warning,
+                  Colors.orange,
+                  'Need restocking',
+                  isSmallScreen,
+                ),
+                if (!isSmallScreen) ...[ // Show additional metrics on tablet and desktop
+                  _buildResponsiveMetricCard(
+                    'Out of Stock',
+                    (currentStock['out_of_stock'] ?? 0).toString(),
+                    Icons.error,
+                    Colors.red,
+                    'Critical items',
+                    isSmallScreen,
+                  ),
+                  _buildResponsiveMetricCard(
+                    'Total Movements',
+                    (movementSummary['total_products_with_movements'] ?? 0).toString(),
+                    Icons.trending_up,
+                    Colors.teal,
+                    'Active products',
+                    isSmallScreen,
+                  ),
+                ],
+                if (isLargeScreen) ...[ // Show even more metrics on large screens
+                  _buildResponsiveMetricCard(
+                    'Stock Added',
+                    (movementSummary['total_stock_in'] ?? 0).toString(),
+                    Icons.add_box,
+                    Colors.indigo,
+                    'Units added',
+                    isSmallScreen,
+                  ),
+                  _buildResponsiveMetricCard(
+                    'Transferred Out',
+                    (movementSummary['total_transferred_out'] ?? 0).toString(),
+                    Icons.send,
+                    Colors.cyan,
+                    'Units transferred',
+                    isSmallScreen,
+                  ),
+                ],
+              ],
+            ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 
-  Widget _buildResponsiveAnalyticsGrid(bool isMediumScreen) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Analytics Overview',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.onSurface,
+  Widget _buildResponsiveMetricCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+    String subtitle,
+    bool isSmallScreen,
+  ) {
+    if (isSmallScreen) {
+      // Mobile: Vertical card layout
+      return Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 16),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const ClampingScrollPhysics(), // Enable scrolling
-          crossAxisCount: isMediumScreen ? 1 : 2, // Single column on medium, two columns on large
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: isMediumScreen ? 2.5 : 1.8,
-          children: [
-            // Current Stock Summary
-            if (_reports['current_stock'] != null) ...[
-              _buildCurrentStockSection(),
+      );
+    } else {
+      // Tablet/Desktop: Horizontal card layout
+      return Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildResponsiveAnalyticsGrid(bool isMediumScreen) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final isSmallScreen = screenWidth < 768;
+        final isLargeScreen = screenWidth >= 1200;
+        
+        // Determine grid layout based on screen size
+        int crossAxisCount;
+        double childAspectRatio;
+        
+        if (isSmallScreen) {
+          // Mobile: 1 column
+          crossAxisCount = 1;
+          childAspectRatio = 1.5;
+        } else if (isMediumScreen) {
+          // Tablet: 1 column for better readability
+          crossAxisCount = 1;
+          childAspectRatio = 2.0;
+        } else {
+          // Desktop: 2 columns
+          crossAxisCount = 2;
+          childAspectRatio = 1.8;
+        }
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Analytics Overview',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: isSmallScreen ? 18 : 20,
+              ),
+            ),
+            const SizedBox(height: 16),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: childAspectRatio,
+              children: [
+                // Current Stock Summary
+                if (_reports['current_stock'] != null) ...[
+                  _buildCurrentStockSection(),
+                ],
+                
+                // Financial Overview
+                if (_reports['financial_summary'] != null && _reports['financial_summary'].isNotEmpty) ...[
+                  _buildFinancialOverviewSection(_reports['financial_summary']),
+                ],
+              ],
+            ),
             
-            // Financial Overview
-            if (_reports['financial_summary'] != null && _reports['financial_summary'].isNotEmpty) ...[
-              _buildFinancialOverviewSection(_reports['financial_summary']),
+            const SizedBox(height: 16),
+            
+            // Recent Movements (always full width)
+            if (_reports['recent_movements'] != null) ...[
+              _buildRecentMovementsSection(),
             ],
           ],
-        ),
-        
-        const SizedBox(height: 16),
-        
-        // Recent Movements (always full width)
-        if (_reports['recent_movements'] != null) ...[
-          _buildRecentMovementsSection(),
-        ],
-      ],
+        );
+      },
     );
   }
 
@@ -3672,288 +3864,154 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       return _buildErrorState();
     }
 
-    return Column(
-      children: [
-        // Mobile Search and Filters
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              // Search Bar
-              TextField(
-                decoration: InputDecoration(
-                  hintText: t(context,'Search products...'),
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: Theme.of(context).colorScheme.surfaceVariant,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          // Mobile Search and Filters
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
                 ),
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 12),
-              
-              // Stock Status Filter (Mobile)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Filter by Stock Status:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: Colors.grey[700],
+              ],
+            ),
+            child: Column(
+              children: [
+                // Search Bar
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: t(context,'Search products...'),
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
                     ),
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surfaceVariant,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
-                  const SizedBox(height: 8),
-                  
-                  // Radio buttons in a column for mobile
-                  Column(
-                    children: [
-                      // All Products Radio
-                      Row(
-                        children: [
-                          Radio<String>(
-                            value: '',
-                            groupValue: _selectedStockStatus,
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedStockStatus = value!;
-                              });
-                            },
-                            activeColor: Theme.of(context).primaryColor,
-                          ),
-                          const Text('All Products'),
-                        ],
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                
+                // Stock Status Filter (Mobile) - Horizontal layout
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Filter by Stock Status:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: Colors.grey[700],
                       ),
-                      
-                      // Low Stock Radio
-                      Row(
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    // Radio buttons in horizontal layout for mobile
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
                         children: [
-                          Radio<String>(
-                            value: 'LOW_STOCK',
-                            groupValue: _selectedStockStatus,
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedStockStatus = value!;
-                              });
-                            },
-                            activeColor: Colors.orange,
-                          ),
+                          // All Products Radio
                           Row(
                             children: [
-                              Icon(Icons.warning, color: Colors.orange, size: 16),
-                              const SizedBox(width: 4),
-                              Text('Low Stock', style: TextStyle(color: Colors.orange[700])),
+                              Radio<String>(
+                                value: '',
+                                groupValue: _selectedStockStatus,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedStockStatus = value!;
+                                  });
+                                },
+                                activeColor: Theme.of(context).primaryColor,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              const Text('All'),
+                            ],
+                          ),
+                          
+                          // Low Stock Radio
+                          Row(
+                            children: [
+                              Radio<String>(
+                                value: 'LOW_STOCK',
+                                groupValue: _selectedStockStatus,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedStockStatus = value!;
+                                  });
+                                },
+                                activeColor: Colors.orange,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              Row(
+                                children: [
+                                  Icon(Icons.warning, color: Colors.orange, size: 16),
+                                  const SizedBox(width: 4),
+                                  Text('Low', style: TextStyle(color: Colors.orange[700])),
+                                ],
+                              ),
+                            ],
+                          ),
+                          
+                          // Out of Stock Radio
+                          Row(
+                            children: [
+                              Radio<String>(
+                                value: 'OUT_OF_STOCK',
+                                groupValue: _selectedStockStatus,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedStockStatus = value!;
+                                  });
+                                },
+                                activeColor: Colors.red,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              Row(
+                                children: [
+                                  Icon(Icons.error, color: Colors.red, size: 16),
+                                  const SizedBox(width: 4),
+                                  Text('Out', style: TextStyle(color: Colors.red[700])),
+                                ],
+                              ),
                             ],
                           ),
                         ],
                       ),
-                      
-                      // Out of Stock Radio
-                      Row(
-                        children: [
-                          Radio<String>(
-                            value: 'OUT_OF_STOCK',
-                            groupValue: _selectedStockStatus,
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedStockStatus = value!;
-                              });
-                            },
-                            activeColor: Colors.red,
-                          ),
-                          Row(
-                            children: [
-                              Icon(Icons.error, color: Colors.red, size: 16),
-                              const SizedBox(width: 4),
-                              Text('Out of Stock', style: TextStyle(color: Colors.red[700])),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Quick Stats
-              _buildMobileQuickStats(),
-            ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Quick Stats
+                _buildMobileQuickStats(),
+              ],
+            ),
           ),
-        ),
-        
-        // Mobile Inventory List
-        Expanded(
-          child: _buildMobileInventoryList(),
-        ),
-      ],
+          
+          // Mobile Inventory List
+          _buildMobileInventoryList(),
+        ],
+      ),
     );
   }
 
   Widget _buildMobileMovementsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // Mobile Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).primaryColor,
-                  Theme.of(context).primaryColor.withOpacity(0.8),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.trending_up, color: Colors.white),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Inventory Movements',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Track all stock movements',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Mobile Filters
-          _buildMobileMovementFilters(),
-          const SizedBox(height: 16),
-          
-          // Mobile Movements List
-          _buildMobileMovementsList(_movements),
-        ],
-      ),
-    );
+    return _buildMovementsTab(); // Use the same implementation as desktop
   }
 
   Widget _buildMobileReportsTab() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenWidth = constraints.maxWidth;
-        final isSmallMobile = screenWidth < 480;
-        
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-              // Responsive Mobile Header
-          Container(
-                padding: EdgeInsets.all(isSmallMobile ? 12 : 16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).primaryColor,
-                  Theme.of(context).primaryColor.withOpacity(0.8),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-                  borderRadius: BorderRadius.circular(isSmallMobile ? 12 : 16),
-            ),
-            child: Row(
-              children: [
-                Container(
-                      padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
-                  ),
-                      child: Icon(
-                        Icons.analytics, 
-                        color: Colors.white,
-                        size: isSmallMobile ? 16 : 20,
-                ),
-                    ),
-                    SizedBox(width: isSmallMobile ? 8 : 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Inventory Reports',
-                            style: TextStyle(
-                          color: Colors.white,
-                              fontSize: isSmallMobile ? 16 : 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Comprehensive analytics',
-                            style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                              fontSize: isSmallMobile ? 12 : 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-              SizedBox(height: isSmallMobile ? 12 : 16),
-          
-          // Reports Content
-          if (_reports.isEmpty)
-            _buildEmptyState(
-              icon: Icons.analytics_outlined,
-              title: 'No Reports Available',
-              subtitle: 'Reports will appear here when data is loaded',
-            )
-          else
-                _buildResponsiveUnifiedReportsContent(isSmallMobile),
-        ],
-      ),
-        );
-      },
-    );
+    return _buildReportsTab(); // Use the same responsive implementation as desktop
   }
 
   Widget _buildMobileDetailedMovementsTab() {
@@ -3977,11 +4035,11 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildTabletMovementsTab() {
-    return _buildDesktopMovementsTab(); // Reuse desktop for now
+    return _buildMovementsTab(); // Use the same implementation as desktop
   }
 
   Widget _buildTabletReportsTab() {
-    return _buildDesktopReportsTab(); // Reuse desktop for now
+    return _buildReportsTab(); // Use the same responsive implementation as desktop
   }
 
   Widget _buildTabletDetailedMovementsTab() {
@@ -4586,11 +4644,11 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildDesktopMovementsTab() {
-    return _buildMovementsTab(); // Use existing method
+    return _buildMovementsTab(); // Use the same implementation as desktop
   }
 
   Widget _buildDesktopReportsTab() {
-    return _buildMobileReportsTab(); // Use unified implementation
+    return _buildReportsTab(); // Use the same responsive implementation as desktop
   }
 
   Widget _buildUnifiedReportsContent() {
@@ -8079,6 +8137,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     switch (type) {
       case 'in':
         return Colors.green;
+      case 'out':
+        return Colors.red;
       case 'transfer_out':
         return Colors.orange;
       case 'adjustment':
@@ -8092,6 +8152,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     switch (type) {
       case 'in':
         return 'Stock In';
+      case 'out':
+        return 'Stock Out';
       case 'transfer_out':
         return 'Transfer Out';
       case 'adjustment':
@@ -12501,13 +12563,14 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     return RefreshIndicator(
       onRefresh: _loadData,
       child: ListView.builder(
-        controller: _inventoryScrollController,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
-      itemCount: filteredInventory.length,
-      itemBuilder: (context, index) {
-        final item = filteredInventory[index];
-        return _buildMobileInventoryCard(item);
-      },
+        itemCount: filteredInventory.length,
+        itemBuilder: (context, index) {
+          final item = filteredInventory[index];
+          return _buildMobileInventoryCard(item);
+        },
       ),
     );
   }

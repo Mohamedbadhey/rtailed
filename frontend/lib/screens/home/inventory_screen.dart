@@ -5860,33 +5860,6 @@ class _ProductDialogState extends State<_ProductDialog> {
 
         SizedBox(height: isSmallMobile ? 12 : 16),
                       TextFormField(
-                        controller: _costController,
-                        decoration: InputDecoration(
-                          labelText: t(context, 'Cost *'),
-                          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
-                          ),
-            prefixIcon: Icon(Icons.account_balance_wallet, size: isSmallMobile ? 18 : 20),
-                          filled: true,
-                          fillColor: Colors.orange[50],
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: isSmallMobile ? 12 : 16,
-              vertical: isSmallMobile ? 10 : 14,
-            ),
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return t(context, 'Cost is required');
-                          }
-                          if (double.tryParse(value) == null) {
-                            return t(context, 'Please enter a valid number');
-                          }
-                          return null;
-                        },
-                      ),
-        SizedBox(height: isSmallMobile ? 12 : 16),
-                      TextFormField(
                         controller: _stockController,
                         decoration: InputDecoration(
                           labelText: t(context, 'Stock Quantity'),
@@ -5929,12 +5902,57 @@ class _ProductDialogState extends State<_ProductDialog> {
             ),
                         ),
                         keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          // Trigger validation of cost field when price changes
+                          if (_costController.text.isNotEmpty) {
+                            _formKey.currentState?.validate();
+                          }
+                        },
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                               return t(context, 'Price is required');
                           }
                             if (double.tryParse(value) == null) {
                             return t(context, 'Please enter a valid number');
+                          }
+                          return null;
+                        },
+                      ),
+        SizedBox(height: isSmallMobile ? 12 : 16),
+                      TextFormField(
+                        controller: _costController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Cost *'),
+                          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                          ),
+            prefixIcon: Icon(Icons.account_balance_wallet, size: isSmallMobile ? 18 : 20),
+                          filled: true,
+                          fillColor: Colors.orange[50],
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: isSmallMobile ? 12 : 16,
+              vertical: isSmallMobile ? 10 : 14,
+            ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          // Trigger validation of price field when cost changes
+                          if (_priceController.text.isNotEmpty) {
+                            _formKey.currentState?.validate();
+                          }
+                        },
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return t(context, 'Cost is required');
+                          }
+                          if (double.tryParse(value) == null) {
+                            return t(context, 'Please enter a valid number');
+                          }
+                          // Check if cost price is greater than selling price
+                          final costPrice = double.tryParse(value.trim());
+                          final sellingPrice = double.tryParse(_priceController.text.trim());
+                          if (costPrice != null && sellingPrice != null && costPrice > sellingPrice) {
+                            return t(context, 'Cost price cannot be greater than selling price');
                           }
                           return null;
                         },
@@ -6071,6 +6089,12 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 fillColor: Colors.green[50],
                               ),
                               keyboardType: TextInputType.number,
+                              onChanged: (value) {
+                                // Trigger validation of cost field when price changes
+                                if (_costController.text.isNotEmpty) {
+                                  _formKey.currentState?.validate();
+                                }
+                              },
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return t(context, 'Price is required');
@@ -6094,12 +6118,24 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 fillColor: Colors.orange[50],
                               ),
                               keyboardType: TextInputType.number,
+                              onChanged: (value) {
+                                // Trigger validation of price field when cost changes
+                                if (_priceController.text.isNotEmpty) {
+                                  _formKey.currentState?.validate();
+                                }
+                              },
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                             return t(context, 'Cost is required');
                                 }
                                 if (double.tryParse(value) == null) {
                                   return t(context, 'Please enter a valid number');
+                                }
+                                // Check if cost price is greater than selling price
+                                final costPrice = double.tryParse(value.trim());
+                                final sellingPrice = double.tryParse(_priceController.text.trim());
+                                if (costPrice != null && sellingPrice != null && costPrice > sellingPrice) {
+                                  return t(context, 'Cost price cannot be greater than selling price');
                                 }
                                 return null;
                               },
@@ -6238,6 +6274,11 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
   List<Map<String, dynamic>> _categories = [];
   Map<String, dynamic>? _editingCategory;
   bool _isAddingNew = true;
+  
+  // Category name validation
+  bool _isCheckingName = false;
+  bool _isNameAvailable = true;
+  bool _isNameTaken = false;
 
   @override
   void initState() {
@@ -6266,12 +6307,60 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
     }
   }
 
+  Future<void> _checkCategoryName(String value) async {
+    if (value.trim().isEmpty) {
+      setState(() {
+        _isNameAvailable = true;
+        _isNameTaken = false;
+        _isCheckingName = false;
+      });
+      return;
+    }
+
+    // Skip check if editing and name hasn't changed
+    if (!_isAddingNew && _editingCategory != null && value.trim() == _editingCategory!['name']) {
+      setState(() {
+        _isNameAvailable = true;
+        _isNameTaken = false;
+        _isCheckingName = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isCheckingName = true;
+    });
+
+    try {
+      final response = await ApiService.postStatic('/api/categories/check-name', {
+        'name': value.trim(),
+      });
+
+      setState(() {
+        _isCheckingName = false;
+        _isNameAvailable = response['available'] ?? false;
+        _isNameTaken = !_isNameAvailable;
+      });
+    } catch (e) {
+      setState(() {
+        _isCheckingName = false;
+        _isNameAvailable = false;
+        _isNameTaken = true;
+      });
+      print('Error checking category name: $e');
+    }
+  }
+
   void _showAddForm() {
     setState(() {
       _isAddingNew = true;
       _editingCategory = null;
       _nameController.clear();
       _descriptionController.clear();
+      // Initialize name validation state for adding
+      _isNameAvailable = true;
+      _isNameTaken = false;
+      _isCheckingName = false;
     });
   }
 
@@ -6281,11 +6370,20 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
       _editingCategory = category;
       _nameController.text = category['name'] ?? '';
       _descriptionController.text = category['description'] ?? '';
+      // Initialize name validation state for editing
+      _isNameAvailable = true;
+      _isNameTaken = false;
+      _isCheckingName = false;
     });
   }
 
   Future<void> _saveCategory() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    // Prevent saving if name is taken
+    if (_isNameTaken) {
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -6322,6 +6420,10 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
         _editingCategory = null;
         _nameController.clear();
         _descriptionController.clear();
+        // Reset validation state
+        _isNameAvailable = true;
+        _isNameTaken = false;
+        _isCheckingName = false;
       });
     } catch (e) {
       if (mounted) {
@@ -6598,6 +6700,28 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
                                     color: Colors.white.withOpacity(0.7),
                                     size: isMobile ? (isSmallMobile ? 18 : 20) : 22,
                                   ),
+                                  suffixIcon: _isCheckingName
+                                      ? SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withOpacity(0.7)),
+                                          ),
+                                        )
+                                      : _isNameTaken
+                                          ? Icon(
+                                              Icons.error,
+                                              color: Colors.red[300],
+                                              size: 20,
+                                            )
+                                          : _isNameAvailable && _nameController.text.isNotEmpty
+                                              ? Icon(
+                                                  Icons.check_circle,
+                                                  color: Colors.green[300],
+                                                  size: 20,
+                                                )
+                                              : null,
                                   contentPadding: EdgeInsets.symmetric(
                                     horizontal: isMobile ? (isSmallMobile ? 12 : 16) : 20,
                                     vertical: isMobile ? (isSmallMobile ? 14 : 16) : 18,
@@ -6607,9 +6731,20 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
                                   color: Colors.white,
                                   fontSize: isMobile ? (isSmallMobile ? 14 : 16) : 18,
                                 ),
+                                onChanged: (value) {
+                                  // Debounce the API call
+                                  Future.delayed(const Duration(milliseconds: 500), () {
+                                    if (_nameController.text == value) {
+                                      _checkCategoryName(value);
+                                    }
+                                  });
+                                },
                                 validator: (value) {
                                   if (value == null || value.trim().isEmpty) {
                                     return 'Category name is required';
+                                  }
+                                  if (_isNameTaken) {
+                                    return 'Category name already exists';
                                   }
                                   return null;
                                 },

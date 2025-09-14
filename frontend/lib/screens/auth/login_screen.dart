@@ -264,6 +264,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     
     return Scaffold(
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -275,15 +277,18 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             ],
           ),
         ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal: isMobile ? 20 : (isTablet ? 40 : 60),
-              vertical: isMobile ? 20 : (isTablet ? 40 : 60),
-            ),
-            child: Column(
-              children: [
-                                SizedBox(height: isMobile ? 20 : (isTablet ? 30 : 40)),
+        child: isMobile 
+          ? SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: MediaQuery.of(context).padding.top + 20,
+                bottom: MediaQuery.of(context).padding.bottom + 20,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(height: MediaQuery.of(context).size.height * 0.1),
                 
                 // Branded Header Section
                 FadeTransition(
@@ -785,10 +790,324 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     ],
                   ),
                 ),
+                  SizedBox(height: MediaQuery.of(context).size.height * 0.1),
               ],
             ),
-          ),
-        ),
+          )
+          : SafeArea(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 40 : 60,
+                  vertical: isTablet ? 40 : 60,
+                ),
+                child: Column(
+                  children: [
+                    SizedBox(height: isTablet ? 30 : 40),
+                    
+                    // Branded Header Section
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Consumer<BrandingProvider>(
+                        builder: (context, brandingProvider, child) {
+                          final appName = brandingProvider.getCurrentAppName(null);
+                          final primaryColor = brandingProvider.getPrimaryColor(null);
+                          final secondaryColor = brandingProvider.getSecondaryColor(null);
+                          
+                          return Column(
+                            children: [
+                              // Logo Container
+                              Container(
+                                padding: EdgeInsets.all(isTablet ? 16 : 20),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [primaryColor, secondaryColor],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(isTablet ? 18 : 20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: primaryColor.withOpacity(0.3),
+                                      blurRadius: isTablet ? 25 : 30,
+                                      offset: const Offset(0, 8),
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                                ),
+                                child: LocalLogo(
+                                  size: isTablet ? 80 : 100,
+                                ),
+                              ),
+                              SizedBox(height: isTablet ? 16 : 20),
+                              
+                              // App Name
+                              ShaderMask(
+                                shaderCallback: (bounds) => LinearGradient(
+                                  colors: [primaryColor, secondaryColor],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ).createShader(bounds),
+                                child: Text(
+                                  appName,
+                                  style: TextStyle(
+                                    fontSize: isTablet ? 28 : 32,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    letterSpacing: -0.5,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              
+                              // Subtitle
+                              Text(
+                                'Sign in to your account',
+                                style: TextStyle(
+                                  color: textSecondary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                    
+                    SizedBox(height: isTablet ? 30 : 40),
+                    
+                    // Login Form (tablet/desktop version)
+                    SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.3),
+                        end: Offset.zero,
+                      ).animate(CurvedAnimation(
+                        parent: _animationController,
+                        curve: Curves.easeOutBack,
+                      )),
+                      child: ScaleTransition(
+                        scale: _scaleAnimation,
+                        child: Center(
+                          child: Container(
+                            width: isTablet ? 500 : 600,
+                            padding: EdgeInsets.all(isTablet ? 24 : 32),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.08),
+                                  blurRadius: 30,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: Form(
+                              key: _formKey,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // Username Field
+                                  CustomTextField(
+                                    controller: _identifierController,
+                                    labelText: 'Username or Email',
+                                    hintText: 'Enter your username or email',
+                                    prefixIcon: Icon(
+                                      Icons.person_outlined,
+                                      color: primaryGradientStart.withOpacity(0.7),
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter your username or email';
+                                      }
+                                      if (value.length < 3) {
+                                        return 'Username or email must be at least 3 characters';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  
+                                  const SizedBox(height: 20),
+                                  
+                                  // Password Field
+                                  CustomTextField(
+                                    controller: _passwordController,
+                                    labelText: 'Password',
+                                    hintText: 'Enter your password',
+                                    prefixIcon: Icon(
+                                      Icons.lock_outlined,
+                                      color: primaryGradientStart.withOpacity(0.7),
+                                    ),
+                                    obscureText: !_isPasswordVisible,
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                        color: textSecondary,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _isPasswordVisible = !_isPasswordVisible;
+                                        });
+                                      },
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter your password';
+                                      }
+                                      if (value.length < 6) {
+                                        return 'Password must be at least 6 characters';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  
+                                  const SizedBox(height: 20),
+                                  
+                                  // Remember Me & Forgot Password - Horizontal layout
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            Checkbox(
+                                              value: _rememberMe,
+                                              onChanged: (value) {
+                                                setState(() {
+                                                  _rememberMe = value ?? false;
+                                                });
+                                              },
+                                              activeColor: primaryGradientStart,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                            ),
+                                            Text(
+                                              'Remember me',
+                                              style: TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w500,
+                                                color: textPrimary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: _showForgotPasswordDialog,
+                                        child: Text(
+                                          'Forgot Password?',
+                                          style: TextStyle(
+                                            color: primaryGradientStart,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  
+                                  const SizedBox(height: 32),
+                                  
+                                  // Login Button
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [primaryGradientStart, primaryGradientEnd],
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: primaryGradientStart.withOpacity(0.3),
+                                          blurRadius: 15,
+                                          offset: const Offset(0, 6),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ElevatedButton(
+                                      onPressed: _isLoading ? null : _login,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.transparent,
+                                        shadowColor: Colors.transparent,
+                                        padding: const EdgeInsets.symmetric(vertical: 22),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                      ),
+                                      child: _isLoading
+                                          ? SizedBox(
+                                              height: 24,
+                                              width: 24,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.5,
+                                                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                              ),
+                                            )
+                                          : Text(
+                                              'Sign In',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 19,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    SizedBox(height: 32),
+                    
+                    // Footer
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Column(
+                        children: [
+                          Text(
+                            '© 2024 Retail Management System',
+                            style: TextStyle(
+                              color: textSecondary.withOpacity(0.7),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Powered by Kismayo ICT Solutions',
+                            style: TextStyle(
+                              color: primaryGradientStart.withOpacity(0.8),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Contact: 0614112537',
+                            style: TextStyle(
+                              color: textSecondary.withOpacity(0.6),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
       ),
     );
   }

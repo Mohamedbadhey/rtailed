@@ -160,10 +160,14 @@ class CartProvider with ChangeNotifier {
 
     if (existingIndex >= 0) {
       _items[existingIndex].quantity += quantity;
+      print('🛒 CartProvider: Updated quantity for ${product.name} (${mode}): ${_items[existingIndex].quantity}');
     } else {
       _items.add(CartItem(product: product, quantity: quantity, mode: mode));
+      print('🛒 CartProvider: Added ${product.name} (${mode}) to cart: ${quantity}');
     }
+    print('🛒 CartProvider: Total items in cart: ${_items.length}');
     notifyListeners();
+    print('🛒 CartProvider: Notified listeners after adding item');
   }
 
   void addItemWithMode(Product product, String mode, int quantity) {
@@ -197,8 +201,11 @@ class CartProvider with ChangeNotifier {
   }
 
   void clearCart() {
+    print('🛒 CartProvider: Clearing cart - items before: ${_items.length}');
     _items.clear();
+    print('🛒 CartProvider: Cart cleared - items after: ${_items.length}');
     notifyListeners();
+    print('🛒 CartProvider: Notified listeners after clearing cart');
   }
 
   void updateQuantity(Product product, int quantity, {String? mode}) {

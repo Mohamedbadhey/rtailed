@@ -1493,15 +1493,18 @@ class PdfExportService {
       final items = tx['items'] as List<dynamic>? ?? [];
       return sum + items.length;
     });
-    const itemsPerPage = 45; // Maximum products per page with minimal header/footer
-    final totalPages = (totalProducts / itemsPerPage).ceil();
+    const itemsPerPage = 35; // Increased since table now expands to fill space
+    final totalPages = totalProducts > 0 ? (totalProducts / itemsPerPage).ceil() : 1; // Ensure at least 1 page
     
     print('🔍 PDF Customer Invoice: Creating $totalPages pages for ${transactions.length} transactions');
+    print('🔍 PDF Customer Invoice: Total products found: $totalProducts');
+    print('🔍 PDF Customer Invoice: Items per page: $itemsPerPage');
     
     // Flatten all products for pagination
     final allProducts = <Map<String, dynamic>>[];
     for (final tx in transactions) {
       final items = tx['items'] as List<dynamic>? ?? [];
+      print('🔍 PDF Customer Invoice: Transaction ${tx['id']} has ${items.length} items');
       for (final item in items) {
         allProducts.add({
           'product_name': item['product_name'] ?? 'Unknown Product',
@@ -1513,14 +1516,24 @@ class PdfExportService {
         });
       }
     }
+    print('🔍 PDF Customer Invoice: Flattened ${allProducts.length} products for pagination');
     
     for (int pageIndex = 0; pageIndex < totalPages; pageIndex++) {
       final startIndex = pageIndex * itemsPerPage;
       final endIndex = (startIndex + itemsPerPage).clamp(0, allProducts.length);
       final pageProducts = allProducts.sublist(startIndex, endIndex);
       
+      print('🔍 PDF Customer Invoice: Page ${pageIndex + 1}/$totalPages - Products ${startIndex}-${endIndex-1} (${pageProducts.length} products)');
+      
+      // Skip pages with no products (except if it's the only page)
+      if (pageProducts.isEmpty && totalPages > 1) {
+        print('🔍 PDF Customer Invoice: Skipping empty page ${pageIndex + 1}');
+        continue;
+      }
+      
       // Group products back by transaction for the table
       final pageTransactions = _groupProductsByTransaction(pageProducts, transactions);
+      print('🔍 PDF Customer Invoice: Page ${pageIndex + 1} - Grouped into ${pageTransactions.length} transactions');
       
       pdf.addPage(
         pw.Page(
@@ -1557,8 +1570,10 @@ class PdfExportService {
                   pw.SizedBox(height: 2),
                 ],
                 
-                // Transactions Table for this page
-                _buildCustomerInvoiceTable(pageTransactions, showTotals: pageIndex == totalPages - 1, allTransactions: transactions),
+                // Transactions Table for this page - expand to fill available space
+                pw.Expanded(
+                  child: _buildCustomerInvoiceTable(pageTransactions, showTotals: pageIndex == totalPages - 1, allTransactions: transactions),
+                ),
                 
                 // Business details (only on last page)
                 if (pageIndex == totalPages - 1) ...[
@@ -1750,6 +1765,8 @@ class PdfExportService {
     bool showTotals = true,
     List<Map<String, dynamic>>? allTransactions,
   }) {
+    print('🔍 PDF Table: Building table with ${transactions.length} transactions');
+    
     // Flatten all products from all transactions
     final allProducts = <Map<String, dynamic>>[];
     final dataForTotals = allTransactions ?? transactions;
@@ -1772,6 +1789,8 @@ class PdfExportService {
     final totalAmount = allProducts.fold(0.0, (sum, product) => sum + product['total_price']);
     final totalQuantity = allProducts.fold(0, (sum, product) => sum + _safeToInt(product['quantity']));
     final totalProducts = allProducts.length;
+    
+    print('🔍 PDF Table: Table will have ${totalProducts} products, total amount: $totalAmount');
     
     return pw.Container(
       decoration: pw.BoxDecoration(

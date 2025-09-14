@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/customer.dart';
+import '../../models/sale.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/pdf_export_service.dart';
@@ -26,11 +27,25 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
   List<Map<String, dynamic>> _transactions = [];
   Map<String, dynamic>? _summary;
   Set<int> _selectedTransactionIds = {};
+  
+  // New fields for transactions without customers
+  bool _useLatestSales = false;
+  String _billingName = '';
+  final TextEditingController _billingNameController = TextEditingController();
+  
+  // Date range filter
+  String _dateRangeFilter = 'All Time';
 
   @override
   void initState() {
     super.initState();
     _loadCustomers();
+  }
+
+  @override
+  void dispose() {
+    _billingNameController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCustomers() async {
@@ -96,11 +111,120 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
     }
   }
 
+  Future<void> _loadLatestSales() async {
+    print('Customer Invoice - Loading latest sales...');
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Load latest sales transactions (without customer filter)
+      print('Customer Invoice - Fetching sales from API...');
+      final sales = await _apiService.getSales();
+      print('Customer Invoice - Fetched ${sales.length} sales');
+      
+      // Filter sales by date range if specified
+      List<Sale> filteredSales = sales.where((sale) {
+        if (_startDate != null && sale.createdAt != null) {
+          if (sale.createdAt!.isBefore(_startDate!)) return false;
+        }
+        if (_endDate != null && sale.createdAt != null) {
+          if (sale.createdAt!.isAfter(_endDate!.add(Duration(days: 1)))) return false;
+        }
+        return true;
+      }).toList();
+      print('Customer Invoice - Filtered to ${filteredSales.length} sales');
+
+      // Map sales to transaction format and load sale items
+      List<Map<String, dynamic>> transactions = [];
+      print('Customer Invoice - Loading sale items for ${filteredSales.length} transactions...');
+      for (int i = 0; i < filteredSales.length; i++) {
+        final sale = filteredSales[i];
+        print('Customer Invoice - Loading items for sale ${i + 1}/${filteredSales.length} (ID: ${sale.id})');
+        try {
+          // Load sale items for each transaction
+          if (sale.id == null) {
+            print('Customer Invoice - Sale ID is null, skipping...');
+            continue;
+          }
+          final saleItems = await _apiService.getSaleItems(sale.id!);
+          transactions.add({
+            'id': sale.id,
+            'created_at': sale.createdAt?.toIso8601String(),
+            'total_amount': sale.totalAmount,
+            'status': sale.status,
+            'payment_method': sale.paymentMethod,
+            'customer_name': sale.customerName ?? 'Walk-in Customer',
+            'sale_mode': sale.saleMode,
+            'cashier_name': 'Cashier',
+            'items': saleItems,
+          });
+        } catch (e) {
+          print('Customer Invoice - Error loading items for sale ${sale.id}: $e');
+          // Add transaction without items if loading fails
+          transactions.add({
+            'id': sale.id,
+            'created_at': sale.createdAt?.toIso8601String(),
+            'total_amount': sale.totalAmount,
+            'status': sale.status,
+            'payment_method': sale.paymentMethod,
+            'customer_name': sale.customerName ?? 'Walk-in Customer',
+            'sale_mode': sale.saleMode,
+            'cashier_name': 'Cashier',
+            'items': <Map<String, dynamic>>[],
+          });
+        }
+      }
+
+      print('Customer Invoice - Setting ${transactions.length} transactions');
+      setState(() {
+        _customerData = {
+          'name': _billingName.isNotEmpty ? _billingName : 'Walk-in Customer',
+          'email': '',
+          'phone': '',
+          'address': '',
+        };
+        _transactions = transactions;
+        _summary = {
+          'total_amount': transactions.fold(0.0, (sum, tx) => sum + _safeToDouble(tx['total_amount'])),
+          'total_transactions': transactions.length,
+        };
+        // Auto-select all transactions by default
+        _selectedTransactionIds = _transactions.map((tx) => tx['id'] as int).toSet();
+        _isLoading = false;
+      });
+      print('Customer Invoice - Latest sales loaded successfully');
+    } catch (e) {
+      print('Customer Invoice - Error loading latest sales: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load latest sales: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _generateInvoice() async {
-    if (_selectedCustomer == null || _selectedTransactionIds.isEmpty) {
+    if ((_selectedCustomer == null && !_useLatestSales) || _selectedTransactionIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select a customer and choose at least one transaction'),
+          content: Text('Please select a customer or use latest sales, and select at least one transaction'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_useLatestSales && _billingName.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter the billing name for the invoice'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -126,10 +250,11 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
       ).toList();
       
       // Generate and save PDF using the same method as inventory screen
+      final customerName = _useLatestSales ? _billingName : _selectedCustomer!.name!;
       final result = await PdfExportService.exportCustomerInvoiceToPdf(
         customerData: _customerData!,
         transactions: selectedTransactions,
-        fileName: 'customer_invoice_${_selectedCustomer!.name}_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
+        fileName: 'customer_invoice_${customerName.replaceAll(' ', '_')}_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
         businessInfo: businessData,
         startDate: _startDate != null ? DateFormat('yyyy-MM-dd').format(_startDate!) : null,
         endDate: _endDate != null ? DateFormat('yyyy-MM-dd').format(_endDate!) : null,
@@ -235,6 +360,54 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
     return '0.00';
   }
 
+  double _safeToDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  void _onDateRangeFilterChanged(String? value) {
+    if (value == null) return;
+    
+    setState(() {
+      _dateRangeFilter = value;
+      
+      // Set date range based on filter
+      final now = DateTime.now();
+      switch (value) {
+        case 'Today':
+          _startDate = DateTime(now.year, now.month, now.day);
+          _endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'This Week':
+          final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+          _startDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+          _endDate = now;
+          break;
+        case 'This Month':
+          _startDate = DateTime(now.year, now.month, 1);
+          _endDate = now;
+          break;
+        case 'All Time':
+          _startDate = null;
+          _endDate = null;
+          break;
+        case 'Custom Range':
+          // Keep existing dates, user can modify them
+          break;
+      }
+    });
+    
+    // Reload data based on current mode
+    if (_useLatestSales) {
+      _loadLatestSales();
+    } else if (_selectedCustomer != null) {
+      _loadCustomerTransactions();
+    }
+  }
+
   Widget _buildDateSelector(String title, DateTime? date, Function(DateTime?) onDateSelected) {
     return ListTile(
       title: Text(title),
@@ -258,6 +431,7 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print('Customer Invoice - Building UI: _transactions.length = ${_transactions.length}, _useLatestSales = $_useLatestSales, _isLoading = $_isLoading');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Customer Invoice'),
@@ -278,38 +452,115 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Select Customer',
+                      'Invoice Type',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<Customer>(
-                      value: _selectedCustomer,
-                      decoration: const InputDecoration(
-                        labelText: 'Customer',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: _customers.map((customer) {
-                        return DropdownMenuItem<Customer>(
-                          value: customer,
-                          child: Text(customer.name),
-                        );
-                      }).toList(),
-                      onChanged: (Customer? newValue) {
-                        setState(() {
-                          _selectedCustomer = newValue;
-                          _customerData = null;
-                          _transactions = [];
-                          _summary = null;
-                          _selectedTransactionIds.clear();
-                        });
-                        if (newValue != null) {
-                          _loadCustomerTransactions();
-                        }
-                      },
+                    
+                    // Toggle between customer selection and latest sales
+                    Row(
+                      children: [
+                        Expanded(
+                          child: RadioListTile<bool>(
+                            title: const Text('Existing Customer'),
+                            value: false,
+                            groupValue: _useLatestSales,
+                            onChanged: (bool? value) {
+                              setState(() {
+                                _useLatestSales = false;
+                                _selectedCustomer = null;
+                                _customerData = null;
+                                _transactions = [];
+                                _summary = null;
+                                _selectedTransactionIds.clear();
+                                _billingName = '';
+                                _billingNameController.clear();
+                              });
+                            },
+                          ),
+                        ),
+                        Expanded(
+                          child: RadioListTile<bool>(
+                            title: const Text('Latest Sales'),
+                            value: true,
+                            groupValue: _useLatestSales,
+                            onChanged: (bool? value) {
+                              setState(() {
+                                _useLatestSales = true;
+                                _selectedCustomer = null;
+                                _customerData = null;
+                                _transactions = [];
+                                _summary = null;
+                                _selectedTransactionIds.clear();
+                              });
+                              _loadLatestSales();
+                            },
+                          ),
+                        ),
+                      ],
                     ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Customer dropdown (only when not using latest sales)
+                    if (!_useLatestSales) ...[
+                      DropdownButtonFormField<Customer>(
+                        value: _selectedCustomer,
+                        decoration: const InputDecoration(
+                          labelText: 'Customer',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: _customers.map((customer) {
+                          return DropdownMenuItem<Customer>(
+                            value: customer,
+                            child: Text(customer.name),
+                          );
+                        }).toList(),
+                        onChanged: (Customer? newValue) {
+                          setState(() {
+                            _selectedCustomer = newValue;
+                            _customerData = null;
+                            _transactions = [];
+                            _summary = null;
+                            _selectedTransactionIds.clear();
+                          });
+                          if (newValue != null) {
+                            _loadCustomerTransactions();
+                          }
+                        },
+                      ),
+                    ],
+                    
+                    // Billing name input (only when using latest sales)
+                    if (_useLatestSales) ...[
+                      TextFormField(
+                        controller: _billingNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Billing Name',
+                          hintText: 'Enter the name to bill to',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _billingName = value;
+                          });
+                          // Update customer data when billing name changes
+                          if (_transactions.isNotEmpty) {
+                            setState(() {
+                              _customerData = {
+                                'name': _billingName.isNotEmpty ? _billingName : 'Walk-in Customer',
+                                'email': '',
+                                'phone': '',
+                                'address': '',
+                              };
+                            });
+                          }
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -332,10 +583,31 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final isWide = constraints.maxWidth > 600;
-                        if (isWide) {
+                    
+                    // Date Range Filter Dropdown
+                    DropdownButtonFormField<String>(
+                      value: _dateRangeFilter,
+                      decoration: const InputDecoration(
+                        labelText: 'Quick Date Range',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'All Time', child: Text('All Time')),
+                        DropdownMenuItem(value: 'Today', child: Text('Today')),
+                        DropdownMenuItem(value: 'This Week', child: Text('This Week')),
+                        DropdownMenuItem(value: 'This Month', child: Text('This Month')),
+                        DropdownMenuItem(value: 'Custom Range', child: Text('Custom Range')),
+                      ],
+                      onChanged: _onDateRangeFilterChanged,
+                    ),
+                    const SizedBox(height: 16),
+                    // Show custom date selectors only when "Custom Range" is selected
+                    if (_dateRangeFilter == 'Custom Range') ...[
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isWide = constraints.maxWidth > 600;
+                          if (isWide) {
                           // Wide layout: side by side
                           return Row(
                             children: [
@@ -381,7 +653,9 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
                                   setState(() {
                                     _startDate = date;
                                   });
-                                  if (_selectedCustomer != null) {
+                                  if (_useLatestSales) {
+                                    _loadLatestSales();
+                                  } else if (_selectedCustomer != null) {
                                     _loadCustomerTransactions();
                                   }
                                 },
@@ -394,7 +668,9 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
                                   setState(() {
                                     _endDate = date;
                                   });
-                                  if (_selectedCustomer != null) {
+                                  if (_useLatestSales) {
+                                    _loadLatestSales();
+                                  } else if (_selectedCustomer != null) {
                                     _loadCustomerTransactions();
                                   }
                                 },
@@ -404,6 +680,7 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
                         }
                       },
                     ),
+                    ],
                     const SizedBox(height: 8),
                     LayoutBuilder(
                       builder: (context, constraints) {
@@ -452,7 +729,7 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
             const SizedBox(height: 16),
 
             // Transaction Summary
-            if (_selectedCustomer != null && _summary != null) ...[
+            if ((_selectedCustomer != null || _useLatestSales) && _summary != null) ...[
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -629,9 +906,9 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
                       ),
                       const SizedBox(height: 16),
                       if (_transactions.isNotEmpty) ...[
-                        const Text(
-                          'Select Transactions:',
-                          style: TextStyle(
+                        Text(
+                          'Select Transactions: (${_transactions.length} found)',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -777,9 +1054,9 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
                           },
                         ),
                       ] else ...[
-                        const Text(
-                          'No transactions found for the selected date range.',
-                          style: TextStyle(
+                        Text(
+                          'No transactions found. (Debug: _transactions.length = ${_transactions.length}, _useLatestSales = $_useLatestSales)',
+                          style: const TextStyle(
                             color: Colors.grey,
                             fontStyle: FontStyle.italic,
                           ),
@@ -793,7 +1070,7 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
             ],
 
             // Generate Invoice Button
-            if (_selectedCustomer != null && _selectedTransactionIds.isNotEmpty)
+            if ((_selectedCustomer != null || _useLatestSales) && _selectedTransactionIds.isNotEmpty)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -832,10 +1109,25 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
 
             // Loading Indicator
             if (_isLoading)
-              const Center(
+              Center(
                 child: Padding(
-                  padding: EdgeInsets.all(32.0),
-                  child: CircularProgressIndicator(),
+                  padding: const EdgeInsets.all(32.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(
+                        _useLatestSales 
+                            ? 'Loading latest sales and items...' 
+                            : 'Loading customer transactions...',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -848,7 +1140,7 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
   Widget _buildProductsList(List<dynamic> items) {
     if (items.isEmpty) {
       return const Text(
-        'No items',
+        'Sale items not loaded',
         style: TextStyle(
           fontSize: 12,
           color: Colors.grey,

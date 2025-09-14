@@ -165,7 +165,7 @@ class _POSScreenState extends State<POSScreen> {
               
               // Floating cart icon
               Positioned(
-                top: isSmallMobile ? 16 : 20,
+                top: isSmallMobile ? 80 : 90, // Moved down to avoid overlap with refresh button
                 right: isSmallMobile ? 16 : 20,
                 child: Consumer<CartProvider>(
                   builder: (context, cart, child) {
@@ -950,6 +950,7 @@ class _POSScreenState extends State<POSScreen> {
   Widget _buildCartSection(bool isMobile, bool isSmallMobile) {
     return Consumer<CartProvider>(
       builder: (context, cart, child) {
+        print('🛒 POS: Cart section rebuilding - items count: ${cart.items.length}');
         return Column(
           children: [
             // Ultra-compact cart header for mobile

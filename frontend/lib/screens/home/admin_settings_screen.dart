@@ -31,9 +31,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     super.initState();
     final user = context.read<AuthProvider>().user;
     final isAdmin = user != null && user.role == 'admin';
+    final isCashier = user != null && user.role == 'cashier';
     
-    // Number of tabs: General Settings, Damages, Credit, Sales Management, Store Management, Customer Invoice, and optionally Accounting for admins
-    final tabCount = isAdmin ? 7 : 6;
+    // Number of tabs: General Settings, Damages, Credit, Sales Management, Store Management (not for cashiers), Customer Invoice, and optionally Accounting for admins
+    final tabCount = isCashier ? 5 : (isAdmin ? 7 : 6);
     _tabController = TabController(length: tabCount, vsync: this);
     _loadCreditCustomers();
   }
@@ -68,6 +69,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
     final isAdmin = user != null && user.role == 'admin';
+    final isCashier = user != null && user.role == 'cashier';
 
     // Responsive breakpoints
     final isSmallMobile = MediaQuery.of(context).size.width <= 360;
@@ -117,13 +119,14 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
               ),
               text: isSmallMobile ? 'Sales' : t(context, 'Sales Management'),
             ),
-            Tab(
-              icon: Icon(
-                Icons.store,
-                size: isSmallMobile ? 18 : (isMobile ? 20 : 24),
+            if (!isCashier)
+              Tab(
+                icon: Icon(
+                  Icons.store,
+                  size: isSmallMobile ? 18 : (isMobile ? 20 : 24),
+                ),
+                text: isSmallMobile ? 'Stores' : t(context, 'Store Management'),
               ),
-              text: isSmallMobile ? 'Stores' : t(context, 'Store Management'),
-            ),
             Tab(
               icon: Icon(
                 Icons.receipt_long,
@@ -157,8 +160,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
           // Sales Management
           const SalesManagementScreen(),
           
-          // Store Management
-          const StoreManagementScreen(),
+          // Store Management (not for cashiers)
+          if (!isCashier)
+            const StoreManagementScreen(),
           
           // Customer Invoice
           const CustomerInvoiceScreen(),

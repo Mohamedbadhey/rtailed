@@ -553,15 +553,19 @@ class ApiService {
   // Sales
   Future<List<Sale>> getSales() async {
     try {
+      print('API Service - Getting sales from: $baseUrl/api/sales');
       final response = await http.get(
         Uri.parse('$baseUrl/api/sales'),
         headers: _headers,
       );
 
+      print('API Service - Sales response status: ${response.statusCode}');
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
+        print('API Service - Parsed ${data.length} sales');
         return data.map((json) => Sale.fromJson(json)).toList();
       } else {
+        print('API Service - Sales request failed: ${response.body}');
         throw Exception('Failed to get sales: ${response.body}');
       }
     } catch (e) {

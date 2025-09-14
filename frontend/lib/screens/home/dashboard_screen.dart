@@ -34,6 +34,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _creditError;
   String? _selectedCustomerName;
   List<Map<String, dynamic>> _paidCustomerTransactions = [];
+  int _damagedProductsCount = 0;
 
   double safeToDouble(dynamic value) {
     if (value == null) return 0.0;
@@ -68,10 +69,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _loadLowStockProducts().catchError((e) { print('Error in _loadLowStockProducts: $e'); return <Product>[]; }) as Future<List<Product>>,
         ApiService().getCreditReport().catchError((e) { print('Error in getCreditReport: $e'); return <String, dynamic>{}; }) as Future<Map<String, dynamic>>,
         ApiService().getSalesReport().catchError((e) { print('Error in getSalesReport: $e'); return <String, dynamic>{}; }) as Future<Map<String, dynamic>>,
+        _loadDamagedProductsCount().catchError((e) { print('Error in _loadDamagedProductsCount: $e'); return 0; }) as Future<int>,
       ]);
 
       final salesReport = await futures[4] as Map<String, dynamic>? ?? {};
       Map<String, dynamic> creditReport = await futures[3] as Map<String, dynamic>? ?? {};
+      _damagedProductsCount = await futures[5] as int? ?? 0;
       double totalCreditAmount = 0.0;
       if (salesReport['outstandingCredits'] != null) {
         totalCreditAmount = double.tryParse(salesReport['outstandingCredits'].toString()) ?? 0.0;
@@ -217,6 +220,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<int> _loadDamagedProductsCount() async {
+    try {
+      print('Dashboard: Loading damaged products count...');
+      final damagedProducts = await _apiService.getDamagedProducts();
+      print('Dashboard: Damaged products count: ${damagedProducts.length}');
+      return damagedProducts.length;
+    } catch (e) {
+      print('Dashboard: Error loading damaged products count: $e');
+      return 0;
+    }
+  }
+
   Future<void> _loadCreditCustomers() async {
     setState(() {
       _creditLoading = true;
@@ -344,9 +359,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisCount: 2,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: 1.8,
-        crossAxisSpacing: 6,
-        mainAxisSpacing: 6,
+        childAspectRatio: 3.0,
+        crossAxisSpacing: 4,
+        mainAxisSpacing: 4,
         children: [
           _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '', isSmallMobile, isMobile),
           _buildSummaryCard(t(context, 'Outstanding Credits'), '\$${receivables.toStringAsFixed(2)}', Icons.credit_card, Colors.orange, t(context, 'Receivables'), isSmallMobile, isMobile),
@@ -359,9 +374,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisCount: 2,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: 1.6,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
+        childAspectRatio: 2.2,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
         children: [
           _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '', isSmallMobile, isMobile),
           _buildSummaryCard(t(context, 'Outstanding Credits'), '\$${receivables.toStringAsFixed(2)}', Icons.credit_card, Colors.orange, t(context, 'Receivables'), isSmallMobile, isMobile),
@@ -374,9 +389,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisCount: 2,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: 2.5,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
+        childAspectRatio: 3.0,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
         children: [
           _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '', isSmallMobile, isMobile),
           _buildSummaryCard(t(context, 'Outstanding Credits'), '\$${receivables.toStringAsFixed(2)}', Icons.credit_card, Colors.orange, t(context, 'Receivables'), isSmallMobile, isMobile),
@@ -385,15 +400,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       );
     } else {
-      return Row(
+      return GridView.count(
+        crossAxisCount: 4, // 4 columns for desktop
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: 1.8, // Optimized for 4-column layout
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
         children: [
-          Expanded(child: _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '', isSmallMobile, isMobile)),
-          const SizedBox(width: 16),
-          Expanded(child: _buildSummaryCard(t(context, 'Outstanding Credits'), '\$${receivables.toStringAsFixed(2)}', Icons.credit_card, Colors.orange, t(context, 'Receivables'), isSmallMobile, isMobile)),
-          const SizedBox(width: 16),
-          Expanded(child: _buildSummaryCard(t(context, 'Cash on Hand'), '\$${cashOnHand.toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.teal, t(context, 'Available'), isSmallMobile, isMobile)),
-          const SizedBox(width: 16),
-          Expanded(child: _buildSummaryCard(t(context, 'Profit'), '\$${totalProfit.toStringAsFixed(2)}', Icons.trending_up, Colors.deepPurple, t(context, 'Gross profit'), isSmallMobile, isMobile)),
+          _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '', isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Outstanding Credits'), '\$${receivables.toStringAsFixed(2)}', Icons.credit_card, Colors.orange, t(context, 'Receivables'), isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Cash on Hand'), '\$${cashOnHand.toStringAsFixed(2)}', Icons.account_balance_wallet, Colors.teal, t(context, 'Available'), isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Profit'), '\$${totalProfit.toStringAsFixed(2)}', Icons.trending_up, Colors.deepPurple, t(context, 'Gross profit'), isSmallMobile, isMobile),
         ],
       );
     }
@@ -405,11 +423,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisCount: 2,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: 1.8,
-        crossAxisSpacing: 6,
-        mainAxisSpacing: 6,
+        childAspectRatio: 3.0,
+        crossAxisSpacing: 4,
+        mainAxisSpacing: 4,
         children: [
-          _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '$totalOrders orders', isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Damaged Products'), '$_damagedProductsCount', Icons.warning, Colors.red, t(context, 'Items damaged'), isSmallMobile, isMobile),
           _buildSummaryCard(t(context, 'Total Orders'), '$totalOrders', Icons.shopping_cart, Colors.blue, '${averageOrderValue.toStringAsFixed(2)} avg', isSmallMobile, isMobile),
           _buildSummaryCard(t(context, 'Total Customers'), '$totalCustomers', Icons.people, Colors.orange, '$totalCustomers active', isSmallMobile, isMobile),
           _buildSummaryCard(t(context, 'Total Products'), '$totalProducts', Icons.inventory, Colors.purple, '$lowStockCount low stock', isSmallMobile, isMobile),
@@ -420,11 +438,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisCount: 2,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: 1.6,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
+        childAspectRatio: 2.2,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
         children: [
-          _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '$totalOrders orders', isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Damaged Products'), '$_damagedProductsCount', Icons.warning, Colors.red, t(context, 'Items damaged'), isSmallMobile, isMobile),
           _buildSummaryCard(t(context, 'Total Orders'), '$totalOrders', Icons.shopping_cart, Colors.blue, '${averageOrderValue.toStringAsFixed(2)} avg', isSmallMobile, isMobile),
           _buildSummaryCard(t(context, 'Total Customers'), '$totalCustomers', Icons.people, Colors.orange, '$totalCustomers active', isSmallMobile, isMobile),
           _buildSummaryCard(t(context, 'Total Products'), '$totalProducts', Icons.inventory, Colors.purple, '$lowStockCount low stock', isSmallMobile, isMobile),
@@ -435,25 +453,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisCount: 2,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: 2.5,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
+        childAspectRatio: 3.0,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
         children: [
-          _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '$totalOrders orders', isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Damaged Products'), '$_damagedProductsCount', Icons.warning, Colors.red, t(context, 'Items damaged'), isSmallMobile, isMobile),
           _buildSummaryCard(t(context, 'Total Orders'), '$totalOrders', Icons.shopping_cart, Colors.blue, '${averageOrderValue.toStringAsFixed(2)} avg', isSmallMobile, isMobile),
+          _buildSummaryCard(t(context, 'Total Customers'), '$totalCustomers', Icons.people, Colors.orange, '$totalCustomers active', isSmallMobile, isMobile),
           _buildSummaryCard(t(context, 'Total Products'), '$totalProducts', Icons.inventory, Colors.purple, '$lowStockCount low stock', isSmallMobile, isMobile),
         ],
       );
-          } else {
-        return Row(
+            } else {
+        return GridView.count(
+          crossAxisCount: 4, // 4 columns for desktop
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: 1.8, // Optimized for 4-column layout
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
           children: [
-            Expanded(child: _buildSummaryCard(t(context, 'Total Sales'), '\$${totalSales.toStringAsFixed(2)}', Icons.attach_money, Colors.green, '$totalOrders orders', isSmallMobile, isMobile)),
-            const SizedBox(width: 16),
-            Expanded(child: _buildSummaryCard(t(context, 'Total Orders'), '$totalOrders', Icons.shopping_cart, Colors.blue, '${averageOrderValue.toStringAsFixed(2)} avg', isSmallMobile, isMobile)),
-            const SizedBox(width: 16),
-            Expanded(child: _buildSummaryCard(t(context, 'Total Customers'), '$totalCustomers', Icons.people, Colors.orange, '$totalCustomers active', isSmallMobile, isMobile)),
-            const SizedBox(width: 16),
-            Expanded(child: _buildSummaryCard(t(context, 'Total Products'), '$totalProducts', Icons.inventory, Colors.purple, '$lowStockCount low stock', isSmallMobile, isMobile)),
+            _buildSummaryCard(t(context, 'Damaged Products'), '$_damagedProductsCount', Icons.warning, Colors.red, t(context, 'Items damaged'), isSmallMobile, isMobile),
+            _buildSummaryCard(t(context, 'Total Orders'), '$totalOrders', Icons.shopping_cart, Colors.blue, '${averageOrderValue.toStringAsFixed(2)} avg', isSmallMobile, isMobile),
+            _buildSummaryCard(t(context, 'Total Customers'), '$totalCustomers', Icons.people, Colors.orange, '$totalCustomers active', isSmallMobile, isMobile),
+            _buildSummaryCard(t(context, 'Total Products'), '$totalProducts', Icons.inventory, Colors.purple, '$lowStockCount low stock', isSmallMobile, isMobile),
           ],
         );
     }

@@ -145,6 +145,9 @@ class CartProvider with ChangeNotifier {
   }
 
   void addItem(Product product, {String mode = 'retail', int quantity = 1}) {
+    print('🛒 CartProvider: addItem called for ${product.name} (${mode}) x ${quantity}');
+    print('🛒 CartProvider: Current cart items before add: ${_items.length}');
+    
     // Use the new validation method
     final result = addItemWithValidation(product, mode: mode, quantity: quantity);
     
@@ -165,9 +168,15 @@ class CartProvider with ChangeNotifier {
       _items.add(CartItem(product: product, quantity: quantity, mode: mode));
       print('🛒 CartProvider: Added ${product.name} (${mode}) to cart: ${quantity}');
     }
-    print('🛒 CartProvider: Total items in cart: ${_items.length}');
+    print('🛒 CartProvider: Total items in cart after add: ${_items.length}');
     notifyListeners();
     print('🛒 CartProvider: Notified listeners after adding item');
+    
+    // Force an additional notification after a small delay
+    Future.delayed(const Duration(milliseconds: 50), () {
+      print('🛒 CartProvider: Additional notification after add delay');
+      notifyListeners();
+    });
   }
 
   void addItemWithMode(Product product, String mode, int quantity) {
@@ -206,6 +215,12 @@ class CartProvider with ChangeNotifier {
     print('🛒 CartProvider: Cart cleared - items after: ${_items.length}');
     notifyListeners();
     print('🛒 CartProvider: Notified listeners after clearing cart');
+    
+    // Force an additional notification after a small delay
+    Future.delayed(const Duration(milliseconds: 50), () {
+      print('🛒 CartProvider: Additional notification after delay');
+      notifyListeners();
+    });
   }
 
   void updateQuantity(Product product, int quantity, {String? mode}) {

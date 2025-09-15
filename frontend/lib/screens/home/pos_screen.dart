@@ -36,6 +36,12 @@ class _POSScreenState extends State<POSScreen> {
   void initState() {
     super.initState();
     _loadProducts();
+    
+    // Listen to cart changes to ensure UI updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final cartProvider = context.read<CartProvider>();
+      cartProvider.addListener(_forceCartRefresh);
+    });
   }
 
   @override
@@ -49,9 +55,27 @@ class _POSScreenState extends State<POSScreen> {
     });
   }
 
+  // Method to force cart refresh
+  void _forceCartRefresh() {
+    print('🛒 POS: Force cart refresh called');
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
+    
+    // Remove cart listener
+    try {
+      final cartProvider = context.read<CartProvider>();
+      cartProvider.removeListener(_forceCartRefresh);
+    } catch (e) {
+      // Context might not be available during dispose
+      print('🛒 POS: Could not remove cart listener during dispose: $e');
+    }
+    
     super.dispose();
   }
 
@@ -962,6 +986,7 @@ class _POSScreenState extends State<POSScreen> {
     return Consumer<CartProvider>(
       builder: (context, cart, child) {
         print('🛒 POS: Cart section rebuilding - items count: ${cart.items.length}');
+        print('🛒 POS: Cart section rebuild timestamp: ${DateTime.now().millisecondsSinceEpoch}');
         return Column(
           key: ValueKey('cart_section_${cart.items.length}'),
           children: [
@@ -1480,25 +1505,35 @@ class _POSScreenState extends State<POSScreen> {
         cart: cart, 
         saleMode: _saleMode,
         onSaleCompleted: () async {
+          print('🛒 POS: Sale completed callback started');
+          print('🛒 POS: Cart items before refresh: ${cart.items.length}');
+          
+          // Force cart provider to notify listeners immediately
+          cart.notifyListeners();
+          
           // Refresh the POS after successful sale
           await _loadProducts();
+          
           // Force UI update to reflect cart changes
           if (mounted) {
             setState(() {});
           }
+          
           // Debug: Print cart state after sale completion
           print('🛒 POS: Cart state after sale completion: ${cart.items.length} items');
           
-          // Force cart provider to notify listeners to ensure UI updates
-          cart.notifyListeners();
-          
           // Additional delay to ensure UI is fully updated
-          await Future.delayed(const Duration(milliseconds: 100));
+          await Future.delayed(const Duration(milliseconds: 200));
           
           // Force another setState to ensure cart display is refreshed
           if (mounted) {
             setState(() {});
           }
+          
+          // Final cart notification to ensure UI is updated
+          cart.notifyListeners();
+          
+          print('🛒 POS: Sale completed callback finished');
         },
       ),
     );
@@ -1884,10 +1919,12 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       widget.cart.clearCart();
       
       setState(() { _isLoading = false; });
-      Navigator.of(context).pop();
       
-      // Call the callback to refresh the main POS screen
+      // Call the callback to refresh the main POS screen BEFORE closing dialog
       widget.onSaleCompleted();
+      
+      // Close the dialog after refresh is initiated
+      Navigator.of(context).pop();
       
       // Show success message and inform user that POS has been refreshed
       SuccessUtils.showSaleSuccess(context, sale['sale_id'].toString());

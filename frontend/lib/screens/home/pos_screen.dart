@@ -39,6 +39,17 @@ class _POSScreenState extends State<POSScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Ensure cart display is refreshed when dependencies change
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -952,6 +963,7 @@ class _POSScreenState extends State<POSScreen> {
       builder: (context, cart, child) {
         print('🛒 POS: Cart section rebuilding - items count: ${cart.items.length}');
         return Column(
+          key: ValueKey('cart_section_${cart.items.length}'),
           children: [
             // Ultra-compact cart header for mobile
             Container(
@@ -1476,6 +1488,17 @@ class _POSScreenState extends State<POSScreen> {
           }
           // Debug: Print cart state after sale completion
           print('🛒 POS: Cart state after sale completion: ${cart.items.length} items');
+          
+          // Force cart provider to notify listeners to ensure UI updates
+          cart.notifyListeners();
+          
+          // Additional delay to ensure UI is fully updated
+          await Future.delayed(const Duration(milliseconds: 100));
+          
+          // Force another setState to ensure cart display is refreshed
+          if (mounted) {
+            setState(() {});
+          }
         },
       ),
     );
@@ -1485,10 +1508,14 @@ class _POSScreenState extends State<POSScreen> {
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (context) => _MobileCartDialog(cart: cart, onCheckout: () {
-        Navigator.of(context).pop();
-        _showCheckoutDialog(context, cart);
-      }),
+      builder: (context) => _MobileCartDialog(
+        key: ValueKey('mobile_cart_${cart.items.length}'),
+        cart: cart, 
+        onCheckout: () {
+          Navigator.of(context).pop();
+          _showCheckoutDialog(context, cart);
+        }
+      ),
     );
   }
 }
@@ -1853,7 +1880,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       };
       final sale = await _apiService.createSale(saleData);
       
-      // Clear the cart
+      // Clear the cart and ensure listeners are notified
       widget.cart.clearCart();
       
       setState(() { _isLoading = false; });
@@ -2864,7 +2891,7 @@ class _MobileCartDialog extends StatefulWidget {
   final CartProvider cart;
   final VoidCallback onCheckout;
 
-  const _MobileCartDialog({required this.cart, required this.onCheckout});
+  const _MobileCartDialog({Key? key, required this.cart, required this.onCheckout}) : super(key: key);
 
   @override
   State<_MobileCartDialog> createState() => _MobileCartDialogState();

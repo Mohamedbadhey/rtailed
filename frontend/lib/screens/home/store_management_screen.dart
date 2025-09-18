@@ -1583,11 +1583,32 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: _showResetStoreDialog,
-                      icon: const Icon(Icons.refresh),
-                      label: Text(t(context, 'Reset Store')),
+                      icon: Icon(
+                        Icons.refresh,
+                        size: ResponsiveUtils.isMobile(context) ? 18 : 20,
+                      ),
+                      label: Text(
+                        t(context, 'Reset Store'),
+                        style: TextStyle(
+                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            mobile: 14,
+                            tablet: 15,
+                            desktop: 16,
+                          ),
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: ResponsiveUtils.isMobile(context) ? 12 : 16,
+                          vertical: ResponsiveUtils.getResponsiveButtonHeight(context) * 0.4,
+                        ),
+                        minimumSize: Size(
+                          0, 
+                          ResponsiveUtils.getResponsiveButtonHeight(context),
+                        ),
                       ),
                     ),
                   ),

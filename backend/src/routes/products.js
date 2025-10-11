@@ -349,8 +349,8 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
       parseFloat(price), // Use price from request body instead of hardcoded 0.0
       wholesale_price !== undefined ? parseFloat(wholesale_price) : null,
       parseFloat(cost_price), 
-      parseInt(stock_quantity) || 0, 
-      parseInt(low_stock_threshold) || 10, 
+      parseFloat(stock_quantity) || 0, 
+      parseFloat(low_stock_threshold) || 10, 
       image_url,
       businessId
     ];
@@ -364,8 +364,8 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
     console.log('price:', parseFloat(price));
     console.log('wholesale_price:', wholesale_price !== undefined ? parseFloat(wholesale_price) : null);
     console.log('cost_price:', parseFloat(cost_price));
-    console.log('stock_quantity:', parseInt(stock_quantity) || 0);
-    console.log('low_stock_threshold:', parseInt(low_stock_threshold) || 10);
+    console.log('stock_quantity:', parseFloat(stock_quantity) || 0);
+    console.log('low_stock_threshold:', parseFloat(low_stock_threshold) || 10);
     console.log('image_url:', image_url);
     console.log('business_id:', businessId);
     console.log('All insert values:', insertValues);
@@ -382,7 +382,7 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
     console.log('Product created with ID:', productId);
 
     // If storeId is provided, immediately add product to store inventory
-    if (storeId && parseInt(stock_quantity) > 0) {
+    if (storeId && parseFloat(stock_quantity) > 0) {
       console.log('Adding product to store inventory - Store ID:', storeId, 'Product ID:', productId, 'Quantity:', stock_quantity);
       
       // Check if user has access to this store
@@ -407,7 +407,7 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
       if (existing.length > 0) {
         // Update existing inventory (increment)
         const currentQuantity = existing[0].quantity;
-        const newQuantity = currentQuantity + parseInt(stock_quantity);
+        const newQuantity = currentQuantity + parseFloat(stock_quantity);
         
         await connection.query(
           `UPDATE store_product_inventory 
@@ -421,7 +421,7 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
           `INSERT INTO store_inventory_movements 
            (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, reference_type, notes, created_by)
            VALUES (?, ?, ?, 'in', ?, ?, ?, 'purchase', ?, ?)`,
-          [storeId, req.user.business_id, productId, parseInt(stock_quantity), currentQuantity, newQuantity, 'Product created and added to store', req.user.id]
+          [storeId, req.user.business_id, productId, parseFloat(stock_quantity), currentQuantity, newQuantity, 'Product created and added to store', req.user.id]
         );
         
         console.log('Updated existing store inventory - previous:', currentQuantity, 'added:', stock_quantity, 'new:', newQuantity);
@@ -431,7 +431,7 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
           `INSERT INTO store_product_inventory 
            (store_id, business_id, product_id, quantity, min_stock_level, updated_by)
            VALUES (?, ?, ?, ?, 10, ?)`,
-          [storeId, req.user.business_id, productId, parseInt(stock_quantity), req.user.id]
+          [storeId, req.user.business_id, productId, parseFloat(stock_quantity), req.user.id]
         );
         
         // Record the initial movement
@@ -439,7 +439,7 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
           `INSERT INTO store_inventory_movements 
            (store_id, business_id, product_id, movement_type, quantity, previous_quantity, new_quantity, reference_type, notes, created_by)
            VALUES (?, ?, ?, 'in', ?, 0, ?, 'purchase', ?, ?)`,
-          [storeId, req.user.business_id, productId, parseInt(stock_quantity), parseInt(stock_quantity), 'Initial product addition to store', req.user.id]
+          [storeId, req.user.business_id, productId, parseFloat(stock_quantity), parseFloat(stock_quantity), 'Initial product addition to store', req.user.id]
         );
         
         console.log('Created new store inventory record - quantity:', stock_quantity);
@@ -547,11 +547,11 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
     }
     if (stock_quantity !== undefined) {
       updateFields.push('stock_quantity = ?');
-      updateValues.push(parseInt(stock_quantity));
+      updateValues.push(parseFloat(stock_quantity));
     }
     if (low_stock_threshold !== undefined) {
       updateFields.push('low_stock_threshold = ?');
-      updateValues.push(parseInt(low_stock_threshold));
+      updateValues.push(parseFloat(low_stock_threshold));
     }
     if (image_url) {
       updateFields.push('image_url = ?');

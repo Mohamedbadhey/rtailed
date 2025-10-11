@@ -1991,7 +1991,7 @@ class _EditDamagedProductDialogState extends State<_EditDamagedProductDialog> {
       (e) => e.name == widget.damagedProduct['damage_type'],
       orElse: () => DamageType.broken,
     );
-    _quantity = int.tryParse(widget.damagedProduct['quantity'].toString()) ?? 1;
+    _quantity = double.tryParse(widget.damagedProduct['quantity'].toString()) ?? 1.0;
     _damageDate = DateTime.parse(widget.damagedProduct['damage_date']);
     _damageReason = widget.damagedProduct['damage_reason'] ?? '';
     _estimatedLoss = widget.damagedProduct['estimated_loss'] != null 

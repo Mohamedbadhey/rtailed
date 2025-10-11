@@ -3493,12 +3493,12 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 filled: true,
                                 fillColor: Colors.blue[50],
                               ),
-                              keyboardType: TextInputType.number,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return t(context, 'Stock quantity is required');
                                 }
-                                if (int.tryParse(value) == null) {
+                                if (double.tryParse(value) == null) {
                                   return t(context, 'Please enter a valid number');
                                 }
                                 return null;

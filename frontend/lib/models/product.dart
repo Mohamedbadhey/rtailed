@@ -19,12 +19,12 @@ class Product with _$Product {
     double? wholesalePrice,
     @JsonKey(name: 'cost_price', fromJson: _stringToDouble, toJson: _doubleToString)
     required double costPrice,
-    @JsonKey(name: 'stock_quantity', fromJson: _stringToInt, toJson: _intToString)
-    required int stockQuantity,
-    @JsonKey(name: 'damaged_quantity', fromJson: _stringToInt, toJson: _intToString)
-    required int damagedQuantity,
-    @JsonKey(name: 'low_stock_threshold', fromJson: _stringToInt, toJson: _intToString)
-    required int lowStockThreshold,
+    @JsonKey(name: 'stock_quantity', fromJson: _stringToDouble, toJson: _doubleToString)
+    required double stockQuantity,
+    @JsonKey(name: 'damaged_quantity', fromJson: _stringToDouble, toJson: _doubleToString)
+    required double damagedQuantity,
+    @JsonKey(name: 'low_stock_threshold', fromJson: _stringToDouble, toJson: _doubleToString)
+    required double lowStockThreshold,
     @JsonKey(name: 'image_url')
     String? imageUrl,
     @JsonKey(name: 'is_deleted', fromJson: _stringToInt, toJson: _intToString)

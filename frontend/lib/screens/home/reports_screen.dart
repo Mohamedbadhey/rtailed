@@ -1280,7 +1280,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       if (_damagedProductsReport != null) ...[
                         _metricCard(
                           'Damaged Items', 
-                          int.tryParse(_damagedProductsReport!['summary']['total_quantity_damaged']?.toString() ?? '0') ?? 0, 
+                          double.tryParse(_damagedProductsReport!['summary']['total_quantity_damaged']?.toString() ?? '0') ?? 0.0, 
                           color: Colors.orange[50], 
                           icon: Icons.warning,
                           isSmallMobile: isSmallMobile,

@@ -1564,7 +1564,7 @@ class _AddDamagedProductFormState extends State<_AddDamagedProductForm> {
   List<Product> _products = [];
   Product? _selectedProduct;
   DamageType _selectedDamageType = DamageType.broken;
-  int _quantity = 1;
+  double _quantity = 1.0;
   DateTime _damageDate = DateTime.now();
   String _damageReason = '';
   double? _estimatedLoss;
@@ -1758,7 +1758,7 @@ class _AddDamagedProductFormState extends State<_AddDamagedProductForm> {
               return null;
             },
             onChanged: (value) {
-              setState(() => _quantity = int.tryParse(value) ?? 1);
+              setState(() => _quantity = (int.tryParse(value) ?? 1).toDouble());
             },
           ),
           SizedBox(height: isSmallMobile ? 8 : 12),
@@ -1977,7 +1977,7 @@ class _EditDamagedProductDialogState extends State<_EditDamagedProductDialog> {
   final ApiService _apiService = ApiService();
   
   late DamageType _selectedDamageType;
-  late int _quantity;
+  late double _quantity;
   late DateTime _damageDate;
   late String _damageReason;
   double? _estimatedLoss;
@@ -2088,7 +2088,7 @@ class _EditDamagedProductDialogState extends State<_EditDamagedProductDialog> {
                   if (qty == null || qty <= 0) return 'Quantity must be a positive number';
                   return null;
                 },
-                onChanged: (value) => _quantity = int.tryParse(value) ?? 1,
+                onChanged: (value) => _quantity = (int.tryParse(value) ?? 1).toDouble(),
               ),
               SizedBox(height: isSmallMobile ? 12 : 16),
               

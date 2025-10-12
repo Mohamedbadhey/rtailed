@@ -1403,14 +1403,14 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 Expanded(
                   child: _buildQuantityInfo(
                     t(context,'Min Level'),
-                    item['min_stock_level'] ?? 0,
+                    (item['min_stock_level'] ?? 0).toDouble(),
                     Colors.orange,
                   ),
                 ),
                 Expanded(
                   child: _buildQuantityInfo(
                     t(context,'Inventory ID'),
-                    item['inventory_id'] ?? 0,
+                    (item['inventory_id'] ?? 0).toDouble(),
                     Colors.green,
                   ),
                 ),
@@ -1528,7 +1528,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     );
   }
 
-  Widget _buildQuantityInfo(String label, int quantity, Color color) {
+  Widget _buildQuantityInfo(String label, double quantity, Color color) {
     return Column(
       children: [
         Text(
@@ -13984,6 +13984,14 @@ class _IncrementDialogState extends State<_IncrementDialog> {
     return 0;
   }
 
+  double _safeToDoubleQuantity(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -14357,6 +14365,14 @@ class _EditCostPriceDialogState extends State<_EditCostPriceDialog> {
       ],
     );
   }
+
+  double _safeToDoubleQuantity(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
 }
 
 class _TransferDialog extends StatefulWidget {
@@ -14382,7 +14398,7 @@ class _TransferDialog extends StatefulWidget {
 
 class _TransferDialogState extends State<_TransferDialog> {
   int? _selectedBusinessId;
-  final Map<int, int> _selectedQuantities = {};
+  final Map<int, double> _selectedQuantities = {};
   final TextEditingController _notesController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = false;
@@ -14868,7 +14884,7 @@ class _TransferDialogState extends State<_TransferDialog> {
                                           onChanged: (value) {
                                             final quantity = int.tryParse(value) ?? 0;
                                               setState(() {
-                                                _selectedQuantities[productId] = quantity;
+                                                _selectedQuantities[productId] = quantity.toDouble();
                                               });
                                           },
                                         ),
@@ -14974,7 +14990,7 @@ class _TransferDialogState extends State<_TransferDialog> {
   }
 
   int _getTotalSelectedQuantity() {
-    return _selectedQuantities.values.fold(0, (sum, quantity) => sum + quantity);
+    return _selectedQuantities.values.fold(0, (sum, quantity) => sum + quantity.toInt());
   }
 
   int _getSelectedProductsCount() {

@@ -5876,7 +5876,7 @@ class _ProductDialogState extends State<_ProductDialog> {
                           if (value == null || value.trim().isEmpty) {
                             return t(context, 'Cost is required');
                           }
-                          if (double.tryParse(value) == null) {
+                            if (double.tryParse(value) == null) {
                             return t(context, 'Please enter a valid number');
                           }
                           // Check if cost price is greater than selling price
@@ -5915,7 +5915,7 @@ class _ProductDialogState extends State<_ProductDialog> {
                           if (value == null || value.trim().isEmpty) {
                               return t(context, 'Price is required');
                           }
-                            if (double.tryParse(value) == null) {
+                          if (double.tryParse(value) == null) {
                             return t(context, 'Please enter a valid number');
                           }
                           return null;
@@ -6103,7 +6103,7 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 }
                                 return null;
                               },
-                            ),
+                      ),
                       const SizedBox(height: 16),
                       Row(
                         children: [

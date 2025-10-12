@@ -65,7 +65,7 @@ class CartProvider with ChangeNotifier {
   // Get available stock for a product (considering current cart)
   int getAvailableStock(Product product, String mode) {
     final currentCartQuantity = getQuantityInCart(product, mode);
-    final availableStock = product.stockQuantity - product.damagedQuantity;
+    final availableStock = (product.stockQuantity - product.damagedQuantity).toInt();
     return availableStock - currentCartQuantity;
   }
 

@@ -13184,7 +13184,7 @@ class _ProductDialogState extends State<_ProductDialog> {
         'description': _descriptionController.text.trim(),
         'price': double.parse(_priceController.text),
         'cost_price': double.parse(_costController.text),
-        'stock_quantity': int.parse(_stockController.text),
+        'stock_quantity': double.parse(_stockController.text),
         'category_id': _selectedCategoryId,
         'sku': _skuController.text.trim(),
         'low_stock_threshold': 10, // Default value
@@ -13542,12 +13542,12 @@ class _ProductDialogState extends State<_ProductDialog> {
                           filled: true,
                           fillColor: Colors.blue[50],
                         ),
-                        keyboardType: TextInputType.number,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return t(context, 'Stock quantity is required');
                           }
-                          if (int.tryParse(value) == null) {
+                          if (double.tryParse(value) == null) {
                             return t(context, 'Please enter a valid number');
                           }
                           return null;

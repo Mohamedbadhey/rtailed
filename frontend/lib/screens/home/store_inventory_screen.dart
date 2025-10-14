@@ -1396,21 +1396,21 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 Expanded(
                   child: _buildQuantityInfo(
                     t(context,'Store Quantity'),
-                    _safeToDoubleQuantity(item['store_quantity'] ?? item['quantity']),
+                    _safeToInt(item['store_quantity'] ?? item['quantity']),
                     Colors.blue,
                   ),
                 ),
                 Expanded(
                   child: _buildQuantityInfo(
                     t(context,'Min Level'),
-                    (item['min_stock_level'] ?? 0).toDouble(),
+                    item['min_stock_level'] ?? 0,
                     Colors.orange,
                   ),
                 ),
                 Expanded(
                   child: _buildQuantityInfo(
                     t(context,'Inventory ID'),
-                    (item['inventory_id'] ?? 0).toDouble(),
+                    item['inventory_id'] ?? 0,
                     Colors.green,
                   ),
                 ),
@@ -1422,7 +1422,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                 Icon(Icons.inventory, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
-                  '${t(context,'Store Quantity')}: ${_safeToDoubleQuantity(item['store_quantity'] ?? item['quantity'])}',
+                  '${t(context,'Store Quantity')}: ${_safeToInt(item['store_quantity'] ?? item['quantity'])}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.grey[600],
                   ),
@@ -1528,7 +1528,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     );
   }
 
-  Widget _buildQuantityInfo(String label, double quantity, Color color) {
+  Widget _buildQuantityInfo(String label, int quantity, Color color) {
     return Column(
       children: [
         Text(
@@ -1567,7 +1567,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     
     final rawQuantity = item['store_quantity'] ?? item['quantity'];
     print('🔍 DEBUG: Raw quantity: $rawQuantity (type: ${rawQuantity.runtimeType})');
-    final quantity = _safeToDoubleQuantity(rawQuantity);
+    final quantity = _safeToInt(rawQuantity);
     print('🔍 DEBUG: Converted quantity: $quantity (type: ${quantity.runtimeType})');
     
     final rawMinStock = item['min_stock_level'];
@@ -2194,9 +2194,9 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
 
   Widget _buildMovementCard(Map<String, dynamic> movement) {
     final movementType = movement['movement_type'] as String?;
-    final quantity = _safeToDoubleQuantity(movement['quantity'] ?? 0);
-    final previousQuantity = _safeToDoubleQuantity(movement['previous_quantity'] ?? 0);
-    final newQuantity = _safeToDoubleQuantity(movement['new_quantity'] ?? 0);
+    final quantity = _safeToInt(movement['quantity'] ?? 0);
+    final previousQuantity = _safeToInt(movement['previous_quantity'] ?? 0);
+    final newQuantity = _safeToInt(movement['new_quantity'] ?? 0);
     final referenceType = movement['reference_type'] as String?;
     final notes = movement['notes'] as String?;
     
@@ -11459,14 +11459,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
     return 0;
   }
 
-  double _safeToDoubleQuantity(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
-  }
-
   void _exportStockSummaryToPdf() {
     // TODO: Implement PDF export
     ScaffoldMessenger.of(context).showSnackBar(
@@ -13184,7 +13176,7 @@ class _ProductDialogState extends State<_ProductDialog> {
         'description': _descriptionController.text.trim(),
         'price': double.parse(_priceController.text),
         'cost_price': double.parse(_costController.text),
-        'stock_quantity': double.parse(_stockController.text),
+        'stock_quantity': int.parse(_stockController.text),
         'category_id': _selectedCategoryId,
         'sku': _skuController.text.trim(),
         'low_stock_threshold': 10, // Default value
@@ -13542,12 +13534,12 @@ class _ProductDialogState extends State<_ProductDialog> {
                           filled: true,
                           fillColor: Colors.blue[50],
                         ),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: TextInputType.number,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return t(context, 'Stock quantity is required');
                           }
-                          if (double.tryParse(value) == null) {
+                          if (int.tryParse(value) == null) {
                             return t(context, 'Please enter a valid number');
                           }
                           return null;
@@ -13798,12 +13790,12 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 filled: true,
                                 fillColor: Colors.blue[50],
                               ),
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              keyboardType: TextInputType.number,
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return t(context, 'Stock quantity is required');
                                 }
-                                if (double.tryParse(value) == null) {
+                                if (int.tryParse(value) == null) {
                                   return t(context, 'Please enter a valid number');
                                 }
                                 return null;
@@ -13984,14 +13976,6 @@ class _IncrementDialogState extends State<_IncrementDialog> {
     return 0;
   }
 
-  double _safeToDoubleQuantity(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -14082,7 +14066,7 @@ class _IncrementDialogState extends State<_IncrementDialog> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Current Stock: ${_safeToDoubleQuantity(widget.item['store_quantity'] ?? widget.item['quantity'])}',
+                    'Current Stock: ${_safeToInt(widget.item['store_quantity'] ?? widget.item['quantity'])}',
                     style: TextStyle(
                       color: Colors.blue[600],
                       fontSize: 14,
@@ -14105,12 +14089,12 @@ class _IncrementDialogState extends State<_IncrementDialog> {
                 ),
                 prefixIcon: const Icon(Icons.inventory),
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: TextInputType.number,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return t(context, 'Please enter quantity');
                 }
-                final quantity = double.tryParse(value.trim());
+                final quantity = int.tryParse(value.trim());
                 if (quantity == null || quantity <= 0) {
                   return t(context, 'Please enter a valid quantity');
                 }
@@ -14365,14 +14349,6 @@ class _EditCostPriceDialogState extends State<_EditCostPriceDialog> {
       ],
     );
   }
-
-  double _safeToDoubleQuantity(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
-  }
 }
 
 class _TransferDialog extends StatefulWidget {
@@ -14398,7 +14374,7 @@ class _TransferDialog extends StatefulWidget {
 
 class _TransferDialogState extends State<_TransferDialog> {
   int? _selectedBusinessId;
-  final Map<int, double> _selectedQuantities = {};
+  final Map<int, int> _selectedQuantities = {};
   final TextEditingController _notesController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = false;
@@ -14771,7 +14747,7 @@ class _TransferDialogState extends State<_TransferDialog> {
                                                 if (value == null || value.trim().isEmpty) {
                                                   return null; // Allow empty values
                                                 }
-                                                final quantity = double.tryParse(value.trim());
+                                                final quantity = int.tryParse(value.trim());
                                                 if (quantity == null) {
                                                   return 'Please enter a valid number';
                                                 }
@@ -14784,7 +14760,7 @@ class _TransferDialogState extends State<_TransferDialog> {
                                                 return null;
                                               },
                                         onChanged: (value) {
-                                          final quantity = double.tryParse(value) ?? 0.0;
+                                          final quantity = int.tryParse(value) ?? 0;
                                             setState(() {
                                               _selectedQuantities[productId] = quantity;
                                             });
@@ -14884,7 +14860,7 @@ class _TransferDialogState extends State<_TransferDialog> {
                                           onChanged: (value) {
                                             final quantity = int.tryParse(value) ?? 0;
                                               setState(() {
-                                                _selectedQuantities[productId] = quantity.toDouble();
+                                                _selectedQuantities[productId] = quantity;
                                               });
                                           },
                                         ),
@@ -14990,7 +14966,7 @@ class _TransferDialogState extends State<_TransferDialog> {
   }
 
   int _getTotalSelectedQuantity() {
-    return _selectedQuantities.values.fold(0, (sum, quantity) => sum + quantity.toInt());
+    return _selectedQuantities.values.fold(0, (sum, quantity) => sum + quantity);
   }
 
   int _getSelectedProductsCount() {

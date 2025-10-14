@@ -114,15 +114,6 @@ router.post('/', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req,
       });
     }
 
-    // Validate quantity is a valid number
-    const quantityValue = parseFloat(quantity);
-    if (isNaN(quantityValue) || quantityValue <= 0) {
-      await connection.rollback();
-      return res.status(400).json({ 
-        message: 'Invalid quantity value. Must be a positive number.' 
-      });
-    }
-
     // Check if product exists and belongs to user's business
     let productQuery = 'SELECT * FROM products WHERE id = ?';
     let productParams = [product_id];
@@ -142,17 +133,17 @@ router.post('/', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req,
     const product = products[0];
     
     // Check if requested quantity is available
-    if (product.stock_quantity < quantityValue) {
+    if (product.stock_quantity < quantity) {
       await connection.rollback();
       return res.status(400).json({ 
-        message: `Insufficient stock. Available: ${product.stock_quantity}, Requested: ${quantityValue}` 
+        message: `Insufficient stock. Available: ${product.stock_quantity}, Requested: ${quantity}` 
       });
     }
 
     // Calculate estimated loss: if not provided, use product cost price * quantity
     let calculatedEstimatedLoss = estimated_loss ? parseFloat(estimated_loss) : null;
     if (calculatedEstimatedLoss === null || calculatedEstimatedLoss === 0) {
-      calculatedEstimatedLoss = parseFloat(product.cost_price) * quantityValue;
+      calculatedEstimatedLoss = parseFloat(product.cost_price) * quantity;
     }
 
     // Insert damaged product record
@@ -163,7 +154,7 @@ router.post('/', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req,
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         product_id,
-        quantityValue,
+        quantity,
         damage_type,
         damage_date,
         damage_reason || null,
@@ -176,7 +167,7 @@ router.post('/', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req,
     // Update product stock and damaged quantity
     await connection.query(
       'UPDATE products SET stock_quantity = stock_quantity - ?, damaged_quantity = damaged_quantity + ? WHERE id = ?',
-      [quantityValue, quantityValue, product_id]
+      [quantity, quantity, product_id]
     );
 
     // Add inventory transaction for the damage
@@ -186,7 +177,7 @@ router.post('/', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req,
       ) VALUES (?, ?, ?, ?, ?)`,
       [
         product_id,
-        -quantityValue,
+        -quantity,
         'adjustment',
         `Damaged: ${damage_type} - ${damage_reason || 'No reason provided'}`,
         req.user.business_id

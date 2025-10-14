@@ -1679,7 +1679,7 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                                     if (sale['products'] != null && (sale['products'] as List).isNotEmpty) ...[
                                       ...(sale['products'] as List).map((product) {
                                         final productName = product['product_name'] ?? 'Unknown Product';
-                                        final quantity = double.tryParse(product['quantity'].toString()) ?? 0.0;
+                                        final quantity = int.tryParse(product['quantity'].toString()) ?? 0;
                                         final unitPrice = double.tryParse(product['unit_price'].toString()) ?? 0.0;
                                         final totalPrice = double.tryParse(product['total_price'].toString()) ?? 0.0;
                                         final productImage = product['product_image'];

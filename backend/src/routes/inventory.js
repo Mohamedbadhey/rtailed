@@ -57,12 +57,6 @@ router.put('/:id/stock', [auth, checkRole(['admin', 'manager'])], async (req, re
     const { quantity, type, notes } = req.body;
     const productId = req.params.id;
 
-    // Validate quantity is a valid number
-    const quantityValue = parseFloat(quantity);
-    if (isNaN(quantityValue) || quantityValue < 0) {
-      throw new Error('Invalid quantity value');
-    }
-
     // Get current stock
     const [products] = await connection.query(
       'SELECT stock_quantity FROM products WHERE id = ?',
@@ -77,12 +71,12 @@ router.put('/:id/stock', [auth, checkRole(['admin', 'manager'])], async (req, re
     let newQuantity;
 
     if (type === 'add') {
-      newQuantity = currentStock + quantityValue;
+      newQuantity = currentStock + quantity;
     } else if (type === 'subtract') {
-      if (currentStock < quantityValue) {
+      if (currentStock < quantity) {
         throw new Error('Insufficient stock');
       }
-      newQuantity = currentStock - quantityValue;
+      newQuantity = currentStock - quantity;
     } else {
       throw new Error('Invalid operation type');
     }
@@ -101,9 +95,9 @@ router.put('/:id/stock', [auth, checkRole(['admin', 'manager'])], async (req, re
       ) VALUES (?, ?, ?, ?, ?)`,
       [
         productId,
-        type === 'add' ? quantityValue : -quantityValue,
+        type === 'add' ? quantity : -quantity,
         'adjustment',
-        notes || `${type === 'add' ? 'Added' : 'Removed'} ${quantityValue} units`,
+        notes || `${type === 'add' ? 'Added' : 'Removed'} ${quantity} units`,
         businessId
       ]
     );

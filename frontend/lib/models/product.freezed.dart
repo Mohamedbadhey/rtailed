@@ -36,21 +36,14 @@ mixin _$Product {
   @JsonKey(
       name: 'cost_price', fromJson: _stringToDouble, toJson: _doubleToString)
   double get costPrice => throw _privateConstructorUsedError;
+  @JsonKey(name: 'stock_quantity', fromJson: _stringToInt, toJson: _intToString)
+  int get stockQuantity => throw _privateConstructorUsedError;
   @JsonKey(
-      name: 'stock_quantity',
-      fromJson: _stringToDouble,
-      toJson: _doubleToString)
-  double get stockQuantity => throw _privateConstructorUsedError;
+      name: 'damaged_quantity', fromJson: _stringToInt, toJson: _intToString)
+  int get damagedQuantity => throw _privateConstructorUsedError;
   @JsonKey(
-      name: 'damaged_quantity',
-      fromJson: _stringToDouble,
-      toJson: _doubleToString)
-  double get damagedQuantity => throw _privateConstructorUsedError;
-  @JsonKey(
-      name: 'low_stock_threshold',
-      fromJson: _stringToDouble,
-      toJson: _doubleToString)
-  double get lowStockThreshold => throw _privateConstructorUsedError;
+      name: 'low_stock_threshold', fromJson: _stringToInt, toJson: _intToString)
+  int get lowStockThreshold => throw _privateConstructorUsedError;
   @JsonKey(name: 'image_url')
   String? get imageUrl => throw _privateConstructorUsedError;
   @JsonKey(name: 'is_deleted', fromJson: _stringToInt, toJson: _intToString)
@@ -90,20 +83,18 @@ abstract class $ProductCopyWith<$Res> {
           toJson: _doubleToString)
       double costPrice,
       @JsonKey(
-          name: 'stock_quantity',
-          fromJson: _stringToDouble,
-          toJson: _doubleToString)
-      double stockQuantity,
+          name: 'stock_quantity', fromJson: _stringToInt, toJson: _intToString)
+      int stockQuantity,
       @JsonKey(
           name: 'damaged_quantity',
-          fromJson: _stringToDouble,
-          toJson: _doubleToString)
-      double damagedQuantity,
+          fromJson: _stringToInt,
+          toJson: _intToString)
+      int damagedQuantity,
       @JsonKey(
           name: 'low_stock_threshold',
-          fromJson: _stringToDouble,
-          toJson: _doubleToString)
-      double lowStockThreshold,
+          fromJson: _stringToInt,
+          toJson: _intToString)
+      int lowStockThreshold,
       @JsonKey(name: 'image_url') String? imageUrl,
       @JsonKey(name: 'is_deleted', fromJson: _stringToInt, toJson: _intToString)
       int isDeleted,
@@ -190,15 +181,15 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
       stockQuantity: null == stockQuantity
           ? _value.stockQuantity
           : stockQuantity // ignore: cast_nullable_to_non_nullable
-              as double,
+              as int,
       damagedQuantity: null == damagedQuantity
           ? _value.damagedQuantity
           : damagedQuantity // ignore: cast_nullable_to_non_nullable
-              as double,
+              as int,
       lowStockThreshold: null == lowStockThreshold
           ? _value.lowStockThreshold
           : lowStockThreshold // ignore: cast_nullable_to_non_nullable
-              as double,
+              as int,
       imageUrl: freezed == imageUrl
           ? _value.imageUrl
           : imageUrl // ignore: cast_nullable_to_non_nullable
@@ -247,20 +238,18 @@ abstract class _$$ProductImplCopyWith<$Res> implements $ProductCopyWith<$Res> {
           toJson: _doubleToString)
       double costPrice,
       @JsonKey(
-          name: 'stock_quantity',
-          fromJson: _stringToDouble,
-          toJson: _doubleToString)
-      double stockQuantity,
+          name: 'stock_quantity', fromJson: _stringToInt, toJson: _intToString)
+      int stockQuantity,
       @JsonKey(
           name: 'damaged_quantity',
-          fromJson: _stringToDouble,
-          toJson: _doubleToString)
-      double damagedQuantity,
+          fromJson: _stringToInt,
+          toJson: _intToString)
+      int damagedQuantity,
       @JsonKey(
           name: 'low_stock_threshold',
-          fromJson: _stringToDouble,
-          toJson: _doubleToString)
-      double lowStockThreshold,
+          fromJson: _stringToInt,
+          toJson: _intToString)
+      int lowStockThreshold,
       @JsonKey(name: 'image_url') String? imageUrl,
       @JsonKey(name: 'is_deleted', fromJson: _stringToInt, toJson: _intToString)
       int isDeleted,
@@ -345,15 +334,15 @@ class __$$ProductImplCopyWithImpl<$Res>
       stockQuantity: null == stockQuantity
           ? _value.stockQuantity
           : stockQuantity // ignore: cast_nullable_to_non_nullable
-              as double,
+              as int,
       damagedQuantity: null == damagedQuantity
           ? _value.damagedQuantity
           : damagedQuantity // ignore: cast_nullable_to_non_nullable
-              as double,
+              as int,
       lowStockThreshold: null == lowStockThreshold
           ? _value.lowStockThreshold
           : lowStockThreshold // ignore: cast_nullable_to_non_nullable
-              as double,
+              as int,
       imageUrl: freezed == imageUrl
           ? _value.imageUrl
           : imageUrl // ignore: cast_nullable_to_non_nullable
@@ -399,19 +388,17 @@ class _$ProductImpl implements _Product {
           toJson: _doubleToString)
       required this.costPrice,
       @JsonKey(
-          name: 'stock_quantity',
-          fromJson: _stringToDouble,
-          toJson: _doubleToString)
+          name: 'stock_quantity', fromJson: _stringToInt, toJson: _intToString)
       required this.stockQuantity,
       @JsonKey(
           name: 'damaged_quantity',
-          fromJson: _stringToDouble,
-          toJson: _doubleToString)
+          fromJson: _stringToInt,
+          toJson: _intToString)
       required this.damagedQuantity,
       @JsonKey(
           name: 'low_stock_threshold',
-          fromJson: _stringToDouble,
-          toJson: _doubleToString)
+          fromJson: _stringToInt,
+          toJson: _intToString)
       required this.lowStockThreshold,
       @JsonKey(name: 'image_url') this.imageUrl,
       @JsonKey(name: 'is_deleted', fromJson: _stringToInt, toJson: _intToString)
@@ -450,23 +437,16 @@ class _$ProductImpl implements _Product {
       name: 'cost_price', fromJson: _stringToDouble, toJson: _doubleToString)
   final double costPrice;
   @override
-  @JsonKey(
-      name: 'stock_quantity',
-      fromJson: _stringToDouble,
-      toJson: _doubleToString)
-  final double stockQuantity;
+  @JsonKey(name: 'stock_quantity', fromJson: _stringToInt, toJson: _intToString)
+  final int stockQuantity;
   @override
   @JsonKey(
-      name: 'damaged_quantity',
-      fromJson: _stringToDouble,
-      toJson: _doubleToString)
-  final double damagedQuantity;
+      name: 'damaged_quantity', fromJson: _stringToInt, toJson: _intToString)
+  final int damagedQuantity;
   @override
   @JsonKey(
-      name: 'low_stock_threshold',
-      fromJson: _stringToDouble,
-      toJson: _doubleToString)
-  final double lowStockThreshold;
+      name: 'low_stock_threshold', fromJson: _stringToInt, toJson: _intToString)
+  final int lowStockThreshold;
   @override
   @JsonKey(name: 'image_url')
   final String? imageUrl;
@@ -582,20 +562,18 @@ abstract class _Product implements Product {
           toJson: _doubleToString)
       required final double costPrice,
       @JsonKey(
-          name: 'stock_quantity',
-          fromJson: _stringToDouble,
-          toJson: _doubleToString)
-      required final double stockQuantity,
+          name: 'stock_quantity', fromJson: _stringToInt, toJson: _intToString)
+      required final int stockQuantity,
       @JsonKey(
           name: 'damaged_quantity',
-          fromJson: _stringToDouble,
-          toJson: _doubleToString)
-      required final double damagedQuantity,
+          fromJson: _stringToInt,
+          toJson: _intToString)
+      required final int damagedQuantity,
       @JsonKey(
           name: 'low_stock_threshold',
-          fromJson: _stringToDouble,
-          toJson: _doubleToString)
-      required final double lowStockThreshold,
+          fromJson: _stringToInt,
+          toJson: _intToString)
+      required final int lowStockThreshold,
       @JsonKey(name: 'image_url') final String? imageUrl,
       @JsonKey(name: 'is_deleted', fromJson: _stringToInt, toJson: _intToString)
       final int isDeleted,
@@ -632,23 +610,16 @@ abstract class _Product implements Product {
       name: 'cost_price', fromJson: _stringToDouble, toJson: _doubleToString)
   double get costPrice;
   @override
-  @JsonKey(
-      name: 'stock_quantity',
-      fromJson: _stringToDouble,
-      toJson: _doubleToString)
-  double get stockQuantity;
+  @JsonKey(name: 'stock_quantity', fromJson: _stringToInt, toJson: _intToString)
+  int get stockQuantity;
   @override
   @JsonKey(
-      name: 'damaged_quantity',
-      fromJson: _stringToDouble,
-      toJson: _doubleToString)
-  double get damagedQuantity;
+      name: 'damaged_quantity', fromJson: _stringToInt, toJson: _intToString)
+  int get damagedQuantity;
   @override
   @JsonKey(
-      name: 'low_stock_threshold',
-      fromJson: _stringToDouble,
-      toJson: _doubleToString)
-  double get lowStockThreshold;
+      name: 'low_stock_threshold', fromJson: _stringToInt, toJson: _intToString)
+  int get lowStockThreshold;
   @override
   @JsonKey(name: 'image_url')
   String? get imageUrl;

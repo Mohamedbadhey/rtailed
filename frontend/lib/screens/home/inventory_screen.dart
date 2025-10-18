@@ -5851,39 +5851,6 @@ class _ProductDialogState extends State<_ProductDialog> {
                       ),
         SizedBox(height: isSmallMobile ? 12 : 16),
                       TextFormField(
-                          controller: _priceController,
-                        decoration: InputDecoration(
-                            labelText: t(context, 'Price *'),
-                          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
-                          ),
-                            prefixIcon: Icon(Icons.attach_money, size: isSmallMobile ? 18 : 20),
-                          filled: true,
-                            fillColor: Colors.green[50],
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: isSmallMobile ? 12 : 16,
-              vertical: isSmallMobile ? 10 : 14,
-            ),
-                        ),
-                        keyboardType: TextInputType.number,
-                        onChanged: (value) {
-                          // Trigger validation of cost field when price changes
-                          if (_costController.text.isNotEmpty) {
-                            _formKey.currentState?.validate();
-                          }
-                        },
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                              return t(context, 'Price is required');
-                          }
-                            if (double.tryParse(value) == null) {
-                            return t(context, 'Please enter a valid number');
-                          }
-                          return null;
-                        },
-                      ),
-        SizedBox(height: isSmallMobile ? 12 : 16),
-                      TextFormField(
                         controller: _costController,
                         decoration: InputDecoration(
                           labelText: t(context, 'Cost *'),
@@ -5917,6 +5884,39 @@ class _ProductDialogState extends State<_ProductDialog> {
                           final sellingPrice = double.tryParse(_priceController.text.trim());
                           if (costPrice != null && sellingPrice != null && costPrice > sellingPrice) {
                             return t(context, 'Cost price cannot be greater than selling price');
+                          }
+                          return null;
+                        },
+                      ),
+        SizedBox(height: isSmallMobile ? 12 : 16),
+                      TextFormField(
+                          controller: _priceController,
+                        decoration: InputDecoration(
+                            labelText: t(context, 'Price *'),
+                          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                          ),
+                            prefixIcon: Icon(Icons.attach_money, size: isSmallMobile ? 18 : 20),
+                          filled: true,
+                            fillColor: Colors.green[50],
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: isSmallMobile ? 12 : 16,
+              vertical: isSmallMobile ? 10 : 14,
+            ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          // Trigger validation of cost field when price changes
+                          if (_costController.text.isNotEmpty) {
+                            _formKey.currentState?.validate();
+                          }
+                        },
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                              return t(context, 'Price is required');
+                          }
+                            if (double.tryParse(value) == null) {
+                            return t(context, 'Please enter a valid number');
                           }
                           return null;
                         },
@@ -6042,35 +6042,6 @@ class _ProductDialogState extends State<_ProductDialog> {
                       ),
                       const SizedBox(height: 16),
                        TextFormField(
-                              controller: _priceController,
-                              decoration: InputDecoration(
-                                labelText: t(context, 'Price *'),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                prefixIcon: const Icon(Icons.attach_money),
-                                filled: true,
-                                fillColor: Colors.green[50],
-                              ),
-                              keyboardType: TextInputType.number,
-                              onChanged: (value) {
-                                // Trigger validation of cost field when price changes
-                                if (_costController.text.isNotEmpty) {
-                                  _formKey.currentState?.validate();
-                                }
-                              },
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return t(context, 'Price is required');
-                                }
-                                if (double.tryParse(value) == null) {
-                                  return t(context, 'Please enter a valid number');
-                                }
-                                return null;
-                              },
-                            ),
-                       const SizedBox(height: 16),
-                       TextFormField(
                               controller: _costController,
                               decoration: InputDecoration(
                                 labelText: t(context, 'Cost *'),
@@ -6103,7 +6074,36 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 }
                                 return null;
                               },
-                      ),
+                            ),
+                       const SizedBox(height: 16),
+                       TextFormField(
+                              controller: _priceController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'Price *'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.attach_money),
+                                filled: true,
+                                fillColor: Colors.green[50],
+                              ),
+                              keyboardType: TextInputType.number,
+                              onChanged: (value) {
+                                // Trigger validation of cost field when price changes
+                                if (_costController.text.isNotEmpty) {
+                                  _formKey.currentState?.validate();
+                                }
+                              },
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return t(context, 'Price is required');
+                                }
+                                if (double.tryParse(value) == null) {
+                                  return t(context, 'Please enter a valid number');
+                                }
+                                return null;
+                              },
+                            ),
                       const SizedBox(height: 16),
                       Row(
                         children: [

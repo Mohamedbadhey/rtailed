@@ -13,6 +13,7 @@ import 'package:retail_management/screens/home/superadmin_dashboard_mobile.dart'
 import 'package:retail_management/screens/home/superadmin_dashboard.dart';
 import 'package:retail_management/utils/theme.dart';
 import 'package:retail_management/services/api_service.dart';
+import 'package:retail_management/services/network_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:retail_management/providers/settings_provider.dart';
 import 'package:retail_management/providers/branding_provider.dart';
@@ -36,6 +37,9 @@ void main() async {
     
     // Initialize notification service
     await NotificationService.initialize();
+    
+    // Initialize network service
+    NetworkService().startConnectivityMonitoring();
   } catch (e) {
     print('Platform initialization warning: $e');
   }

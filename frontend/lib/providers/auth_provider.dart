@@ -25,13 +25,13 @@ class AuthProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _token != null;
 
-  Future<void> _loadUser() async {
+  Future<void> _loadUser({BuildContext? context}) async {
     _token = _prefs.getString('token');
     if (_token != null) {
       print('Loading stored token: $_token'); // Debug log
       _apiService.setToken(_token!);
       try {
-        _user = await _apiService.getProfile();
+        _user = await _apiService.getProfile(context: context);
         print('User loaded: ${_user?.username}'); // Debug log
         notifyListeners();
       } catch (e) {
@@ -43,10 +43,10 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> login(String email, String password) async {
+  Future<void> login(String email, String password, {BuildContext? context}) async {
     try {
       print('Attempting login for user: $email'); // Debug log
-      final response = await _apiService.login(email, password);
+      final response = await _apiService.login(email, password, context: context);
       _token = response['token'];
       _user = response['user'];
       print('Login successful, token: $_token'); // Debug log
@@ -60,10 +60,10 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> loginWithUsername(String username, String password) async {
+  Future<void> loginWithUsername(String username, String password, {BuildContext? context}) async {
     try {
       print('Attempting login with username: $username'); // Debug log
-      final response = await _apiService.loginWithUsername(username, password);
+      final response = await _apiService.loginWithUsername(username, password, context: context);
       _token = response['token'];
       _user = response['user'];
       print('Login successful, token: $_token'); // Debug log
@@ -77,10 +77,10 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> loginWithIdentifier(String identifier, String password) async {
+  Future<void> loginWithIdentifier(String identifier, String password, {BuildContext? context}) async {
     try {
       print('Attempting login with identifier: $identifier'); // Debug log
-      final response = await _apiService.loginWithIdentifier(identifier, password);
+      final response = await _apiService.loginWithIdentifier(identifier, password, context: context);
       _token = response['token'];
       _user = response['user'];
       print('Login successful, token: $_token'); // Debug log

@@ -3183,41 +3183,6 @@ class _ProductDialogState extends State<_ProductDialog> {
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
-                        controller: _priceController,
-                        decoration: InputDecoration(
-                          labelText: t(context, 'Price *'),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          prefixIcon: const Icon(Icons.attach_money),
-                          filled: true,
-                          fillColor: Colors.green[50],
-                        ),
-                        keyboardType: TextInputType.number,
-                        onChanged: (value) {
-                          // Trigger validation of cost field when price changes
-                          if (_costController.text.isNotEmpty) {
-                            _formKey.currentState?.validate();
-                          }
-                        },
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return t(context, 'Price is required');
-                          }
-                          if (double.tryParse(value) == null) {
-                            return t(context, 'Please enter a valid number');
-                          }
-                          // Check if price is less than cost
-                          final price = double.tryParse(value);
-                          final cost = double.tryParse(_costController.text);
-                          if (price != null && cost != null && price < cost) {
-                            return t(context, 'Price cannot be less than cost');
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
                         controller: _costController,
                         decoration: InputDecoration(
                           labelText: t(context, 'Cost *'),
@@ -3247,6 +3212,41 @@ class _ProductDialogState extends State<_ProductDialog> {
                           final price = double.tryParse(_priceController.text);
                           if (cost != null && price != null && cost > price) {
                             return t(context, 'Cost cannot be greater than price');
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _priceController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'Price *'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.attach_money),
+                          filled: true,
+                          fillColor: Colors.green[50],
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          // Trigger validation of cost field when price changes
+                          if (_costController.text.isNotEmpty) {
+                            _formKey.currentState?.validate();
+                          }
+                        },
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return t(context, 'Price is required');
+                          }
+                          if (double.tryParse(value) == null) {
+                            return t(context, 'Please enter a valid number');
+                          }
+                          // Check if price is less than cost
+                          final price = double.tryParse(value);
+                          final cost = double.tryParse(_costController.text);
+                          if (price != null && cost != null && price < cost) {
+                            return t(context, 'Price cannot be less than cost');
                           }
                           return null;
                         },
@@ -3405,43 +3405,6 @@ class _ProductDialogState extends State<_ProductDialog> {
                         children: [
                           Expanded(
                             child: TextFormField(
-                              controller: _priceController,
-                              decoration: InputDecoration(
-                                labelText: t(context, 'Price *'),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                prefixIcon: const Icon(Icons.attach_money),
-                                filled: true,
-                                fillColor: Colors.green[50],
-                              ),
-                              keyboardType: TextInputType.number,
-                              onChanged: (value) {
-                                // Trigger validation of cost field when price changes
-                                if (_costController.text.isNotEmpty) {
-                                  _formKey.currentState?.validate();
-                                }
-                              },
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return t(context, 'Price is required');
-                                }
-                                if (double.tryParse(value) == null) {
-                                  return t(context, 'Please enter a valid number');
-                                }
-                                // Check if price is less than cost
-                                final price = double.tryParse(value);
-                                final cost = double.tryParse(_costController.text);
-                                if (price != null && cost != null && price < cost) {
-                                  return t(context, 'Price cannot be less than cost');
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
                               controller: _costController,
                               decoration: InputDecoration(
                                 labelText: t(context, 'Cost *'),
@@ -3471,6 +3434,43 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 final price = double.tryParse(_priceController.text);
                                 if (cost != null && price != null && cost > price) {
                                   return t(context, 'Cost cannot be greater than price');
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _priceController,
+                              decoration: InputDecoration(
+                                labelText: t(context, 'Price *'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                prefixIcon: const Icon(Icons.attach_money),
+                                filled: true,
+                                fillColor: Colors.green[50],
+                              ),
+                              keyboardType: TextInputType.number,
+                              onChanged: (value) {
+                                // Trigger validation of cost field when price changes
+                                if (_costController.text.isNotEmpty) {
+                                  _formKey.currentState?.validate();
+                                }
+                              },
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return t(context, 'Price is required');
+                                }
+                                if (double.tryParse(value) == null) {
+                                  return t(context, 'Please enter a valid number');
+                                }
+                                // Check if price is less than cost
+                                final price = double.tryParse(value);
+                                final cost = double.tryParse(_costController.text);
+                                if (price != null && cost != null && price < cost) {
+                                  return t(context, 'Price cannot be less than cost');
                                 }
                                 return null;
                               },

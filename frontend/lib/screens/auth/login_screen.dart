@@ -7,6 +7,7 @@ import 'package:retail_management/utils/responsive_utils.dart';
 import 'package:retail_management/widgets/custom_text_field.dart';
 import 'package:retail_management/widgets/local_logo.dart';
 import 'package:retail_management/utils/success_utils.dart';
+import 'package:retail_management/services/network_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -96,10 +97,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       await context.read<AuthProvider>().loginWithIdentifier(
         _identifierController.text,
         _passwordController.text,
+        context: context,
       );
     } catch (e) {
-      if (mounted) {
-        SuccessUtils.showOperationError(context, 'login', e.toString());
+      // Network errors are already handled by the NetworkService
+      // Only show error if it's not a network-related error
+      if (e is! NetworkException) {
+        if (mounted) {
+          SuccessUtils.showOperationError(context, 'login', e.toString());
+        }
       }
     } finally {
       if (mounted) {

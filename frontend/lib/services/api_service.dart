@@ -2,17 +2,20 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:flutter/material.dart';
 import 'package:retail_management/models/user.dart';
 import 'package:retail_management/models/product.dart';
 import 'package:retail_management/models/customer.dart';
 import 'package:retail_management/models/sale.dart';
 import 'package:retail_management/models/inventory_transaction.dart';
 import 'package:retail_management/utils/type_converter.dart';
+import 'package:retail_management/services/network_service.dart';
 import 'package:flutter/foundation.dart'; // for kIsWeb
 
 class ApiService {
   static const String baseUrl = 'https://rtailed-production.up.railway.app';
   String? _token;
+  final NetworkService _networkService = NetworkService();
   
   // Singleton pattern
   static final ApiService _instance = ApiService._internal();
@@ -38,12 +41,28 @@ class ApiService {
 
   String? get token => _token;
 
+  /// Execute HTTP request with network error handling and retry logic
+  Future<http.Response> _executeRequest(
+    Future<http.Response> Function() request, {
+    BuildContext? context,
+  }) async {
+    return await _networkService.executeRequest(
+      request,
+      maxRetries: 1,
+      retryDelay: const Duration(seconds: 2),
+      context: context,
+    );
+  }
+
   // Health check
-  Future<bool> checkConnection() async {
+  Future<bool> checkConnection({BuildContext? context}) async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/health'),
-        headers: _headers,
+      final response = await _executeRequest(
+        () => http.get(
+          Uri.parse('$baseUrl/api/health'),
+          headers: _headers,
+        ),
+        context: context,
       );
       return response.statusCode == 200;
     } catch (e) {
@@ -53,15 +72,18 @@ class ApiService {
   }
 
   // Authentication
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  Future<Map<String, dynamic>> login(String email, String password, {BuildContext? context}) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/login'),
-        headers: _headers,
-        body: json.encode({
-          'email': email,
-          'password': password,
-        }),
+      final response = await _executeRequest(
+        () => http.post(
+          Uri.parse('$baseUrl/api/auth/login'),
+          headers: _headers,
+          body: json.encode({
+            'email': email,
+            'password': password,
+          }),
+        ),
+        context: context,
       );
 
       print('Login Response Status: ${response.statusCode}');
@@ -83,15 +105,18 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> loginWithUsername(String username, String password) async {
+  Future<Map<String, dynamic>> loginWithUsername(String username, String password, {BuildContext? context}) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/login'),
-        headers: _headers,
-        body: json.encode({
-          'username': username,
-          'password': password,
-        }),
+      final response = await _executeRequest(
+        () => http.post(
+          Uri.parse('$baseUrl/api/auth/login'),
+          headers: _headers,
+          body: json.encode({
+            'username': username,
+            'password': password,
+          }),
+        ),
+        context: context,
       );
 
       print('Login with Username Response Status: ${response.statusCode}');
@@ -113,15 +138,18 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> loginWithIdentifier(String identifier, String password) async {
+  Future<Map<String, dynamic>> loginWithIdentifier(String identifier, String password, {BuildContext? context}) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/login'),
-        headers: _headers,
-        body: json.encode({
-          'identifier': identifier,
-          'password': password,
-        }),
+      final response = await _executeRequest(
+        () => http.post(
+          Uri.parse('$baseUrl/api/auth/login'),
+          headers: _headers,
+          body: json.encode({
+            'identifier': identifier,
+            'password': password,
+          }),
+        ),
+        context: context,
       );
 
       print('Login with Identifier Response Status: ${response.statusCode}');
@@ -148,7 +176,7 @@ class ApiService {
     String email,
     String password,
     String role,
-    {String? adminCode, String? businessId}
+    {String? adminCode, String? businessId, BuildContext? context}
   ) async {
     try {
       final body = {
@@ -168,10 +196,13 @@ class ApiService {
         body['businessId'] = businessId;
       }
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/register'),
-        headers: _headers,
-        body: json.encode(body),
+      final response = await _executeRequest(
+        () => http.post(
+          Uri.parse('$baseUrl/api/auth/register'),
+          headers: _headers,
+          body: json.encode(body),
+        ),
+        context: context,
       );
 
       if (response.statusCode == 201) {
@@ -190,11 +221,14 @@ class ApiService {
     }
   }
 
-  Future<User> getProfile() async {
+  Future<User> getProfile({BuildContext? context}) async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/auth/me'),
-        headers: _headers,
+      final response = await _executeRequest(
+        () => http.get(
+          Uri.parse('$baseUrl/api/auth/me'),
+          headers: _headers,
+        ),
+        context: context,
       );
 
       if (response.statusCode == 200) {
@@ -241,12 +275,15 @@ class ApiService {
   }
 
   // Products
-  Future<List<Product>> getProducts() async {
+  Future<List<Product>> getProducts({BuildContext? context}) async {
     try {
       print('🛍️ ===== API GET PRODUCTS START =====');
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/products'),
-        headers: _headers,
+      final response = await _executeRequest(
+        () => http.get(
+          Uri.parse('$baseUrl/api/products'),
+          headers: _headers,
+        ),
+        context: context,
       );
 
       print('🛍️ Response status: ${response.statusCode}');

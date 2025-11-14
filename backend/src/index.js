@@ -438,6 +438,30 @@ app.use('/api/store-transfers', require('./routes/store_transfers'));
 app.use('/api/store-inventory', require('./routes/store_inventory'));
 app.use('/api/store-warehouse', require('./routes/store_warehouse'));
 
+// Privacy Policy route - must be before catch-all routes
+app.get('/privacy-policy', (req, res) => {
+  const privacyPolicyPath = path.join(__dirname, '../../privacy_policy.html');
+  console.log('📄 Serving privacy policy from:', privacyPolicyPath);
+  res.sendFile(privacyPolicyPath, (err) => {
+    if (err) {
+      console.error('❌ Error serving privacy policy:', err);
+      res.status(500).send('Privacy policy not found');
+    }
+  });
+});
+
+// Also support /privacy for convenience
+app.get('/privacy', (req, res) => {
+  const privacyPolicyPath = path.join(__dirname, '../../privacy_policy.html');
+  console.log('📄 Serving privacy policy from:', privacyPolicyPath);
+  res.sendFile(privacyPolicyPath, (err) => {
+    if (err) {
+      console.error('❌ Error serving privacy policy:', err);
+      res.status(500).send('Privacy policy not found');
+    }
+  });
+});
+
 // 404 handler for API routes only
 app.use('/api/*', (req, res) => {
   res.status(404).json({
@@ -465,6 +489,11 @@ app.get('*', (req, res) => {
       status: 'error',
       message: 'File not found'
     });
+  }
+  
+  // Skip privacy policy routes (already handled above)
+  if (req.path === '/privacy-policy' || req.path === '/privacy') {
+    return;
   }
   
   // Serve Flutter web app

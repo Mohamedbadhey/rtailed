@@ -2,156 +2,115 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:toast/toast.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:cross_file/cross_file.dart';
 import 'notification_service.dart';
 
 abstract class PdfExportPlatform {
   static Future<Map<String, dynamic>> savePdf(Uint8List pdfBytes, String fileName) async {
     try {
+      // Use app-specific directory (scoped storage) - no permissions required
       Directory? output;
       String userFriendlyPath = '';
       
-      // For Android, request storage permissions first
-      if (Platform.isAndroid) {
-        // Request storage permissions
-        Map<Permission, PermissionStatus> statuses = await [
-          Permission.storage,
-          Permission.manageExternalStorage,
-        ].request();
-        
-        print('🔍 PDF: Permission statuses: $statuses');
-        
-        // Check if permissions are granted
-        if (statuses[Permission.storage] != PermissionStatus.granted &&
-            statuses[Permission.manageExternalStorage] != PermissionStatus.granted) {
-          return {
-            'success': false,
-            'error': 'Storage permission denied',
-            'message': 'Please grant storage permission to save PDF files',
-          };
-        }
-        
-        try {
-          // For Android, try to get the user's Downloads directory
-          if (Platform.isAndroid) {
-            // Try multiple possible Downloads paths that users can access
-            final downloadsPaths = [
-              '/storage/emulated/0/Download',
-              '/storage/emulated/0/Downloads', 
-              '/sdcard/Download',
-              '/sdcard/Downloads',
-            ];
-            
-            for (String path in downloadsPaths) {
-              final testDir = Directory(path);
-              if (await testDir.exists()) {
-                output = testDir;
-                userFriendlyPath = 'Downloads folder';
-                print('🔍 PDF: Found Downloads directory: $path');
-                break;
-              }
-            }
-            
-            // If no Downloads folder found, try external storage
-            if (output == null) {
-              final List<Directory>? directories = await getExternalStorageDirectories();
-              if (directories != null && directories.isNotEmpty) {
-                for (Directory dir in directories) {
-                  final downloadsDir = Directory('${dir.path}/Download');
-                  if (await downloadsDir.exists()) {
-                    output = downloadsDir;
-                    userFriendlyPath = 'Downloads folder';
-                    print('🔍 PDF: Using external Downloads: ${downloadsDir.path}');
-                    break;
-                  }
-                }
-              }
-            }
-            
-            // Last resort: create Downloads in external storage
-            if (output == null) {
-              final externalDir = await getExternalStorageDirectory();
-              if (externalDir != null) {
-                final downloadsDir = Directory('${externalDir.path}/Download');
-                await downloadsDir.create(recursive: true);
-                output = downloadsDir;
-                userFriendlyPath = 'Downloads folder';
-                print('🔍 PDF: Created Downloads: ${downloadsDir.path}');
-              }
-            }
-          }
-          
-          // Fallback to app documents directory
-          if (output == null) {
-            output = await getApplicationDocumentsDirectory();
-            userFriendlyPath = 'App Documents folder';
-            print('🔍 PDF: Using app documents: ${output.path}');
-          }
-        } catch (e) {
-          print('🔍 PDF: Error accessing storage: $e');
-          output = await getApplicationDocumentsDirectory();
-          userFriendlyPath = 'App Documents folder';
-        }
-      } else {
-        // For other platforms, use app documents directory
-        output = await getApplicationDocumentsDirectory();
-        userFriendlyPath = 'App Documents folder';
-      }
+      // Always use app documents directory (scoped storage compliant)
+      output = await getApplicationDocumentsDirectory();
+      userFriendlyPath = 'App folder';
       
-              // Output directory is now guaranteed to be non-null
+      // Create a subdirectory for PDFs if it doesn't exist
+      final pdfsDir = Directory('${output.path}/PDFs');
+      if (!await pdfsDir.exists()) {
+        await pdfsDir.create(recursive: true);
+      }
+      output = pdfsDir;
+      
+      print('🔍 PDF: Using scoped storage directory: ${output.path}');
         
-        // Ensure fileName is clean and has timestamp
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final cleanFileName = '${fileName}_$timestamp'.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
-        final file = File('${output.path}/$cleanFileName.pdf');
+      // Ensure fileName is clean and has timestamp
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final cleanFileName = '${fileName}_$timestamp'.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+      final file = File('${output.path}/$cleanFileName.pdf');
+      
+      print('🔍 PDF: Saving file to: ${file.path}');
+      
+      // Write PDF bytes
+      await file.writeAsBytes(pdfBytes);
+      
+      // Verify file was actually created
+      if (await file.exists()) {
+        final fileSize = await file.length();
+        print('🔍 PDF: File created successfully! Size: $fileSize bytes');
         
-        print('🔍 PDF: Saving file to: ${file.path}');
-        
-        // Write PDF bytes
-        await file.writeAsBytes(pdfBytes);
-        
-        // Verify file was actually created
-        if (await file.exists()) {
-          final fileSize = await file.length();
-          print('🔍 PDF: File created successfully! Size: $fileSize bytes');
+        // For Android, share the file using share_plus to allow user to save to Downloads
+        if (Platform.isAndroid) {
+          try {
+            // Share the file using system share sheet
+            // This allows users to save to Downloads or any location they choose
+            final result = await Share.shareXFiles(
+              [XFile(file.path, mimeType: 'application/pdf', name: '$cleanFileName.pdf')],
+              text: 'Share PDF: $cleanFileName',
+              subject: '$cleanFileName.pdf',
+            );
+            
+            print('🔍 PDF: Share result: $result');
+            
+            // Show success notification
+            await _showDownloadNotification(
+              cleanFileName, 
+              'Shared successfully. You can save it to Downloads from the share menu.',
+              file.path
+            );
+            
+            // Return success info
+            return {
+              'success': true,
+              'filePath': file.path,
+              'fileName': '$cleanFileName.pdf',
+              'directory': output.path,
+              'userFriendlyPath': 'Shared - Save to Downloads via share menu',
+              'message': 'PDF saved! Use the share menu to save it to your Downloads folder 📁',
+            };
+          } catch (shareError) {
+            print('🔍 PDF: Error sharing file: $shareError');
+            // Even if sharing fails, the file is saved in app directory
+            await _showDownloadNotification(
+              cleanFileName, 
+              'Saved to app folder',
+              file.path
+            );
+            
+            return {
+              'success': true,
+              'filePath': file.path,
+              'fileName': '$cleanFileName.pdf',
+              'directory': output.path,
+              'userFriendlyPath': 'App folder',
+              'message': 'PDF saved to app folder! You can access it from the app.',
+            };
+          }
+        } else {
+          // For iOS and other platforms
+          await _showDownloadNotification(cleanFileName, userFriendlyPath, file.path);
           
-          // For Android, verify the file is actually accessible
-          if (Platform.isAndroid) {
-            try {
-              // Try to read the file to verify it's accessible
-              final testRead = await file.readAsBytes();
-              print('🔍 PDF: File is readable! Size verified: ${testRead.length} bytes');
-              
-                                            // File is ready to be opened by user
-                print('🔍 PDF: File ready at: ${file.path}');
-             } catch (e) {
-               print('🔍 PDF: Could not read or open file: $e');
-               // Even if notification/opening fails, the file is saved
-             }
-           }
-           
-           // Show success notification with system notification
-           await _showDownloadNotification(cleanFileName, userFriendlyPath, file.path);
-          
-          // Return success info with user-friendly path
           return {
             'success': true,
             'filePath': file.path,
             'fileName': '$cleanFileName.pdf',
             'directory': output.path,
             'userFriendlyPath': userFriendlyPath,
-            'message': 'PDF downloaded successfully! Check your Downloads folder 📁',
+            'message': 'PDF saved successfully! 📁',
           };
-        } else {
-          throw Exception('File was not created successfully');
         }
+      } else {
+        throw Exception('File was not created successfully');
+      }
     } catch (e) {
       print('🔍 PDF: Error saving PDF: $e');
       return {
         'success': false,
         'error': e.toString(),
-        'message': 'Failed to download PDF: $e',
+        'message': 'Failed to save PDF: $e',
       };
     }
   }

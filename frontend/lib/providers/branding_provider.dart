@@ -491,11 +491,11 @@ class BrandingProvider extends ChangeNotifier {
   
   String getCurrentAppName(int? businessId) {
     if (businessId != null && _businessBrandingLoaded) {
-      final appName = TypeConverter.safeToString(_businessBranding['name'] ?? 'Retail Management');
+      final appName = TypeConverter.safeToString(_businessBranding['name'] ?? 'Kobciye');
       print('getCurrentAppName - businessId: $businessId, business appName: $appName');
       return appName;
     }
-    final systemAppName = TypeConverter.safeToString(_systemBranding['app_name'] ?? 'Retail Management');
+    final systemAppName = TypeConverter.safeToString(_systemBranding['app_name'] ?? 'Kobciye');
     print('getCurrentAppName - businessId: $businessId, system appName: $systemAppName');
     return systemAppName;
   }

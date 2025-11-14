@@ -15,9 +15,9 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.smartledger.retail"
+    namespace = "com.kobciye.app"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973" // Manually set the NDK version
+    ndkVersion = "27.0.12077973" // Manually set the NDK version - supports 16 KB pages
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true // Correct Kotlin DSL property
@@ -30,12 +30,29 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.smartledger.retail"
+        applicationId = "com.kobciye.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
+        
+        // Support for 16 KB memory page sizes (required by Google Play from Nov 1, 2025)
+        // NDK r27+ includes 16 KB page size support
+        ndk {
+            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64"))
+        }
+    }
+    
+    // Configure for 16 KB page size support
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+        resources {
+            // Exclude unnecessary files to reduce APK size
+            excludes += listOf("/META-INF/{AL2.0,LGPL2.1}")
+        }
     }
 
     signingConfigs {

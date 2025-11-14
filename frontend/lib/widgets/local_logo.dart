@@ -35,7 +35,7 @@ class LocalLogo extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Image.asset(
-          'assets/images/logo.png', // This will be the local logo
+          'assets/images/newlogo.jpg', // This will be the local logo
           fit: fit,
           errorBuilder: (context, error, stackTrace) => Container(
             padding: EdgeInsets.all(finalSize * 0.2),
@@ -97,7 +97,7 @@ class LocalLogoWithFallback extends StatelessWidget {
     // Try local asset first
     try {
       return Image.asset(
-        'assets/images/logo.png',
+        'assets/images/newlogo.jpg',
         fit: fit,
         errorBuilder: (context, error, stackTrace) {
           // If local asset fails, try fallback URL

@@ -1,3 +1,4 @@
+
 # 🔒 Google Play Store Data Safety & Privacy Policy Compliance Report
 ## Kobciye Retail Management App (com.kobciye.app)
 

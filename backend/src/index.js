@@ -462,6 +462,54 @@ app.get('/privacy', (req, res) => {
   });
 });
 
+// Data Deletion Request route
+app.get('/data-deletion-request', (req, res) => {
+  const dataDeletionPath = path.join(__dirname, '../../data_deletion_request.html');
+  console.log('📄 Serving data deletion request page from:', dataDeletionPath);
+  res.sendFile(dataDeletionPath, (err) => {
+    if (err) {
+      console.error('❌ Error serving data deletion request page:', err);
+      res.status(500).send('Data deletion request page not found');
+    }
+  });
+});
+
+// Also support /delete-data for convenience
+app.get('/delete-data', (req, res) => {
+  const dataDeletionPath = path.join(__dirname, '../../data_deletion_request.html');
+  console.log('📄 Serving data deletion request page from:', dataDeletionPath);
+  res.sendFile(dataDeletionPath, (err) => {
+    if (err) {
+      console.error('❌ Error serving data deletion request page:', err);
+      res.status(500).send('Data deletion request page not found');
+    }
+  });
+});
+
+// Account Deletion Request route
+app.get('/account-deletion-request', (req, res) => {
+  const accountDeletionPath = path.join(__dirname, '../../account_deletion_request.html');
+  console.log('📄 Serving account deletion request page from:', accountDeletionPath);
+  res.sendFile(accountDeletionPath, (err) => {
+    if (err) {
+      console.error('❌ Error serving account deletion request page:', err);
+      res.status(500).send('Account deletion request page not found');
+    }
+  });
+});
+
+// Also support /delete-account for convenience
+app.get('/delete-account', (req, res) => {
+  const accountDeletionPath = path.join(__dirname, '../../account_deletion_request.html');
+  console.log('📄 Serving account deletion request page from:', accountDeletionPath);
+  res.sendFile(accountDeletionPath, (err) => {
+    if (err) {
+      console.error('❌ Error serving account deletion request page:', err);
+      res.status(500).send('Account deletion request page not found');
+    }
+  });
+});
+
 // 404 handler for API routes only
 app.use('/api/*', (req, res) => {
   res.status(404).json({
@@ -493,6 +541,16 @@ app.get('*', (req, res) => {
   
   // Skip privacy policy routes (already handled above)
   if (req.path === '/privacy-policy' || req.path === '/privacy') {
+    return;
+  }
+  
+  // Skip data deletion request routes (already handled above)
+  if (req.path === '/data-deletion-request' || req.path === '/delete-data') {
+    return;
+  }
+  
+  // Skip account deletion request routes (already handled above)
+  if (req.path === '/account-deletion-request' || req.path === '/delete-account') {
     return;
   }
   

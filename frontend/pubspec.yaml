@@ -1,7 +1,7 @@
 name: retail_management
 description: SmartLedger - Retail Management System
 publish_to: 'none'
-version: 1.0.0+5
+version: 1.0.0+6
 
 environment:
   sdk: ^3.0.0
@@ -16,7 +16,7 @@ dependencies:
   shared_preferences: ^2.2.0
   flutter_secure_storage: ^8.0.0
   intl: ^0.18.1
-  image_picker: ^1.0.7
+  image_picker: ^1.1.2
   fl_chart: ^0.63.0
   pdf: ^3.10.4
   printing: ^5.11.0

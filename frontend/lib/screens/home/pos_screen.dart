@@ -176,7 +176,7 @@ class _POSScreenState extends State<POSScreen> {
             (product.categoryName ?? 'Uncategorized') == _selectedCategory;
 
         // Only show products with available stock (stock - damaged)
-        final availableStock = product.stockQuantity - product.damagedQuantity;
+        final availableStock = product.stockQuantity;
         final stockMatch = availableStock > 0;
 
         return searchMatch && categoryMatch && stockMatch;
@@ -595,7 +595,7 @@ class _POSScreenState extends State<POSScreen> {
   }
 
   Widget _buildProductCard(Product product, bool isMobile, bool isSmallMobile, double screenWidth) {
-    final availableStock = product.stockQuantity - product.damagedQuantity;
+    final availableStock = product.stockQuantity;
     final isLowStock = availableStock <= product.lowStockThreshold;
     
     // Responsive sizing based on screen width
@@ -1303,7 +1303,7 @@ class _POSScreenState extends State<POSScreen> {
                                                         ElevatedButton(
                                                           onPressed: () {
                                                             final qty = int.tryParse(controller.text);
-                                                            final availableStock = item.product.stockQuantity - item.product.damagedQuantity;
+                                                            final availableStock = item.product.stockQuantity;
                                                             if (qty != null && qty > 0 && qty <= availableStock) {
                                                               Navigator.of(context).pop(qty);
                                                             }
@@ -1737,7 +1737,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
     // Validate stock quantities for each cart item
     final stockValidationErrors = <String>[];
     for (final item in widget.cart.items) {
-      final availableStock = item.product.stockQuantity - item.product.damagedQuantity;
+      final availableStock = item.product.stockQuantity;
       if (item.quantity > availableStock) {
         stockValidationErrors.add('${item.product.name} (${item.mode}): Quantity ${item.quantity} exceeds available stock ${availableStock}');
       }
@@ -2938,7 +2938,7 @@ class _MobileCartDialogState extends State<_MobileCartDialog> {
   // Method to check if cart is valid for checkout (stock quantities)
   bool _isCartValidForCheckout() {
     for (final item in widget.cart.items) {
-      final availableStock = item.product.stockQuantity - item.product.damagedQuantity;
+      final availableStock = item.product.stockQuantity;
       if (item.quantity > availableStock) {
         return false;
       }
@@ -2957,7 +2957,7 @@ class _MobileCartDialogState extends State<_MobileCartDialog> {
     };
 
     for (final item in widget.cart.items) {
-      final availableStock = item.product.stockQuantity - item.product.damagedQuantity;
+      final availableStock = item.product.stockQuantity;
       
       if (item.quantity > availableStock) {
         summary['isValid'] = false;

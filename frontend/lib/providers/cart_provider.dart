@@ -38,7 +38,7 @@ class CartProvider with ChangeNotifier {
     final totalQuantityNeeded = currentCartQuantity + requestedQuantity;
     
     // Check if available stock is sufficient
-    final availableStock = product.stockQuantity - product.damagedQuantity;
+    final availableStock = product.stockQuantity;
     
     print('🔍 Stock Check for ${product.name}:');
     print('   - Available Stock: ${availableStock}');
@@ -65,7 +65,7 @@ class CartProvider with ChangeNotifier {
   // Get available stock for a product (considering current cart)
   int getAvailableStock(Product product, String mode) {
     final currentCartQuantity = getQuantityInCart(product, mode);
-    final availableStock = (product.stockQuantity - product.damagedQuantity).toInt();
+    final availableStock = product.stockQuantity.toInt();
     return availableStock - currentCartQuantity;
   }
 
@@ -80,7 +80,7 @@ class CartProvider with ChangeNotifier {
 
     for (final item in _items) {
       final availableStock = getAvailableStock(item.product, item.mode);
-      final totalStock = item.product.stockQuantity - item.product.damagedQuantity;
+      final totalStock = item.product.stockQuantity;
       
       // Check for low stock
       if (totalStock <= item.product.lowStockThreshold) {
@@ -262,7 +262,7 @@ class CartProvider with ChangeNotifier {
       ).fold(0, (sum, item) => sum + item.quantity);
       
       final totalQuantityNeeded = otherItemsQuantity + newQuantity;
-      final availableStock = product.stockQuantity - product.damagedQuantity;
+      final availableStock = product.stockQuantity;
       
       if (totalQuantityNeeded > availableStock) {
         final message = 'Insufficient stock! Available: ${availableStock}, Requested: ${newQuantity}';

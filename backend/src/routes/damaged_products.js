@@ -358,7 +358,7 @@ router.delete('/:id', [auth, checkRole(['admin'])], async (req, res) => {
 });
 
 // Get damaged products report
-router.get('/reports/summary', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
+router.get('/reports/summary', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
     const { start_date, end_date, damage_type, user_id } = req.query;
     

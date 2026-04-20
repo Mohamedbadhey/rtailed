@@ -33,8 +33,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     final isAdmin = user != null && user.role == 'admin';
     final isCashier = user != null && user.role == 'cashier';
     
-    // Number of tabs: General Settings, Damages, Credit, Sales Management, Store Management (not for cashiers), Customer Invoice, and optionally Accounting for admins
-    final tabCount = isCashier ? 5 : (isAdmin ? 7 : 6);
+    // Number of tabs: General Settings, Damages, Credit, Sales Management (not for cashiers), Store Management (not for cashiers), Customer Invoice, and optionally Accounting for admins
+    final tabCount = isCashier ? 4 : (isAdmin ? 7 : 6);
     _tabController = TabController(length: tabCount, vsync: this);
     _loadCreditCustomers();
   }
@@ -112,13 +112,14 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
               ),
               text: isSmallMobile ? 'Credit' : t(context, 'Credit Management'),
             ),
-            Tab(
-              icon: Icon(
-                Icons.receipt,
-                size: isSmallMobile ? 18 : (isMobile ? 20 : 24),
+            if (!isCashier)
+              Tab(
+                icon: Icon(
+                  Icons.receipt,
+                  size: isSmallMobile ? 18 : (isMobile ? 20 : 24),
+                ),
+                text: isSmallMobile ? 'Sales' : t(context, 'Sales Management'),
               ),
-              text: isSmallMobile ? 'Sales' : t(context, 'Sales Management'),
-            ),
             if (!isCashier)
               Tab(
                 icon: Icon(
@@ -157,8 +158,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
           // Credit
           _buildCreditTab(),
           
-          // Sales Management
-          const SalesManagementScreen(),
+          // Sales Management (not for cashiers)
+          if (!isCashier)
+            const SalesManagementScreen(),
           
           // Store Management (not for cashiers)
           if (!isCashier)

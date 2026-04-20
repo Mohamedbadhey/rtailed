@@ -5179,6 +5179,7 @@ class _ProductDialogState extends State<_ProductDialog> {
   final _priceController = TextEditingController();
   final _costController = TextEditingController();
   final _stockController = TextEditingController();
+  final _skuController = TextEditingController();
   
   File? _imageFile;
   String? _imageUrl;
@@ -5206,6 +5207,7 @@ class _ProductDialogState extends State<_ProductDialog> {
       _priceController.text = widget.product!.price.toString();
       _costController.text = widget.product!.costPrice.toString();
       _stockController.text = widget.product!.stockQuantity.toString();
+      _skuController.text = widget.product!.sku ?? '';
       _imageUrl = widget.product!.imageUrl;
       _selectedCategoryId = widget.product!.categoryId;
     }
@@ -5218,6 +5220,7 @@ class _ProductDialogState extends State<_ProductDialog> {
     _priceController.dispose();
     _costController.dispose();
     _stockController.dispose();
+    _skuController.dispose();
     super.dispose();
   }
 
@@ -5482,13 +5485,14 @@ class _ProductDialogState extends State<_ProductDialog> {
         'cost_price': double.parse(_costController.text),
         'stock_quantity': int.parse(_stockController.text),
         'category_id': _selectedCategoryId,
-        'sku': 'SKU-${DateTime.now().millisecondsSinceEpoch}', // Auto-generated SKU
+        'sku': _skuController.text.trim(), // Send as is, let backend handle auto-generation if empty
         'low_stock_threshold': 10, // Default value
       };
       
-      print('=== FRONTEND PRODUCT UPDATE DEBUG ===');
+      print('=== FRONTEND PRODUCT SAVE/UPDATE DEBUG ===');
       print('Selected category ID: $_selectedCategoryId');
       print('Product data to send: $productData');
+      print('SKU Controller text: "${_skuController.text}"');
       print('=====================================');
 
       widget.onSave(productData, _imageFile, webImageBytes: kIsWeb && _webImageDataUrl != null ? base64Decode(_webImageDataUrl!.split(',').last) : null, webImageName: kIsWeb ? _webImageName : null);
@@ -5805,6 +5809,25 @@ class _ProductDialogState extends State<_ProductDialog> {
 
         SizedBox(height: isSmallMobile ? 12 : 16),
                       TextFormField(
+                        controller: _skuController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'SKU (Optional)'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(isSmallMobile ? 8 : 12),
+                          ),
+                          prefixIcon: Icon(Icons.qr_code, size: isSmallMobile ? 18 : 20),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: isSmallMobile ? 12 : 16,
+                            vertical: isSmallMobile ? 10 : 14,
+                          ),
+                          helperText: t(context, 'Auto-generated if left empty'),
+                        ),
+                      ),
+
+        SizedBox(height: isSmallMobile ? 12 : 16),
+                      TextFormField(
                         controller: _descriptionController,
                         decoration: InputDecoration(
                           labelText: t(context, 'Description'),
@@ -6025,6 +6048,20 @@ class _ProductDialogState extends State<_ProductDialog> {
                                 }
                                 return null;
                               },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _skuController,
+                        decoration: InputDecoration(
+                          labelText: t(context, 'SKU (Optional)'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.qr_code),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          helperText: t(context, 'Auto-generated if left empty'),
+                        ),
                       ),
                       const SizedBox(height: 16),
                       TextFormField(

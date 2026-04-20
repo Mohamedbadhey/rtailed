@@ -297,7 +297,8 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
       wholesale_price,
       cost_price,
       stock_quantity,
-      low_stock_threshold
+      low_stock_threshold,
+      sku
     } = req.body;
 
     // Validate required fields
@@ -340,10 +341,12 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
     console.log('context:', storeId ? 'Store Management (Global Product)' : 'Inventory Screen (Business-Specific Product)');
     console.log('========================');
     
+    const finalSku = (sku && sku.trim() !== '') ? sku.trim() : `SKU-${Date.now()}`;
+    
     const insertValues = [
       name, 
       description || null, 
-      `SKU-${Date.now()}`, // Auto-generated SKU
+      finalSku, // Use provided SKU or auto-generate
       barcode || null, 
       category_id || null,
       parseFloat(price), // Use price from request body instead of hardcoded 0.0
@@ -358,7 +361,8 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
     console.log('=== INSERT VALUES ===');
     console.log('name:', name);
     console.log('description:', description || null);
-    console.log('sku: Auto-generated SKU-${Date.now()}');
+    console.log('sku received in body:', sku);
+    console.log('sku being used for insertion:', finalSku);
     console.log('barcode:', barcode || null);
     console.log('category_id:', category_id || null);
     console.log('price:', parseFloat(price));
@@ -487,7 +491,8 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
       wholesale_price,
       cost_price,
       stock_quantity,
-      low_stock_threshold
+      low_stock_threshold,
+      sku
     } = req.body;
 
     // First, check if product exists and belongs to user's business or is global
@@ -527,6 +532,12 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
       updateFields.push('barcode = ?');
       updateValues.push(barcode);
     }
+    if (sku !== undefined) {
+      const finalSku = sku.trim() !== '' ? sku.trim() : `SKU-${Date.now()}`;
+      updateFields.push('sku = ?');
+      updateValues.push(finalSku);
+      console.log('Final SKU being used for update:', finalSku);
+    }
     if (category_id !== undefined) {
       updateFields.push('category_id = ?');
       updateValues.push(category_id === '' ? null : category_id);
@@ -558,6 +569,7 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
       updateValues.push(image_url);
     }
 
+    console.log('sku received in body:', sku);
     console.log('=== UPDATE FIELDS ===');
     console.log('Fields to update:', updateFields);
     console.log('Values to update:', updateValues);

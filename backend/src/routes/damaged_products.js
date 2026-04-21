@@ -173,20 +173,34 @@ router.post('/', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req,
     // Add inventory transaction for the damage
     await connection.query(
       `INSERT INTO inventory_transactions (
-        product_id, quantity, transaction_type, notes, business_id
-      ) VALUES (?, ?, ?, ?, ?)`,
+        product_id, quantity, transaction_type, reference_id, notes, business_id
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
       [
         product_id,
         -quantity,
         'adjustment',
+        result.insertId,
         `Damaged: ${damage_type} - ${damage_reason || 'No reason provided'}`,
         req.user.business_id
       ]
     );
 
-    await connection.commit();
+    // Sync inventory_transactions link for this damage
+   try {
+     const [txLink] = await connection.query(
+       `UPDATE inventory_transactions SET reference_id = ? WHERE reference_id IS NULL AND transaction_type = 'adjustment' AND product_id = ? AND business_id = ? ORDER BY id DESC LIMIT 1`,
+       [result.insertId, product_id, req.user.business_id]
+     );
+     if (txLink.affectedRows === 0) {
+       // It's fine; we already inserted with reference_id
+     }
+   } catch (e) {
+     console.warn('Warning: could not backfill reference_id for inventory_transactions:', e.message);
+   }
 
-    res.status(201).json({
+   await connection.commit();
+
+   res.status(201).json({
       message: 'Damaged product reported successfully',
       damagedProductId: result.insertId
     });
@@ -297,9 +311,46 @@ router.put('/:id', [auth, checkRole(['admin', 'manager'])], async (req, res) => 
       );
     }
 
-    await connection.commit();
+    // Sync corresponding inventory_transactions entry to reflect updates
+   try {
+     const newQtyForTx = (quantity !== undefined ? quantity : damagedProduct.quantity);
+     const newNotes = `Damaged: ${damage_type || damagedProduct.damage_type} - ${ (damage_reason !== undefined ? damage_reason : damagedProduct.damage_reason) || 'No reason provided' }`;
 
-    res.json({ message: 'Damaged product record updated successfully' });
+     const [txRes] = await connection.query(
+       `UPDATE inventory_transactions
+        SET quantity = ?, notes = ?, reference_id = COALESCE(reference_id, ?)
+        WHERE transaction_type = 'adjustment'
+          AND product_id = ?
+          AND business_id = ?
+          AND (reference_id = ? OR reference_id IS NULL)`,
+       [-newQtyForTx, newNotes, damagedProduct.id, damagedProduct.product_id, req.user.business_id, damagedProduct.id]
+     );
+
+     if (txRes.affectedRows === 0) {
+       const [txGuess] = await connection.query(
+         `SELECT id FROM inventory_transactions
+          WHERE transaction_type = 'adjustment'
+            AND product_id = ?
+            AND business_id = ?
+            AND notes LIKE 'Damaged:%'
+          ORDER BY ABS(TIMESTAMPDIFF(SECOND, created_at, ?)) ASC
+          LIMIT 1`,
+         [damagedProduct.product_id, req.user.business_id, damagedProduct.created_at]
+       );
+       if (txGuess.length) {
+         await connection.query(
+           `UPDATE inventory_transactions SET quantity = ?, notes = ?, reference_id = ? WHERE id = ?`,
+           [-newQtyForTx, newNotes, damagedProduct.id, txGuess[0].id]
+         );
+       }
+     }
+   } catch (syncErr) {
+     console.warn('Warning: failed to sync inventory_transactions for damage update:', syncErr.message);
+   }
+
+   await connection.commit();
+
+   res.json({ message: 'Damaged product record updated successfully' });
   } catch (error) {
     await connection.rollback();
     console.error('Update Damaged Product Error:', error);
@@ -345,9 +396,38 @@ router.delete('/:id', [auth, checkRole(['admin'])], async (req, res) => {
       [req.params.id]
     );
 
-    await connection.commit();
+    // Remove linked inventory_transactions row for this damage (if present)
+   try {
+     const [txDel] = await connection.query(
+       `DELETE FROM inventory_transactions
+        WHERE transaction_type = 'adjustment'
+          AND product_id = ?
+          AND business_id = ?
+          AND reference_id = ?`,
+       [damagedProduct.product_id, req.user.business_id, damagedProduct.id]
+     );
+     if (txDel.affectedRows === 0) {
+       const [txGuess] = await connection.query(
+         `SELECT id FROM inventory_transactions
+          WHERE transaction_type = 'adjustment'
+            AND product_id = ?
+            AND business_id = ?
+            AND notes LIKE 'Damaged:%'
+          ORDER BY ABS(TIMESTAMPDIFF(SECOND, created_at, ?)) ASC
+          LIMIT 1`,
+         [damagedProduct.product_id, req.user.business_id, damagedProduct.created_at]
+       );
+       if (txGuess.length) {
+         await connection.query(`DELETE FROM inventory_transactions WHERE id = ?`, [txGuess[0].id]);
+       }
+     }
+   } catch (syncErr) {
+     console.warn('Warning: failed to remove inventory_transactions row for damage delete:', syncErr.message);
+   }
 
-    res.json({ message: 'Damaged product record deleted successfully' });
+   await connection.commit();
+
+   res.json({ message: 'Damaged product record deleted successfully' });
   } catch (error) {
     await connection.rollback();
     console.error('Delete Damaged Product Error:', error);

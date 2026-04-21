@@ -15,7 +15,8 @@ class CartItem {
   });
 
   double get unitPrice => customTotalPrice != null ? (customTotalPrice! / quantity) : product.price;
-  double get total => customTotalPrice ?? (product.price * quantity);
+  double get total => customTotalPrice != null ? customTotalPrice! : (product.price * quantity); // null means no override
+  bool get hasCustomTotal => customTotalPrice != null;
 }
 
 class CartProvider with ChangeNotifier {
@@ -26,7 +27,18 @@ class CartProvider with ChangeNotifier {
   int get itemCount => _items.length;
 
   double get total {
-    return _items.fold(0, (sum, item) => sum + item.total);
+    return _items.fold(0.0, (sum, item) {
+      final t = item.customTotalPrice;
+      return sum + (t != null ? t : (item.product.costPrice * item.quantity));
+    });
+  } // total uses customTotalPrice when set, otherwise fallback to cost*qty as per checkout validation rules
+  
+  void clearCustomTotalPrice(Product product) {
+    final existingIndex = _items.indexWhere((i) => i.product.id == product.id);
+    if (existingIndex >= 0) {
+      _items[existingIndex].customTotalPrice = null;
+      notifyListeners();
+    }
   }
 
   // Check if there's sufficient stock for a product

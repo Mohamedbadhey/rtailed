@@ -2213,6 +2213,24 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                                       ),
                                                       style: TextStyle(fontSize: isSmallMobile ? 12 : 14, fontWeight: FontWeight.bold),
                                                       onChanged: (value) {
+                                                        // Normalize leading dot for easier mobile typing, e.g., ".5" -> "0.5"
+                                                        if (value == '.') {
+                                                          final normalized = '0.';
+                                                          controller.value = controller.value.copyWith(
+                                                            text: normalized,
+                                                            selection: TextSelection.collapsed(offset: normalized.length),
+                                                            composing: TextRange.empty,
+                                                          );
+                                                          return;
+                                                        }
+                                                        
+                                                        // If cleared, clear custom price in cart so it doesn't re-populate
+                                                        if (value.trim().isEmpty) {
+                                                          setItemState(() => isInvalid = true);
+                                                          widget.cart.clearCustomTotalPrice(item.product);
+                                                          setState(() {});
+                                                          return;
+                                                        }
                                                         final totalPrice = double.tryParse(value);
                                                         final minTotal = item.product.costPrice * item.quantity;
                                                         final valid = totalPrice != null && totalPrice >= minTotal;
@@ -2306,6 +2324,24 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                                       ),
                                                       style: TextStyle(fontSize: isMobile ? 14 : 16, fontWeight: FontWeight.bold),
                                                       onChanged: (value) {
+                                                        // Normalize leading dot for easier mobile typing, e.g., ".5" -> "0.5"
+                                                        if (value == '.') {
+                                                          final normalized = '0.';
+                                                          controller.value = controller.value.copyWith(
+                                                            text: normalized,
+                                                            selection: TextSelection.collapsed(offset: normalized.length),
+                                                            composing: TextRange.empty,
+                                                          );
+                                                          return;
+                                                        }
+                                                        
+                                                        // If cleared, clear custom price in cart so it doesn't re-populate
+                                                        if (value.trim().isEmpty) {
+                                                          setState(() => isInvalid = true);
+                                                          widget.cart.clearCustomTotalPrice(item.product);
+                                                          setState(() {});
+                                                          return;
+                                                        }
                                                         final totalPrice = double.tryParse(value);
                                                         final minTotal = item.product.costPrice * item.quantity;
                                                         final valid = totalPrice != null && totalPrice >= minTotal;

@@ -1048,6 +1048,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   String _formatDate(DateTime? date) {
     if (date == null) return t(context, 'Unknown');
+    final local = date.toLocal();
+    date = local;
     
     final now = DateTime.now();
     final difference = now.difference(date);
@@ -2569,13 +2571,17 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
 
   String _formatDate(DateTime? date) {
     if (date == null) return 'Unknown';
+    final local = date.toLocal();
+    date = local;
     
     final now = DateTime.now();
-    final difference = now.difference(date);
+    final today = DateTime(now.year, now.month, now.day);
+    final thatDay = DateTime(date.year, date.month, date.day);
+    final dayDiff = today.difference(thatDay).inDays;
     
-    if (difference.inDays == 0) {
+    if (dayDiff == 0) {
       return 'Today at ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-    } else if (difference.inDays == 1) {
+    } else if (dayDiff == 1) {
       return 'Yesterday at ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
     } else {
       return '${date.day}/${date.month}/${date.year} at ${date.hour}:${date.minute.toString().padLeft(2, '0')}';

@@ -35,6 +35,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _selectedCustomerName;
   List<Map<String, dynamic>> _paidCustomerTransactions = [];
   int _damagedProductsCount = 0;
+  bool _showOnlyOutstanding = false; // toggle for credit table filter
+  
 
   double safeToDouble(dynamic value) {
     if (value == null) return 0.0;
@@ -867,6 +869,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
+          Row(children: [Spacer(), Row(children: [Text(t(context, 'Show only outstanding'), style: TextStyle(fontSize: isSmallMobile ? 10 : 12),), SizedBox(width: 6), Switch(value: _showOnlyOutstanding, onChanged: (val) { setState(() { _showOnlyOutstanding = val; }); }, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,),],),],),
           SizedBox(height: isSmallMobile ? 12 : 16),
           _creditLoading
               ? Center(child: CircularProgressIndicator())
@@ -911,12 +914,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ),
                               DataColumn(
                                 label: Text(
+                                  'Status',
+                                  style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
+                                ),
+                              ),
+                              DataColumn(
+                                label: Text(
                                   'Actions',
                                   style: TextStyle(fontSize: isSmallMobile ? 10 : 12),
                                 ),
                               ),
                             ],
-                            rows: _creditCustomers.map((customer) {
+                            rows: (_showOnlyOutstanding ? _creditCustomers.where((c) => (double.tryParse((c['outstanding_amount'] ?? 0).toString()) ?? 0.0) > 0).toList() : _creditCustomers).map((customer) {
                               return DataRow(
                                 cells: [
                                   DataCell(Text(
@@ -939,6 +948,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     customer['email'] ?? '',
                                     style: TextStyle(fontSize: isSmallMobile ? 9 : 11),
                                   )),
+                                  DataCell(
+                                    Text(
+                                      ((double.tryParse((customer['outstanding_amount'] ?? 0).toString()) ?? 0.0) > 0)
+                                          ? 'Outstanding'
+                                          : 'Paid',
+                                      style: TextStyle(
+                                        fontSize: isSmallMobile ? 9 : 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: ((double.tryParse((customer['outstanding_amount'] ?? 0).toString()) ?? 0.0) > 0)
+                                            ? Colors.orange
+                                            : Colors.green,
+                                      ),
+                                    ),
+                                  ),
                                   DataCell(
                                     IconButton(
                                       icon: Icon(

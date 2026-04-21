@@ -1036,7 +1036,7 @@ router.get('/credit-customers', [auth, checkRole(['admin', 'manager', 'cashier']
       ) payments ON payments.parent_sale_id = orig.id
       ${whereClause} AND orig.parent_sale_id IS NULL
       GROUP BY c.id, c.name, c.email, c.phone
-      HAVING outstanding_amount > 0
+      HAVING credit_sales_count > 0
       ORDER BY outstanding_amount DESC`,
       params
     );

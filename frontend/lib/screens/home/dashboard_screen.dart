@@ -1049,17 +1049,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _formatDate(DateTime? date) {
     if (date == null) return t(context, 'Unknown');
     final local = date.toLocal();
-    date = local;
-    
+
+    // Use calendar-day comparison to avoid 24h-difference errors
     final now = DateTime.now();
-    final difference = now.difference(date);
-    
-    if (difference.inDays == 0) {
-      return t(context, 'Today');
-    } else if (difference.inDays == 1) {
-      return t(context, 'Yesterday');
+    final today = DateTime(now.year, now.month, now.day);
+    final thatDay = DateTime(local.year, local.month, local.day);
+    final dayDiff = today.difference(thatDay).inDays;
+
+    final hh = local.hour.toString().padLeft(2, '0');
+    final mm = local.minute.toString().padLeft(2, '0');
+
+    if (dayDiff == 0) {
+      return '${t(context, 'Today')} $hh:$mm';
+    } else if (dayDiff == 1) {
+      return '${t(context, 'Yesterday')} $hh:$mm';
     } else {
-      return '${difference.inDays} ${t(context, 'days ago')}';
+      final dd = local.day.toString().padLeft(2, '0');
+      final mo = local.month.toString().padLeft(2, '0');
+      final yyyy = local.year.toString();
+      return '$dd/$mo/$yyyy $hh:$mm';
     }
   }
 
@@ -1613,7 +1621,7 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                                           ),
                                         ),
                                         Text(
-                                          'Date: ${_formatDate(DateTime.tryParse(sale['created_at'] ?? ''))}',
+                                          'Date: ${sale['created_at'] ?? 'Unknown'}',
                                           style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                                         ),
                                         Text(
@@ -2022,7 +2030,7 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                                       ...partialPayments.map((payment) {
                                         final amount = double.tryParse(payment['total_amount'].toString()) ?? 0.0;
                                         final paymentMethod = payment['payment_method'] ?? 'Unknown';
-                                        final paymentDate = _formatDate(DateTime.tryParse(payment['created_at'] ?? ''));
+                                        final paymentDate = (payment['created_at'] ?? 'Unknown').toString();
                                         final paymentCashier = payment['cashier_name'] ?? 'Unknown';
                                         
                                         return Container(
@@ -2324,7 +2332,7 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                           children: [
                             Text('Amount: \$${amount.toStringAsFixed(2)}'),
                             Text('Method: ${creditPayment['payment_method']}'),
-                            Text('Date: ${_formatDate(DateTime.tryParse(creditPayment['created_at'] ?? ''))}'),
+                            Text('Date: ${creditPayment['created_at'] ?? 'Unknown'}'),
                             Text('Cashier: ${creditPayment['cashier_name'] ?? 'Unknown'}'),
                           ],
                         ),
@@ -2416,7 +2424,7 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                                       ),
                                     ),
                                     Text(
-                                      'Date: ${_formatDate(DateTime.tryParse(sale['created_at'] ?? ''))}',
+                                      'Date: ${sale['created_at'] ?? 'Unknown'}',
                                       style: const TextStyle(fontSize: 12),
                                     ),
                                     Text(
@@ -2538,7 +2546,7 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                         children: [
                           Text('Amount: \$${amount.toStringAsFixed(2)}'),
                           Text('Method: ${payment['payment_method']}'),
-                          Text('Date: ${_formatDate(DateTime.tryParse(payment['created_at'] ?? ''))}'),
+                          Text('Date: ${payment['created_at'] ?? 'Unknown'}'),
                           Text('Cashier: ${payment['cashier_name'] ?? 'Unknown'}'),
                         ],
                       ),

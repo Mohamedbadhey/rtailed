@@ -3020,15 +3020,38 @@ router.delete('/accounting/vendors/:id', [auth, checkRole(['admin', 'manager'])]
 
 // Expenses CRUD
 router.get('/accounting/expenses', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
-  let query = 'SELECT e.*, v.name as vendor_name FROM expenses e LEFT JOIN vendors v ON e.vendor_id = v.id WHERE e.business_id = ? ORDER BY date DESC';
-  let params = [req.user.business_id];
-  if (req.user.role === 'superadmin') {
-    query = 'SELECT e.*, v.name as vendor_name FROM expenses e LEFT JOIN vendors v ON e.vendor_id = v.id ORDER BY date DESC';
-    params = [];
+  try {
+    const { start_date, end_date, category, vendor } = req.query;
+
+    let where = '';
+    const params = [];
+
+    if (start_date) { where += (where ? ' AND' : ' WHERE') + ' e.date >= ?'; params.push(start_date); }
+    if (end_date) { where += (where ? ' AND' : ' WHERE') + ' e.date <= ?'; params.push(end_date); }
+    if (category) { where += (where ? ' AND' : ' WHERE') + ' e.category = ?'; params.push(category); }
+    if (vendor) { where += (where ? ' AND' : ' WHERE') + ' v.name = ?'; params.push(vendor); }
+
+    if (req.user.role !== 'superadmin' && req.user.business_id) {
+      where += (where ? ' AND' : ' WHERE') + ' e.business_id = ?';
+      params.push(req.user.business_id);
+    }
+
+    const [expenses] = await pool.query(
+      `SELECT e.*, v.name as vendor_name
+       FROM expenses e
+       LEFT JOIN vendors v ON e.vendor_id = v.id
+       ${where}
+       ORDER BY e.date DESC`,
+      params
+    );
+
+    res.json(expenses);
+  } catch (error) {
+    console.error('GET /accounting/expenses error', error);
+    res.status(500).json({ message: 'Server error' });
   }
-  const [expenses] = await pool.query(query, params);
-  res.json(expenses);
 });
+
 router.post('/accounting/expenses', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
   const connection = await pool.getConnection();
   try {
@@ -3069,6 +3092,173 @@ router.delete('/accounting/expenses/:id', [auth, checkRole(['admin', 'manager'])
   await pool.query('DELETE FROM expenses WHERE id=?', [req.params.id]);
   res.json({ message: 'Expense deleted' });
 });
+
+// === Expense Categories & Reporting ===
+async function ensureExpenseCategoriesTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS expense_categories (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      business_id INT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uniq_business_name (business_id, name)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+}
+
+// List expense categories
+router.get('/accounting/expense-categories', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
+  try {
+    await ensureExpenseCategoriesTable();
+    let query = 'SELECT id, name FROM expense_categories WHERE business_id = ? ORDER BY name';
+    let params = [req.user.business_id];
+    if (req.user.role === 'superadmin' && !req.user.business_id) {
+      query = 'SELECT id, name FROM expense_categories ORDER BY name';
+      params = [];
+    }
+    const [rows] = await pool.query(query, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /accounting/expense-categories error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create expense category
+router.post('/accounting/expense-categories', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
+  try {
+    await ensureExpenseCategoriesTable();
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ message: 'Name is required' });
+    const businessId = req.user.business_id || null;
+    await pool.query('INSERT INTO expense_categories (name, business_id) VALUES (?, ?)', [name.trim(), businessId]);
+    res.status(201).json({ message: 'Category created' });
+  } catch (err) {
+    if (err && err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ message: 'Category already exists' });
+    }
+    console.error('POST /accounting/expense-categories error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update expense category
+router.put('/accounting/expense-categories/:id', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
+  try {
+    await ensureExpenseCategoriesTable();
+    const { id } = req.params;
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ message: 'Name is required' });
+
+    let query = 'UPDATE expense_categories SET name = ? WHERE id = ? AND business_id = ?';
+    let params = [name.trim(), id, req.user.business_id];
+    if (req.user.role === 'superadmin' && !req.user.business_id) {
+      query = 'UPDATE expense_categories SET name = ? WHERE id = ?';
+      params = [name.trim(), id];
+    }
+
+    const [result] = await pool.query(query, params);
+    if (result.affectedRows === 0) return res.status(404).json({ message: 'Category not found' });
+    res.json({ message: 'Category updated' });
+  } catch (err) {
+    if (err && err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ message: 'Category with that name already exists' });
+    }
+    console.error('PUT /accounting/expense-categories/:id error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete expense category
+router.delete('/accounting/expense-categories/:id', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
+  try {
+    await ensureExpenseCategoriesTable();
+    const { id } = req.params;
+    let query = 'DELETE FROM expense_categories WHERE id = ? AND business_id = ?';
+    let params = [id, req.user.business_id];
+    if (req.user.role === 'superadmin' && !req.user.business_id) {
+      query = 'DELETE FROM expense_categories WHERE id = ?';
+      params = [id];
+    }
+    const [result] = await pool.query(query, params);
+    if (result.affectedRows === 0) return res.status(404).json({ message: 'Category not found' });
+    res.json({ message: 'Category deleted' });
+  } catch (err) {
+    console.error('DELETE /accounting/expense-categories/:id error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Expenses summary (by month and by category)
+router.get('/accounting/expenses/summary', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
+  try {
+    const { start_date, end_date } = req.query;
+    let where = '';
+    const params = [];
+    if (start_date) { where += (where ? ' AND' : ' WHERE') + ' date >= ?'; params.push(start_date); }
+    if (end_date) { where += (where ? ' AND' : ' WHERE') + ' date <= ?'; params.push(end_date); }
+    if (req.user.role !== 'superadmin' && req.user.business_id) {
+      where += (where ? ' AND' : ' WHERE') + ' business_id = ?';
+      params.push(req.user.business_id);
+    }
+    const [byMonth] = await pool.query(`
+      SELECT DATE_FORMAT(date, '%Y-%m') as month, SUM(amount) as total
+      FROM expenses
+      ${where}
+      GROUP BY DATE_FORMAT(date, '%Y-%m')
+      ORDER BY month
+    `, params);
+    const [byCategory] = await pool.query(`
+      SELECT category, SUM(amount) as total
+      FROM expenses
+      ${where}
+      GROUP BY category
+      ORDER BY total DESC
+    `, params);
+    res.json({ by_month: byMonth, by_category: byCategory });
+  } catch (err) {
+    console.error('GET /accounting/expenses/summary error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// CSV export for expenses
+router.get('/accounting/expenses/export', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
+  try {
+    const { start_date, end_date, category, vendor } = req.query;
+    let where = '';
+    const params = [];
+    if (start_date) { where += (where ? ' AND' : ' WHERE') + ' e.date >= ?'; params.push(start_date); }
+    if (end_date) { where += (where ? ' AND' : ' WHERE') + ' e.date <= ?'; params.push(end_date); }
+    if (category) { where += (where ? ' AND' : ' WHERE') + ' e.category = ?'; params.push(category); }
+    if (vendor) { where += (where ? ' AND' : ' WHERE') + ' v.name = ?'; params.push(vendor); }
+    if (req.user.role !== 'superadmin' && req.user.business_id) {
+      where += (where ? ' AND' : ' WHERE') + ' e.business_id = ?';
+      params.push(req.user.business_id);
+    }
+    const [rows] = await pool.query(`
+      SELECT e.date, e.amount, e.category, COALESCE(v.name, '') as vendor, COALESCE(e.notes, '') as notes
+      FROM expenses e
+      LEFT JOIN vendors v ON e.vendor_id = v.id
+      ${where}
+      ORDER BY e.date DESC
+    `, params);
+
+    const headers = ['date', 'amount', 'category', 'vendor', 'notes'];
+    const csv = [headers.join(','), ...rows.map(r => headers.map(h => {
+      const val = (r[h] ?? '').toString().replace(/"/g, '""');
+      return '"' + val + '"';
+    }).join(','))].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="expenses.csv"');
+    res.send(csv);
+  } catch (err) {
+    console.error('GET /accounting/expenses/export error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 
 // Accounts Payable CRUD
 router.get('/accounting/payables', [auth, checkRole(['admin', 'manager'])], async (req, res) => {

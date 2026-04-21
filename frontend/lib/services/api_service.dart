@@ -1088,8 +1088,15 @@ class ApiService {
   }
 
   // --- ACCOUNTING: EXPENSES ---
-  Future<List<Map<String, dynamic>>> getExpenses() async {
-    final response = await http.get(Uri.parse('$baseUrl/api/admin/accounting/expenses'), headers: _headers);
+  Future<List<Map<String, dynamic>>> getExpenses({String? startDate, String? endDate, String? category, String? vendor}) async {
+    final query = <String, String>{};
+    if (startDate != null) query['start_date'] = startDate;
+    if (endDate != null) query['end_date'] = endDate;
+    if (category != null && category.isNotEmpty) query['category'] = category;
+    if (vendor != null && vendor.isNotEmpty) query['vendor'] = vendor;
+    final uri = Uri.parse('$baseUrl/api/admin/accounting/expenses').replace(queryParameters: query.isEmpty ? null : query);
+    final response = await http.get(uri, headers: _headers);
+    
     if (response.statusCode == 200) {
       return TypeConverter.safeToList(json.decode(response.body));
     } else {
@@ -1126,6 +1133,30 @@ class ApiService {
     );
     if (response.statusCode != 200) {
       throw Exception('Failed to delete expense');
+    }
+  }
+
+  // --- ACCOUNTING: EXPENSES SUMMARY ---
+  Future<Map<String, dynamic>> getExpensesSummary({String? startDate, String? endDate}) async {
+    final params = <String, String>{};
+    if (startDate != null) params['start_date'] = startDate;
+    if (endDate != null) params['end_date'] = endDate;
+    final uri = Uri.parse('$baseUrl/api/admin/accounting/expenses/summary').replace(queryParameters: params.isEmpty ? null : params);
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode == 200) {
+      return TypeConverter.safeToMap(json.decode(response.body));
+    } else {
+      throw Exception('Failed to load expenses summary');
+    }
+  }
+
+  // --- ACCOUNTING: EXPENSE CATEGORIES ---
+  Future<List<Map<String, dynamic>>> getExpenseCategories() async {
+    final response = await http.get(Uri.parse('$baseUrl/api/admin/accounting/expense-categories'), headers: _headers);
+    if (response.statusCode == 200) {
+      return TypeConverter.safeToList(json.decode(response.body));
+    } else {
+      throw Exception('Failed to load expense categories');
     }
   }
 

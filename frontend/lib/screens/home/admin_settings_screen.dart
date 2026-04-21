@@ -5,6 +5,7 @@ import 'package:retail_management/screens/home/settings_screen.dart';
 import 'package:retail_management/screens/home/damaged_products_screen.dart';
 import 'package:retail_management/screens/home/sales_management_screen.dart';
 import 'package:retail_management/screens/accounting/accounting_dashboard_screen.dart';
+import 'package:retail_management/screens/accounting/expenses_screen.dart';
 import 'package:retail_management/screens/home/store_management_screen.dart';
 import 'package:retail_management/screens/home/customer_invoice_screen.dart';
 
@@ -30,11 +31,18 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
   void initState() {
     super.initState();
     final user = context.read<AuthProvider>().user;
-    final isAdmin = user != null && user.role == 'admin';
-    final isCashier = user != null && user.role == 'cashier';
-    
-    // Number of tabs: General Settings, Damages, Credit, Sales Management (not for cashiers), Store Management (not for cashiers), Customer Invoice, and optionally Accounting for admins
-    final tabCount = isCashier ? 4 : (isAdmin ? 7 : 6);
+    final role = user?.role ?? '';
+    final isAdmin = role == 'admin';
+    final isCashier = role == 'cashier';
+    final isManager = role == 'manager';
+
+    // Tabs: General, Damages, Credit, [Sales Mgmt, Store Mgmt if !cashier], Customer Invoice, [Expenses if admin/manager], [Accounting if admin]
+    int tabCount = 3; // General, Damages, Credit
+    if (!isCashier) tabCount += 2; // Sales Mgmt, Store Mgmt
+    tabCount += 1; // Customer Invoice
+    if (isAdmin || isManager) tabCount += 1; // Expenses
+    if (isAdmin) tabCount += 1; // Accounting
+
     _tabController = TabController(length: tabCount, vsync: this);
     _loadCreditCustomers();
   }
@@ -68,8 +76,11 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
-    final isAdmin = user != null && user.role == 'admin';
-    final isCashier = user != null && user.role == 'cashier';
+    final role = user?.role ?? '';
+    final isAdmin = role == 'admin';
+    final isCashier = role == 'cashier';
+    final isManager = role == 'manager';
+    
 
     // Responsive breakpoints
     final isSmallMobile = MediaQuery.of(context).size.width <= 360;
@@ -135,6 +146,15 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
               ),
               text: isSmallMobile ? 'Invoice' : t(context, 'Customer Invoice'),
             ),
+            // Expenses (admins and managers)
+            if (isAdmin || isManager)
+              Tab(
+                icon: Icon(
+                  Icons.money_off,
+                  size: isSmallMobile ? 18 : (isMobile ? 20 : 24),
+                ),
+                text: isSmallMobile ? 'Expenses' : t(context, 'Expenses'),
+              ),
             if (isAdmin)
               Tab(
                 icon: Icon(
@@ -168,6 +188,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
           
           // Customer Invoice
           const CustomerInvoiceScreen(),
+
+          // Expenses (admins and managers)
+          if (isAdmin || isManager)
+            const ExpensesScreen(),
           
           // Accounting (only for admins)
           if (isAdmin)

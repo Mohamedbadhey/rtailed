@@ -98,7 +98,12 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve static files (for product images) - Updated for Railway volume
 const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
-const uploadsDir = baseDir;
+// Serve images from the same place we save them:
+// - On Railway: files are saved directly under RAILWAY_VOLUME_MOUNT_PATH/{products,branding}
+// - Local dev: files are saved under backend/uploads/{products,branding}
+const uploadsDir = process.env.RAILWAY_VOLUME_MOUNT_PATH
+  ? process.env.RAILWAY_VOLUME_MOUNT_PATH
+  : path.join(__dirname, '../uploads');
 
 // Custom image serving route with CORS headers for products
 app.get('/uploads/products/:filename', (req, res) => {

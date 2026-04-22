@@ -252,11 +252,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 DataCell(Text(r['sku']?.toString() ?? '-')),
                                 DataCell(Text(r['categoryName']?.toString() ?? '-')),
                                 DataCell(Text(r['price']?.toString() ?? '-')),
-                                DataCell(Icon(
-                                  r['image'] == true ? Icons.image : Icons.image_not_supported,
-                                  color: r['image'] == true ? Colors.green : Colors.grey,
-                                  size: 16,
-                                )),
+                                DataCell(
+                                  SizedBox(
+                                    width: 44,
+                                    height: 44,
+                                    child: (r['image_url'] != null && (r['image_url'] as String).isNotEmpty)
+                                        ? ClipRRect(
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Image.network(
+                                              Api.getFullImageUrl(r['image_url']),
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) => Icon(Icons.image_not_supported, color: Colors.grey, size: 20),
+                                            ),
+                                          )
+                                        : Icon(Icons.image_not_supported, color: Colors.grey, size: 20),
+                                  ),
+                                ),
+                                
                                 DataCell(
                                   Container(
                                     padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),

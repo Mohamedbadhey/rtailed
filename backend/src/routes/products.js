@@ -872,8 +872,31 @@ router.post('/bulk-import', [auth, checkRole(['admin', 'manager']), excelUpload.
         }
       }
 
+      if (!image_url && r.image && String(r.image).trim() !== '') {
+        const imgVal = String(r.image).trim();
+        try {
+          if (/^data:image\//i.test(imgVal)) {
+            const base64Data = imgVal.substring(imgVal.indexOf(',') + 1);
+            const buffer = Buffer.from(base64Data, 'base64');
+            const mime = imgVal.substring(5, imgVal.indexOf(';')) || 'image/png';
+            const ext = '.' + (mime.split('/')[1] || 'png');
+            image_url = await saveImageBuffer(buffer, ext);
+          } else if (/^https?:\/\//i.test(imgVal)) {
+            image_url = imgVal;
+          } else if (imgVal.startsWith('/uploads/products/')) {
+            image_url = imgVal;
+          } else if (imgVal.startsWith('uploads/products/')) {
+            image_url = '/' + imgVal;
+          } else if (/\.(png|jpe?g|webp|gif)$/i.test(imgVal)) {
+            image_url = '/uploads/products/' + imgVal;
+          }
+        } catch (e) {
+          rowMsgs.push('image parse failed: ' + e.message);
+        }
+      }
+
       if (dryRun) {
-        results.push({ row: rowNum, status: 'ok', action: upsertBy === 'none' ? 'create' : (sku ? 'upsert' : 'create'), name, sku, price, cost, quantity, categoryId, image: !!image_url, warnings: rowMsgs });
+        results.push({ row: rowNum, status: 'ok', action: upsertBy === 'none' ? 'create' : (sku ? 'upsert' : 'create'), name, sku, price, cost, quantity, categoryId, image: !!image_url, image_url: image_url || '', warnings: rowMsgs });
         continue;
       }
 

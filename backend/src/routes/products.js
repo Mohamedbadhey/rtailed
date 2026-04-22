@@ -766,6 +766,15 @@ const excelUpload = multer({
 
 const { extractEmbeddedImagesByRow, normalizeHeader } = require('../utils/excel_import');
 
+// Helper to optionally convert relative image paths to absolute URLs using env
+function toAbsoluteIfConfigured(u) {
+  if (!u) return u;
+  if (/^https?:\/\//i.test(u)) return u;
+  const base = process.env.PUBLIC_BASE_URL || process.env.BASE_URL;
+  if (!base) return u;
+  try { return new URL(u, base).toString(); } catch { return u; }
+}
+
 // Helper: save image buffer to uploads/products and return relative URL
 async function saveImageBuffer(buffer, ext) {
   const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '../../uploads');
@@ -794,7 +803,7 @@ router.post('/bulk-import', [auth, checkRole(['admin', 'manager']), excelUpload.
     const createMissingCategories = options.category_create !== false; // default true
 
     // Parse Excel + embedded images
-    const { headers, rows, imagesByRow, warnings } = await extractEmbeddedImagesByRow(req.file.buffer, { imageColumn: 'image' });
+    const { headers, rows, imagesByRow, warnings } = await extractEmbeddedImagesByRow(req.file.buffer, { imageColumn: options.imageColumn || 'image', sheet: options.sheet });
 
     // Required columns validation
     const requiredCols = ['name', 'price', 'cost'];
@@ -894,6 +903,9 @@ router.post('/bulk-import', [auth, checkRole(['admin', 'manager']), excelUpload.
           rowMsgs.push('image parse failed: ' + e.message);
         }
       }
+
+      // Convert to absolute URL if configured
+      image_url = toAbsoluteIfConfigured(image_url);
 
       if (dryRun) {
         results.push({ row: rowNum, status: 'ok', action: upsertBy === 'none' ? 'create' : (sku ? 'upsert' : 'create'), name, sku, price, cost, quantity, categoryId, image: !!image_url, image_url: image_url || '', warnings: rowMsgs });

@@ -10,13 +10,23 @@ function normalizeHeader(h) {
 
 // Read sheet headers and rows; also compute Excel row numbers for each data row
 function readSheetRows(workbook, options = {}) {
-  const sheetName = workbook.SheetNames[0];
+  // Allow selecting sheet by name or index via options.sheet
+  let sheetName = workbook.SheetNames[0];
+  if (options.sheet !== undefined && options.sheet !== null) {
+    if (typeof options.sheet === 'number' && Number.isFinite(options.sheet)) {
+      sheetName = workbook.SheetNames[options.sheet] || sheetName;
+    } else {
+      const wanted = String(options.sheet).trim().toLowerCase();
+      const found = workbook.SheetNames.find(n => String(n).trim().toLowerCase() === wanted);
+      if (found) sheetName = found;
+    }
+  }
   const ws = workbook.Sheets[sheetName];
   if (!ws) throw new Error('No worksheet found in uploaded Excel');
 
   // Read as raw 2D array to preserve positions
   const rows2D = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false });
-  if (!rows2D.length) return { headers: [], rows: [], rowNumbers: [] };
+  if (!rows2D.length) return { headers: [], rows: [], rowNumbers: [], ws, sheetName };
 
   const headerRow = rows2D[0].map(normalizeHeader);
   const dataRows = rows2D.slice(1);

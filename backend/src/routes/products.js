@@ -933,4 +933,141 @@ router.post('/bulk-import', [auth, checkRole(['admin', 'manager']), excelUpload.
   }
 });
 
+// GET /api/products/paged - active products with pagination and filters
+router.get('/paged', auth, async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page || '1', 10), 1);
+    const limitRaw = Math.max(parseInt(req.query.limit || '50', 10), 1);
+    const limit = Math.min(limitRaw, 100);
+    const offset = (page - 1) * limit;
+    const search = (req.query.search || '').trim();
+    const categoryId = req.query.category_id ? parseInt(req.query.category_id, 10) : null;
+    const lowStock = String(req.query.low_stock || 'false') === 'true';
+
+    let where = 'p.is_deleted = 0';
+    const params = [];
+
+    if (req.user.role !== 'superadmin') {
+      if (!req.user.business_id) {
+        return res.status(400).json({ message: 'Business ID is required' });
+      }
+      where += ' AND p.business_id = ?';
+      params.push(req.user.business_id);
+    }
+
+    if (search) {
+      where += ' AND (p.name LIKE ? OR p.sku LIKE ? OR p.barcode LIKE ?)';
+      const like = `%${search}%`;
+      params.push(like, like, like);
+    }
+
+    if (categoryId) {
+      where += ' AND p.category_id = ?';
+      params.push(categoryId);
+    }
+
+    if (lowStock) {
+      where += ' AND p.stock_quantity <= p.low_stock_threshold';
+    }
+
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE ${where}
+    `;
+
+    const dataQuery = `
+      SELECT p.*, CASE WHEN p.category_id IS NULL THEN 'Uncategorized' ELSE c.name END AS category_name
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE ${where}
+      ORDER BY p.name
+      LIMIT ? OFFSET ?
+    `;
+
+    const [countRows] = await pool.query(countQuery, params);
+    const total = countRows[0]?.total || 0;
+
+    const [items] = await pool.query(dataQuery, [...params, limit, offset]);
+
+    res.json({ items, page, limit, total });
+  } catch (err) {
+    console.error('Pagination error (/products/paged):', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// GET /api/products/all/paged - include deleted filter + pagination
+router.get('/all/paged', auth, async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page || '1', 10), 1);
+    const limitRaw = Math.max(parseInt(req.query.limit || '50', 10), 1);
+    const limit = Math.min(limitRaw, 100);
+    const offset = (page - 1) * limit;
+    const search = (req.query.search || '').trim();
+    const categoryId = req.query.category_id ? parseInt(req.query.category_id, 10) : null;
+    const lowStock = String(req.query.low_stock || 'false') === 'true';
+    const deletedParam = (req.query.deleted || '').toString().toLowerCase(); // '0' | '1' | 'all'
+
+    let where = '1=1';
+    const params = [];
+
+    if (req.user.role !== 'superadmin') {
+      if (!req.user.business_id) {
+        return res.status(400).json({ message: 'Business ID is required' });
+      }
+      where += ' AND p.business_id = ?';
+      params.push(req.user.business_id);
+    }
+
+    if (deletedParam === '0') {
+      where += ' AND p.is_deleted = 0';
+    } else if (deletedParam === '1') {
+      where += ' AND p.is_deleted = 1';
+    } // else 'all' -> no filter
+
+    if (search) {
+      where += ' AND (p.name LIKE ? OR p.sku LIKE ? OR p.barcode LIKE ?)';
+      const like = `%${search}%`;
+      params.push(like, like, like);
+    }
+
+    if (categoryId) {
+      where += ' AND p.category_id = ?';
+      params.push(categoryId);
+    }
+
+    if (lowStock) {
+      where += ' AND p.stock_quantity <= p.low_stock_threshold';
+    }
+
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE ${where}
+    `;
+
+    const dataQuery = `
+      SELECT p.*, CASE WHEN p.category_id IS NULL THEN 'Uncategorized' ELSE c.name END AS category_name
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE ${where}
+      ORDER BY p.name
+      LIMIT ? OFFSET ?
+    `;
+
+    const [countRows] = await pool.query(countQuery, params);
+    const total = countRows[0]?.total || 0;
+
+    const [items] = await pool.query(dataQuery, [...params, limit, offset]);
+
+    res.json({ items, page, limit, total });
+  } catch (err) {
+    console.error('Pagination error (/products/all/paged):', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router; 

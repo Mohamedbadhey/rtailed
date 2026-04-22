@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async'; // for debounce and timers
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
@@ -72,8 +73,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
   DateTime? _filterStartDate;
   DateTime? _filterEndDate;
   
-  // Pagination state variables
+  // Pagination state variables (reports)
   static const int _itemsPerPage = 10;
+
+  // Products pagination (server-side)
+  int _productPage = 1;
+  final int _productPageSize = 50;
+  bool _productHasMore = true;
+  bool _productPageLoading = false;
+  List<Product> _displayProducts = [];
   int _stockSummaryCurrentPage = 0;
   int _filteredTransactionsCurrentPage = 0;
 
@@ -93,6 +101,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Future<void> _loadData() async {
+    // Initial paged load
+    await _resetAndLoadProducts();
     setState(() {
       _isLoading = true;
     });
@@ -141,6 +151,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Future<void> _loadProducts() async {
+    await _resetAndLoadProducts();
     print('📦 ===== INVENTORY LOAD PRODUCTS START =====');
     setState(() {
       _isLoading = true;
@@ -313,6 +324,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   void _applyFilters() {
+    // With server-side filtering, simply mirror display list to filtered list
+    setState(() {
+      _filteredProducts = List<Product>.from(_displayProducts);
+    });
     setState(() {
       /*
       print('🔍 ===== APPLYING FILTERS =====');

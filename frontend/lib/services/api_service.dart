@@ -275,6 +275,54 @@ class ApiService {
   }
 
   // Products
+  // Paginated queries
+  Future<Map<String, dynamic>> getProductsPaged({int page = 1, int limit = 50, String? search, int? categoryId, bool lowStock = false, BuildContext? context}) async {
+    final params = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+    if (search != null && search.isNotEmpty) params['search'] = search;
+    if (categoryId != null) params['category_id'] = categoryId.toString();
+    if (lowStock) params['low_stock'] = 'true';
+    final uri = Uri.parse('$baseUrl/api/products/paged').replace(queryParameters: params);
+    final response = await _executeRequest(() => http.get(uri, headers: _headers), context: context);
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final items = (data['items'] as List).map((j) => Product.fromJson(Map<String, dynamic>.from(j))).toList();
+      return {
+        'items': items,
+        'total': data['total'] ?? 0,
+        'page': data['page'] ?? page,
+        'limit': data['limit'] ?? limit,
+      };
+    }
+    throw Exception('Failed to get products (paged): ${response.body}');
+  }
+
+  Future<Map<String, dynamic>> getAllProductsPaged({int page = 1, int limit = 50, String? search, int? categoryId, bool lowStock = false, int? deleted, BuildContext? context}) async {
+    final params = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+    if (search != null && search.isNotEmpty) params['search'] = search;
+    if (categoryId != null) params['category_id'] = categoryId.toString();
+    if (lowStock) params['low_stock'] = 'true';
+    if (deleted != null) params['deleted'] = deleted.toString(); // 0,1 or omit for all
+    final uri = Uri.parse('$baseUrl/api/products/all/paged').replace(queryParameters: params);
+    final response = await _executeRequest(() => http.get(uri, headers: _headers), context: context);
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final items = (data['items'] as List).map((j) => Product.fromJson(Map<String, dynamic>.from(j))).toList();
+      return {
+        'items': items,
+        'total': data['total'] ?? 0,
+        'page': data['page'] ?? page,
+        'limit': data['limit'] ?? limit,
+      };
+    }
+    throw Exception('Failed to get all products (paged): ${response.body}');
+  }
+
   Future<Map<String, dynamic>> bulkImportProducts({Uint8List? webBytes, String? webFilename, File? file, bool dryRun = true, String upsertBy = 'sku', bool categoryCreate = true, BuildContext? context}) async {
     try {
       var request = http.MultipartRequest(

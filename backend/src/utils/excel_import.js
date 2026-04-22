@@ -232,12 +232,11 @@ async function extractEmbeddedImagesByRow(buffer, options = {}) {
 
   console.log('📦 Loading Excel ZIP structure...');
   const zip = await JSZip.loadAsync(buffer);
-  const allFiles = Object.keys(zip.files);
   
   const sheetIndex = getSheetIndexFromName(workbook, sheetName);
   console.log(`📄 Sheet index: ${sheetIndex}`);
   
-  let drawingPath = await findDrawingPathForSheet(zip, sheetIndex);
+  const drawingPath = await findDrawingPathForSheet(zip, sheetIndex);
   const warnings = [];
   if (!drawingPath) {
     console.log(`⚠️ No drawing path found for sheet ${sheetIndex}. Checked sheet rels.`);
@@ -245,11 +244,10 @@ async function extractEmbeddedImagesByRow(buffer, options = {}) {
     const fallbackDrawing = allFiles.find(f => f.startsWith('xl/drawings/drawing') && f.endsWith('.xml'));
     if (fallbackDrawing) {
       console.log(`💡 Fallback: Found drawing at ${fallbackDrawing}`);
-      drawingPath = fallbackDrawing; // Use fallback instead of aborting
-    } else {
-      warnings.push('No drawing part found in worksheet; embedded images may be missing');
-      return { headers, rows, imagesByRow: new Map(), warnings };
+      // Using fallback drawing might be risky but worth a try if the rels are broken
     }
+    warnings.push('No drawing part found in worksheet; embedded images may be missing');
+    return { headers, rows, imagesByRow: new Map(), warnings };
   }
 
   console.log(`🎨 Drawing path: ${drawingPath}`);

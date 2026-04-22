@@ -103,45 +103,27 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Future<void> _loadData() async {
-    // Initial paged load
-    await _resetAndLoadProducts();
     setState(() {
       _isLoading = true;
     });
 
     try {
       print('=== FRONTEND LOAD DATA DEBUG ===');
-      print('Loading products and categories...');
       
-      // Load products and categories in parallel
+      // Load products (paged) and categories in parallel
       final results = await Future.wait([
-        _apiService.getAllProducts(), // Use getAllProducts to include deleted products
+        _resetAndLoadProducts(),
         _apiService.getCategories(),
       ]);
 
-      final products = results[0] as List<Product>;
-      print('Loaded ${products.length} products from API');
-      print('Deleted products count: ${products.where((p) => p.isDeleted == 1).length}');
-      
-      // Debug: Print each product's details
-      for (var product in products) {
-        print('Product ${product.id}: ${product.name} - Cost: ${product.costPrice}, Stock: ${product.stockQuantity}');
-        print('  - Category ID: ${product.categoryId}');
-        print('  - Category Name: ${product.categoryName}');
-        print('  - Is Deleted: ${product.isDeleted}');
-      }
       final categories = results[1] as List<Map<String, dynamic>>;
 
       setState(() {
-        _products = products;
-        _filteredProducts = products;
         _categoryList = categories;
         _categories = ['All', ...categories.map((c) => c['name'] as String).toList()];
         _isLoading = false;
       });
-      print('🔄 _loadData: State updated, calling _applyFilters()');
-      print('🔄 _loadData: _showDeletedProducts = $_showDeletedProducts');
-      _applyFilters();
+      _fetchBusinessDetails();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -154,58 +136,63 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   Future<void> _loadProducts() async {
     await _resetAndLoadProducts();
-    print('📦 ===== INVENTORY LOAD PRODUCTS START =====');
+  }
+
+  Future<void> _resetAndLoadProducts() async {
     setState(() {
+      _productPage = 1;
+      _displayProducts = [];
+      _productHasMore = true;
       _isLoading = true;
+    });
+    await _loadProductsPaged();
+  }
+
+  Future<void> _loadProductsPaged() async {
+    if (_productPageLoading || !_productHasMore) return;
+
+    setState(() {
+      _productPageLoading = true;
     });
 
     try {
-      print('📦 Calling API service to get all products (including deleted)...');
-      final products = await _apiService.getAllProducts();
-      print('📦 ✅ API call successful, loaded ${products.length} products');
-      
-      // Debug: Print image URLs for products with images
-      print('📦 Analyzing product images...');
-      int productsWithImages = 0;
-      int productsWithoutImages = 0;
-      
-      for (final product in products) {
-        print('📦 Product: ${product.name} (ID: ${product.id})');
-        print('📦   - Category ID: ${product.categoryId}');
-        print('📦   - Category Name: ${product.categoryName}');
-        print('📦   - Image URL from API: ${product.imageUrl ?? 'NULL'}');
-        
-        if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
-          productsWithImages++;
-          final fullUrl = Api.getFullImageUrl(product.imageUrl);
-          print('📦   - Full image URL: $fullUrl');
-        } else {
-          productsWithoutImages++;
-          print('📦   - No image URL');
-        }
-      }
-      
-      print('📦 Summary: $productsWithImages products with images, $productsWithoutImages without images');
-      print('📦 Deleted products: ${products.where((p) => p.isDeleted == 1).length}');
-      
+      final categoryId = _selectedCategory == 'All' 
+          ? null 
+          : _categoryList.firstWhere((c) => c['name'] == _selectedCategory, orElse: () => {})['id'];
+          
+      final result = await _apiService.getAllProductsPaged(
+        page: _productPage,
+        limit: _productPageSize,
+        search: _searchController.text,
+        categoryId: categoryId,
+        lowStock: _showLowStock,
+        deleted: _showDeletedProducts ? 1 : 0,
+      );
+
+      final List<Product> newProducts = result['items'];
+      final int total = result['total'];
+
       setState(() {
-        _products = products;
+        if (_productPage == 1) {
+          _displayProducts = newProducts;
+        } else {
+          _displayProducts.addAll(newProducts);
+        }
+        _products = List<Product>.from(_displayProducts);
+        _filteredProducts = List<Product>.from(_displayProducts);
+        _productPage++;
+        _productHasMore = _displayProducts.length < total;
+        _productPageLoading = false;
         _isLoading = false;
       });
-      print('📦 ✅ State updated, applying filters...');
-      print('📦 Products loaded, calling _applyFilters()...');
-      _applyFilters();
-      print('📦 ===== INVENTORY LOAD PRODUCTS END (SUCCESS) =====');
     } catch (e) {
-      print('📦 ❌ Error loading products: $e');
-      print('📦 Error stack trace: ${StackTrace.current}');
       setState(() {
+        _productPageLoading = false;
         _isLoading = false;
       });
       if (mounted) {
         SuccessUtils.showOperationError(context, 'load products', e.toString());
       }
-      // print('📦 ===== INVENTORY LOAD PRODUCTS END (ERROR) =====');
     }
   }
 
@@ -326,56 +313,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   void _applyFilters() {
-    // With server-side filtering, simply mirror display list to filtered list
-    setState(() {
-      _filteredProducts = List<Product>.from(_displayProducts);
-    });
-    setState(() {
-      /*
-      print('🔍 ===== APPLYING FILTERS =====');
-      print('🔍 Total products: ${_products.length}');
-      print('🔍 Show deleted products: $_showDeletedProducts');
-      print('🔍 Show low stock: $_showLowStock');
-      print('🔍 Selected category: $_selectedCategory');
-      print('🔍 Search text: "${_searchController.text}"');
-      */
-      
-      _filteredProducts = _products.where((product) {
-        // Search filter
-        final searchMatch = _searchController.text.isEmpty ||
-            product.name.toLowerCase().contains(_searchController.text.toLowerCase()) ||
-            (product.sku?.toLowerCase().contains(_searchController.text.toLowerCase()) ?? false);
-
-        // Category filter
-        final categoryMatch = _selectedCategory == 'All' ||
-            (product.categoryName ?? 'Uncategorized') == _selectedCategory;
-
-        // Low stock filter
-        final stockMatch = !_showLowStock ||
-            product.stockQuantity <= product.lowStockThreshold;
-
-        // Deleted products filter - show either active OR deleted, not both
-        final deletedMatch = _showDeletedProducts ? product.isDeleted == 1 : product.isDeleted == 0;
-        
-        // Debug: Show the logic for deleted products
-        if (product.isDeleted == 1) {
-          print('🔍   - Product ${product.name} is deleted, _showDeletedProducts = $_showDeletedProducts, deletedMatch = $deletedMatch');
-        }
-
-        print('🔍 Product: ${product.name}');
-        print('🔍   - Is deleted: ${product.isDeleted}');
-        print('🔍   - Search match: $searchMatch');
-        print('🔍   - Category match: $categoryMatch');
-        print('🔍   - Stock match: $stockMatch');
-        print('🔍   - Deleted match: $deletedMatch');
-        print('🔍   - Final result: ${searchMatch && categoryMatch && stockMatch && deletedMatch}');
-
-        return searchMatch && categoryMatch && stockMatch && deletedMatch;
-      }).toList();
-      
-      print('🔍 Filtered products: ${_filteredProducts.length}');
-      print('🔍 Deleted products in filtered: ${_filteredProducts.where((p) => p.isDeleted == 1).length}');
-      print('🔍 ===== FILTERS APPLIED =====');
+    // Cancel existing debounce timer
+    _searchDebounce?.cancel();
+    
+    // Set a new debounce timer
+    _searchDebounce = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _resetAndLoadProducts();
+      }
     });
   }
 
@@ -1745,7 +1690,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               ],
                             ),
                           )
-                        : isMobile
+                        : Column(
+                            children: [
+                              isMobile
                                 ? _buildMobileProductList(isSmallMobile)
                                 : Container(
                                     padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
@@ -1767,9 +1714,39 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                             width: 0.5,
                                           ),
                                         ),
-                    ),
-                  ),
-                ),
+                                    ),
+                                  ),
+                              if (_productHasMore)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 20.0),
+                                  child: _productPageLoading
+                                      ? Center(child: CircularProgressIndicator())
+                                      : Center(
+                                          child: ElevatedButton.icon(
+                                            onPressed: _loadProductsPaged,
+                                            icon: Icon(Icons.add),
+                                            label: Text(t(context, 'Load More Products')),
+                                            style: ElevatedButton.styleFrom(
+                                              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                              if (!_productHasMore && _displayProducts.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 20.0),
+                                  child: Center(
+                                    child: Text(
+                                      t(context, 'No more products to load'),
+                                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
               ],
             ),
               ),

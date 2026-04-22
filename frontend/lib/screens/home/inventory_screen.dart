@@ -786,6 +786,63 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                             ),
                                           ),
                                     ),
+                                    
+                                    SizedBox(width: isSmallMobile ? 4 : 6),
+                                    
+                                    // Import Excel Button
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.green[100]!,
+                                        borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.1),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: isSmallMobile 
+                                        ? IconButton(
+                                            onPressed: _importFromExcel,
+                                            icon: Icon(
+                                              Icons.upload_file,
+                                              color: Colors.green[700]!,
+                                              size: 16,
+                                            ),
+                                            padding: EdgeInsets.all(6),
+                                            constraints: const BoxConstraints(
+                                              minWidth: 28,
+                                              minHeight: 28,
+                                            ),
+                                          )
+                                        : ElevatedButton.icon(
+                                            onPressed: _importFromExcel,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.transparent,
+                                              foregroundColor: Colors.green[700]!,
+                                              elevation: 0,
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 6,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                            icon: Icon(
+                                              Icons.upload_file,
+                                              size: 14,
+                                            ),
+                                            label: Text(
+                                              isMobile ? t(context, 'Import') : t(context, 'Import Excel'),
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                          ),
+                                    ),
                                   ],
                                 ),
                               ],

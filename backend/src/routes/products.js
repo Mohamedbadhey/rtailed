@@ -775,6 +775,7 @@ async function saveImageBuffer(buffer, ext) {
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2,8)}${safeExt}`;
   const fullPath = path.join(productsDir, filename);
   await fs.promises.writeFile(fullPath, buffer);
+  console.log(`🖼️ Image saved to: ${fullPath}`);
   return `/uploads/products/${filename}`;
 }
 
@@ -799,8 +800,11 @@ router.post('/bulk-import', [auth, checkRole(['admin', 'manager']), excelUpload.
     const requiredCols = ['name', 'price', 'cost'];
     const missing = requiredCols.filter(rc => !headers.includes(rc));
     if (missing.length) {
+      console.log(`❌ Bulk Import: Missing required columns: ${missing.join(', ')}`);
       return res.status(400).json({ message: `Missing required columns: ${missing.join(', ')}` });
     }
+
+    console.log(`🚀 Bulk Import started: dryRun=${dryRun}, upsertBy=${upsertBy}, rows=${rows.length}`);
 
     // Category pre-fetch cache
     const categoryCache = new Map(); // name -> id
@@ -832,17 +836,28 @@ router.post('/bulk-import', [auth, checkRole(['admin', 'manager']), excelUpload.
       // Resolve category id (optional)
       let categoryId = null;
       if (categoryName) {
-        if (categoryCache.has(categoryName)) {
-          categoryId = categoryCache.get(categoryName);
+        const normalizedCat = categoryName.trim();
+        if (categoryCache.has(normalizedCat)) {
+          categoryId = categoryCache.get(normalizedCat);
         } else {
-          const [existing] = await pool.query('SELECT id FROM categories WHERE name = ? AND business_id = ?', [categoryName, req.user.business_id]);
+          // Case-insensitive search for existing category (business-specific or global)
+          const [existing] = await pool.query(
+            'SELECT id FROM categories WHERE LOWER(name) = LOWER(?) AND (business_id = ? OR business_id IS NULL) LIMIT 1', 
+            [normalizedCat, req.user.business_id]
+          );
+          
           if (existing.length) {
             categoryId = existing[0].id;
+            console.log(`📁 Category found: "${normalizedCat}" -> ID ${categoryId}`);
           } else if (createMissingCategories) {
-            const [ins] = await pool.query('INSERT INTO categories (name, business_id) VALUES (?, ?)', [categoryName, req.user.business_id]);
+            const [ins] = await pool.query(
+              'INSERT INTO categories (name, business_id) VALUES (?, ?)', 
+              [normalizedCat, req.user.business_id]
+            );
             categoryId = ins.insertId;
+            console.log(`📁 Category created: "${normalizedCat}" -> ID ${categoryId}`);
           }
-          categoryCache.set(categoryName, categoryId);
+          categoryCache.set(normalizedCat, categoryId);
         }
       }
 

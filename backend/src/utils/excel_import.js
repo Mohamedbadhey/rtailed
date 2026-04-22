@@ -112,23 +112,48 @@ async function parseDrawingAnchors(zip, drawingPath) {
 }
 
 async function extractEmbeddedImagesByRow(buffer, options = {}) {
+  console.log('📊 Starting embedded image extraction...');
   const workbook = XLSX.read(buffer, { type: 'buffer' });
   const { headers, rows, rowNumbers, sheetName } = readSheetRows(workbook, options);
-  if (!rows.length) return { headers, rows, imagesByRow: new Map(), warnings: ['No data rows found'] };
+  if (!rows.length) {
+    console.log('⚠️ No rows found in Excel');
+    return { headers, rows, imagesByRow: new Map(), warnings: ['No data rows found'] };
+  }
 
-  const imageColName = normalizeHeader(options.imageColumn || 'image');
-  const imageColIndex = headers.findIndex(h => h === imageColName);
+  // Try to find image column index
+  const commonImageNames = ['image', 'photo', 'picture', 'product image', 'img', 'file'];
+  let imageColIndex = -1;
+  
+  // 1. Try provided column name
+  if (options.imageColumn) {
+    const target = normalizeHeader(options.imageColumn);
+    imageColIndex = headers.findIndex(h => h === target);
+  }
+  
+  // 2. If not found, try common names
+  if (imageColIndex === -1) {
+    for (const name of commonImageNames) {
+      imageColIndex = headers.findIndex(h => h === name);
+      if (imageColIndex !== -1) {
+        console.log(`🔍 Detected image column: "${headers[imageColIndex]}" at index ${imageColIndex}`);
+        break;
+      }
+    }
+  }
 
   const zip = await JSZip.loadAsync(buffer);
   const sheetIndex = getSheetIndexFromName(workbook, sheetName);
   const drawingPath = await findDrawingPathForSheet(zip, sheetIndex);
   const warnings = [];
   if (!drawingPath) {
+    console.log('⚠️ No drawing path found (no images in Excel)');
     warnings.push('No drawing part found in worksheet; embedded images may be missing');
     return { headers, rows, imagesByRow: new Map(), warnings };
   }
 
   const { anchors, relsMap } = await parseDrawingAnchors(zip, drawingPath);
+  console.log(`🖼️ Found ${anchors.length} image anchors in Excel drawing`);
+  
   // Build map of dataRowIndex -> image binary
   const imagesByRow = new Map();
 
@@ -136,18 +161,41 @@ async function extractEmbeddedImagesByRow(buffer, options = {}) {
     // Excel anchor rows are 0-based; data starts at Excel row 2 (index 1)
     const excelRow1Based = a.row + 1; // convert to 1-based
     const dataIndex = excelRow1Based - 2; // subtract header row (row 1)
-    if (dataIndex < 0 || dataIndex >= rows.length) continue;
-    if (Number.isFinite(imageColIndex) && imageColIndex >= 0 && a.col !== imageColIndex) {
-      // If an explicit image column is defined, only accept anchors on that column
+    
+    // Fuzzy matching: if an image is slightly overlapping the row above or below
+    // we still try to map it if the dataIndex is close.
+    // However, usually a.row is the TOP row of the anchor.
+    
+    if (dataIndex < 0 || dataIndex >= rows.length) {
+      console.log(`⏭️ Skipping image at Excel row ${excelRow1Based} (out of data range)`);
       continue;
     }
+    
+    // If we found an image column, we prefer images in that column.
+    // If not, we take any image in the row.
+    if (imageColIndex !== -1 && a.col !== imageColIndex) {
+      // Check if the image is spanning multiple columns and one of them is the image column
+      // For now, let's just be a bit more lenient or log it
+      console.log(`ℹ️ Image at row ${excelRow1Based} is in col ${a.col}, but image column is ${imageColIndex}`);
+      // Continue if it's far away, but maybe it's just slightly off center
+      if (Math.abs(a.col - imageColIndex) > 1) {
+         continue;
+      }
+    }
+    
     const mediaPath = relsMap[a.relId];
     if (!mediaPath) continue;
     const mediaFile = zip.file(mediaPath);
     if (!mediaFile) continue;
+    
     const content = await mediaFile.async('nodebuffer');
     const ext = path.extname(mediaPath).toLowerCase() || '.png';
-    imagesByRow.set(dataIndex, { buffer: content, ext, mediaPath, excelRow: excelRow1Based });
+    
+    // Only set if not already set, or if this one is "closer" to the image column
+    if (!imagesByRow.has(dataIndex)) {
+      imagesByRow.set(dataIndex, { buffer: content, ext, mediaPath, excelRow: excelRow1Based });
+      console.log(`✅ Mapped image to data row ${dataIndex} (Excel row ${excelRow1Based})`);
+    }
   }
 
   return { headers, rows, imagesByRow, warnings };

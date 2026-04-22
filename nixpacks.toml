@@ -1,13 +1,7 @@
 providers = ["node"]
 
 [phases.setup]
-nixPkgs = ["nodejs", "npm"]
-
-[phases.install]
-cmds = ["npm install"]
-
-[phases.build]
-cmds = ["echo 'Building backend...'"]
+nixPkgs = ["nodejs"]
 
 [start]
 cmd = "npm start"

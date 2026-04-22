@@ -42,24 +42,33 @@ const createUploadsDirectories = () => {
 // Initialize uploads directories
 createUploadsDirectories();
 
-// Check and log database SQL mode
-const checkDatabaseMode = async () => {
-  try {
-    const pool = require('./config/database');
-    const [rows] = await pool.query('SELECT @@sql_mode as sql_mode');
-    console.log('🔧 Database SQL Mode:', rows[0].sql_mode);
-    
-    // Check if ONLY_FULL_GROUP_BY is enabled
-    const hasOnlyFullGroupBy = rows[0].sql_mode.includes('ONLY_FULL_GROUP_BY');
-    console.log('🔧 ONLY_FULL_GROUP_BY enabled:', hasOnlyFullGroupBy);
-    
-    if (hasOnlyFullGroupBy) {
-      console.log('⚠️  ONLY_FULL_GROUP_BY is enabled - queries must be compliant');
-    } else {
-      console.log('✅ ONLY_FULL_GROUP_BY is disabled - queries are more permissive');
+// Check and log database SQL mode with retries
+const checkDatabaseMode = async (retries = 5, delay = 5000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const pool = require('./config/database');
+      const [rows] = await pool.query('SELECT @@sql_mode as sql_mode');
+      console.log('🔧 Database SQL Mode:', rows[0].sql_mode);
+      
+      // Check if ONLY_FULL_GROUP_BY is enabled
+      const hasOnlyFullGroupBy = rows[0].sql_mode.includes('ONLY_FULL_GROUP_BY');
+      console.log('🔧 ONLY_FULL_GROUP_BY enabled:', hasOnlyFullGroupBy);
+      
+      if (hasOnlyFullGroupBy) {
+        console.log('⚠️  ONLY_FULL_GROUP_BY is enabled - queries must be compliant');
+      } else {
+        console.log('✅ ONLY_FULL_GROUP_BY is disabled - queries are more permissive');
+      }
+      return; // Success!
+    } catch (error) {
+      console.error(`❌ Database connection attempt ${i + 1} failed:`, error.message);
+      if (i < retries - 1) {
+        console.log(`⏳ Retrying in ${delay / 1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        console.error('❌ All database connection attempts failed. The server will continue but DB features may fail.');
+      }
     }
-  } catch (error) {
-    console.error('❌ Error checking database SQL mode:', error);
   }
 };
 

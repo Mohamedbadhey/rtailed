@@ -192,7 +192,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       if (mounted) {
         SuccessUtils.showOperationError(context, 'load products', e.toString());
       }
-      print('📦 ===== INVENTORY LOAD PRODUCTS END (ERROR) =====');
+      // print('📦 ===== INVENTORY LOAD PRODUCTS END (ERROR) =====');
     }
   }
 
@@ -211,14 +211,88 @@ class _InventoryScreenState extends State<InventoryScreen> {
       final totals = (preview['summary']??{})['totals']??{};
       final ok = await showDialog<bool>(
         context: context,
-        builder: (c)=>AlertDialog(
-          title: Text(t(context,'Import Preview')),
-          content: Text('Rows: ${totals['rows']??0}\nCreate: ${totals['created']??0}\nUpdate: ${totals['updated']??0}\nErrors: ${totals['failed']??0}'),
-          actions:[
-            TextButton(onPressed:()=>Navigator.pop(c,false), child: Text(t(context,'Cancel'))),
-            ElevatedButton(onPressed:()=>Navigator.pop(c,true), child: Text(t(context,'Confirm Import'))),
-          ],
-        ),
+        builder: (c) {
+          final results = (preview['results'] as List?) ?? [];
+          return AlertDialog(
+            title: Text(t(context, 'Import Preview')),
+            content: Container(
+              width: MediaQuery.of(context).size.width * 0.8,
+              height: MediaQuery.of(context).size.height * 0.6,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Rows: ${totals['rows'] ?? 0} | Create: ${totals['created'] ?? 0} | Update: ${totals['updated'] ?? 0} | Errors: ${totals['failed'] ?? 0}'),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: DataTable(
+                          columnSpacing: 20,
+                          headingRowHeight: 40,
+                          dataRowHeight: 48,
+                          columns: [
+                            DataColumn(label: Text(t(context, 'Row'))),
+                            DataColumn(label: Text(t(context, 'Name'))),
+                            DataColumn(label: Text(t(context, 'SKU'))),
+                            DataColumn(label: Text(t(context, 'Category'))),
+                            DataColumn(label: Text(t(context, 'Price'))),
+                            DataColumn(label: Text(t(context, 'Image'))),
+                            DataColumn(label: Text(t(context, 'Status'))),
+                          ],
+                          rows: results.map((r) {
+                            final status = r['status'] ?? 'ok';
+                            final isError = status == 'error';
+                            return DataRow(
+                              cells: [
+                                DataCell(Text(r['row']?.toString() ?? '-')),
+                                DataCell(Text(r['name']?.toString() ?? '-')),
+                                DataCell(Text(r['sku']?.toString() ?? '-')),
+                                DataCell(Text(r['categoryName']?.toString() ?? '-')),
+                                DataCell(Text(r['price']?.toString() ?? '-')),
+                                DataCell(Icon(
+                                  r['image'] == true ? Icons.image : Icons.image_not_supported,
+                                  color: r['image'] == true ? Colors.green : Colors.grey,
+                                  size: 16,
+                                )),
+                                DataCell(
+                                  Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: isError ? Colors.red[50] : Colors.green[50],
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      status.toString().toUpperCase(),
+                                      style: TextStyle(
+                                        color: isError ? Colors.red : Colors.green,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(c, false), child: Text(t(context, 'Cancel'))),
+              ElevatedButton(
+                onPressed: totals['failed'] == totals['rows'] ? null : () => Navigator.pop(c, true),
+                child: Text(t(context, 'Confirm Import')),
+              ),
+            ],
+          );
+        },
       );
       if (ok != true) return;
       Map<String, dynamic> finalRes;
@@ -240,12 +314,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   void _applyFilters() {
     setState(() {
+      /*
       print('🔍 ===== APPLYING FILTERS =====');
       print('🔍 Total products: ${_products.length}');
       print('🔍 Show deleted products: $_showDeletedProducts');
       print('🔍 Show low stock: $_showLowStock');
       print('🔍 Selected category: $_selectedCategory');
       print('🔍 Search text: "${_searchController.text}"');
+      */
       
       _filteredProducts = _products.where((product) {
         // Search filter

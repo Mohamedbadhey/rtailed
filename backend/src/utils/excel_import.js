@@ -105,9 +105,12 @@ async function parseDrawingAnchors(zip, drawingPath) {
 
   console.log(`⚓ Total anchors found in XML: ${all.length}`);
   
+  if (all.length > 0) {
+    console.log(`🔍 DEBUG: First anchor structure: ${JSON.stringify(all[0]).substring(0, 500)}`);
+  }
+
   // If no anchors found, maybe they are nested deeper or under different names
-  if (all.length === 0 && wsDr) {
-    console.log('🧐 No standard anchors found. Searching all keys for "Anchor"...');
+  if (all.length === 0 && wsDr) {    console.log('🧐 No standard anchors found. Searching all keys for "Anchor"...');
     for (const key in wsDr) {
       if (key.toLowerCase().includes('anchor')) {
         console.log(`💡 Found potential anchor key: ${key}`);
@@ -141,16 +144,18 @@ async function parseDrawingAnchors(zip, drawingPath) {
     // Check all possible locations for the embed ID (now with no @_ prefix)
     const blip = picElement.blipFill?.blip || picElement['a:blipFill']?.['a:blip'];
     const relId = blip?.embed || 
-                  blip?.link ||
                   blip?.['r:embed'] || 
+                  blip?.['r:id'] ||
+                  blip?.link ||
                   blip?.['r:link'] ||
-                  blip?.['@_embed'] || // Fallback
+                  blip?.id ||
+                  blip?.['@_embed'] || 
                   blip?.['@_r:embed']; 
     
     if (Number.isFinite(row) && Number.isFinite(col) && relId) {
       anchors.push({ row, col, relId });
     } else {
-      console.log(`❓ Anchor incomplete: row=${row}, col=${col}, relId=${relId}. Blip keys: ${blip ? Object.keys(blip).join(',') : 'none'}`);
+      console.log(`❓ Anchor incomplete: row=${row}, col=${col}, relId=${relId}. Keys: ${blip ? Object.keys(blip).join(',') : 'none'}`);
     }
   }
 

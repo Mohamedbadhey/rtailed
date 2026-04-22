@@ -43,66 +43,121 @@ function getSheetIndexFromName(workbook, sheetName) {
 
 // Locate drawing part for a worksheet via its rels file
 async function findDrawingPathForSheet(zip, sheetIndex) {
-  const sheetRelsPath = `xl/worksheets/_rels/sheet${sheetIndex + 1}.xml.rels`;
-  const relsFile = zip.file(sheetRelsPath);
-  if (!relsFile) return null;
-  const xml = await relsFile.async('text');
-  const parser = new XMLParser({ ignoreAttributes: false });
-  const rels = parser.parse(xml);
-  const list = (rels?.Relationships?.Relationship) || [];
-  const relationships = Array.isArray(list) ? list : [list];
-  const drawingRel = relationships.find(r => r['@_Type'] && r['@_Type'].includes('/relationships/drawing'));
-  if (!drawingRel) return null;
-  // Target may be like '../drawings/drawing1.xml' relative to sheet rels folder
-  const target = drawingRel['@_Target'];
-  if (!target) return null;
-  // Normalize path to xl/drawings/drawingN.xml
-  const normalized = path.posix.normalize(path.posix.join('xl/worksheets/_rels', target)).replace('worksheets/_rels/../', '');
-  return normalized; // typically 'xl/drawings/drawing1.xml'
+  // Try standard path first
+  const pathsToTry = [
+    `xl/worksheets/_rels/sheet${sheetIndex + 1}.xml.rels`,
+    `xl/worksheets/_rels/sheet1.xml.rels`, // Fallback to first sheet if index is weird
+  ];
+  
+  // Also try to find ANY sheet rels that might match
+  const allFiles = Object.keys(zip.files);
+  const sheetRelsFiles = allFiles.filter(f => f.startsWith('xl/worksheets/_rels/sheet') && f.endsWith('.xml.rels'));
+  
+  for (const relsPath of [...pathsToTry, ...sheetRelsFiles]) {
+    const relsFile = zip.file(relsPath);
+    if (!relsFile) continue;
+    
+    console.log(`🔍 Checking rels file: ${relsPath}`);
+    const xml = await relsFile.async('text');
+    const parser = new XMLParser({ ignoreAttributes: false });
+    const rels = parser.parse(xml);
+    const list = (rels?.Relationships?.Relationship) || [];
+    const relationships = Array.isArray(list) ? list : [list];
+    const drawingRel = relationships.find(r => r['@_Type'] && r['@_Type'].includes('/relationships/drawing'));
+    
+    if (drawingRel) {
+      const target = drawingRel['@_Target'];
+      if (!target) continue;
+      // Normalize path to xl/drawings/drawingN.xml
+      const normalized = path.posix.normalize(path.posix.join(path.posix.dirname(relsPath), target)).replace('worksheets/_rels/', '');
+      console.log(`🎯 Found drawing rel in ${relsPath} -> ${normalized}`);
+      return normalized;
+    }
+  }
+  return null;
 }
 
 async function parseDrawingAnchors(zip, drawingPath) {
   const file = zip.file(drawingPath);
   if (!file) return { anchors: [], relsMap: {} };
 
+  console.log(`📖 Parsing drawing XML: ${drawingPath}`);
   const xml = await file.async('text');
-  const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
+  const parser = new XMLParser({ 
+    ignoreAttributes: false, 
+    removeNSPrefix: true,
+    attributeNamePrefix: '' 
+  });
   const doc = parser.parse(xml);
 
   const anchors = [];
   const twoCell = doc?.wsDr?.twoCellAnchor || [];
   const oneCell = doc?.wsDr?.oneCellAnchor || [];
+  const absCell = doc?.wsDr?.absoluteAnchor || [];
+  
   const all = (Array.isArray(twoCell) ? twoCell : [twoCell]).filter(Boolean)
-    .concat((Array.isArray(oneCell) ? oneCell : [oneCell]).filter(Boolean));
+    .concat((Array.isArray(oneCell) ? oneCell : [oneCell]).filter(Boolean))
+    .concat((Array.isArray(absCell) ? absCell : [absCell]).filter(Boolean));
+
+  console.log(`⚓ Total anchors found in XML: ${all.length}`);
 
   for (const a of all) {
-    const from = a.from || a['xdr:from'];
-    const pic = a.pic || a['xdr:pic'];
-    if (!from || !pic) continue;
-    const row = parseInt(from.row ?? from['xdr:row'] ?? 0, 10);
-    const col = parseInt(from.col ?? from['xdr:col'] ?? 0, 10);
-    const blip = pic.blipFill?.blip || pic['a:blipFill']?.['a:blip'];
-    const relId = blip?.['@_embed'] || blip?.['@_r:embed'] || blip?.['@_r:link'];
+    const from = a.from;
+    const pic = a.pic;
+    
+    if (!from) {
+      console.log('❓ Anchor missing "from" element');
+      continue;
+    }
+    
+    // Sometimes images are in groups or other structures
+    const picElement = pic || a.graphicFrame?.graphic?.graphicData?.pic;
+    
+    if (!picElement) {
+      console.log('❓ Anchor missing "pic" or recognized image element');
+      continue;
+    }
+    
+    const row = parseInt(from.row ?? 0, 10);
+    const col = parseInt(from.col ?? 0, 10);
+    
+    // Check all possible locations for the embed ID (now with no @_ prefix)
+    const blip = picElement.blipFill?.blip || picElement['a:blipFill']?.['a:blip'];
+    const relId = blip?.embed || 
+                  blip?.link ||
+                  blip?.['r:embed'] || 
+                  blip?.['r:link'] ||
+                  blip?.['@_embed'] || // Fallback
+                  blip?.['@_r:embed']; 
+    
     if (Number.isFinite(row) && Number.isFinite(col) && relId) {
       anchors.push({ row, col, relId });
+    } else {
+      console.log(`❓ Anchor incomplete: row=${row}, col=${col}, relId=${relId}. Blip keys: ${blip ? Object.keys(blip).join(',') : 'none'}`);
     }
   }
 
   // Parse rels for drawing to map relId -> media path
   const relsPath = `${path.posix.dirname(drawingPath)}/_rels/${path.posix.basename(drawingPath)}.rels`;
+  console.log(`📖 Parsing drawing rels: ${relsPath}`);
   const relsFile = zip.file(relsPath);
   const relsMap = {};
   if (relsFile) {
     const relsXml = await relsFile.async('text');
-    const relsDoc = new XMLParser({ ignoreAttributes: false }).parse(relsXml);
-    const relsList = (relsDoc?.Relationships?.Relationship) || [];
-    const arr = Array.isArray(relsList) ? relsList : [relsList];
+    const relsDoc = new XMLParser({ 
+      ignoreAttributes: false, 
+      removeNSPrefix: true,
+      attributeNamePrefix: '' // Don't prefix attributes
+    }).parse(relsXml);
+    
+    const list = (relsDoc?.Relationships?.Relationship) || [];
+    const arr = Array.isArray(list) ? list : [list];
     for (const r of arr) {
-      const id = r['@_Id'];
-      const target = r['@_Target'];
+      const id = r.Id || r['@_Id'];
+      const target = r.Target || r['@_Target'];
       if (id && target) {
-        // Normalize to zip path like 'xl/media/image1.png'
-        const p = path.posix.normalize(path.posix.join(path.posix.dirname(relsPath), target)).replace('drawings/_rels/../', '');
+        // Normalize to zip path
+        const p = path.posix.normalize(path.posix.join(path.posix.dirname(drawingPath), target));
         relsMap[id] = p;
       }
     }
@@ -115,6 +170,8 @@ async function extractEmbeddedImagesByRow(buffer, options = {}) {
   console.log('📊 Starting embedded image extraction...');
   const workbook = XLSX.read(buffer, { type: 'buffer' });
   const { headers, rows, rowNumbers, sheetName } = readSheetRows(workbook, options);
+  console.log(`📊 Worksheet name: ${sheetName}, Headers: [${headers.join(', ')}]`);
+  
   if (!rows.length) {
     console.log('⚠️ No rows found in Excel');
     return { headers, rows, imagesByRow: new Map(), warnings: ['No data rows found'] };
@@ -124,13 +181,11 @@ async function extractEmbeddedImagesByRow(buffer, options = {}) {
   const commonImageNames = ['image', 'photo', 'picture', 'product image', 'img', 'file'];
   let imageColIndex = -1;
   
-  // 1. Try provided column name
   if (options.imageColumn) {
     const target = normalizeHeader(options.imageColumn);
     imageColIndex = headers.findIndex(h => h === target);
   }
   
-  // 2. If not found, try common names
   if (imageColIndex === -1) {
     for (const name of commonImageNames) {
       imageColIndex = headers.findIndex(h => h === name);
@@ -141,60 +196,69 @@ async function extractEmbeddedImagesByRow(buffer, options = {}) {
     }
   }
 
+  console.log('📦 Loading Excel ZIP structure...');
   const zip = await JSZip.loadAsync(buffer);
+  
   const sheetIndex = getSheetIndexFromName(workbook, sheetName);
+  console.log(`📄 Sheet index: ${sheetIndex}`);
+  
   const drawingPath = await findDrawingPathForSheet(zip, sheetIndex);
   const warnings = [];
   if (!drawingPath) {
-    console.log('⚠️ No drawing path found (no images in Excel)');
+    console.log(`⚠️ No drawing path found for sheet ${sheetIndex}. Checked sheet rels.`);
+    // Try to find ANY drawing file as a fallback
+    const fallbackDrawing = allFiles.find(f => f.startsWith('xl/drawings/drawing') && f.endsWith('.xml'));
+    if (fallbackDrawing) {
+      console.log(`💡 Fallback: Found drawing at ${fallbackDrawing}`);
+      // Using fallback drawing might be risky but worth a try if the rels are broken
+    }
     warnings.push('No drawing part found in worksheet; embedded images may be missing');
     return { headers, rows, imagesByRow: new Map(), warnings };
   }
 
+  console.log(`🎨 Drawing path: ${drawingPath}`);
   const { anchors, relsMap } = await parseDrawingAnchors(zip, drawingPath);
-  console.log(`🖼️ Found ${anchors.length} image anchors in Excel drawing`);
+  console.log(`🖼️ Found ${anchors.length} image anchors. Rels map size: ${Object.keys(relsMap).length}`);
   
-  // Build map of dataRowIndex -> image binary
   const imagesByRow = new Map();
 
   for (const a of anchors) {
-    // Excel anchor rows are 0-based; data starts at Excel row 2 (index 1)
-    const excelRow1Based = a.row + 1; // convert to 1-based
-    const dataIndex = excelRow1Based - 2; // subtract header row (row 1)
+    const excelRow1Based = a.row + 1;
+    const dataIndex = excelRow1Based - 2;
     
-    // Fuzzy matching: if an image is slightly overlapping the row above or below
-    // we still try to map it if the dataIndex is close.
-    // However, usually a.row is the TOP row of the anchor.
+    console.log(`📍 Processing anchor: Row=${a.row} (Excel ${excelRow1Based}), Col=${a.col}, RelID=${a.relId}`);
     
     if (dataIndex < 0 || dataIndex >= rows.length) {
-      console.log(`⏭️ Skipping image at Excel row ${excelRow1Based} (out of data range)`);
+      console.log(`⏭️ Anchor Row ${excelRow1Based} is outside data rows (1-based row must be > 1 and <= ${rows.length + 1})`);
       continue;
     }
     
-    // If we found an image column, we prefer images in that column.
-    // If not, we take any image in the row.
     if (imageColIndex !== -1 && a.col !== imageColIndex) {
-      // Check if the image is spanning multiple columns and one of them is the image column
-      // For now, let's just be a bit more lenient or log it
-      console.log(`ℹ️ Image at row ${excelRow1Based} is in col ${a.col}, but image column is ${imageColIndex}`);
-      // Continue if it's far away, but maybe it's just slightly off center
+      console.log(`ℹ️ Image at col ${a.col} doesn't match image column ${imageColIndex}. Fuzzing...`);
       if (Math.abs(a.col - imageColIndex) > 1) {
          continue;
       }
     }
     
     const mediaPath = relsMap[a.relId];
-    if (!mediaPath) continue;
-    const mediaFile = zip.file(mediaPath);
-    if (!mediaFile) continue;
+    if (!mediaPath) {
+      console.log(`❌ No media path found for RelID ${a.relId} in drawing rels`);
+      continue;
+    }
     
+    const mediaFile = zip.file(mediaPath);
+    if (!mediaFile) {
+      console.log(`❌ Media file NOT found in ZIP: ${mediaPath}`);
+      continue;
+    }
+    
+    console.log(`📥 Extracting media: ${mediaPath} (${mediaFile._data.uncompressedSize} bytes)`);
     const content = await mediaFile.async('nodebuffer');
     const ext = path.extname(mediaPath).toLowerCase() || '.png';
     
-    // Only set if not already set, or if this one is "closer" to the image column
     if (!imagesByRow.has(dataIndex)) {
       imagesByRow.set(dataIndex, { buffer: content, ext, mediaPath, excelRow: excelRow1Based });
-      console.log(`✅ Mapped image to data row ${dataIndex} (Excel row ${excelRow1Based})`);
+      console.log(`✅ SUCCESS: Mapped image to data row ${dataIndex}`);
     }
   }
 

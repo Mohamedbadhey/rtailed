@@ -196,6 +196,48 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
   }
 
+  Future<void> _importFromExcel() async {
+    try {
+      final picked = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['xlsx'], withData: kIsWeb);
+      if (picked == null) return;
+      Map<String, dynamic> preview;
+      if (kIsWeb) {
+        final b = picked.files.single.bytes; if (b == null) throw Exception('No file bytes');
+        preview = await _apiService.bulkImportProducts(webBytes: b, webFilename: picked.files.single.name, dryRun: true, upsertBy: 'sku', categoryCreate: true);
+      } else {
+        final p = picked.files.single.path; if (p == null) throw Exception('No file path');
+        preview = await _apiService.bulkImportProducts(file: File(p), dryRun: true, upsertBy: 'sku', categoryCreate: true);
+      }
+      final totals = (preview['summary']??{})['totals']??{};
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (c)=>AlertDialog(
+          title: Text(t(context,'Import Preview')),
+          content: Text('Rows: ${totals['rows']??0}\nCreate: ${totals['created']??0}\nUpdate: ${totals['updated']??0}\nErrors: ${totals['failed']??0}'),
+          actions:[
+            TextButton(onPressed:()=>Navigator.pop(c,false), child: Text(t(context,'Cancel'))),
+            ElevatedButton(onPressed:()=>Navigator.pop(c,true), child: Text(t(context,'Confirm Import'))),
+          ],
+        ),
+      );
+      if (ok != true) return;
+      Map<String, dynamic> finalRes;
+      if (kIsWeb) {
+        final b = picked.files.single.bytes!;
+        finalRes = await _apiService.bulkImportProducts(webBytes: b, webFilename: picked.files.single.name, dryRun: false, upsertBy: 'sku', categoryCreate: true);
+      } else {
+        finalRes = await _apiService.bulkImportProducts(file: File(picked.files.single.path!), dryRun: false, upsertBy: 'sku', categoryCreate: true);
+      }
+      final t2 = (finalRes['summary']??{})['totals']??{};
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Import done: Created ${t2['created']??0}, Updated ${t2['updated']??0}, Failed ${t2['failed']??0}')));
+      await _loadProducts();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Import failed: $e')));
+    }
+  }
+
   void _applyFilters() {
     setState(() {
       print('🔍 ===== APPLYING FILTERS =====');

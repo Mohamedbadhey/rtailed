@@ -275,6 +275,53 @@ class ApiService {
   }
 
   // Products
+  Future<Map<String, dynamic>> bulkImportProducts({Uint8List? webBytes, String? webFilename, File? file, bool dryRun = true, String upsertBy = 'sku', bool categoryCreate = true, BuildContext? context}) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/api/products/bulk-import'),
+      );
+      final multipartHeaders = Map<String, String>.from(_headers);
+      multipartHeaders.remove('Content-Type');
+      request.headers.addAll(multipartHeaders);
+
+      final options = {
+        'dryRun': dryRun,
+        'upsertBy': upsertBy,
+        'category_create': categoryCreate,
+      };
+      request.fields['options'] = json.encode(options);
+
+      if (kIsWeb && webBytes != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            webBytes,
+            filename: webFilename ?? 'products.xlsx',
+          ),
+        );
+      } else if (file != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('file', file.path),
+        );
+      } else {
+        throw Exception('No Excel file provided');
+      }
+
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      } else {
+        throw Exception('Bulk import failed: ${response.statusCode} ${response.body}');
+      }
+    } catch (e, stack) {
+      print('BulkImport error: $e');
+      print(stack);
+      rethrow;
+    }
+  }
+
   Future<List<Product>> getProducts({BuildContext? context}) async {
     try {
       print('🛍️ ===== API GET PRODUCTS START =====');

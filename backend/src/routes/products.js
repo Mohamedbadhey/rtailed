@@ -751,4 +751,171 @@ router.get('/inventory/low-stock', auth, async (req, res) => {
   }
 });
 
+// ===================== BULK IMPORT FROM EXCEL (embedded images) =====================
+const excelMemoryStorage = multer.memoryStorage();
+const excelUpload = multer({
+  storage: excelMemoryStorage,
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext === '.xlsx') return cb(null, true); // Only .xlsx supported for embedded images parsing (Open XML) // .xls not supported here
+    return cb(new Error('Only .xlsx files are supported for bulk import'));
+    return cb(new Error('Only .xlsx or .xls files are supported for bulk import'));
+  }
+});
+
+const { extractEmbeddedImagesByRow, normalizeHeader } = require('../utils/excel_import');
+
+// Helper: save image buffer to uploads/products and return relative URL
+async function saveImageBuffer(buffer, ext) {
+  const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '../../uploads');
+  const productsDir = path.join(baseDir, 'products');
+  if (!fs.existsSync(productsDir)) fs.mkdirSync(productsDir, { recursive: true });
+  const safeExt = ['.png', '.jpg', '.jpeg', '.webp'].includes((ext || '').toLowerCase()) ? ext.toLowerCase() : '.png';
+  const filename = `${Date.now()}-${Math.random().toString(36).slice(2,8)}${safeExt}`;
+  const fullPath = path.join(productsDir, filename);
+  await fs.promises.writeFile(fullPath, buffer);
+  return `/uploads/products/${filename}`;
+}
+
+// POST /api/products/bulk-import
+router.post('/bulk-import', [auth, checkRole(['admin', 'manager']), excelUpload.single('file')], async (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ message: 'Excel file is required' });
+    }
+
+    const options = (() => {
+      try { return req.body.options ? JSON.parse(req.body.options) : {}; } catch { return {}; }
+    })();
+    const dryRun = options.dryRun !== false; // default true
+    const upsertBy = options.upsertBy || 'sku'; // 'sku' | 'barcode' | 'none'
+    const createMissingCategories = options.category_create !== false; // default true
+
+    // Parse Excel + embedded images
+    const { headers, rows, imagesByRow, warnings } = await extractEmbeddedImagesByRow(req.file.buffer, { imageColumn: 'image' });
+
+    // Required columns validation
+    const requiredCols = ['name', 'price', 'cost'];
+    const missing = requiredCols.filter(rc => !headers.includes(rc));
+    if (missing.length) {
+      return res.status(400).json({ message: `Missing required columns: ${missing.join(', ')}` });
+    }
+
+    // Category pre-fetch cache
+    const categoryCache = new Map(); // name -> id
+
+    const results = [];
+    let created = 0, updated = 0, failed = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const rowNum = i + 2; // Excel visible row number
+      const name = (r.name || '').trim();
+      const sku = (r.sku || '').trim() || null;
+      const description = (r.description || '').trim() || null;
+      const cost = parseFloat(String(r.cost || '').replace(/,/g, ''));
+      const price = parseFloat(String(r.price || '').replace(/,/g, ''));
+      const quantity = parseInt(String(r.quantity || '0').replace(/,/g, '')) || 0;
+      const categoryName = r.category && String(r.category).trim() !== '' ? String(r.category).trim() : null;
+
+      const rowMsgs = [];
+      if (!name) rowMsgs.push('name is required');
+      if (!Number.isFinite(cost)) rowMsgs.push('cost must be a number');
+      if (!Number.isFinite(price)) rowMsgs.push('price must be a number');
+      if (rowMsgs.length) {
+        failed++;
+        results.push({ row: rowNum, status: 'error', messages: rowMsgs });
+        continue;
+      }
+
+      // Resolve category id (optional)
+      let categoryId = null;
+      if (categoryName) {
+        if (categoryCache.has(categoryName)) {
+          categoryId = categoryCache.get(categoryName);
+        } else {
+          const [existing] = await pool.query('SELECT id FROM categories WHERE name = ? AND business_id = ?', [categoryName, req.user.business_id]);
+          if (existing.length) {
+            categoryId = existing[0].id;
+          } else if (createMissingCategories) {
+            const [ins] = await pool.query('INSERT INTO categories (name, business_id) VALUES (?, ?)', [categoryName, req.user.business_id]);
+            categoryId = ins.insertId;
+          }
+          categoryCache.set(categoryName, categoryId);
+        }
+      }
+
+      // Image handling from embedded image map
+      let image_url = null;
+      if (imagesByRow.has(i)) {
+        const { buffer, ext } = imagesByRow.get(i);
+        try {
+          image_url = await saveImageBuffer(buffer, ext);
+        } catch (e) {
+          rowMsgs.push(`image save failed: ${e.message}`);
+        }
+      }
+
+      if (dryRun) {
+        results.push({ row: rowNum, status: 'ok', action: upsertBy === 'none' ? 'create' : (sku ? 'upsert' : 'create'), name, sku, price, cost, quantity, categoryId, image: !!image_url, warnings: rowMsgs });
+        continue;
+      }
+
+      // Upsert logic
+      let productId = null;
+      if (upsertBy === 'sku' && sku) {
+        const [p] = await pool.query('SELECT id FROM products WHERE sku = ? AND business_id = ?', [sku, req.user.business_id]);
+        if (p.length) productId = p[0].id;
+      }
+      if (!productId && upsertBy === 'barcode' && r.barcode) {
+        const [p] = await pool.query('SELECT id FROM products WHERE barcode = ? AND business_id = ?', [String(r.barcode).trim(), req.user.business_id]);
+        if (p.length) productId = p[0].id;
+      }
+
+      try {
+        if (productId) {
+          // Update existing
+          const fields = ['name = ?', 'description = ?', 'price = ?', 'cost_price = ?', 'stock_quantity = ?', 'low_stock_threshold = ?'];
+          const vals = [name, description, price, cost, quantity, 10];
+          if (categoryId !== null) { fields.push('category_id = ?'); vals.push(categoryId); }
+          if (image_url) { fields.push('image_url = ?'); vals.push(image_url); }
+          if (sku) { fields.push('sku = ?'); vals.push(sku); }
+          if (r.barcode) { fields.push('barcode = ?'); vals.push(String(r.barcode).trim()); }
+          vals.push(productId);
+          await pool.query(`UPDATE products SET ${fields.join(', ')} WHERE id = ?`, vals);
+          updated++;
+          results.push({ row: rowNum, status: 'updated', id: productId, name });
+        } else {
+          // Create new
+          const finalSku = sku && sku.trim() !== '' ? sku.trim() : `SKU-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+          const insertValues = [
+            name, description, finalSku, r.barcode ? String(r.barcode).trim() : null, categoryId,
+            price, r.wholesale_price ? parseFloat(String(r.wholesale_price).replace(/,/g, '')) : null, cost,
+            quantity, 10, image_url, req.user.business_id
+          ];
+          const [ins] = await pool.query(
+            `INSERT INTO products (
+              name, description, sku, barcode, category_id,
+              price, wholesale_price, cost_price, stock_quantity, low_stock_threshold, image_url, business_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            insertValues
+          );
+          created++;
+          results.push({ row: rowNum, status: 'created', id: ins.insertId, name });
+        }
+      } catch (e) {
+        failed++;
+        results.push({ row: rowNum, status: 'error', messages: [e.message] });
+      }
+    }
+
+    const summary = { totals: { rows: rows.length, created, updated, failed }, warnings };
+    res.status(200).json({ summary, results, dryRun });
+  } catch (error) {
+    console.error('Bulk import error:', error);
+    res.status(500).json({ message: error.message || 'Server error during bulk import' });
+  }
+});
+
 module.exports = router; 

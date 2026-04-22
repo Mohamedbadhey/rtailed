@@ -90,11 +90,12 @@ async function parseDrawingAnchors(zip, drawingPath) {
   });
   const doc = parser.parse(xml);
   
-  const rootKey = Object.keys(doc)[0];
-  console.log(`🎨 Drawing XML Root Key: ${rootKey}. Top-level keys: ${doc[rootKey] ? Object.keys(doc[rootKey]).join(',') : 'none'}`);
+  // Find the actual root content key (skip ?xml, etc.)
+  const rootKey = Object.keys(doc).find(k => !k.startsWith('?'));
+  console.log(`🎨 Drawing XML Root Key: ${rootKey}. Top-level keys: ${rootKey && doc[rootKey] ? Object.keys(doc[rootKey]).join(',') : 'none'}`);
 
   const anchors = [];
-  const wsDr = doc.wsDr || doc[rootKey];
+  const wsDr = rootKey ? doc[rootKey] : null;
   const twoCell = wsDr?.twoCellAnchor || [];
   const oneCell = wsDr?.oneCellAnchor || [];
   const absCell = wsDr?.absoluteAnchor || [];

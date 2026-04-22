@@ -82,6 +82,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
   bool _productHasMore = true;
   bool _productPageLoading = false;
   List<Product> _displayProducts = [];
+  Timer? _searchDebounce; // debounce for search and filter changes
+  
   int _stockSummaryCurrentPage = 0;
   int _filteredTransactionsCurrentPage = 0;
 

@@ -1,56 +1,25 @@
 const mysql = require('mysql2/promise');
 
-// Helper to pick the first defined env var from a list
-function pickEnv(keys, fallback) {
-  for (const k of keys) {
-    if (process.env[k] && String(process.env[k]).trim() !== '') return process.env[k];
-  }
-  return fallback;
-}
-
-// Parse MySQL-style URLs like mysql://user:pass@host:port/db
-function parseMysqlUrl(u) {
-  try {
-    const p = new URL(u);
-    return {
-      host: p.hostname,
-      port: p.port ? parseInt(p.port, 10) : 3306,
-      user: decodeURIComponent(p.username || ''),
-      password: decodeURIComponent(p.password || ''),
-      database: p.pathname ? p.pathname.replace(/^\//, '') : undefined,
-    };
-  } catch (_) {
-    return null;
-  }
-}
-
-const urlEnv = pickEnv(['DATABASE_URL', 'JAWSDB_URL', 'CLEARDB_DATABASE_URL', 'MYSQL_PUBLIC_URL', 'MYSQL_URL'], null);
-const parsed = urlEnv ? parseMysqlUrl(urlEnv) : null;
-
-const host = (parsed && parsed.host) || pickEnv(['DB_HOST', 'MYSQLHOST', 'MYSQL_HOST'], 'localhost');
-const port = (parsed && parsed.port) || parseInt(pickEnv(['DB_PORT', 'MYSQLPORT', 'MYSQL_PORT'], '3306'), 10);
-const user = (parsed && parsed.user) || pickEnv(['DB_USER', 'MYSQLUSER', 'MYSQL_USER'], 'root');
-const password = (parsed && parsed.password) || pickEnv(['DB_PASSWORD', 'MYSQLPASSWORD', 'MYSQL_PASSWORD'], '');
-const database = (parsed && parsed.database) || pickEnv(['DB_NAME', 'MYSQLDATABASE', 'MYSQL_DATABASE'], 'retail_management');
-
-// Optional: log resolved target (without sensitive values)
-console.log(`🗄️ DB target => host=${host} port=${port} db=${database} user=${user}`);
-
 const pool = mysql.createPool({
-  host,
-  port,
-  user,
-  password,
-  database,
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'retail_management',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  dateStrings: true, // Return DATETIME as 'YYYY-MM-DD HH:mm:ss'
+  dateStrings: true, // Return DATE/DATETIME/TIMESTAMP as 'YYYY-MM-DD HH:mm:ss' strings (no TZ conversion)
+  // Configure SQL mode to be compatible with our queries
   multipleStatements: true,
-  timezone: process.env.TIMEZONE || '+03:00',
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 0,
-  charset: 'utf8mb4',
+  // Set SQL mode to be more permissive for GROUP BY queries
+  sql_mode: 'STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO',
+  // Set timezone to match your local timezone (still used for NOW(), etc.)
+  timezone: process.env.TIMEZONE || '+03:00', // Use environment variable or default to East Africa timezone
 });
 
-module.exports = pool;
+// NOTE:
+// - With dateStrings: true, MySQL DATETIME/TIMESTAMP values are not converted to JS Date objects,
+//   preventing implicit UTC serialization. The API will return the exact DB string like 'YYYY-MM-DD HH:mm:ss'.
+// - Keep timezone for server-side functions (e.g., NOW()) but it will not alter returned strings.
+
+module.exports = pool; 

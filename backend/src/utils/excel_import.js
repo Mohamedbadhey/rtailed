@@ -89,17 +89,34 @@ async function parseDrawingAnchors(zip, drawingPath) {
     attributeNamePrefix: '' 
   });
   const doc = parser.parse(xml);
+  
+  const rootKey = Object.keys(doc)[0];
+  console.log(`🎨 Drawing XML Root Key: ${rootKey}. Top-level keys: ${doc[rootKey] ? Object.keys(doc[rootKey]).join(',') : 'none'}`);
 
   const anchors = [];
-  const twoCell = doc?.wsDr?.twoCellAnchor || [];
-  const oneCell = doc?.wsDr?.oneCellAnchor || [];
-  const absCell = doc?.wsDr?.absoluteAnchor || [];
+  const wsDr = doc.wsDr || doc[rootKey];
+  const twoCell = wsDr?.twoCellAnchor || [];
+  const oneCell = wsDr?.oneCellAnchor || [];
+  const absCell = wsDr?.absoluteAnchor || [];
   
   const all = (Array.isArray(twoCell) ? twoCell : [twoCell]).filter(Boolean)
     .concat((Array.isArray(oneCell) ? oneCell : [oneCell]).filter(Boolean))
     .concat((Array.isArray(absCell) ? absCell : [absCell]).filter(Boolean));
 
   console.log(`⚓ Total anchors found in XML: ${all.length}`);
+  
+  // If no anchors found, maybe they are nested deeper or under different names
+  if (all.length === 0 && wsDr) {
+    console.log('🧐 No standard anchors found. Searching all keys for "Anchor"...');
+    for (const key in wsDr) {
+      if (key.toLowerCase().includes('anchor')) {
+        console.log(`💡 Found potential anchor key: ${key}`);
+        const found = Array.isArray(wsDr[key]) ? wsDr[key] : [wsDr[key]];
+        all.push(...found.filter(Boolean));
+      }
+    }
+    console.log(`⚓ After fuzzy search, anchors: ${all.length}`);
+  }
 
   for (const a of all) {
     const from = a.from;
@@ -139,28 +156,40 @@ async function parseDrawingAnchors(zip, drawingPath) {
 
   // Parse rels for drawing to map relId -> media path
   const relsPath = `${path.posix.dirname(drawingPath)}/_rels/${path.posix.basename(drawingPath)}.rels`;
-  console.log(`📖 Parsing drawing rels: ${relsPath}`);
-  const relsFile = zip.file(relsPath);
+  const altRelsPath = `xl/drawings/_rels/${path.posix.basename(drawingPath)}.rels`;
+  
+  console.log(`📖 Checking drawing rels at: ${relsPath} or ${altRelsPath}`);
+  const relsFile = zip.file(relsPath) || zip.file(altRelsPath);
   const relsMap = {};
   if (relsFile) {
+    console.log(`✅ Found drawing rels at: ${relsFile.name}`);
     const relsXml = await relsFile.async('text');
     const relsDoc = new XMLParser({ 
       ignoreAttributes: false, 
       removeNSPrefix: true,
-      attributeNamePrefix: '' // Don't prefix attributes
+      attributeNamePrefix: '' 
     }).parse(relsXml);
     
-    const list = (relsDoc?.Relationships?.Relationship) || [];
+    const root = relsDoc.Relationships || relsDoc[Object.keys(relsDoc)[0]];
+    const list = root?.Relationship || [];
     const arr = Array.isArray(list) ? list : [list];
     for (const r of arr) {
       const id = r.Id || r['@_Id'];
       const target = r.Target || r['@_Target'];
       if (id && target) {
-        // Normalize to zip path
-        const p = path.posix.normalize(path.posix.join(path.posix.dirname(drawingPath), target));
+        // Normalize to zip path. If target starts with ../media, it's relative to drawings folder
+        let p;
+        if (target.includes('media/')) {
+           // Standard media path is xl/media/
+           p = `xl/media/${path.posix.basename(target)}`;
+        } else {
+           p = path.posix.normalize(path.posix.join(path.posix.dirname(drawingPath), target));
+        }
         relsMap[id] = p;
       }
     }
+  } else {
+    console.log('❌ Drawing rels file NOT found');
   }
 
   return { anchors, relsMap };

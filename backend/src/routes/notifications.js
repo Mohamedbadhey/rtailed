@@ -11,10 +11,6 @@ router.post('/send', auth, async (req, res) => {
   try {
     const { title, message, type = 'info', priority = 'medium', target_cashiers, target_admins, parent_id } = req.body;
 
-    console.log('=== SEND NOTIFICATION DEBUG ===');
-    console.log('Raw request body:', req.body);
-    console.log('Parsed parent_id:', parent_id, 'Type:', typeof parent_id);
-    console.log('Send notification request:', {
       title,
       message: message ? message.substring(0, 50) + '...' : null,
       type,
@@ -32,13 +28,11 @@ router.post('/send', auth, async (req, res) => {
 
     // If this is a reply, validate parent notification exists and user has access
     if (parent_id) {
-      console.log('Processing reply to parent_id:', parent_id);
       const [parentNotification] = await pool.query(
         'SELECT n.*, un.user_id FROM notifications n INNER JOIN user_notifications un ON n.id = un.notification_id WHERE n.id = ? AND un.user_id = ? AND n.business_id = ?',
         [parent_id, req.user.id, req.user.business_id]
       );
       
-      console.log('Parent notification found:', parentNotification.length > 0);
       
       if (parentNotification.length === 0) {
         return res.status(404).json({ message: 'Parent notification not found or access denied' });
@@ -69,19 +63,15 @@ router.post('/send', auth, async (req, res) => {
       return res.status(400).json({ message: 'Title is required' });
     }
 
-    console.log('Creating notification with title:', notificationTitle, 'parent_id:', parent_id, 'parent_id_type:', typeof parent_id);
 
     // Create notification
     const insertQuery = 'INSERT INTO notifications (business_id, parent_id, title, message, type, priority, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)';
     const insertParams = [businessId, parent_id || null, notificationTitle, message, type, notificationPriority, req.user.id];
     
-    console.log('Insert query:', insertQuery);
-    console.log('Insert params:', insertParams);
     
     const [result] = await pool.query(insertQuery, insertParams);
     const notificationId = result.insertId;
 
-    console.log('Notification created with ID:', notificationId);
 
     let recipients = [];
     if (parent_id) {
@@ -91,7 +81,6 @@ router.post('/send', auth, async (req, res) => {
         [parent_id, req.user.id]
       );
       recipients = parentRecipients.map(r => [notificationId, r.user_id]);
-      console.log('Reply recipients:', recipients.length);
     } else if (req.user.role === 'cashier') {
       // Cashier sends to all admins and superadmins in their business
       const [admins] = await pool.query(
@@ -99,7 +88,6 @@ router.post('/send', auth, async (req, res) => {
         [businessId]
       );
       recipients = admins.map(a => [notificationId, a.id]);
-      console.log('Cashier sending to admins:', recipients.length);
     } else if (req.user.role === 'admin' || req.user.role === 'superadmin') {
       // Admin sends to cashiers (existing logic)
       let cashiersQuery = 'SELECT id FROM users WHERE role = "cashier" AND is_active = 1 AND business_id = ?';
@@ -110,7 +98,6 @@ router.post('/send', auth, async (req, res) => {
       }
       const [cashiers] = await pool.query(cashiersQuery, cashiersParams);
       recipients = cashiers.map(cashier => [notificationId, cashier.id]);
-      console.log('Admin sending to cashiers:', recipients.length);
     }
 
     if (recipients.length === 0) {
@@ -125,7 +112,6 @@ router.post('/send', auth, async (req, res) => {
       [recipients]
     );
 
-    console.log('User notifications created for recipients:', recipients.length);
 
     // Log the action
     await pool.query(
@@ -140,7 +126,6 @@ router.post('/send', auth, async (req, res) => {
       })]
     );
 
-    console.log('=== SEND NOTIFICATION COMPLETE ===');
 
     res.status(201).json({ 
       message: 'Notification sent successfully',
@@ -238,7 +223,6 @@ router.get('/my', auth, async (req, res) => {
     } = req.query;
     const offset = (page - 1) * limit;
 
-    console.log('Fetching notifications for user:', req.user.id, 'business:', req.user.business_id);
 
     // Build the base query to get both sent and received messages
     let query = `
@@ -314,12 +298,9 @@ router.get('/my', auth, async (req, res) => {
     query += ' ORDER BY n.created_at DESC LIMIT ? OFFSET ?';
     queryParams.push(parseInt(limit), offset);
 
-    console.log('Query:', query);
-    console.log('Query params:', queryParams);
 
     const [notifications] = await pool.query(query, queryParams);
 
-    console.log('Raw notifications from DB:', notifications.length);
 
     // Process notifications to ensure all required fields are present
     const processedNotifications = notifications.map(notification => ({
@@ -340,7 +321,6 @@ router.get('/my', auth, async (req, res) => {
       direction: notification.direction || 'received'
     }));
 
-    console.log('Processed notifications:', processedNotifications.length);
 
     // Get total count for pagination (without limit/offset)
     let countQuery = `
@@ -391,7 +371,6 @@ router.get('/my', auth, async (req, res) => {
       [req.user.id, req.user.business_id]
     );
 
-    console.log('Total count:', totalCount[0].total, 'Unread count:', unreadCount[0].count);
 
     res.json({
       notifications: processedNotifications,
@@ -414,7 +393,6 @@ router.put('/:id/read', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    console.log('Marking notification as read:', { notification_id: id, user_id: req.user.id });
 
     // First, check if the user is the creator of this notification
     const [notification] = await pool.query(
@@ -432,7 +410,6 @@ router.put('/:id/read', auth, async (req, res) => {
     if (notificationData.created_by === req.user.id) {
       // User is the creator - for sent messages, we don't need to mark as read
       // But we can create a user_notifications entry to track read status
-      console.log('User is creator of notification, creating user_notifications entry');
       
       // Check if entry already exists
       const [existing] = await pool.query(
@@ -457,7 +434,6 @@ router.put('/:id/read', auth, async (req, res) => {
       result = { affectedRows: 1 };
     } else {
       // User is a recipient - update the existing user_notifications entry
-      console.log('User is recipient of notification, updating user_notifications');
       
       result = await pool.query(
         'UPDATE user_notifications SET is_read = 1, read_at = NOW() WHERE notification_id = ? AND user_id = ?',
@@ -469,7 +445,6 @@ router.put('/:id/read', auth, async (req, res) => {
       return res.status(404).json({ message: 'Notification not found or already marked as read' });
     }
 
-    console.log('Notification marked as read successfully');
 
     res.json({ message: 'Notification marked as read' });
   } catch (error) {
@@ -481,7 +456,6 @@ router.put('/:id/read', auth, async (req, res) => {
 // Mark all notifications as read
 router.put('/read-all', auth, async (req, res) => {
   try {
-    console.log('Marking all notifications as read for user:', req.user.id);
 
     // First, mark all received notifications as read
     await pool.query(
@@ -517,7 +491,6 @@ router.put('/read-all', auth, async (req, res) => {
       }
     }
 
-    console.log('All notifications marked as read successfully');
 
     res.json({ message: 'All notifications marked as read' });
   } catch (error) {

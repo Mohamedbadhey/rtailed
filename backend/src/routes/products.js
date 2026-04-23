@@ -619,7 +619,6 @@ router.put('/:id/restore', [auth, checkRole(['admin'])], async (req, res) => {
       return res.status(404).json({ message: 'Product not found or access denied' });
     }
     
-    console.log('Found product to restore:', products[0]);
 
     // Simple restore - just mark as not deleted
     const [result] = await connection.query(
@@ -629,7 +628,6 @@ router.put('/:id/restore', [auth, checkRole(['admin'])], async (req, res) => {
 
     await connection.commit();
     
-    console.log('=== PRODUCT RESTORED SUCCESSFULLY ===');
     console.log('Product ID:', productId);
     console.log('=====================================');
 

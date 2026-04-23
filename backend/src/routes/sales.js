@@ -269,21 +269,8 @@ router.get('/report', auth, async (req, res) => {
     const { start_date, end_date, group_by = 'day', user_id } = req.query;
     const isCashier = req.user.role === 'cashier';
     
-    console.log('  - start_date:', start_date);
-    console.log('  - end_date:', end_date);
-    console.log('  - group_by:', group_by);
-    console.log('  - user_id:', user_id);
-    console.log('  - isCashier:', isCashier);
-    console.log('  - req.user.id:', req.user.id);
-    console.log('  - req.user.business_id:', req.user.business_id);
-    console.log('  - req.user.role:', req.user.role);
     
     // Debug: Show all filter combinations that will be applied
-    console.log('  - Business filter:', req.user.role !== 'superadmin' ? `business_id = ${req.user.business_id}` : 'superadmin (no business filter)');
-    console.log('  - User filter:', isCashier ? `user_id = ${req.user.id}` : (user_id ? `user_id = ${user_id}` : 'no user filter'));
-    console.log('  - Date filter:', start_date && end_date ? `${start_date} to ${end_date}` : 'no date filter');
-    console.log('  - Date filter type:', typeof start_date, typeof end_date);
-    console.log('  - Date filter parsed:', start_date ? new Date(start_date) : 'null', end_date ? new Date(end_date) : 'null');
     
     // Build the WHERE clause - include both completed sales and credit sales (unpaid) but EXCLUDE credit payments and cancelled sales
     // Credit payments have parent_sale_id IS NOT NULL and should not be counted as revenue
@@ -409,9 +396,6 @@ router.get('/report', auth, async (req, res) => {
     // Payment methods - show only actual payment methods (completed sales + credit payments, exclude original credits)
     console.log('🔍 PAYMENT METHODS: ===== START =====');
     console.log('🔍 PAYMENT METHODS: Building query with filters:');
-    console.log('  - business_id filter:', req.user.role !== 'superadmin' ? req.user.business_id : 'superadmin');
-    console.log('  - user_id filter:', isCashier ? req.user.id : (user_id || 'none'));
-    console.log('  - date filters:', { start_date, end_date });
     
     // Debug: Show the exact WHERE clause being built
     let paymentMethodsWhereClause = `(
@@ -435,8 +419,6 @@ router.get('/report', auth, async (req, res) => {
     }
     
     console.log('🔍 PAYMENT METHODS: WHERE clause being built:');
-    console.log('  - Base clause:', paymentMethodsWhereClause);
-    console.log('  - Final WHERE:', paymentMethodsWhereClause);
     
     const [paymentMethods] = await pool.query(
       `SELECT s.payment_method, COUNT(*) as count, SUM(s.total_amount) as total_amount 
@@ -533,9 +515,6 @@ router.get('/report', auth, async (req, res) => {
     
     const [outstandingCredits] = await pool.query(outstandingCreditsQuery, outstandingCreditsParams);
     
-    console.log('  - Total Original Credit Amount:', outstandingCredits[0]?.total_original_credit || 0);
-    console.log('  - Total Paid Amount:', outstandingCredits[0]?.total_paid_amount || 0);
-    console.log('  - Total Outstanding Credit:', outstandingCredits[0]?.total_outstanding_credit || 0);
     
     // Product breakdown - exclude credit payments
     const [productBreakdown] = await pool.query(
@@ -590,9 +569,6 @@ router.get('/report', auth, async (req, res) => {
     // Calculate cash in hand from completed non-credit sales + credit payments
     console.log('🔍 CASH IN HAND: ===== START =====');
     console.log('🔍 CASH IN HAND: Building query with filters:');
-    console.log('  - business_id filter:', req.user.role !== 'superadmin' ? req.user.business_id : 'superadmin');
-    console.log('  - user_id filter:', isCashier ? req.user.id : (user_id || 'none'));
-    console.log('  - date filters:', { start_date, end_date });
     
     // Debug: Show the exact WHERE clause being built for cash in hand
     let cashInHandWhereClause = `s.status = "completed" AND s.payment_method != "credit"`;
@@ -613,8 +589,6 @@ router.get('/report', auth, async (req, res) => {
     }
     
     console.log('🔍 CASH IN HAND: WHERE clause being built:');
-    console.log('  - Base clause: s.status = "completed" AND s.payment_method != "credit"');
-    console.log('  - Final WHERE:', cashInHandWhereClause);
     
     // Debug: Show exactly what rows will be included in cash in hand
     console.log('🔍 CASH IN HAND DEBUG: Checking what rows match our criteria...');
@@ -645,11 +619,6 @@ router.get('/report', auth, async (req, res) => {
     
     // Debug: Show exactly what the main cash in hand query will return
     console.log('🔍 CASH IN HAND DEBUG: Main query will use these filters:');
-    console.log('  - status = "completed"');
-    console.log('  - payment_method != "credit"');
-    console.log('  - business_id =', req.user.business_id);
-    if (start_date) console.log('  - start_date =', start_date);
-    if (end_date) console.log('  - end_date =', end_date);
     
     let cashInHandQuery = `
       SELECT 
@@ -705,26 +674,10 @@ router.get('/report', auth, async (req, res) => {
     
     // Debug: Show exactly what the main cash in hand query will return
     console.log('🔍 CASH IN HAND DEBUG: Main query will use these filters:');
-    console.log('  - status = "completed"');
-    console.log('  - payment_method != "credit"');
-    console.log('  - business_id =', req.user.business_id);
-    if (start_date) console.log('  - start_date =', start_date);
-    if (end_date) console.log('  - end_date =', end_date);
     
-    console.log('  - Total Cash In Hand (completed non-credit sales):', actualCashInHand);
     
-    console.log('  - Total Revenue:', totalRevenue);
-    console.log('  - Total COGS:', total_cost);
-    console.log('  - Calculated totalProfit:', totalProfit);
     
     // Final summary of all calculations
-    console.log('  - Total Sales (summary):', summary[0]?.total_revenue || 0);
-    console.log('  - Payment Methods Total:', paymentMethods.reduce((sum, pm) => sum + Number(pm.total_amount), 0));
-    console.log('  - Cash in Hand:', actualCashInHand);
-    console.log('  - Outstanding Credits:', outstandingCredits[0]?.total_outstanding_credit || 0);
-    console.log('  - Date Range:', start_date, 'to', end_date);
-    console.log('  - Business ID:', req.user.business_id);
-    console.log('  - User Role:', req.user.role);
     
     // Prepare safe response data
     const safeSummary = {
@@ -765,9 +718,6 @@ router.get('/report', auth, async (req, res) => {
     const safeTotalProductsSold = Number(totalProductsSold) || 0;
     const safeTotalProfit = Number(totalProfit) || 0;
 
-    console.log('  - totalSales (safeSummary.total_revenue):', safeSummary.total_revenue);
-    console.log('  - totalProfit:', safeTotalProfit);
-    console.log('  - outstandingCredits:', Number(outstandingCredits[0]?.total_outstanding_credit) || 0);
 
     
     const response = {
@@ -799,7 +749,6 @@ router.get('/report', auth, async (req, res) => {
       }
     };
     
-    console.log('  - Cash in Hand (completed non-credit sales + credit payments):', actualCashInHand);
     
     res.json(response);
   } catch (error) {

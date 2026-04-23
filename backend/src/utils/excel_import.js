@@ -68,10 +68,24 @@ async function findDrawingPathForSheet(zip, sheetIndex) {
     if (drawingRel) {
       const target = drawingRel['@_Target'];
       if (!target) continue;
-      // Normalize path to xl/drawings/drawingN.xml
-      const normalized = path.posix.normalize(path.posix.join(path.posix.dirname(relsPath), target)).replace('worksheets/_rels/', '');
+      
+      // Resolve path relative to xl/worksheets/
+      let normalized;
+      if (target.startsWith('/')) {
+        normalized = target.substring(1); // Absolute from zip root
+      } else {
+        // Resolve relative to the rels folder
+        normalized = path.posix.normalize(path.posix.join(path.posix.dirname(relsPath), target));
+      }
+      
+      // Common fix for some Excel producers that use weird relative paths
+      if (!zip.file(normalized) && normalized.includes('worksheets/drawings/')) {
+        const alt = normalized.replace('worksheets/drawings/', 'drawings/');
+        if (zip.file(alt)) normalized = alt;
+      }
+      
       console.log(`🎯 Found drawing rel in ${relsPath} -> ${normalized}`);
-      return normalized;
+      if (zip.file(normalized)) return normalized;
     }
   }
   return null;
@@ -91,8 +105,19 @@ async function parseDrawingAnchors(zip, drawingPath) {
   const doc = parser.parse(xml);
   
   // Find the actual root content key (skip ?xml, etc.)
-  const rootKey = Object.keys(doc).find(k => !k.startsWith('?'));
-  console.log(`🎨 Drawing XML Root Key: ${rootKey}. Top-level keys: ${rootKey && doc[rootKey] ? Object.keys(doc[rootKey]).join(',') : 'none'}`);
+  let rootKey = Object.keys(doc).find(k => !k.startsWith('?'));
+  console.log(`🎨 Drawing XML Root Key: ${rootKey}`);
+
+  // If the root key has a prefix and we don't have a clean wsDr, map it
+  if (rootKey && rootKey.includes(':') && !doc.wsDr) {
+    const parts = rootKey.split(':');
+    const localName = parts[parts.length - 1];
+    if (localName === 'wsDr') {
+      console.log(`💡 Mapping prefixed root ${rootKey} to wsDr`);
+      doc.wsDr = doc[rootKey];
+      rootKey = 'wsDr';
+    }
+  }
 
   const anchors = [];
   const wsDr = rootKey ? doc[rootKey] : null;
@@ -291,25 +316,29 @@ async function extractEmbeddedImagesByRow(buffer, options = {}) {
   const sheetIndex = getSheetIndexFromName(workbook, sheetName);
   console.log(`📄 Sheet index: ${sheetIndex}`);
   
-  const drawingPath = await findDrawingPathForSheet(zip, sheetIndex);
+  let drawingPath = await findDrawingPathForSheet(zip, sheetIndex);
+  
+  if (!drawingPath) {
+    console.log(`⚠️ No drawing path found for sheet ${sheetIndex}. Searching ZIP for ANY drawing...`);
+    // Try to find ANY drawing file as a fallback
+    const allFiles = Object.keys(zip.files);
+    drawingPath = allFiles.find(f => f.startsWith('xl/drawings/drawing') && f.endsWith('.xml'));
+    if (drawingPath) {
+      console.log(`💡 Fallback: Found drawing at ${drawingPath}`);
+    }
+  }
+
   const warnings = [];
   if (!drawingPath) {
-    console.log(`⚠️ No drawing path found for sheet ${sheetIndex}. Checked sheet rels.`);
-    // Try to find ANY drawing file as a fallback
-    const fallbackDrawing = allFiles.find(f => f.startsWith('xl/drawings/drawing') && f.endsWith('.xml'));
-    if (fallbackDrawing) {
-      console.log(`💡 Fallback: Found drawing at ${fallbackDrawing}`);
-      // Using fallback drawing might be risky but worth a try if the rels are broken
-    }
+    console.log(`⚠️ No drawing path found at all.`);
     warnings.push('No drawing part found in worksheet; embedded images may be missing');
     return { headers, rows, imagesByRow: new Map(), warnings };
   }
 
-  console.log(`🎨 Drawing path: ${drawingPath}`);
+  console.log(`🎨 Drawing path to parse: ${drawingPath}`);
   
-  // DEBUG: Log all ZIP files to see the structure
+  // DEBUG: Log ZIP structure if needed
   const allZipFiles = Object.keys(zip.files);
-  console.log(`📦 ZIP Structure (first 20 files): ${allZipFiles.slice(0, 20).join(', ')}`);
   const drawingRelsSearch = allZipFiles.filter(f => f.includes('drawing') && f.includes('.rels'));
   console.log(`🔍 Potential Drawing Rels found in ZIP: ${drawingRelsSearch.join(', ')}`);
 

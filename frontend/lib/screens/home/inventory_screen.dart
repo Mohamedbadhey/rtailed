@@ -1716,6 +1716,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                         ),
                                     ),
                                   ),
+                                ),
                               if (_productHasMore)
                                 Padding(
                                   padding: const EdgeInsets.symmetric(vertical: 20.0),

@@ -96,22 +96,30 @@ async function parseDrawingAnchors(zip, drawingPath) {
 
   const anchors = [];
   const wsDr = rootKey ? doc[rootKey] : null;
-  const twoCell = wsDr?.twoCellAnchor || [];
-  const oneCell = wsDr?.oneCellAnchor || [];
-  const absCell = wsDr?.absoluteAnchor || [];
-  
-  const all = (Array.isArray(twoCell) ? twoCell : [twoCell]).filter(Boolean)
-    .concat((Array.isArray(oneCell) ? oneCell : [oneCell]).filter(Boolean))
-    .concat((Array.isArray(absCell) ? absCell : [absCell]).filter(Boolean));
+  if (!wsDr) return { anchors: [], relsMap: {} };
+
+  // Helper to get array regardless of prefix
+  const getAnchorArray = (obj, baseName) => {
+    const key = Object.keys(obj).find(k => k === baseName || k.endsWith(':' + baseName));
+    const val = key ? obj[key] : [];
+    return Array.isArray(val) ? val : [val];
+  };
+
+  const all = [
+    ...getAnchorArray(wsDr, 'twoCellAnchor'),
+    ...getAnchorArray(wsDr, 'oneCellAnchor'),
+    ...getAnchorArray(wsDr, 'absoluteAnchor')
+  ].filter(Boolean);
 
   console.log(`⚓ Total anchors found in XML: ${all.length}`);
   
   if (all.length > 0) {
-    console.log(`🔍 DEBUG: First anchor structure: ${JSON.stringify(all[0]).substring(0, 500)}`);
+    console.log(`🔍 DEBUG: First anchor keys: ${Object.keys(all[0]).join(',')}`);
   }
 
-  // If no anchors found, maybe they are nested deeper or under different names
-  if (all.length === 0 && wsDr) {    console.log('🧐 No standard anchors found. Searching all keys for "Anchor"...');
+  // If no anchors found, fuzzy search for anything containing "Anchor"
+  if (all.length === 0) {
+    console.log('🧐 No standard anchors found. Searching all keys for "Anchor"...');
     for (const key in wsDr) {
       if (key.toLowerCase().includes('anchor')) {
         console.log(`💡 Found potential anchor key: ${key}`);
@@ -123,27 +131,66 @@ async function parseDrawingAnchors(zip, drawingPath) {
   }
 
   for (const a of all) {
-    const from = a.from;
-    const pic = a.pic;
+    // Try to find 'from' and 'pic' elements anywhere in the anchor object
+    // to handle variations in nesting or naming
+    let from = a.from || a['xdr:from'];
+    let pic = a.pic || a['xdr:pic'];
+    
+    // Recursive search for 'from' if not found
+    if (!from) {
+      const findKey = (obj, target) => {
+        if (!obj || typeof obj !== 'object') return null;
+        if (obj[target]) return obj[target];
+        for (const k in obj) {
+          const res = findKey(obj[k], target);
+          if (res) return res;
+        }
+        return null;
+      };
+      from = findKey(a, 'from') || findKey(a, 'xdr:from');
+    }
+
+    // Recursive search for 'pic' if not found
+    if (!pic) {
+      const findPic = (obj) => {
+        if (!obj || typeof obj !== 'object') return null;
+        if (obj.pic || obj['xdr:pic']) return obj.pic || obj['xdr:pic'];
+        if (obj.graphic?.graphicData?.pic) return obj.graphic.graphicData.pic;
+        for (const k in obj) {
+          const res = findPic(obj[k]);
+          if (res) return res;
+        }
+        return null;
+      };
+      pic = findPic(a);
+    }
     
     if (!from) {
-      console.log('❓ Anchor missing "from" element');
+      console.log('❓ Anchor missing "from" element', JSON.stringify(a).substring(0, 200));
       continue;
     }
     
-    // Sometimes images are in groups or other structures
-    const picElement = pic || a.graphicFrame?.graphic?.graphicData?.pic;
-    
-    if (!picElement) {
-      console.log('❓ Anchor missing "pic" or recognized image element');
+    if (!pic) {
+      console.log('❓ Anchor missing "pic" or recognized image element', JSON.stringify(a).substring(0, 200));
       continue;
     }
     
-    const row = parseInt(from.row ?? 0, 10);
-    const col = parseInt(from.col ?? 0, 10);
+    const row = parseInt(from.row ?? from['xdr:row'] ?? 0, 10);
+    const col = parseInt(from.col ?? from['xdr:col'] ?? 0, 10);
     
-    // Check all possible locations for the embed ID (now with no @_ prefix)
-    const blip = picElement.blipFill?.blip || picElement['a:blipFill']?.['a:blip'];
+    // Find the blip element
+    const findBlip = (obj) => {
+      if (!obj || typeof obj !== 'object') return null;
+      if (obj.blipFill?.blip) return obj.blipFill.blip;
+      if (obj['a:blipFill']?.['a:blip']) return obj['a:blipFill']['a:blip'];
+      for (const k in obj) {
+        const res = findBlip(obj[k]);
+        if (res) return res;
+      }
+      return null;
+    };
+
+    const blip = findBlip(pic);
     const relId = blip?.embed || 
                   blip?.['r:embed'] || 
                   blip?.['r:id'] ||
@@ -157,23 +204,28 @@ async function parseDrawingAnchors(zip, drawingPath) {
       console.log(`✅ Found anchor: row=${row}, col=${col}, relId=${relId}`);
       anchors.push({ row, col, relId });
     } else {
-      console.log(`❓ Anchor incomplete or missing relId: row=${row}, col=${col}, relId=${relId}`);
-      if (blip) {
-        console.log(`🔍 Blip keys: ${Object.keys(blip).join(',')}`);
-        console.log(`🔍 Blip JSON: ${JSON.stringify(blip)}`);
-      } else {
-        console.log(`🔍 PicElement keys: ${Object.keys(picElement).join(',')}`);
-        console.log(`🔍 PicElement JSON: ${JSON.stringify(picElement).substring(0, 300)}`);
-      }
+      console.log(`❓ Anchor incomplete: row=${row}, col=${col}, relId=${relId}`);
+      console.log(`🔍 Anchor Sample: ${JSON.stringify(a).substring(0, 300)}`);
     }
   }
 
   // Parse DRAWING RELS
   const relsMap = {};
-  const relsPath = drawingPath.replace(/([^/]+)\.xml$/, '_rels/$1.xml.rels');
-  const relsFile = zip.file(relsPath);
+  const standardRelsPath = drawingPath.replace(/([^/]+)\.xml$/, '_rels/$1.xml.rels');
+  let relsFile = zip.file(standardRelsPath);
+  
+  if (!relsFile) {
+    console.log(`ℹ️ Drawing rels not at standard path: ${standardRelsPath}. Searching...`);
+    const drawingFileName = path.posix.basename(drawingPath);
+    const relsSearch = Object.keys(zip.files).find(f => f.includes('_rels') && f.includes(drawingFileName) && f.endsWith('.rels'));
+    if (relsSearch) {
+      console.log(`💡 Found drawing rels at: ${relsSearch}`);
+      relsFile = zip.file(relsSearch);
+    }
+  }
+
   if (relsFile) {
-    console.log(`📖 Parsing drawing RELS: ${relsPath}`);
+    console.log(`📖 Parsing drawing RELS`);
     const relsXml = await relsFile.async('text');
     const relsParser = new XMLParser({ ignoreAttributes: false });
     const relsDoc = relsParser.parse(relsXml);
@@ -181,8 +233,8 @@ async function parseDrawingAnchors(zip, drawingPath) {
     const arr = Array.isArray(relsList) ? relsList : [relsList];
     
     for (const r of arr) {
-      const id = r['@_Id'];
-      const target = r['@_Target'];
+      const id = r['@_Id'] || r.Id || r['r:id'] || r['@_r:id'];
+      const target = r['@_Target'] || r.Target || r['@_r:Target'];
       if (id && target) {
         // Normalize to zip path. If target starts with ../media, it's relative to drawings folder
         let p;
@@ -254,6 +306,13 @@ async function extractEmbeddedImagesByRow(buffer, options = {}) {
   }
 
   console.log(`🎨 Drawing path: ${drawingPath}`);
+  
+  // DEBUG: Log all ZIP files to see the structure
+  const allZipFiles = Object.keys(zip.files);
+  console.log(`📦 ZIP Structure (first 20 files): ${allZipFiles.slice(0, 20).join(', ')}`);
+  const drawingRelsSearch = allZipFiles.filter(f => f.includes('drawing') && f.includes('.rels'));
+  console.log(`🔍 Potential Drawing Rels found in ZIP: ${drawingRelsSearch.join(', ')}`);
+
   const { anchors, relsMap } = await parseDrawingAnchors(zip, drawingPath);
   console.log(`🖼️ Found ${anchors.length} image anchors. Rels map size: ${Object.keys(relsMap).length}`);
   

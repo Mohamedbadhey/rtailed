@@ -14,16 +14,9 @@ const storage = multer.diskStorage({
     const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '../../uploads');
     const uploadDir = path.join(baseDir, 'products');
     
-    console.log('📁 File upload destination:', uploadDir);
-    console.log('📁 Railway volume path:', process.env.RAILWAY_VOLUME_MOUNT_PATH);
-    console.log('📁 Environment:', process.env.RAILWAY_VOLUME_MOUNT_PATH ? 'Railway' : 'Local');
-    
     // Ensure directory exists
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
-      console.log('✅ Created uploads/products directory for file upload:', uploadDir);
-    } else {
-      console.log('✅ Upload directory already exists:', uploadDir);
     }
     
     cb(null, uploadDir);
@@ -32,7 +25,6 @@ const storage = multer.diskStorage({
     // Sanitize filename to prevent issues
     const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
     const finalFilename = `${Date.now()}-${sanitizedName}`;
-    console.log('📁 File will be saved as:', finalFilename);
     cb(null, finalFilename);
   }
 });
@@ -43,13 +35,6 @@ const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
-    // Debug log
-    console.log('File received by Multer:', {
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      fieldname: file.fieldname,
-      size: file.size,
-    });
     // Check extension (case-insensitive)
     const ext = file.originalname
       .toLowerCase()
@@ -64,12 +49,7 @@ const upload = multer({
 // Get all active products (for POS, sales, etc.)
 router.get('/', auth, async (req, res) => {
   try {
-    console.log('🛍️ ===== PRODUCTS GET REQUEST START =====');
-    console.log('🛍️ User role:', req.user.role);
-    console.log('🛍️ Business ID:', req.user.business_id);
-    console.log('🛍️ User ID:', req.user.id);
-    
-        let query = `
+    let query = `
       SELECT p.*, 
              CASE 
                WHEN p.category_id IS NULL THEN 'Uncategorized'
@@ -719,7 +699,6 @@ async function saveImageBuffer(buffer, ext) {
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2,8)}${safeExt}`;
   const fullPath = path.join(productsDir, filename);
   await fs.promises.writeFile(fullPath, buffer);
-  console.log(`🖼️ Image saved to: ${fullPath}`);
   return `/uploads/products/${filename}`;
 }
 
@@ -792,14 +771,12 @@ router.post('/bulk-import', [auth, checkRole(['admin', 'manager']), excelUpload.
           
           if (existing.length) {
             categoryId = existing[0].id;
-            console.log(`📁 Category found: "${normalizedCat}" -> ID ${categoryId}`);
           } else if (createMissingCategories) {
             const [ins] = await pool.query(
               'INSERT INTO categories (name, business_id) VALUES (?, ?)', 
               [normalizedCat, req.user.business_id]
             );
             categoryId = ins.insertId;
-            console.log(`📁 Category created: "${normalizedCat}" -> ID ${categoryId}`);
           }
           categoryCache.set(normalizedCat, categoryId);
         }

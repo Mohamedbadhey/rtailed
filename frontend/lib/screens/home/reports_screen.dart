@@ -465,23 +465,34 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return '-';
   }
 
-  String _formatMetricValue(dynamic value) {
+  String _formatMetricValue(dynamic value, {bool isInteger = false}) {
     if (value == null) return '0';
+    
+    double numericValue;
     if (value is num) {
-      return value is double ? value.toStringAsFixed(2) : value.toString();
+      numericValue = value.toDouble();
+    } else if (value is String) {
+      numericValue = double.tryParse(value) ?? 0.0;
+    } else {
+      return value.toString();
     }
-    if (value is String) {
-      // Try to parse as number first
-      final numValue = double.tryParse(value);
-      if (numValue != null) {
-        return numValue.toStringAsFixed(2);
-      }
-      return value;
+
+    if (isInteger) {
+      return numericValue.round().toString();
     }
-    return value.toString();
+    
+    // If it's effectively an integer, don't show .00 unless it's a currency (which we'll handle by not setting isInteger)
+    // Wait, usually reports want .00 for money.
+    // If it's not an integer, show 2 decimals.
+    if (numericValue == numericValue.toInt().toDouble()) {
+      // It is an integer value
+      return numericValue.toInt().toString();
+    }
+    
+    return numericValue.toStringAsFixed(2);
   }
 
-  Widget _metricCard(String label, dynamic value, {Color? color, IconData? icon, bool isSmallMobile = false, bool isMobile = false}) {
+  Widget _metricCard(String label, dynamic value, {Color? color, IconData? icon, bool isSmallMobile = false, bool isMobile = false, bool isInteger = false}) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -500,7 +511,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               SizedBox(height: isSmallMobile ? 3 : (isMobile ? 4 : 6)),
             ],
             Text(
-              _formatMetricValue(value), 
+              _formatMetricValue(value, isInteger: isInteger), 
               style: TextStyle(
                 fontSize: isSmallMobile ? 14 : (isMobile ? 16 : 18), 
                 color: Colors.black87,
@@ -1272,10 +1283,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       _metricCard(t(context, 'Total Sales'), totalSales, color: Colors.lightBlue[50], icon: Icons.attach_money, isSmallMobile: isSmallMobile, isMobile: isMobile),
                       _metricCard(t(context, 'Total Credits'), totalCredits, color: Colors.orange[50], icon: Icons.credit_card, isSmallMobile: isSmallMobile, isMobile: isMobile),
                       _metricCard(t(context, 'Cash in Hand'), cashInHand, color: Colors.green[50], icon: Icons.account_balance_wallet, isSmallMobile: isSmallMobile, isMobile: isMobile),
-                      _metricCard(t(context, 'Total Orders'), totalOrders, color: Colors.purple[50], icon: Icons.shopping_cart, isSmallMobile: isSmallMobile, isMobile: isMobile),
+                      _metricCard(t(context, 'Total Orders'), totalOrders, color: Colors.purple[50], icon: Icons.shopping_cart, isSmallMobile: isSmallMobile, isMobile: isMobile, isInteger: true),
                       _metricCard(t(context, 'Profit'), profit, color: Colors.teal[50], icon: Icons.trending_up, isSmallMobile: isSmallMobile, isMobile: isMobile),
-                      _metricCard(t(context, 'Products Sold'), totalProductsSold, color: Colors.cyan[50], icon: Icons.inventory, isSmallMobile: isSmallMobile, isMobile: isMobile),
-                      _metricCard(t(context, 'Unique Customers'), uniqueCustomers, color: Colors.amber[50], icon: Icons.people, isSmallMobile: isSmallMobile, isMobile: isMobile),
+                      _metricCard(t(context, 'Products Sold'), totalProductsSold, color: Colors.cyan[50], icon: Icons.inventory, isSmallMobile: isSmallMobile, isMobile: isMobile, isInteger: true),
+                      _metricCard(t(context, 'Unique Customers'), uniqueCustomers, color: Colors.amber[50], icon: Icons.people, isSmallMobile: isSmallMobile, isMobile: isMobile, isInteger: true),
                       _metricCard(t(context, 'Cash (Balance Sheet)'), cashFromBalanceSheet, color: Colors.red[50], icon: Icons.account_balance, isSmallMobile: isSmallMobile, isMobile: isMobile),
                       if (_damagedProductsReport != null) ...[
                         _metricCard(
@@ -1285,6 +1296,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           icon: Icons.warning,
                           isSmallMobile: isSmallMobile,
                           isMobile: isMobile,
+                          isInteger: true,
                         ),
                         _metricCard(
                           'Damage Loss', 

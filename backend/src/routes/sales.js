@@ -581,7 +581,7 @@ router.get('/report', auth, async (req, res) => {
     
     // Net revenue (total - credit) - this calculation is now correct since we excluded payments
     const netRevenue = (summary[0]?.total_revenue || 0) - (creditSummary[0]?.total_credit_amount || 0);
-    const totalProductsSold = productBreakdown.reduce((sum, p) => sum + (p.quantity_sold || 0), 0);
+    const totalProductsSold = productBreakdown.reduce((sum, p) => sum + (Number(p.quantity_sold) || 0), 0);
     
     // Calculate profit using the same logic as Profit & Loss: Revenue - COGS
     const totalRevenue = summary[0]?.total_revenue || 0;

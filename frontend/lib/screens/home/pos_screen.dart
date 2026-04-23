@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:retail_management/services/receipt_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -1571,6 +1572,40 @@ class _CheckoutDialog extends StatefulWidget {
 }
 
 class _CheckoutDialogState extends State<_CheckoutDialog> {
+  // Prompt user to print a thermal receipt
+  void _promptPrintReceipt(BuildContext context, int saleId) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text('Print Receipt'),
+          content: Text('Would you like to print a thermal receipt now?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Skip'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                // 58mm
+                await ReceiptService.printSaleReceipt(context, saleId: saleId, paper: ReceiptPaper.mm58);
+              },
+              child: const Text('Print 58mm'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                // 80mm
+                await ReceiptService.printSaleReceipt(context, saleId: saleId, paper: ReceiptPaper.mm80);
+              },
+              child: const Text('Print 80mm'),
+            ),
+          ],
+        );
+      },
+    );
+  }
   String _selectedPaymentMethod = 'evc';
   final TextEditingController _customerNameController = TextEditingController();
   final TextEditingController _customerPhoneController = TextEditingController();
@@ -1928,6 +1963,12 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       
       // Show success message and inform user that POS has been refreshed
       SuccessUtils.showSaleSuccess(context, sale['sale_id'].toString());
+
+      // Offer to print a thermal receipt with paper selection (58mm/80mm)
+      final sid = int.tryParse(sale['sale_id'].toString()) ?? 0;
+      if (sid > 0 && mounted) {
+        _promptPrintReceipt(context, sid);
+      }
       
       // Show additional message about POS refresh
       if (mounted) {

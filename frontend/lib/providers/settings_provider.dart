@@ -7,6 +7,8 @@ class SettingsProvider extends ChangeNotifier {
   String _language = 'English';
   String _currency = 'USD';
   bool _notificationsEnabled = true;
+  bool _autoPrintAfterSale = false; // print 58mm receipt automatically after sale
+
   final SharedPreferences prefs;
   AuthProvider? _authProvider;
 
@@ -32,6 +34,13 @@ class SettingsProvider extends ChangeNotifier {
   
   String get currency => _currency;
   bool get notificationsEnabled => _notificationsEnabled;
+  bool get autoPrintAfterSale => _autoPrintAfterSale;
+
+  void setAutoPrintAfterSale(bool enabled) {
+    _autoPrintAfterSale = enabled;
+    prefs.setBool('autoPrintAfterSale', enabled);
+    notifyListeners();
+  }
 
   void _loadSettings() {
     final theme = prefs.getString('themeMode');

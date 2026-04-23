@@ -120,8 +120,8 @@ router.put('/:id/stock', [auth, checkRole(['admin', 'manager'])], async (req, re
 router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
     const { start_date, end_date, user_id, category_id, product_id, transaction_type } = req.query;
-    
-    
+
+
     try {
       const [testWorkingQuery] = await pool.query(
         `SELECT 
@@ -157,25 +157,25 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
         LIMIT 3`,
         [req.user.business_id]
       );
-      
+
       if (testWorkingQuery.length > 0) {
         const firstResult = testWorkingQuery[0];
-        
+
         // Check for case sensitivity issues - look for any field that might contain 'cost'
-        const costRelatedFields = Object.keys(firstResult).filter(key => 
-          key.toLowerCase().includes('cost') || 
+        const costRelatedFields = Object.keys(firstResult).filter(key =>
+          key.toLowerCase().includes('cost') ||
           key.toLowerCase().includes('price')
         );
-        
+
         // Check raw data for any field variations
-        
+
         // Test: Check if MySQL is returning the field with different case
         const allFields = Object.keys(firstResult);
-        const costFieldVariations = allFields.filter(key => 
-          key.toLowerCase().includes('cost') || 
+        const costFieldVariations = allFields.filter(key =>
+          key.toLowerCase().includes('cost') ||
           key.toLowerCase().includes('price')
         );
-        
+
         // Test: Check if the field exists with exact case match
         console.log('  product_cost_price:', firstResult.product_cost_price);
         console.log('  PRODUCT_COST_PRICE:', firstResult.PRODUCT_COST_PRICE);
@@ -184,7 +184,7 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
       }
     } catch (testError) {
     }
-    
+
     let query = `
       SELECT 
         it.id,
@@ -217,7 +217,7 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
       WHERE it.business_id = ? AND (s.status IS NULL OR s.status != 'cancelled')
     `;
     let params = [req.user.business_id];
-    
+
     // Add date filters if provided
     if (start_date) {
       // Convert start_date to start of day for proper comparison
@@ -255,53 +255,53 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
       query += ' AND it.created_at <= ?';
       params.push(endDateTime);
     }
-    
+
     // Add cashier filter if provided
     if (user_id && user_id !== 'all') {
       query += ' AND (s.user_id = ? OR dp.reported_by = ?)';
       params.push(user_id, user_id);
     }
-    
+
     // Add category filter if provided
     if (category_id) {
       query += ' AND p.category_id = ?';
       params.push(category_id);
     }
-    
+
     // Add product filter if provided
     if (product_id) {
       query += ' AND it.product_id = ?';
       params.push(product_id);
     }
-    
+
     // Add transaction type filter if provided
     if (transaction_type) {
       query += ' AND it.transaction_type = ?';
       params.push(transaction_type);
     }
-    
+
     query += ' ORDER BY it.created_at DESC';
-    
+
     if (req.user.role === 'superadmin') {
       query = query.replace('WHERE it.business_id = ? AND (s.status IS NULL OR s.status != \'cancelled\')', 'WHERE (s.status IS NULL OR s.status != \'cancelled\')');
       params = params.slice(1); // Remove business_id from params
     } else {
     }
-    
-    
+
+
     // Test: Check if products table has cost_price data
     try {
       const [testProducts] = await pool.query(
         'SELECT id, name, cost_price FROM products WHERE business_id = ? LIMIT 3',
         [req.user.business_id]
       );
-      
+
       // Test: Check inventory_transactions to see what product_ids we have
       const [testTransactions] = await pool.query(
         'SELECT id, product_id, transaction_type, reference_id FROM inventory_transactions WHERE business_id = ? LIMIT 5',
         [req.user.business_id]
       );
-      
+
       // Test: Check if the JOIN is working by testing a specific transaction
       if (testTransactions.length > 0) {
         const testTx = testTransactions[0];
@@ -319,13 +319,13 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
           WHERE it.id = ?`,
           [testTx.id]
         );
-        
+
         // Test: Check if products exist for this business
         const [productsForBusiness] = await pool.query(
           'SELECT id, name, cost_price, business_id FROM products WHERE business_id = ? LIMIT 3',
           [req.user.business_id]
         );
-        
+
         // Test: Check if the JOIN condition is working by testing the exact JOIN
         const [testExactJoin] = await pool.query(
           `SELECT 
@@ -345,16 +345,16 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
       }
     } catch (testError) {
     }
-    
+
     const [transactions] = await pool.query(query, params);
-    
+
     // Test: Check what fields are actually returned
     if (transactions.length > 0) {
       const firstTx = transactions[0];
       console.log('  All keys:', Object.keys(firstTx));
       console.log('  Raw data:', firstTx);
     }
-    
+
     // Debug: Log first few transactions to see the data structure
     if (transactions.length > 0) {
       for (let i = 0; i < Math.min(3, transactions.length); i++) {
@@ -371,7 +371,7 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
         console.log(`    ---`);
       }
     }
-    
+
     res.json(transactions);
   } catch (error) {
     res.status(500).json({ message: error.message || 'Server error' });
@@ -381,10 +381,10 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
 router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
     const { start_date, end_date, user_id, category_id, product_id, transaction_type, limit } = req.query;
-    
+
     console.log('ðŸ“„ PDF TRANSACTIONS: Request params:', { start_date, end_date, user_id, limit });
     console.log('ðŸ“„ PDF TRANSACTIONS: User:', req.user.id, req.user.role, req.user.business_id);
-    
+
     let query = `
       SELECT 
         it.id,
@@ -420,7 +420,7 @@ router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier']
       WHERE it.business_id = ? AND (s.status IS NULL OR s.status != 'cancelled')
     `;
     let params = [req.user.business_id];
-    
+
     // Add date filters if provided
     if (start_date) {
       // Convert start_date to start of day for proper comparison
@@ -452,54 +452,54 @@ router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier']
       params.push(endDateTime);
       console.log('ðŸ“„ PDF TRANSACTIONS: Added end_date filter:', endDateTime);
     }
-    
+
     // Add cashier filter if provided
     if (user_id && user_id !== 'all') {
       query += ' AND (s.user_id = ? OR dp.reported_by = ?)';
       params.push(user_id, user_id);
     }
-    
+
     // Add category filter if provided
     if (category_id) {
       query += ' AND p.category_id = ?';
       params.push(category_id);
       console.log('ðŸ“„ PDF TRANSACTIONS: Added category filter:', category_id);
     }
-    
+
     // Add product filter if provided
     if (product_id) {
       query += ' AND it.product_id = ?';
       params.push(product_id);
       console.log('ðŸ“„ PDF TRANSACTIONS: Added product filter:', product_id);
     }
-    
+
     // Add transaction type filter if provided
     if (transaction_type) {
       query += ' AND it.transaction_type = ?';
       params.push(transaction_type);
       console.log('ðŸ“„ PDF TRANSACTIONS: Added transaction_type filter:', transaction_type);
     }
-    
+
     query += ' ORDER BY it.created_at DESC';
-    
+
     // Add limit if provided
     if (limit) {
       query += ' LIMIT ?';
       params.push(parseInt(limit));
     }
-    
+
     if (req.user.role === 'superadmin') {
       query = query.replace('WHERE it.business_id = ? AND (s.status IS NULL OR s.status != \'cancelled\')', 'WHERE (s.status IS NULL OR s.status != \'cancelled\')');
       params = params.slice(1); // Remove business_id from params
       console.log('ðŸ“„ PDF TRANSACTIONS: Superadmin - removed business_id filter');
     }
-    
+
     console.log('ðŸ“„ PDF TRANSACTIONS: Final query:', query);
     console.log('ðŸ“„ PDF TRANSACTIONS: Final params:', params);
-    
+
     const [transactions] = await pool.query(query, params);
     console.log('ðŸ“„ PDF TRANSACTIONS: Found', transactions.length, 'transactions');
-    
+
     res.json(transactions);
   } catch (error) {
     console.error('ðŸ“„ PDF TRANSACTIONS ERROR:', error);
@@ -525,21 +525,21 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
       WHERE p.business_id = ?
     `;
     let params = [req.user.business_id];
-    
+
     // Add category filter
     if (category_id && category_id !== 'All') {
       query += ` AND p.category_id = ?`;
       params.push(category_id);
     }
-    
+
     // Add product filter
     if (product_id && product_id !== 'All') {
       query += ` AND p.id = ?`;
       params.push(product_id);
     }
-    
+
     query += ` ORDER BY p.name`;
-    
+
     if (req.user.role === 'superadmin') {
       query = `
         SELECT 
@@ -554,19 +554,19 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
         WHERE 1=1
       `;
       params = [];
-      
+
       // Add category filter for superadmin
       if (category_id && category_id !== 'All') {
         query += ` AND p.category_id = ?`;
         params.push(category_id);
       }
-      
+
       // Add product filter for superadmin
       if (product_id && product_id !== 'All') {
         query += ` AND p.id = ?`;
         params.push(product_id);
       }
-      
+
       query += ` ORDER BY p.name`;
     }
     const [products] = await pool.query(query, params);
@@ -583,7 +583,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
         // Get all sales after start_date
         // Format start date the same way as transactions
         let startDateTime;
-        
+
         if (start_date.includes('T')) {
           const datePart = start_date.split('T')[0];
           startDateTime = datePart + ' 00:00:00';
@@ -592,7 +592,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
         } else {
           startDateTime = start_date + ' 00:00:00';
         }
-        
+
         const [[{ sold_after = 0 } = {}]] = await pool.query(
           `SELECT IFNULL(SUM(ABS(it.quantity)),0) as sold_after
            FROM inventory_transactions it
@@ -617,7 +617,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
       if (start_date && end_date) {
         // Format dates the same way as transactions
         let startDateTime, endDateTime;
-        
+
         if (start_date.includes('T')) {
           const datePart = start_date.split('T')[0];
           startDateTime = datePart + ' 00:00:00';
@@ -626,7 +626,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
         } else {
           startDateTime = start_date + ' 00:00:00';
         }
-        
+
         if (end_date.includes('T')) {
           const datePart = end_date.split('T')[0];
           endDateTime = datePart + ' 23:59:59';
@@ -635,7 +635,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
         } else {
           endDateTime = end_date + ' 23:59:59';
         }
-        
+
         const [[sales = {}]] = await pool.query(
           `SELECT 
             IFNULL(SUM(ABS(it.quantity)),0) as sold_qty,
@@ -652,7 +652,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
       } else if (start_date) {
         // Format start date the same way as transactions
         let startDateTime;
-        
+
         if (start_date.includes('T')) {
           const datePart = start_date.split('T')[0];
           startDateTime = datePart + ' 00:00:00';
@@ -661,7 +661,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
         } else {
           startDateTime = start_date + ' 00:00:00';
         }
-        
+
         const [[sales = {}]] = await pool.query(
           `SELECT 
             IFNULL(SUM(ABS(it.quantity)),0) as sold_qty,
@@ -678,7 +678,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
       } else if (end_date) {
         // Format end date the same way as transactions
         let endDateTime;
-        
+
         if (end_date.includes('T')) {
           const datePart = end_date.split('T')[0];
           endDateTime = datePart + ' 23:59:59';
@@ -687,7 +687,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
         } else {
           endDateTime = end_date + ' 23:59:59';
         }
-        
+
         const [[sales = {}]] = await pool.query(
           `SELECT 
             IFNULL(SUM(ABS(it.quantity)),0) as sold_qty,
@@ -703,7 +703,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
         profit = sales.profit || 0;
       } else {
         const [[sales = {}]] = await pool.query(
-      `SELECT 
+          `SELECT 
             IFNULL(SUM(ABS(it.quantity)),0) as sold_qty,
             IFNULL(SUM(COALESCE(si.total_price, 0)),0) as revenue,
             IFNULL(SUM(COALESCE((si.unit_price - COALESCE(si.costprice, p.cost_price, 0)) * ABS(it.quantity), 0)),0) as profit
@@ -717,7 +717,7 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
         profit = sales.profit || 0;
       }
       // Debug logging
-      
+
       return {
         product_id: p.id,
         product_name: p.name,

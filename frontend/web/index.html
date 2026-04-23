@@ -32,6 +32,21 @@
 
   <title>SmartLedger</title>
   <link rel="manifest" href="manifest.json">
+  <!-- Optional: QZ Tray for direct web printing -->
+  <script src="https://cdn.jsdelivr.net/npm/qz-tray/qz-tray.js"></script> <!-- can be self-hosted -->
+  <script>
+    // Basic init; production should use proper certificate/signature per qz.io docs
+    if (window.qz) {
+      qz.security.setCertificatePromise(function(resolve, reject) {
+        // Demo certificate; replace with your signed cert in production
+        resolve("-----BEGIN CERTIFICATE-----\nMIIC...REDACTED...\n-----END CERTIFICATE-----\n");
+      });
+      qz.security.setSignaturePromise(function(toSign) {
+        // Unsafe demo signing; replace with server-side signing
+        return function(resolve, reject) { resolve(null); };
+      });
+    }
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

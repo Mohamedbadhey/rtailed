@@ -96,31 +96,10 @@ router.get('/', auth, async (req, res) => {
       params = [];
     }
     
-    console.log('🛍️ Query:', query);
-    console.log('🛍️ Params:', params);
     const [products] = await pool.query(query, params);
-    console.log('🛍️ Found', products.length, 'products');
-    
-    // Debug each product's details including category
-    products.forEach((product, index) => {
-      console.log(`🛍️ Product ${index + 1}:`);
-      console.log(`  - ID: ${product.id}`);
-      console.log(`  - Name: ${product.name}`);
-      console.log(`  - Category ID: ${product.category_id}`);
-      console.log(`  - Category Name: ${product.category_name}`);
-      console.log(`  - Image URL: ${product.image_url || 'NULL'}`);
-      if (product.image_url) {
-        const fullUrl = `https://rtailed-production.up.railway.app${product.image_url}`;
-        console.log(`  - Full URL: ${fullUrl}`);
-      }
-    });
-    
-    console.log('🛍️ ===== PRODUCTS GET REQUEST END =====');
     res.json(products);
   } catch (error) {
-    console.log('🛍️ ❌ Error in products GET:', error);
-    console.log('🛍️ Error stack:', error.stack);
-    console.log('🛍️ ===== PRODUCTS GET REQUEST END (ERROR) =====');
+    console.error('🛍️ Error in products GET:', error);
     res.status(500).json({ message: 'Server error', details: error.message });
   }
 });
@@ -128,11 +107,6 @@ router.get('/', auth, async (req, res) => {
 // Get all products including deleted ones (for inventory management)
 router.get('/all', auth, async (req, res) => {
   try {
-    console.log('🛍️ ===== ALL PRODUCTS GET REQUEST START =====');
-    console.log('🛍️ User role:', req.user.role);
-    console.log('🛍️ Business ID:', req.user.business_id);
-    console.log('🛍️ User ID:', req.user.id);
-    
     let query = `
       SELECT p.*, 
              CASE 
@@ -158,29 +132,10 @@ router.get('/all', auth, async (req, res) => {
       `;
       params = [];
     }
-    
-    console.log('🛍️ Query:', query);
-    console.log('🛍️ Params:', params);
     const [products] = await pool.query(query, params);
-    console.log('🛍️ Found', products.length, 'products (including deleted)');
-    
-    // Debug each product's details including deletion status
-    products.forEach((product, index) => {
-      console.log(`🛍️ Product ${index + 1}:`);
-      console.log(`  - ID: ${product.id}`);
-      console.log(`  - Name: ${product.name}`);
-      console.log(`  - Category ID: ${product.category_id}`);
-      console.log(`  - Category Name: ${product.category_name}`);
-      console.log(`  - Is Deleted: ${product.is_deleted}`);
-      console.log(`  - Image URL: ${product.image_url || 'NULL'}`);
-    });
-    
-    console.log('🛍️ ===== ALL PRODUCTS GET REQUEST END =====');
     res.json(products);
   } catch (error) {
-    console.log('🛍️ ❌ Error in all products GET:', error);
-    console.log('🛍️ Error stack:', error.stack);
-    console.log('🛍️ ===== ALL PRODUCTS GET REQUEST END (ERROR) =====');
+    console.error('🛍️ Error in all products GET:', error);
     res.status(500).json({ message: 'Server error', details: error.message });
   }
 });
@@ -216,12 +171,6 @@ router.get('/:id', auth, async (req, res) => {
     if (products.length === 0) {
       return res.status(404).json({ message: 'Product not found' });
     }
-    
-    console.log('🛍️ Single product fetched:');
-    console.log(`  - ID: ${products[0].id}`);
-    console.log(`  - Name: ${products[0].name}`);
-    console.log(`  - Category ID: ${products[0].category_id}`);
-    console.log(`  - Category Name: ${products[0].category_name}`);
     
     res.json(products[0]);
   } catch (error) {
@@ -281,11 +230,6 @@ router.post('/check-name', auth, async (req, res) => {
 router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')], async (req, res, next) => {
   const connection = await pool.getConnection();
   try {
-    console.log('=== PRODUCT CREATION DEBUG ===');
-    console.log('User info:', { id: req.user.id, role: req.user.role, business_id: req.user.business_id });
-    console.log('Request body:', req.body);
-    console.log('File info:', req.file ? { filename: req.file.filename, size: req.file.size } : 'No file');
-    
     await connection.beginTransaction();
 
     const {

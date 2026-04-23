@@ -108,8 +108,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
     });
 
     try {
-      print('=== FRONTEND LOAD DATA DEBUG ===');
-      
       // Load products (paged) and categories in parallel
       final results = await Future.wait([
         _resetAndLoadProducts(),

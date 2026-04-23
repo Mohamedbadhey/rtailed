@@ -11,17 +11,6 @@ router.post('/send', auth, async (req, res) => {
   try {
     const { title, message, type = 'info', priority = 'medium', target_cashiers, target_admins, parent_id } = req.body;
 
-      title,
-      message: message ? message.substring(0, 50) + '...' : null,
-      type,
-      priority,
-      parent_id,
-      parent_id_type: typeof parent_id,
-      user_id: req.user.id,
-      user_role: req.user.role,
-      business_id: req.user.business_id
-    });
-
     if (!message) {
       return res.status(400).json({ message: 'Message is required' });
     }

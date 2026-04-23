@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 const { auth, checkRole } = require('../middleware/auth');
@@ -117,17 +117,11 @@ router.put('/:id/stock', [auth, checkRole(['admin', 'manager'])], async (req, re
   }
 });
 
-// Get inventory transactions
 router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
     const { start_date, end_date, user_id, category_id, product_id, transaction_type } = req.query;
     
-    console.log('ðŸ” INVENTORY TRANSACTIONS: Request params:', { start_date, end_date, user_id });
-    console.log('ðŸ” INVENTORY TRANSACTIONS: User:', req.user.id, req.user.role, req.user.business_id);
-    console.log('ðŸ” INVENTORY TRANSACTIONS: Business ID type:', typeof req.user.business_id);
-    console.log('ðŸ” INVENTORY TRANSACTIONS: Business ID value:', req.user.business_id);
     
-    // Test: Run the exact working query to see if it works
     try {
       const [testWorkingQuery] = await pool.query(
         `SELECT 
@@ -163,23 +157,17 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
         LIMIT 3`,
         [req.user.business_id]
       );
-      console.log('ðŸ” INVENTORY TRANSACTIONS: Test working query result:', testWorkingQuery);
       
       if (testWorkingQuery.length > 0) {
         const firstResult = testWorkingQuery[0];
-        console.log('ðŸ” INVENTORY TRANSACTIONS: First result fields:', Object.keys(firstResult));
-        console.log('ðŸ” INVENTORY TRANSACTIONS: Has product_cost_price:', firstResult.hasOwnProperty('product_cost_price'));
-        console.log('ðŸ” INVENTORY TRANSACTIONS: product_cost_price value:', firstResult.product_cost_price);
         
         // Check for case sensitivity issues - look for any field that might contain 'cost'
         const costRelatedFields = Object.keys(firstResult).filter(key => 
           key.toLowerCase().includes('cost') || 
           key.toLowerCase().includes('price')
         );
-        console.log('ðŸ” INVENTORY TRANSACTIONS: Cost/price related fields:', costRelatedFields);
         
         // Check raw data for any field variations
-        console.log('ðŸ” INVENTORY TRANSACTIONS: Raw first result:', JSON.stringify(firstResult, null, 2));
         
         // Test: Check if MySQL is returning the field with different case
         const allFields = Object.keys(firstResult);
@@ -187,17 +175,14 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
           key.toLowerCase().includes('cost') || 
           key.toLowerCase().includes('price')
         );
-        console.log('ðŸ” INVENTORY TRANSACTIONS: All fields with cost/price:', costFieldVariations);
         
         // Test: Check if the field exists with exact case match
-        console.log('ðŸ” INVENTORY TRANSACTIONS: Exact field checks:');
         console.log('  product_cost_price:', firstResult.product_cost_price);
         console.log('  PRODUCT_COST_PRICE:', firstResult.PRODUCT_COST_PRICE);
         console.log('  Product_Cost_Price:', firstResult.Product_Cost_Price);
         console.log('  productCostPrice:', firstResult.productCostPrice);
       }
     } catch (testError) {
-      console.log('ðŸ” INVENTORY TRANSACTIONS: Error testing working query:', testError.message);
     }
     
     let query = `
@@ -251,7 +236,6 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
       }
       query += ' AND it.created_at >= ?';
       params.push(startDateTime);
-      console.log('ðŸ” INVENTORY TRANSACTIONS: Added start_date filter:', startDateTime);
     }
     if (end_date) {
       // Convert end_date to end of day for proper comparison
@@ -270,35 +254,30 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
       }
       query += ' AND it.created_at <= ?';
       params.push(endDateTime);
-      console.log('ðŸ” INVENTORY TRANSACTIONS: Added end_date filter:', endDateTime);
     }
     
     // Add cashier filter if provided
     if (user_id && user_id !== 'all') {
       query += ' AND (s.user_id = ? OR dp.reported_by = ?)';
       params.push(user_id, user_id);
-      console.log('ðŸ” INVENTORY TRANSACTIONS: Added cashier filter:', user_id);
     }
     
     // Add category filter if provided
     if (category_id) {
       query += ' AND p.category_id = ?';
       params.push(category_id);
-      console.log('ðŸ” INVENTORY TRANSACTIONS: Added category filter:', category_id);
     }
     
     // Add product filter if provided
     if (product_id) {
       query += ' AND it.product_id = ?';
       params.push(product_id);
-      console.log('ðŸ” INVENTORY TRANSACTIONS: Added product filter:', product_id);
     }
     
     // Add transaction type filter if provided
     if (transaction_type) {
       query += ' AND it.transaction_type = ?';
       params.push(transaction_type);
-      console.log('ðŸ” INVENTORY TRANSACTIONS: Added transaction_type filter:', transaction_type);
     }
     
     query += ' ORDER BY it.created_at DESC';
@@ -306,13 +285,9 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
     if (req.user.role === 'superadmin') {
       query = query.replace('WHERE it.business_id = ? AND (s.status IS NULL OR s.status != \'cancelled\')', 'WHERE (s.status IS NULL OR s.status != \'cancelled\')');
       params = params.slice(1); // Remove business_id from params
-      console.log('ðŸ” INVENTORY TRANSACTIONS: Superadmin - removed business_id filter');
     } else {
-      console.log('ðŸ” INVENTORY TRANSACTIONS: Regular user - using business_id filter:', req.user.business_id);
     }
     
-    console.log('ðŸ” INVENTORY TRANSACTIONS: Final query:', query);
-    console.log('ðŸ” INVENTORY TRANSACTIONS: Final params:', params);
     
     // Test: Check if products table has cost_price data
     try {
@@ -320,14 +295,12 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
         'SELECT id, name, cost_price FROM products WHERE business_id = ? LIMIT 3',
         [req.user.business_id]
       );
-      console.log('ðŸ” INVENTORY TRANSACTIONS: Test products with cost_price:', testProducts);
       
       // Test: Check inventory_transactions to see what product_ids we have
       const [testTransactions] = await pool.query(
         'SELECT id, product_id, transaction_type, reference_id FROM inventory_transactions WHERE business_id = ? LIMIT 5',
         [req.user.business_id]
       );
-      console.log('ðŸ” INVENTORY TRANSACTIONS: Test inventory_transactions:', testTransactions);
       
       // Test: Check if the JOIN is working by testing a specific transaction
       if (testTransactions.length > 0) {
@@ -346,14 +319,12 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
           WHERE it.id = ?`,
           [testTx.id]
         );
-        console.log('ðŸ” INVENTORY TRANSACTIONS: Test JOIN result:', testJoin);
         
         // Test: Check if products exist for this business
         const [productsForBusiness] = await pool.query(
           'SELECT id, name, cost_price, business_id FROM products WHERE business_id = ? LIMIT 3',
           [req.user.business_id]
         );
-        console.log('ðŸ” INVENTORY TRANSACTIONS: Products for business:', productsForBusiness);
         
         // Test: Check if the JOIN condition is working by testing the exact JOIN
         const [testExactJoin] = await pool.query(
@@ -371,26 +342,21 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
           LIMIT 3`,
           [req.user.business_id]
         );
-        console.log('ðŸ” INVENTORY TRANSACTIONS: Test exact JOIN with business filter:', testExactJoin);
       }
     } catch (testError) {
-      console.log('ðŸ” INVENTORY TRANSACTIONS: Error testing products:', testError.message);
     }
     
     const [transactions] = await pool.query(query, params);
-    console.log('ðŸ” INVENTORY TRANSACTIONS: Found', transactions.length, 'transactions');
     
     // Test: Check what fields are actually returned
     if (transactions.length > 0) {
       const firstTx = transactions[0];
-      console.log('ðŸ” INVENTORY TRANSACTIONS: First transaction fields:');
       console.log('  All keys:', Object.keys(firstTx));
       console.log('  Raw data:', firstTx);
     }
     
     // Debug: Log first few transactions to see the data structure
     if (transactions.length > 0) {
-      console.log('ðŸ” INVENTORY TRANSACTIONS: Sample transaction data:');
       for (let i = 0; i < Math.min(3, transactions.length); i++) {
         const tx = transactions[i];
         console.log(`  Transaction ${i}:`);
@@ -408,12 +374,10 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
     
     res.json(transactions);
   } catch (error) {
-    console.error('ðŸ” INVENTORY TRANSACTIONS ERROR:', error);
     res.status(500).json({ message: error.message || 'Server error' });
   }
 });
 
-// Get enhanced inventory transactions for PDF export
 router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
     const { start_date, end_date, user_id, category_id, product_id, transaction_type, limit } = req.query;
@@ -753,8 +717,6 @@ router.get('/value-report', [auth, checkRole(['admin', 'manager'])], async (req,
         profit = sales.profit || 0;
       }
       // Debug logging
-      console.log(`ðŸ” STOCK SUMMARY: Product ${p.id} (${p.name}): sold=${soldQty} (from inventory_transactions, transaction_type='sale'), revenue=${revenue}, profit=${profit}, current_cost_price=${p.cost_price}`);
-      console.log(`ðŸ” STOCK SUMMARY: Date filters - start_date: ${start_date}, end_date: ${end_date}`);
       
       return {
         product_id: p.id,

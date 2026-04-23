@@ -263,17 +263,12 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// Get sales report
 router.get('/report', auth, async (req, res) => {
   try {
-    console.log('🔍 SALES REPORT: ===== START =====');
-    console.log('🔍 SALES REPORT: Request query params:', req.query);
-    console.log('🔍 SALES REPORT: Request user:', req.user);
     
     const { start_date, end_date, group_by = 'day', user_id } = req.query;
     const isCashier = req.user.role === 'cashier';
     
-    console.log('🔍 SALES REPORT: Parsed params:');
     console.log('  - start_date:', start_date);
     console.log('  - end_date:', end_date);
     console.log('  - group_by:', group_by);
@@ -284,7 +279,6 @@ router.get('/report', auth, async (req, res) => {
     console.log('  - req.user.role:', req.user.role);
     
     // Debug: Show all filter combinations that will be applied
-    console.log('🔍 SALES REPORT: Filter combinations:');
     console.log('  - Business filter:', req.user.role !== 'superadmin' ? `business_id = ${req.user.business_id}` : 'superadmin (no business filter)');
     console.log('  - User filter:', isCashier ? `user_id = ${req.user.id}` : (user_id ? `user_id = ${user_id}` : 'no user filter'));
     console.log('  - Date filter:', start_date && end_date ? `${start_date} to ${end_date}` : 'no date filter');
@@ -294,56 +288,38 @@ router.get('/report', auth, async (req, res) => {
     // Build the WHERE clause - include both completed sales and credit sales (unpaid) but EXCLUDE credit payments and cancelled sales
     // Credit payments have parent_sale_id IS NOT NULL and should not be counted as revenue
     // Cancelled sales should never be counted regardless of payment method
-    console.log('🔍 SALES REPORT: Building WHERE clause...');
     
     let whereClause = 'WHERE (s.status = "completed" OR (s.payment_method = "credit" AND s.status != "cancelled")) AND s.parent_sale_id IS NULL';
     const params = [];
     
-    console.log('🔍 SALES REPORT: Initial whereClause:', whereClause);
-    console.log('🔍 SALES REPORT: Initial params array:', params);
     
     // Add business_id filter unless superadmin
     if (req.user.role !== 'superadmin') {
       if (!req.user.business_id) {
-        console.log('❌ SALES REPORT: No business_id found for user');
         return res.status(400).json({ message: 'Business ID is required for this report.' });
       }
       whereClause += ' AND s.business_id = ?';
       params.push(req.user.business_id);
-      console.log('🔍 SALES REPORT: Added business_id filter. whereClause:', whereClause);
-      console.log('🔍 SALES REPORT: params array after business_id:', params);
     }
     
     if (isCashier) {
       whereClause += ' AND s.user_id = ?';
       params.push(req.user.id);
-      console.log('🔍 SALES REPORT: Added cashier user_id filter. whereClause:', whereClause);
-      console.log('🔍 SALES REPORT: params array after cashier user_id:', params);
     } else if (user_id) {
       whereClause += ' AND s.user_id = ?';
       params.push(user_id);
-      console.log('🔍 SALES REPORT: Added specific user_id filter. whereClause:', whereClause);
-      console.log('🔍 SALES REPORT: params array after specific user_id:', params);
     }
     
     // Add date filters
     if (start_date) {
       whereClause += ' AND DATE(s.created_at) >= ?';
       params.push(start_date);
-      console.log('🔍 SALES REPORT: Added start_date filter. whereClause:', whereClause);
-      console.log('🔍 SALES REPORT: params array after start_date:', params);
     }
     if (end_date) {
       whereClause += ' AND DATE(s.created_at) <= ?';
       params.push(end_date);
-      console.log('🔍 SALES REPORT: Added end_date filter. whereClause:', whereClause);
-      console.log('🔍 SALES REPORT: params array after end_date:', params);
     }
     
-    console.log('🔍 SALES REPORT: Final whereClause:', whereClause);
-    console.log('🔍 SALES REPORT: Final params array:', params);
-    console.log('🔍 SALES REPORT: Date filters - start_date:', start_date, 'end_date:', end_date);
-    console.log('🔍 SALES REPORT: Cancelled sales are now EXCLUDED from all calculations');
     
     // Debug: Check what sales exist for this business
     if (req.user.role !== 'superadmin' && req.user.business_id) {
@@ -351,7 +327,6 @@ router.get('/report', auth, async (req, res) => {
         'SELECT id, total_amount, status, business_id, created_at, parent_sale_id, payment_method FROM sales WHERE business_id = ? ORDER BY created_at DESC LIMIT 10',
         [req.user.business_id]
       );
-      console.log('SALES REPORT: Found', debugSales.length, 'sales for business_id', req.user.business_id, ':', debugSales);
       
       // Debug: Show cancelled sales that are being excluded
       const [cancelledSales] = await pool.query(
@@ -359,12 +334,10 @@ router.get('/report', auth, async (req, res) => {
         [req.user.business_id]
       );
       if (cancelledSales.length > 0) {
-        console.log('🔍 SALES REPORT: Cancelled sales being EXCLUDED from calculations:', cancelledSales.length, 'rows:');
         cancelledSales.forEach((sale, index) => {
           console.log(`  [${index}] ID:${sale.id}, Amount:$${sale.total_amount}, Status:${sale.status}, Method:${sale.payment_method}, Parent:${sale.parent_sale_id}, Date:${sale.created_at}`);
         });
       } else {
-        console.log('🔍 SALES REPORT: No cancelled sales found to exclude');
       }
     }
 
@@ -376,99 +349,59 @@ router.get('/report', auth, async (req, res) => {
     );
     
     // Sales by period - use a completely different approach to avoid parameter confusion
-    console.log('🔍 SALES REPORT: Building salesByPeriodQuery...');
     
     const dateFormat = group_by === 'day' ? '%Y-%m-%d' : group_by === 'week' ? '%Y-%u' : '%Y-%m';
-    console.log('🔍 SALES REPORT: dateFormat:', dateFormat);
     
     // Build the query with explicit values instead of parameters to avoid confusion
     let salesByPeriodQuery = `SELECT DATE_FORMAT(s.created_at, '${dateFormat}') as period, COUNT(*) as total_sales, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_sale FROM sales s WHERE (s.status = "completed" OR (s.payment_method = "credit" AND s.status != "cancelled")) AND s.parent_sale_id IS NULL`;
     const salesByPeriodParams = [];
     
-    console.log('🔍 SALES REPORT: Initial salesByPeriodQuery:', salesByPeriodQuery);
-    console.log('🔍 SALES REPORT: Initial salesByPeriodParams:', salesByPeriodParams);
     
     // Add business_id filter unless superadmin
     if (req.user.role !== 'superadmin') {
       if (!req.user.business_id) {
-        console.log('❌ SALES REPORT: No business_id found for salesByPeriodQuery');
         return res.status(400).json({ message: 'Business ID is required for this report.' });
       }
       salesByPeriodQuery += ' AND s.business_id = ?';
       salesByPeriodParams.push(req.user.business_id);
-      console.log('🔍 SALES REPORT: Added business_id to salesByPeriodQuery. Query:', salesByPeriodQuery);
-      console.log('🔍 SALES REPORT: salesByPeriodParams after business_id:', salesByPeriodParams);
     }
     
     // Add user_id filter
     if (isCashier) {
       salesByPeriodQuery += ' AND s.user_id = ?';
       salesByPeriodParams.push(req.user.id);
-      console.log('🔍 SALES REPORT: Added cashier user_id to salesByPeriodQuery. Query:', salesByPeriodQuery);
-      console.log('🔍 SALES REPORT: salesByPeriodParams after cashier user_id:', salesByPeriodParams);
     } else if (user_id) {
       salesByPeriodQuery += ' AND s.user_id = ?';
       salesByPeriodParams.push(user_id);
-      console.log('🔍 SALES REPORT: Added specific user_id to salesByPeriodQuery. Query:', salesByPeriodQuery);
-      console.log('🔍 SALES REPORT: salesByPeriodParams after specific user_id:', salesByPeriodParams);
     }
     
     // Add date filters
     if (start_date) {
       salesByPeriodQuery += ' AND DATE(s.created_at) >= ?';
       salesByPeriodParams.push(start_date);
-      console.log('🔍 SALES REPORT: Added start_date to salesByPeriodQuery. Query:', salesByPeriodQuery);
-      console.log('🔍 SALES REPORT: salesByPeriodParams after start_date:', salesByPeriodParams);
     }
     if (end_date) {
       salesByPeriodQuery += ' AND DATE(s.created_at) <= ?';
       salesByPeriodParams.push(end_date);
-      console.log('🔍 SALES REPORT: Added end_date to salesByPeriodQuery. Query:', salesByPeriodQuery);
-      console.log('🔍 SALES REPORT: salesByPeriodParams after end_date:', salesByPeriodParams);
     }
     
     // Add GROUP BY and ORDER BY
     salesByPeriodQuery += ` GROUP BY DATE_FORMAT(s.created_at, '${dateFormat}') ORDER BY period DESC`;
-    console.log('🔍 SALES REPORT: Final salesByPeriodQuery with GROUP BY:', salesByPeriodQuery);
-    console.log('🔍 SALES REPORT: Final salesByPeriodParams:', salesByPeriodParams);
     
-    console.log('SALES REPORT: Sales by period query:', salesByPeriodQuery);
-    console.log('SALES REPORT: Sales by period params:', salesByPeriodParams);
-    console.log('SALES REPORT: req.user.business_id:', req.user.business_id);
-    console.log('SALES REPORT: user_id param:', user_id);
-    console.log('SALES REPORT: start_date:', start_date);
-    console.log('SALES REPORT: end_date:', end_date);
     
     let salesByPeriod;
     try {
       // Try the normal query first
-      console.log('🔍 SALES REPORT: ===== EXECUTING QUERY =====');
-      console.log('🔍 SALES REPORT: About to execute query with params:', salesByPeriodParams);
-      console.log('🔍 SALES REPORT: Query to execute:', salesByPeriodQuery);
-      console.log('🔍 SALES REPORT: Params count:', salesByPeriodParams.length);
-      console.log('🔍 SALES REPORT: Params types:', salesByPeriodParams.map(p => typeof p));
       
       [salesByPeriod] = await pool.query(salesByPeriodQuery, salesByPeriodParams);
       
-      console.log('✅ SALES REPORT: Query executed successfully!');
-      console.log('✅ SALES REPORT: Result count:', salesByPeriod.length);
-      console.log('✅ SALES REPORT: Result:', salesByPeriod);
       
     } catch (error) {
-      console.log('❌ SALES REPORT: ===== QUERY FAILED =====');
-      console.log('❌ SALES REPORT: Error message:', error.message);
-      console.log('❌ SALES REPORT: Error code:', error.code);
-      console.log('❌ SALES REPORT: Error SQL state:', error.sqlState);
-      console.log('❌ SALES REPORT: Failed SQL query:', error.sql);
-      console.log('❌ SALES REPORT: Query that failed:', salesByPeriodQuery);
-      console.log('❌ SALES REPORT: Params that failed:', salesByPeriodParams);
       
       if (error.code === 'ER_WRONG_FIELD_WITH_GROUP') {
-        console.log('⚠️  SALES REPORT: GROUP BY error detected, using relaxed mode...');
         // Fallback to relaxed GROUP BY mode
         salesByPeriod = await executeQueryWithRelaxedGroupBy(salesByPeriodQuery, salesByPeriodParams);
       } else {
-        console.log('❌ SALES REPORT: Throwing error - not a GROUP BY issue');
         throw error;
       }
     }
@@ -543,12 +476,10 @@ router.get('/report', auth, async (req, res) => {
     );
     
     // Summary statistics - exclude credit payments from revenue calculation
-    console.log('SALES REPORT: Running summary query with whereClause =', whereClause, 'params =', params);
     const [summary] = await pool.query(
       `SELECT COUNT(*) as total_orders, SUM(s.total_amount) as total_revenue, AVG(s.total_amount) as average_order_value, MIN(s.total_amount) as min_order, MAX(s.total_amount) as max_order FROM sales s ${whereClause}`,
       params
     );
-    console.log('SALES REPORT: Summary result =', summary[0]);
     
     // Credit sales summary - only original credit sales, not payments
     const [creditSummary] = await pool.query(
@@ -602,18 +533,15 @@ router.get('/report', auth, async (req, res) => {
     
     const [outstandingCredits] = await pool.query(outstandingCreditsQuery, outstandingCreditsParams);
     
-    console.log('SALES REPORT: Credit calculations:');
     console.log('  - Total Original Credit Amount:', outstandingCredits[0]?.total_original_credit || 0);
     console.log('  - Total Paid Amount:', outstandingCredits[0]?.total_paid_amount || 0);
     console.log('  - Total Outstanding Credit:', outstandingCredits[0]?.total_outstanding_credit || 0);
     
     // Product breakdown - exclude credit payments
-    console.log('SALES REPORT: Running product breakdown query with whereClause =', whereClause, 'params =', params);
     const [productBreakdown] = await pool.query(
       `SELECT p.id, p.name, SUM(si.quantity) as quantity_sold, SUM(si.total_price) as revenue, SUM(si.total_price - (si.quantity * COALESCE(si.costprice, p.cost_price))) as profit FROM sale_items si JOIN products p ON si.product_id = p.id JOIN sales s ON si.sale_id = s.id ${whereClause} GROUP BY p.id, p.name ORDER BY revenue DESC`,
       params
     );
-    console.log('SALES REPORT: Product breakdown result =', productBreakdown);
     
     // Calculate total cost of goods sold (COGS) for profit calculation - exclude credit payments and cancelled sales
     let cogsQuery = `
@@ -783,16 +711,13 @@ router.get('/report', auth, async (req, res) => {
     if (start_date) console.log('  - start_date =', start_date);
     if (end_date) console.log('  - end_date =', end_date);
     
-    console.log('SALES REPORT: Cash in hand calculation from sales:');
     console.log('  - Total Cash In Hand (completed non-credit sales):', actualCashInHand);
     
-    console.log('SALES REPORT: Profit calculation:');
     console.log('  - Total Revenue:', totalRevenue);
     console.log('  - Total COGS:', total_cost);
     console.log('  - Calculated totalProfit:', totalProfit);
     
     // Final summary of all calculations
-    console.log('🔍 SALES REPORT: ===== CALCULATION SUMMARY =====');
     console.log('  - Total Sales (summary):', summary[0]?.total_revenue || 0);
     console.log('  - Payment Methods Total:', paymentMethods.reduce((sum, pm) => sum + Number(pm.total_amount), 0));
     console.log('  - Cash in Hand:', actualCashInHand);
@@ -800,7 +725,6 @@ router.get('/report', auth, async (req, res) => {
     console.log('  - Date Range:', start_date, 'to', end_date);
     console.log('  - Business ID:', req.user.business_id);
     console.log('  - User Role:', req.user.role);
-    console.log('🔍 SALES REPORT: ===== END CALCULATION SUMMARY =====');
     
     // Prepare safe response data
     const safeSummary = {
@@ -841,15 +765,10 @@ router.get('/report', auth, async (req, res) => {
     const safeTotalProductsSold = Number(totalProductsSold) || 0;
     const safeTotalProfit = Number(totalProfit) || 0;
 
-    console.log('SALES REPORT: Final response values:');
     console.log('  - totalSales (safeSummary.total_revenue):', safeSummary.total_revenue);
     console.log('  - totalProfit:', safeTotalProfit);
     console.log('  - outstandingCredits:', Number(outstandingCredits[0]?.total_outstanding_credit) || 0);
 
-    console.log('🔍 SALES REPORT: ===== PREPARING RESPONSE =====');
-    console.log('🔍 SALES REPORT: safeSummary:', safeSummary);
-    console.log('🔍 SALES REPORT: safeSalesByPeriod count:', safeSalesByPeriod.length);
-    console.log('🔍 SALES REPORT: safePaymentMethods count:', safePaymentMethods.length);
     
     const response = {
       summary: safeSummary,
@@ -880,16 +799,10 @@ router.get('/report', auth, async (req, res) => {
       }
     };
     
-    console.log('🔍 SALES REPORT: Final response object:', response);
-    console.log('🔍 SALES REPORT: Cash in hand breakdown:');
     console.log('  - Cash in Hand (completed non-credit sales + credit payments):', actualCashInHand);
-    console.log('🔍 SALES REPORT: ===== SUCCESS - END =====');
     
     res.json(response);
   } catch (error) {
-    console.log('❌ SALES REPORT: ===== FUNCTION FAILED =====');
-    console.log('❌ SALES REPORT: Error in main function:', error);
-    console.log('❌ SALES REPORT: Error stack:', error.stack);
     console.error(error);
     res.status(500).json({ message: 'Server error' });
   }

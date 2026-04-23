@@ -154,34 +154,35 @@ async function parseDrawingAnchors(zip, drawingPath) {
                   blip?.['@_r:embed']; 
     
     if (Number.isFinite(row) && Number.isFinite(col) && relId) {
+      console.log(`✅ Found anchor: row=${row}, col=${col}, relId=${relId}`);
       anchors.push({ row, col, relId });
     } else {
-      console.log(`❓ Anchor incomplete: row=${row}, col=${col}, relId=${relId}. Keys: ${blip ? Object.keys(blip).join(',') : 'none'}`);
+      console.log(`❓ Anchor incomplete or missing relId: row=${row}, col=${col}, relId=${relId}`);
+      if (blip) {
+        console.log(`🔍 Blip keys: ${Object.keys(blip).join(',')}`);
+        console.log(`🔍 Blip JSON: ${JSON.stringify(blip)}`);
+      } else {
+        console.log(`🔍 PicElement keys: ${Object.keys(picElement).join(',')}`);
+        console.log(`🔍 PicElement JSON: ${JSON.stringify(picElement).substring(0, 300)}`);
+      }
     }
   }
 
-  // Parse rels for drawing to map relId -> media path
-  const relsPath = `${path.posix.dirname(drawingPath)}/_rels/${path.posix.basename(drawingPath)}.rels`;
-  const altRelsPath = `xl/drawings/_rels/${path.posix.basename(drawingPath)}.rels`;
-  
-  console.log(`📖 Checking drawing rels at: ${relsPath} or ${altRelsPath}`);
-  const relsFile = zip.file(relsPath) || zip.file(altRelsPath);
+  // Parse DRAWING RELS
   const relsMap = {};
+  const relsPath = drawingPath.replace(/([^/]+)\.xml$/, '_rels/$1.xml.rels');
+  const relsFile = zip.file(relsPath);
   if (relsFile) {
-    console.log(`✅ Found drawing rels at: ${relsFile.name}`);
+    console.log(`📖 Parsing drawing RELS: ${relsPath}`);
     const relsXml = await relsFile.async('text');
-    const relsDoc = new XMLParser({ 
-      ignoreAttributes: false, 
-      removeNSPrefix: true,
-      attributeNamePrefix: '' 
-    }).parse(relsXml);
+    const relsParser = new XMLParser({ ignoreAttributes: false });
+    const relsDoc = relsParser.parse(relsXml);
+    const relsList = relsDoc?.Relationships?.Relationship || [];
+    const arr = Array.isArray(relsList) ? relsList : [relsList];
     
-    const root = relsDoc.Relationships || relsDoc[Object.keys(relsDoc)[0]];
-    const list = root?.Relationship || [];
-    const arr = Array.isArray(list) ? list : [list];
     for (const r of arr) {
-      const id = r.Id || r['@_Id'];
-      const target = r.Target || r['@_Target'];
+      const id = r['@_Id'];
+      const target = r['@_Target'];
       if (id && target) {
         // Normalize to zip path. If target starts with ../media, it's relative to drawings folder
         let p;
@@ -192,6 +193,7 @@ async function parseDrawingAnchors(zip, drawingPath) {
            p = path.posix.normalize(path.posix.join(path.posix.dirname(drawingPath), target));
         }
         relsMap[id] = p;
+        console.log(`🔗 Mapping relId ${id} -> ${p}`);
       }
     }
   } else {

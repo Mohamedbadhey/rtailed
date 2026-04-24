@@ -121,7 +121,7 @@ router.get('/all', auth, async (req, res) => {
 });
 
 // Get single product
-router.get('/:id', auth, async (req, res) => {
+router.get('/:id(\\d+)', auth, async (req, res) => {
   try {
     let query = `
       SELECT p.*, 

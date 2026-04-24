@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:retail_management/services/receipt_service.dart';
 import 'package:flutter/foundation.dart';
@@ -15,6 +16,9 @@ import 'package:retail_management/utils/api.dart';
 import 'package:retail_management/utils/translate.dart';
 import 'package:retail_management/utils/success_utils.dart';
 import 'package:retail_management/utils/theme.dart';
+import 'package:retail_management/utils/navigation_service.dart'; // global context for dialogs
+import 'package:retail_management/providers/settings_provider.dart'; // printing prefs
+
 
 class POSScreen extends StatefulWidget {
   const POSScreen({super.key});
@@ -33,10 +37,31 @@ class _POSScreenState extends State<POSScreen> {
   List<Product> _filteredProducts = [];
   String _saleMode = 'retail'; // 'retail' or 'wholesale'
 
+  // Pagination state for products grid
+  final ScrollController _productScrollController = ScrollController();
+  int _currentPage = 1;
+  final int _pageSize = 40;
+  bool _isPageLoading = false;
+  bool _hasMore = true;
+  int _totalProducts = 0;
+  Map<String, int> _categoryNameToId = {}; // name -> id
+  Timer? _filterDebounce; // debounce for search/category changes to avoid spam requests.
+  
+  // unused after switching to Load More
+  void _onProductScroll() {
+    if (!_hasMore || _isPageLoading) return;
+    if (!_productScrollController.hasClients) return;
+    final pos = _productScrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 300) {
+      _fetchProductsPage();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    _loadProducts();
+    // Switched to manual Load More; no auto infinite scroll
+    _resetAndFetchProducts();
     
     // Listen to cart changes to ensure UI updates
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -155,12 +180,101 @@ class _POSScreenState extends State<POSScreen> {
     }
   }
 
-  /// Refresh the entire POS interface
+  // Paged products loader
+  Future<void> _resetAndFetchProducts() async {
+    print('🛍️ ===== POS LOAD PRODUCTS (PAGED) START =====');
+    setState(() {
+      _isLoading = true;
+      _products = [];
+      _filteredProducts = [];
+      _currentPage = 1;
+      _hasMore = true;
+      _totalProducts = 0;
+    });
+
+    try {
+      // Load categories first
+      List<String> allCategories = ['All'];
+      _categoryNameToId = {};
+      try {
+        final categoriesData = await _apiService.getCategories();
+        for (final c in categoriesData) {
+          final name = (c['name'] as String).trim();
+          allCategories.add(name);
+          final cid = c['id'] is int ? c['id'] as int : int.tryParse('${c['id']}');
+          if (cid != null) _categoryNameToId[name] = cid;
+        }
+      } catch (e) {
+        print('🛍️ ⚠️ Failed to load categories for pagination: $e');
+      }
+      setState(() {
+        _categories = allCategories;
+      });
+
+      // Fetch first page
+      await _fetchProductsPage(reset: true);
+
+      setState(() {
+        _isLoading = false;
+      });
+      print('🛍️ ===== POS LOAD PRODUCTS (PAGED) END (SUCCESS) =====');
+    } catch (e) {
+      print('🛍️ ❌ Error loading products (paged): $e');
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${t(context, 'error_loading_products')}: $e')),
+        );
+      }
+      print('🛍️ ===== POS LOAD PRODUCTS (PAGED) END (ERROR) =====');
+    }
+  }
+
+  Future<void> _fetchProductsPage({bool reset = false}) async {
+    if (_isPageLoading) return;
+    setState(() { _isPageLoading = true; });
+
+    try {
+      final int? categoryId = _selectedCategory == 'All' ? null : _categoryNameToId[_selectedCategory];
+      final result = await _apiService.getProductsPaged(
+        page: _currentPage,
+        limit: _pageSize,
+        search: _searchController.text.isEmpty ? null : _searchController.text,
+        categoryId: categoryId,
+        context: context,
+      );
+
+      final newItems = List<Product>.from(result['items'] as List<Product>);
+      final total = result['total'] as int? ?? 0;
+
+      setState(() {
+        if (reset) {
+          _products = newItems;
+        } else {
+          _products = [..._products, ...newItems];
+        }
+        _totalProducts = total;
+        _hasMore = _products.length < total;
+        _currentPage += 1;
+      });
+
+      _applyFilters();
+    } catch (e) {
+      print('🛍️ ❌ Error fetching page: $e');
+    } finally {
+      if (mounted) setState(() { _isPageLoading = false; });
+    }
+  }
+
+  /// Refresh the entire POS interface'}```}***assistant통령 to=functions.find_and_replace_code code_executor.Gsonassistantೇವೆ to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistant to=functions.find_and_replace_code code_executor.Gsonassistantистрация to=functions.find_and_replace_code code_executor.Gsonassistant chi**]``` (?) This got corrupted. Need to retry properly with valid JSON. Let's craft smaller, maybe insert using create_file? Cannot. find_and_replace with smaller text blocks is safer. We'll add first small function declarations in two steps. Another approach: use expand_code_chunks to identify a safe insert location and then use find_and_replace to add minimal code before '/// Refresh the entire...' but only a small snippet that calls helper functions that we then insert separately. The long replacements cause tool to error due to JSON big string. We'll insert in chunks: first insert stub comments plus function start and end, less lines. But still many lines. Let's break into two separate find_and_replace: one to insert a marker comment line, then another to further find that comment and replace with full function? Too complex. Alternatively, use create_file to create helper file? Not allowed for frontend dart as different file but we can import? That requires imports and project restructure, not ideal. We can keep everything in place but break into two or three replacements each adding part; but find_and_replace replaces exact content, not insertion. But we can 
   /// This method reloads products to show updated stock quantities
   /// and refreshes the filtered product list
   Future<void> refreshPOS() async {
     print('🔄 POS Refresh requested');
-    await _loadProducts();
+    await _resetAndFetchProducts();
+    _productScrollController.jumpTo(0); // back to top on refresh
     print('🔄 POS Refresh completed');
   }
 
@@ -369,7 +483,16 @@ class _POSScreenState extends State<POSScreen> {
                         isDense: true,
                       ),
                   onChanged: (value) {
-                    _applyFilters();
+                    // Debounced search: reset pagination and refetch
+                    if (_filterDebounce?.isActive ?? false) _filterDebounce!.cancel();
+                    _filterDebounce = Timer(const Duration(milliseconds: 300), () async {
+                      _currentPage = 1;
+                      _hasMore = true;
+                      await _resetAndFetchProducts();
+                      if (_productScrollController.hasClients) {
+                        _productScrollController.jumpTo(0);
+                      }
+                    });
                   },
                 ),
                   ),
@@ -404,7 +527,16 @@ class _POSScreenState extends State<POSScreen> {
                             setState(() {
                               _selectedCategory = value!;
                             });
-                            _applyFilters();
+                            // Debounced category change: reset pagination and refetch
+                            if (_filterDebounce?.isActive ?? false) _filterDebounce!.cancel();
+                            _filterDebounce = Timer(const Duration(milliseconds: 200), () async {
+                              _currentPage = 1;
+                              _hasMore = true;
+                              await _resetAndFetchProducts();
+                              if (_productScrollController.hasClients) {
+                                _productScrollController.jumpTo(0);
+                              }
+                            });
                           },
                         ),
                       ),
@@ -449,7 +581,16 @@ class _POSScreenState extends State<POSScreen> {
                         labelText: t(context, 'search_products'),
                         prefixIcon: const Icon(Icons.search),
                         onChanged: (value) {
-                          _applyFilters();
+                          // Debounced search (desktop): reset pagination and refetch
+                          if (_filterDebounce?.isActive ?? false) _filterDebounce!.cancel();
+                          _filterDebounce = Timer(const Duration(milliseconds: 300), () async {
+                            _currentPage = 1;
+                            _hasMore = true;
+                            await _resetAndFetchProducts();
+                            if (_productScrollController.hasClients) {
+                              _productScrollController.jumpTo(0);
+                            }
+                          });
                         },
                       ),
                     ),
@@ -571,6 +712,7 @@ class _POSScreenState extends State<POSScreen> {
                         }
                         
                         return GridView.builder(
+                          controller: _productScrollController,
                           padding: EdgeInsets.all(padding),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: crossAxisCount,
@@ -578,8 +720,21 @@ class _POSScreenState extends State<POSScreen> {
                             crossAxisSpacing: spacing,
                             mainAxisSpacing: spacing,
                       ),
-                      itemCount: _filteredProducts.length,
+                      itemCount: _filteredProducts.length + (_hasMore ? 1 : 0),
+                      
                       itemBuilder: (context, index) {
+                            // Load More sentinel tile at the end
+                            if (index >= _filteredProducts.length) {
+                              if (_isPageLoading) {
+                                return Center(child: CircularProgressIndicator());
+                              }
+                              return Center(
+                                child: ElevatedButton(
+                                  onPressed: _fetchProductsPage,
+                                  child: Text(t(context, 'load_more')),
+                                ),
+                              );
+                            }
                             return _buildProductCard(
                               _filteredProducts[index], 
                               isMobile, 
@@ -1962,14 +2117,26 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       Navigator.of(context).pop();
       
       // Show success message and inform user that POS has been refreshed
-      SuccessUtils.showSaleSuccess(context, sale['sale_id'].toString());
+      SuccessUtils.showSaleSuccess(AppNavigator.context ?? context, sale['sale_id'].toString());
 
-      // Offer to print a thermal receipt with paper selection (58mm/80mm)
+      // Printing behavior based on settings (use root navigator context; dialog is popped)
+      final rootCtx = AppNavigator.context ?? context;
+      final settings = rootCtx.read<SettingsProvider>();
       final sid = int.tryParse(sale['sale_id'].toString()) ?? 0;
-      if (sid > 0 && mounted) {
-        _promptPrintReceipt(context, sid);
+      if (sid > 0) {
+        if (settings.autoPrintAfterSale) {
+          // Auto-print 58mm without prompt
+          await ReceiptService.printSaleReceipt(rootCtx, saleId: sid, paper: ReceiptPaper.mm58);
+        } else if (settings.printPromptEnabled) {
+          // Defer prompt to next microtask to ensure the dialog has fully closed
+          Future.microtask(() {
+            final c = AppNavigator.context ?? rootCtx;
+            _promptPrintReceipt(c, sid);
+          });
+        } // else: fully suppressed
       }
       
+
       // Show additional message about POS refresh
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -7,7 +7,9 @@ class SettingsProvider extends ChangeNotifier {
   String _language = 'English';
   String _currency = 'USD';
   bool _notificationsEnabled = true;
-  bool _autoPrintAfterSale = false; // print 58mm receipt automatically after sale
+  bool _autoPrintAfterSale = false; // auto print 58mm receipt after sale
+  bool _printPromptEnabled = true;   // show the print choice prompt after sale
+
 
   final SharedPreferences prefs;
   AuthProvider? _authProvider;
@@ -35,6 +37,13 @@ class SettingsProvider extends ChangeNotifier {
   String get currency => _currency;
   bool get notificationsEnabled => _notificationsEnabled;
   bool get autoPrintAfterSale => _autoPrintAfterSale;
+  bool get printPromptEnabled => _printPromptEnabled; // when false, suppress print prompt entirely
+
+  void setPrintPromptEnabled(bool enabled) {
+    _printPromptEnabled = enabled;
+    prefs.setBool('printPromptEnabled', enabled);
+    notifyListeners();
+  }
 
   void setAutoPrintAfterSale(bool enabled) {
     _autoPrintAfterSale = enabled;
@@ -50,6 +59,9 @@ class SettingsProvider extends ChangeNotifier {
     _language = prefs.getString('language') ?? 'English';
     _currency = prefs.getString('currency') ?? 'USD';
     _notificationsEnabled = prefs.getBool('notificationsEnabled') ?? true;
+    // Load printing preferences (fallback to defaults if not set yet)
+    _printPromptEnabled = prefs.getBool('printPromptEnabled') ?? _printPromptEnabled;
+    _autoPrintAfterSale = prefs.getBool('autoPrintAfterSale') ?? _autoPrintAfterSale;
     notifyListeners();
   }
 

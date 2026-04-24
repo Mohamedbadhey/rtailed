@@ -20,6 +20,7 @@ import 'package:retail_management/providers/branding_provider.dart';
 import 'package:retail_management/services/notification_service.dart';
 
 import 'package:retail_management/widgets/branding_initializer.dart';
+import 'package:retail_management/utils/navigation_service.dart'; // global navigator key
 
 void main() async {
   // Ensure Flutter bindings are initialized in the main zone
@@ -85,6 +86,7 @@ class MyApp extends StatelessWidget {
           return BrandingInitializer(
             child: BrandingListener(
               child: MaterialApp(
+                navigatorKey: AppNavigator.navigatorKey,
                 title: 'Kobciye',
                 theme: appTheme,
                 darkTheme: darkTheme,

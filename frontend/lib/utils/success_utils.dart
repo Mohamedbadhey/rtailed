@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:quickalert/quickalert.dart';
+import 'navigation_service.dart'; // for global navigator context
+
 
 class SuccessUtils {
+  static BuildContext _safe(BuildContext context) => AppNavigator.context ?? context;
   /// Show a success message with QuickAlert
   static void showSuccessTick(
     BuildContext context,
     String message, {
+    bool useGlobalIfNull = true,
     Duration duration = const Duration(seconds: 3),
     String? title,
   }) {

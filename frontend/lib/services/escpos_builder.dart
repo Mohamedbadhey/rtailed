@@ -57,6 +57,13 @@ class EscPosBuilder {
       return out;
     }
 
+    // Horizontal rule helper must be declared before use (Dart local scope rules)
+    void _hr({bool thin = false}) {
+      final ch = thin ? '-' : '=';
+      textRaw(List.filled(paperWidthChars, ch).join());
+      ln();
+    }
+
     void header() {
       final name = _safeStr(business['name'] ?? business['business_name'] ?? 'Business');
       final addr = _safeStr(business['address']);
@@ -139,11 +146,6 @@ class EscPosBuilder {
       ln(3);
       cut();
       // pulse(); // enable if you have a cash drawer connected
-    }
-
-    void _hr({bool thin = false}) {
-      final ch = thin ? '-' : '=';
-      textRaw(List.filled(paperWidthChars, ch).join()); ln();
     }
 
     header();

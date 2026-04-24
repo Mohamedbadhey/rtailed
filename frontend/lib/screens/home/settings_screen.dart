@@ -207,6 +207,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 vertical: isSmallMobile ? 4 : 8,
               ),
             ),
+            SwitchListTile(
+              title: Text(
+                t(context, 'Print prompt after sale'),
+                style: TextStyle(fontSize: isSmallMobile ? 14 : 16),
+              ),
+              subtitle: Text(
+                t(context, 'Show print dialog after completing a sale'),
+                style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
+              ),
+              value: settings.printPromptEnabled,
+              onChanged: (value) {
+                settings.setPrintPromptEnabled(value);
+              },
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: isSmallMobile ? 8 : 16,
+                vertical: isSmallMobile ? 4 : 8,
+              ),
+            ),
+            SwitchListTile(
+              title: Text(
+                t(context, 'Auto print after sale (58mm)'),
+                style: TextStyle(fontSize: isSmallMobile ? 14 : 16),
+              ),
+              subtitle: Text(
+                t(context, 'Automatically print a 58mm receipt after sale'),
+                style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
+              ),
+              value: settings.autoPrintAfterSale,
+              onChanged: (value) {
+                settings.setAutoPrintAfterSale(value);
+              },
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: isSmallMobile ? 8 : 16,
+                vertical: isSmallMobile ? 4 : 8,
+              ),
+            ),
+            
             ListTile(
               title: Text(
                 t(context, 'Language'),

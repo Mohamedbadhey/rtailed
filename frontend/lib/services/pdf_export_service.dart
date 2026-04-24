@@ -2381,10 +2381,11 @@ class PdfExportService {
   
   // Get cost price from transaction data
   static double _getCostPrice(Map<String, dynamic> transaction) {
-    // Try to get cost price from various possible fields
-    final costPrice = transaction['product_cost_price'] ?? 
-                     transaction['cost_price'] ?? 
-                     transaction['unit_cost'] ?? 0.0;
+    // Try to get cost price from various possible fields (prefer transaction-level cost)
+    final costPrice = transaction['sale_cost_price'] ??
+                      transaction['product_cost_price'] ?? 
+                      transaction['cost_price'] ?? 
+                      transaction['unit_cost'] ?? 0.0;
     return _safeToDouble(costPrice);
   }
   

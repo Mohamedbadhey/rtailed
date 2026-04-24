@@ -30,6 +30,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
   String? _selectedCategoryId; // 'all' or category id
   String? _selectedPaymentMethod; // 'all' or value like 'cash'
   List<String> _paymentMethods = ['all'];
+  // PDF-only product filter state
+  String? _selectedProductIdForPdf; // 'all' or product id string
+  
+  // Helper: filtered products for current category (for PDF filter)
+  List<Product> get _filteredProductsForPdf {
+    if (_selectedCategoryId == null || _selectedCategoryId == 'all') return [];
+    return _products.where((p) => (p.categoryId ?? 0).toString() == _selectedCategoryId).toList();
+  }
 
   Future<void> _loadCategories() async {
     try {
@@ -74,12 +82,31 @@ class _ReportsScreenState extends State<ReportsScreen> {
         params['payment_method'] = _selectedPaymentMethod;
       }
 
+      if (_selectedProductIdForPdf != null && _selectedProductIdForPdf != 'all' && (_selectedProductIdForPdf?.isNotEmpty ?? false)) {
+        params['product_id'] = _selectedProductIdForPdf;
+      }
+
       final data = await _apiService.getInventoryTransactionsForPdf(params);
 
-      final title = 'Product Transactions';
-      final fileName = _generatePdfFileName('Product_Transactions');
       // Build filters text for PDF header
-      final List<String> parts = [];
+      final List<String> parts = [];  // moved earlier so it's available below
+      
+
+      // Also enrich filters text with Product name (if selected)
+      if (_selectedProductIdForPdf != null && _selectedProductIdForPdf != 'all') {
+        try {
+          final p = _products.firstWhere((p) => p.id?.toString() == _selectedProductIdForPdf);
+          if (p.name.isNotEmpty) {
+            parts.add('Product: ' + p.name);
+          }
+        } catch (_) {}
+      }
+
+      final baseTitle = 'Product Transactions';
+      final fileName = _generatePdfFileName('Product_Transactions');
+      // parts already declared above; we just keep appending to it here
+      // final List<String> parts = []; // removed duplicate declaration
+      
       if (_selectedCategoryId != null && _selectedCategoryId != 'all') {
         final cat = _categories.firstWhere((c) => c['id'].toString() == _selectedCategoryId, orElse: () => {});
         final catName = (cat['name'] ?? '').toString();
@@ -97,7 +124,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
       await PdfExportService.exportTransactionsToPdf(
         transactions: data,
-        reportTitle: title,
+        reportTitle: baseTitle,
         fileName: fileName,
         businessInfo: null,
         filtersText: filtersText,
@@ -1455,6 +1482,33 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           ),
                         ),
                       ),
+                      // PDF Product Filter (visible only when a category is selected)
+                      if (_selectedCategoryId != null && _selectedCategoryId != 'all')
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 8 : 10),
+                          decoration: BoxDecoration(
+                            color: Colors.purple[50],
+                            border: Border.all(color: Colors.purple[200]!),
+                            borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedProductIdForPdf ?? 'all',
+                              isExpanded: false,
+                              items: [
+                                const DropdownMenuItem(value: 'all', child: Text('All Products')),
+                                ..._filteredProductsForPdf.map((p) => DropdownMenuItem(
+                                      value: p.id?.toString() ?? '',
+                                      child: Text(p.name),
+                                    )),
+                              ],
+                              onChanged: (val) {
+                                setState(() { _selectedProductIdForPdf = val; });
+                              },
+                            ),
+                          ),
+                        ),
+
                       // Export PDF button
                       ElevatedButton.icon(
                         onPressed: _exportProductTransactionsToPdf,

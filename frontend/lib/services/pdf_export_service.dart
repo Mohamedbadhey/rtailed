@@ -15,6 +15,7 @@ class PdfExportService {
     required String reportTitle,
     required String fileName,
     Map<String, dynamic>? businessInfo,
+    String? filtersText,
   }) async {
     // Use provided business info or fallback for consistency
     Map<String, dynamic> businessData = businessInfo ?? {
@@ -46,6 +47,7 @@ class PdfExportService {
     const int pageHeight = 800; // Approximate available height per page
     
     if (transactions.isEmpty) {
+      final hasFilters = filtersText != null && filtersText.isNotEmpty;
       // Single page for empty state
       pdf.addPage(
         pw.Page(
@@ -877,7 +879,8 @@ class PdfExportService {
           2: pw.FlexColumnWidth(0.6), // Qty
           3: pw.FlexColumnWidth(1), // Cost Price
           4: pw.FlexColumnWidth(1), // Sale Price
-          5: pw.FlexColumnWidth(1.2), // Total
+          5: pw.FlexColumnWidth(1.0), // Total
+          6: pw.FlexColumnWidth(1.0), // Payment Method (new)
         },
         children: [
           // Table Header

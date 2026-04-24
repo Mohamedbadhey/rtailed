@@ -119,7 +119,7 @@ router.put('/:id/stock', [auth, checkRole(['admin', 'manager'])], async (req, re
 
 router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
-    const { start_date, end_date, user_id, category_id, product_id, transaction_type } = req.query;
+    const { start_date, end_date, user_id, category_id, product_id, transaction_type, payment_method } = req.query;
 
 
     try {
@@ -280,6 +280,12 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
       params.push(transaction_type);
     }
 
+    // Add payment method filter if provided
+    if (payment_method) {
+      query += ' AND s.payment_method = ?';
+      params.push(payment_method);
+    }
+
     query += ' ORDER BY it.created_at DESC';
 
     if (req.user.role === 'superadmin') {
@@ -380,7 +386,7 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
 
 router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
-    const { start_date, end_date, user_id, category_id, product_id, transaction_type, limit } = req.query;
+    const { start_date, end_date, user_id, category_id, product_id, transaction_type, payment_method, limit } = req.query;
 
     console.log('ðŸ“„ PDF TRANSACTIONS: Request params:', { start_date, end_date, user_id, limit });
     console.log('ðŸ“„ PDF TRANSACTIONS: User:', req.user.id, req.user.role, req.user.business_id);
@@ -478,6 +484,13 @@ router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier']
       query += ' AND it.transaction_type = ?';
       params.push(transaction_type);
       console.log('ðŸ“„ PDF TRANSACTIONS: Added transaction_type filter:', transaction_type);
+    }
+
+    // Add payment method filter if provided
+    if (payment_method) {
+      query += ' AND s.payment_method = ?';
+      params.push(payment_method);
+      console.log('ðŸ“„ PDF TRANSACTIONS: Added payment_method filter:', payment_method);
     }
 
     query += ' ORDER BY it.created_at DESC';

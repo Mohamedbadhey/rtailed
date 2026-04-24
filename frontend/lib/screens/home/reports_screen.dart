@@ -11,6 +11,7 @@ import 'package:retail_management/widgets/branded_header.dart';
 import 'package:retail_management/widgets/branded_app_bar.dart';
 import 'dart:ui';
 import 'package:retail_management/utils/translate.dart';
+import 'package:retail_management/services/pdf_export_service.dart';
 import 'package:retail_management/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:retail_management/utils/theme.dart';
@@ -24,6 +25,106 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen> {
   final ApiService _apiService = ApiService();
+  // Filters state
+  List<Map<String, dynamic>> _categories = [];
+  String? _selectedCategoryId; // 'all' or category id
+  String? _selectedPaymentMethod; // 'all' or value like 'cash'
+  List<String> _paymentMethods = ['all'];
+
+  Future<void> _loadCategories() async {
+    try {
+      final cats = await _apiService.getCategories();
+      setState(() {
+        _categories = cats;
+      });
+    } catch (e) {
+      // ignore for now
+    }
+  }
+
+  Future<void> _exportProductTransactionsToPdf() async {
+    try {
+      final params = <String, dynamic>{};
+      // date filters
+      if (_filterStartDate != null && _filterEndDate != null &&
+          DateFormat('yyyy-MM-dd').format(_filterStartDate!) == DateFormat('yyyy-MM-dd').format(_filterEndDate!)) {
+        final day = DateFormat('yyyy-MM-dd').format(_filterStartDate!);
+        params['start_date'] = '$day 00:00:00';
+        params['end_date'] = '$day 23:59:59';
+      } else {
+        if (_filterStartDate != null) {
+          final startDay = DateFormat('yyyy-MM-dd').format(_filterStartDate!);
+          params['start_date'] = '$startDay 00:00:00';
+        }
+        if (_filterEndDate != null) {
+          final endDay = DateFormat('yyyy-MM-dd').format(_filterEndDate!);
+          params['end_date'] = '$endDay 23:59:59';
+        }
+      }
+      // cashier filter
+      final user = context.read<AuthProvider>().user;
+      if (user != null && user.role == 'admin' && _selectedCashierId != null && _selectedCashierId != 'all') {
+        params['user_id'] = _selectedCashierId;
+      }
+      // new filters
+      if (_selectedCategoryId != null && _selectedCategoryId != 'all') {
+        params['category_id'] = _selectedCategoryId;
+      }
+      if (_selectedPaymentMethod != null && _selectedPaymentMethod != 'all') {
+        params['payment_method'] = _selectedPaymentMethod;
+      }
+
+      final data = await _apiService.getInventoryTransactionsForPdf(params);
+
+      final title = 'Product Transactions';
+      final fileName = _generatePdfFileName('Product_Transactions');
+      // Build filters text for PDF header
+      final List<String> parts = [];
+      if (_selectedCategoryId != null && _selectedCategoryId != 'all') {
+        final cat = _categories.firstWhere((c) => c['id'].toString() == _selectedCategoryId, orElse: () => {});
+        final catName = (cat['name'] ?? '').toString();
+        if (catName.isNotEmpty) parts.add('Category: ' + catName);
+      }
+      if (_selectedPaymentMethod != null && _selectedPaymentMethod != 'all') {
+        parts.add('Payment Method: ' + _selectedPaymentMethod!.toUpperCase());
+      }
+      if (_selectedCashierId != null && _selectedCashierId != 'all') {
+        final cashier = _cashiers.firstWhere((c) => c['id'].toString() == _selectedCashierId, orElse: () => {});
+        final cashierName = (cashier['username'] ?? '').toString();
+        if (cashierName.isNotEmpty) parts.add('Cashier: ' + cashierName);
+      }
+      String? filtersText = parts.isEmpty ? null : parts.join(' | ');
+
+      await PdfExportService.exportTransactionsToPdf(
+        transactions: data,
+        reportTitle: title,
+        fileName: fileName,
+        businessInfo: null,
+        filtersText: filtersText,
+      );
+    } catch (e) {
+      // handle later
+      print('Export PDF error: $e');
+    }
+  }
+
+  String _generatePdfFileName(String baseName) {
+    final now = DateTime.now();
+    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final parts = <String>[baseName, dateStr];
+    if (_selectedCategoryId != null && _selectedCategoryId != 'all') {
+      final cat = _categories.firstWhere(
+        (c) => c['id'].toString() == _selectedCategoryId,
+        orElse: () => {},
+      );
+      final catName = (cat['name'] ?? '').toString().replaceAll(' ', '-');
+      if (catName.isNotEmpty) parts.add('cat_' + catName);
+    }
+    if (_selectedPaymentMethod != null && _selectedPaymentMethod != 'all') {
+      parts.add('pm_' + _selectedPaymentMethod!.replaceAll(' ', '-'));
+    }
+    return parts.join('_');
+  }
   List<Product> _products = [];
   List<Map<String, dynamic>> _productTransactions = [];
   bool _isProductTxLoading = false;
@@ -39,6 +140,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
   String? _quickRangeLabel;
   List<Map<String, dynamic>> _cashiers = [];
   String? _selectedCashierId;
+  // New filter state (moved to top of class; removing duplicate)
+  // [removed duplicate] 
+  
+  // Existing state continues below
+  
 
   @override
   void initState() {
@@ -46,6 +152,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     _setQuickRange('Today');
     _loadProducts();
     _loadCashiers();
+    _loadCategories();
     _loadAllReports();
   }
 
@@ -277,6 +384,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
         );
       }
       setState(() => _reportData = salesReport);
+      // Update payment methods list from report breakdown if available
+      final pmList = (salesReport['paymentMethodBreakdown'] as List? ?? [])
+          .map((item) => TypeConverter.safeToMap(item))
+          .map((m) => (m['payment_method'] ?? '').toString())
+          .where((s) => s.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort();
+      setState(() {
+        _paymentMethods = ['all', ...pmList];
+      });
     } catch (e) {
       setState(() => _reportData = {});
     } finally {
@@ -321,6 +439,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
         }
       }
       
+      // Add new filters
+      if (_selectedCategoryId != null && _selectedCategoryId != 'all') {
+        params['category_id'] = _selectedCategoryId;
+      }
+      if (_selectedPaymentMethod != null && _selectedPaymentMethod != 'all') {
+        params['payment_method'] = _selectedPaymentMethod;
+      }
+
       print('🔍 REPORTS: Product Transactions Date Filters:');
       print('  - Filter Start Date: $_filterStartDate');
       print('  - Filter End Date: $_filterEndDate');
@@ -1270,6 +1396,74 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       ),
                     ],
                   ),
+                  SizedBox(height: isSmallMobile ? 8 : 16),
+                  // Additional Filters: Category & Payment Method
+                  Wrap(
+                    spacing: isSmallMobile ? 8 : 12,
+                    runSpacing: isSmallMobile ? 8 : 12,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      // Category Filter
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 8 : 10),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          border: Border.all(color: Colors.blue[200]!),
+                          borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedCategoryId ?? 'all',
+                            items: [
+                              const DropdownMenuItem(value: 'all', child: Text('All Categories')),
+                              ..._categories.map((c) => DropdownMenuItem(
+                                value: c['id'].toString(),
+                                child: Text(c['name'] ?? ''),
+                              )),
+                            ],
+                            onChanged: (val) {
+                              setState(() { _selectedCategoryId = val; });
+                              _loadProductTransactions();
+                            },
+                          ),
+                        ),
+                      ),
+                      // Payment Method Filter
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 8 : 10),
+                        decoration: BoxDecoration(
+                          color: Colors.green[50],
+                          border: Border.all(color: Colors.green[200]!),
+                          borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedPaymentMethod ?? 'all',
+                            items: [
+                              const DropdownMenuItem(value: 'all', child: Text('All Payments')),
+                              ..._paymentMethods
+                                  .where((pm) => pm != 'all')
+                                  .map((pm) => DropdownMenuItem(
+                                        value: pm,
+                                        child: Text(pm.toString().toUpperCase()),
+                                      )),
+                            ],
+                            onChanged: (val) {
+                              setState(() { _selectedPaymentMethod = val; });
+                              _loadProductTransactions();
+                            },
+                          ),
+                        ),
+                      ),
+                      // Export PDF button
+                      ElevatedButton.icon(
+                        onPressed: _exportProductTransactionsToPdf,
+                        icon: const Icon(Icons.picture_as_pdf),
+                        label: const Text('Export PDF'),
+                      ),
+                    ],
+                  ),
+
                   SizedBox(height: isSmallMobile ? 8 : 16),
                   // Summary Metrics
                   GridView.count(

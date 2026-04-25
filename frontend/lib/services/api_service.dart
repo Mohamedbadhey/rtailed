@@ -771,7 +771,7 @@ class ApiService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getInventoryTransactions([Map<String, dynamic>? filters]) async {
+  Future<Map<String, dynamic>> getInventoryTransactions([Map<String, dynamic>? filters]) async {
     try {
       final queryParams = <String, String>{};
       if (filters != null) {
@@ -785,8 +785,8 @@ class ApiService {
       final uri = Uri.parse('$baseUrl/api/inventory/transactions').replace(queryParameters: queryParams);
       final response = await http.get(uri, headers: _headers);
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return TypeConverter.safeToList(data);
+        final Map<String, dynamic> data = json.decode(response.body);
+        return data;
       } else {
         throw Exception('Failed to get inventory transactions: ${response.body}');
       }

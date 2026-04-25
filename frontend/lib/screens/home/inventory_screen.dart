@@ -352,8 +352,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
       if (_reportSku != null && _reportSku!.isNotEmpty) params['sku'] = _reportSku;
       if (_reportStartDate != null) params['start_date'] = _reportStartDate!.toIso8601String();
       if (_reportEndDate != null) params['end_date'] = _reportEndDate!.toIso8601String();
+      params['limit'] = 100000;
       final data = await _apiService.getInventoryTransactions(params);
-      setState(() { _reportTransactions = List<Map<String, dynamic>>.from(data); });
+      setState(() { _reportTransactions = List<Map<String, dynamic>>.from(data['items'] ?? []); });
     } catch (e) {
       if (mounted) {
         SuccessUtils.showOperationError(context, 'load inventory report', e.toString());
@@ -463,9 +464,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
       _drilldownProductName = productName;
     });
     try {
-      final txs = await _apiService.getInventoryTransactions({'product_id': productId});
+      final txs = await _apiService.getInventoryTransactions({'product_id': productId, 'limit': 100000});
       setState(() {
-        _drilldownTransactions = List<Map<String, dynamic>>.from(txs);
+        _drilldownTransactions = List<Map<String, dynamic>>.from(txs['items'] ?? []);
       });
     } catch (e) {
       setState(() {
@@ -3068,10 +3069,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
       }
       
       print('🔍 PDF Export: Fetching filtered transactions with params: $params');
+      params['limit'] = 100000;
       final data = await _apiService.getInventoryTransactions(params);
-      print('🔍 PDF Export: Received ${data.length} filtered transactions');
+      final items = List<Map<String, dynamic>>.from(data['items'] ?? []);
+      print('🔍 PDF Export: Received ${items.length} filtered transactions');
       
-      return List<Map<String, dynamic>>.from(data);
+      return items;
     } catch (e) {
       print('🔍 PDF Export: Error fetching filtered transactions: $e');
       // Fallback to empty list if backend fetch fails
@@ -3332,8 +3335,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
       }
       
       print('🔍 INVENTORY: Sending params to API: $params');
+      params['limit'] = 100000;
       
-      _apiService.getInventoryTransactions(params).then((transactions) {
+      _apiService.getInventoryTransactions(params).then((data) {
+        final transactions = List<Map<String, dynamic>>.from(data['items'] ?? []);
         print('🔍 INVENTORY: Received ${transactions.length} transactions');
         setState(() {
           _filteredTransactions = transactions;

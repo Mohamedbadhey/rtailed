@@ -58,7 +58,7 @@ class PdfExportService {
               children: [
                 _buildCompactHeader(businessData, reportTitle),
                 pw.SizedBox(height: 15),
-                _buildCompactInvoiceDetails(businessData, reportTitle: reportTitle),
+                _buildCompactInvoiceDetails(businessData, reportTitle: reportTitle, filtersText: filtersText),
                 pw.SizedBox(height: 15),
                 _buildEmptyState(),
                 
@@ -124,7 +124,7 @@ class PdfExportService {
                   if (pageIndex == 0) ...[
                     _buildCompactHeader(businessData, reportTitle),
                     pw.SizedBox(height: 8), // Reduced spacing
-                    _buildCompactInvoiceDetails(businessData, reportTitle: reportTitle),
+                    _buildCompactInvoiceDetails(businessData, reportTitle: reportTitle, filtersText: filtersText),
                     pw.SizedBox(height: 8), // Reduced spacing
                   ],
                   
@@ -476,14 +476,16 @@ class PdfExportService {
   }
   
   // Build compact invoice details
-  static pw.Widget _buildCompactInvoiceDetails(Map<String, dynamic> businessInfo, {String? reportTitle}) {
+  static pw.Widget _buildCompactInvoiceDetails(Map<String, dynamic> businessInfo, {String? reportTitle, String? filtersText}) {
     final contactEmail = businessInfo['contact_email'] ?? 'XXX';
     final contactPhone = businessInfo['contact_phone'] ?? 'XXX';
     final address = businessInfo['address'] ?? 'XXX';
     
-    // Extract filter information from report title
-    String filterInfo = 'No filters applied';
-    if (reportTitle != null) {
+    // Extract filter information
+    String filterInfo = filtersText ?? 'No filters applied';
+    
+    // If filtersText is not provided, try to extract from reportTitle for backwards compatibility
+    if (filtersText == null && reportTitle != null) {
       if (reportTitle.contains('(') && reportTitle.contains(')')) {
         // Extract filter info from parentheses
         final startIndex = reportTitle.indexOf('(');
@@ -875,12 +877,13 @@ class PdfExportService {
         border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.3),
         columnWidths: const {
           0: pw.FlexColumnWidth(1), // Date
-          1: pw.FlexColumnWidth(2.5), // Product
-          2: pw.FlexColumnWidth(0.6), // Qty
-          3: pw.FlexColumnWidth(1), // Cost Price
-          4: pw.FlexColumnWidth(1), // Sale Price
-          5: pw.FlexColumnWidth(1.0), // Total
-          6: pw.FlexColumnWidth(1.0), // Payment Method (new)
+          1: pw.FlexColumnWidth(2.0), // Product
+          2: pw.FlexColumnWidth(0.5), // Qty
+          3: pw.FlexColumnWidth(0.9), // Cost Price
+          4: pw.FlexColumnWidth(0.9), // Sale Price
+          5: pw.FlexColumnWidth(0.9), // Total
+          6: pw.FlexColumnWidth(0.9), // Payment Method
+          7: pw.FlexColumnWidth(1.2), // Cashier (new)
         },
         children: [
           // Table Header
@@ -952,6 +955,28 @@ class PdfExportService {
                   textAlign: pw.TextAlign.center,
                 ),
               ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(3), // Reduced padding
+                child: pw.Text(
+                  'Payment',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 8, // Reduced font size
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(3), // Reduced padding
+                child: pw.Text(
+                  'Cashier',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 8, // Reduced font size
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
             ],
           ),
           
@@ -1006,6 +1031,22 @@ class PdfExportService {
                     fontSize: 7, // Smaller font
                     fontWeight: pw.FontWeight.bold,
                   ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(2), // Reduced padding
+                child: pw.Text(
+                  (tx['payment_method'] ?? '-').toString().toUpperCase(),
+                  style: const pw.TextStyle(fontSize: 7), // Smaller font
+                  textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(2), // Reduced padding
+                child: pw.Text(
+                  tx['cashier_name'] ?? '-',
+                  style: const pw.TextStyle(fontSize: 7), // Smaller font
                   textAlign: pw.TextAlign.center,
                 ),
               ),
@@ -1076,6 +1117,20 @@ class PdfExportService {
                     color: PdfColors.grey900,
                   ),
                   textAlign: pw.TextAlign.center,
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  '', // Empty for Payment column
+                  style: const pw.TextStyle(fontSize: 7),
+                ),
+              ),
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  '', // Empty for Cashier column
+                  style: const pw.TextStyle(fontSize: 7),
                 ),
               ),
             ],

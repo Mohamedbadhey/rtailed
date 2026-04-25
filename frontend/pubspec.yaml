@@ -1,7 +1,7 @@
 name: retail_management
 description: SmartLedger - Retail Management System
 publish_to: 'none'
-version: 1.0.0+6
+version: 1.0.0+9
 
 environment:
   sdk: ^3.0.0

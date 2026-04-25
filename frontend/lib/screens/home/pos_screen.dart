@@ -29,6 +29,7 @@ class POSScreen extends StatefulWidget {
 
 class _POSScreenState extends State<POSScreen> {
   final _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   final ApiService _apiService = ApiService();
   String _selectedCategory = 'All';
   List<String> _categories = ['All'];
@@ -83,7 +84,6 @@ class _POSScreenState extends State<POSScreen> {
 
   // Method to force cart refresh
   void _forceCartRefresh() {
-    print('🛒 POS: Force cart refresh called');
     if (mounted) {
       setState(() {});
     }
@@ -92,6 +92,7 @@ class _POSScreenState extends State<POSScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     
     // Remove cart listener
     try {
@@ -99,90 +100,59 @@ class _POSScreenState extends State<POSScreen> {
       cartProvider.removeListener(_forceCartRefresh);
     } catch (e) {
       // Context might not be available during dispose
-      print('🛒 POS: Could not remove cart listener during dispose: $e');
     }
     
     super.dispose();
   }
 
   Future<void> _loadProducts() async {
-    print('🛍️ ===== POS LOAD PRODUCTS AND CATEGORIES START =====');
-    setState(() {
-      _isLoading = true;
-    });
+    await refreshPOS();
+  }
 
-    try {
-      print('🛍️ Calling API service to get products...');
-      final products = await _apiService.getProducts();
-      print('🛍️ ✅ API call successful, loaded ${products.length} products');
+  Future<void> _handleBarcodeScan(String barcode) async {
+    if (barcode.trim().isEmpty) return;
+    
+    // Cancel any pending debounced search
+    if (_filterDebounce?.isActive ?? false) _filterDebounce!.cancel();
+    
+    // We want to force a search for this exact barcode right away
+    if (_searchController.text != barcode) {
+      _searchController.text = barcode;
+    }
+    await _resetAndFetchProducts();
+    
+    // If exactly one product is found, auto-add it to the cart
+    if (_filteredProducts.length == 1) {
+      final product = _filteredProducts.first;
+      final cart = context.read<CartProvider>();
       
-      // Debug: Print image URLs for products with images
-      print('🛍️ Analyzing product images...');
-      int productsWithImages = 0;
-      int productsWithoutImages = 0;
+      final result = cart.addItemWithValidation(
+        product, 
+        mode: _saleMode, 
+        quantity: 1
+      );
       
-      for (final product in products) {
-        print('🛍️ Product: ${product.name} (ID: ${product.id})');
-        print('🛍️   - Image URL from API: ${product.imageUrl ?? 'NULL'}');
-        print('🛍️   - Stock Quantity: ${product.stockQuantity}');
-        
-        if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
-          productsWithImages++;
-          final fullUrl = Api.getFullImageUrl(product.imageUrl);
-          print('🛍️   - Full image URL: $fullUrl');
-        } else {
-          productsWithoutImages++;
-          print('🛍️   - No image URL');
+      if (!result['success']) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message']),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
         }
+      } else {
+        // Success: clear search, refocus, and reset list
+        _searchController.clear();
+        await _resetAndFetchProducts();
+        _searchFocusNode.requestFocus();
       }
-      
-      print('🛍️ Summary: $productsWithImages products with images, $productsWithoutImages without images');
-      
-      // Load categories separately to show all available categories
-      List<String> allCategories = ['All'];
-      try {
-        final categoriesData = await _apiService.getCategories();
-        final categoryNames = categoriesData.map((cat) => cat['name'] as String).toList();
-        allCategories.addAll(categoryNames);
-        print('🛍️ ✅ Loaded ${categoryNames.length} categories from API');
-        
-        // Add "Uncategorized" if there are products without categories
-        if (products.any((p) => p.categoryName == null || p.categoryName!.isEmpty)) {
-          allCategories.add('Uncategorized');
-        }
-      } catch (e) {
-        print('🛍️ ⚠️ Failed to load categories, falling back to product-based categories: $e');
-        // Fallback to product-based categories if API fails
-        allCategories.addAll(products.map((p) => p.categoryName ?? 'Uncategorized').toSet().toList());
-      }
-      
-      setState(() {
-        _products = products;
-        _filteredProducts = products;
-        _categories = allCategories;
-        _isLoading = false;
-      });
-      print('🛍️ ✅ State updated, applying filters...');
-      _applyFilters();
-      print('🛍️ ===== POS LOAD PRODUCTS AND CATEGORIES END (SUCCESS) =====');
-    } catch (e) {
-      print('🛍️ ❌ Error loading products: $e');
-      print('🛍️ Error stack trace: ${StackTrace.current}');
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${t(context, 'error_loading_products')}: $e')),
-        );
-      }
-      print('🛍️ ===== POS LOAD PRODUCTS AND CATEGORIES END (ERROR) =====');
     }
   }
 
   // Paged products loader
   Future<void> _resetAndFetchProducts() async {
-    print('🛍️ ===== POS LOAD PRODUCTS (PAGED) START =====');
     setState(() {
       _isLoading = true;
       _products = [];
@@ -205,7 +175,6 @@ class _POSScreenState extends State<POSScreen> {
           if (cid != null) _categoryNameToId[name] = cid;
         }
       } catch (e) {
-        print('🛍️ ⚠️ Failed to load categories for pagination: $e');
       }
       setState(() {
         _categories = allCategories;
@@ -217,18 +186,12 @@ class _POSScreenState extends State<POSScreen> {
       setState(() {
         _isLoading = false;
       });
-      print('🛍️ ===== POS LOAD PRODUCTS (PAGED) END (SUCCESS) =====');
     } catch (e) {
-      print('🛍️ ❌ Error loading products (paged): $e');
-      setState(() {
-        _isLoading = false;
-      });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${t(context, 'error_loading_products')}: $e')),
-        );
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) _resetAndFetchProducts();
+        });
       }
-      print('🛍️ ===== POS LOAD PRODUCTS (PAGED) END (ERROR) =====');
     }
   }
 
@@ -262,7 +225,14 @@ class _POSScreenState extends State<POSScreen> {
 
       _applyFilters();
     } catch (e) {
-      print('🛍️ ❌ Error fetching page: $e');
+      if (mounted) {
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            _isPageLoading = false;
+            _fetchProductsPage(reset: reset);
+          }
+        });
+      }
     } finally {
       if (mounted) setState(() { _isPageLoading = false; });
     }
@@ -272,10 +242,8 @@ class _POSScreenState extends State<POSScreen> {
   /// This method reloads products to show updated stock quantities
   /// and refreshes the filtered product list
   Future<void> refreshPOS() async {
-    print('🔄 POS Refresh requested');
     await _resetAndFetchProducts();
     _productScrollController.jumpTo(0); // back to top on refresh
-    print('🔄 POS Refresh completed');
   }
 
   void _applyFilters() {
@@ -468,7 +436,10 @@ class _POSScreenState extends State<POSScreen> {
                   child: Container(
                     height: isSmallMobile ? 36 : 40,
                     child: TextField(
-                  controller: _searchController,
+                      controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      onSubmitted: _handleBarcodeScan,
+                      textInputAction: TextInputAction.search,
                       decoration: InputDecoration(
                         hintText: t(context, 'search_products'),
                         prefixIcon: Icon(Icons.search, size: isSmallMobile ? 16 : 18),
@@ -578,6 +549,8 @@ class _POSScreenState extends State<POSScreen> {
                     Expanded(
                       child: CustomTextField(
                         controller: _searchController,
+                        focusNode: _searchFocusNode,
+                        onSubmitted: _handleBarcodeScan,
                         labelText: t(context, 'search_products'),
                         prefixIcon: const Icon(Icons.search),
                         onChanged: (value) {
@@ -823,8 +796,6 @@ class _POSScreenState extends State<POSScreen> {
               ),
             );
             if (mode == 'retail') {
-              print('🛒 POS: Adding product as RETAIL: ${product.name}');
-              
               // Use stock validation
               final result = context.read<CartProvider>().addItemWithValidation(
                 product, 
@@ -841,18 +812,8 @@ class _POSScreenState extends State<POSScreen> {
                     duration: Duration(seconds: 3),
                   ),
                 );
-              } else {
-                // Show success message
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('${product.name} added to cart (Retail)'),
-                    backgroundColor: Colors.green,
-                    duration: Duration(seconds: 2),
-                  ),
-                );
               }
             } else if (mode == 'wholesale') {
-              print('🛒 POS: Adding product as WHOLESALE: ${product.name}');
               final qty = await showDialog<int>(
                 context: context,
                 builder: (context) {
@@ -933,7 +894,6 @@ class _POSScreenState extends State<POSScreen> {
                 },
               );
               if (qty != null && qty > 0) {
-                print('🛒 POS: Adding wholesale item: ${product.name} x $qty (mode: wholesale)');
                 
                 // Use stock validation
                 final result = context.read<CartProvider>().addItemWithValidation(
@@ -949,15 +909,6 @@ class _POSScreenState extends State<POSScreen> {
                       content: Text(result['message']),
                       backgroundColor: Colors.red,
                       duration: Duration(seconds: 3),
-                    ),
-                  );
-                } else {
-                  // Show success message
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('${product.name} x $qty added to cart (Wholesale)'),
-                      backgroundColor: Colors.green,
-                      duration: Duration(seconds: 2),
                     ),
                   );
                 }
@@ -991,13 +942,11 @@ class _POSScreenState extends State<POSScreen> {
                               fit: BoxFit.cover,
                               loadingBuilder: (context, child, loadingProgress) {
                                 if (loadingProgress == null) {
-                                  print('🖼️ ✅ POS: Image loaded successfully for product "${product.name}"');
                                   return child;
                                 }
                                 final progress = loadingProgress.expectedTotalBytes != null 
                                     ? (loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! * 100).toStringAsFixed(1)
                                     : 'Unknown';
-                                print('🖼️ 📥 POS: Loading image for product "${product.name}": $progress%');
                                 return Center(
                                   child: CircularProgressIndicator(
                                     value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null,
@@ -1005,10 +954,6 @@ class _POSScreenState extends State<POSScreen> {
                                 );
                               },
                               errorBuilder: (context, error, stackTrace) {
-                                print('🖼️ ❌ POS: Image error for product "${product.name}"');
-                                print('🖼️ ❌ Error: $error');
-                                print('🖼️ ❌ Stack trace: $stackTrace');
-                                print('🖼️ ❌ Image URL: ${Api.getFullImageUrl(product.imageUrl)}');
                                 return Center(
                                   child: Icon(
                                     Icons.image,
@@ -1141,8 +1086,6 @@ class _POSScreenState extends State<POSScreen> {
   Widget _buildCartSection(bool isMobile, bool isSmallMobile) {
     return Consumer<CartProvider>(
       builder: (context, cart, child) {
-        print('🛒 POS: Cart section rebuilding - items count: ${cart.items.length}');
-        print('🛒 POS: Cart section rebuild timestamp: ${DateTime.now().millisecondsSinceEpoch}');
         return Column(
           key: ValueKey('cart_section_${cart.items.length}'),
           children: [
@@ -1370,7 +1313,7 @@ class _POSScreenState extends State<POSScreen> {
                                             ),
                                             SizedBox(height: isSmallMobile ? 2 : 3),
                                             Text(
-                                              'Price: \$${item.product.price.toStringAsFixed(2)}',
+                                              'Price: \$${item.unitPrice.toStringAsFixed(2)}',
                                               style: TextStyle(
                                                 fontSize: isSmallMobile ? 10 : (isMobile ? 11 : 13),
                                                 color: Colors.purple[700],
@@ -1390,7 +1333,7 @@ class _POSScreenState extends State<POSScreen> {
                                       // Total
                                       Expanded(
                                         child: Text(
-                                          'Total: \$${(item.product.price * item.quantity).toStringAsFixed(2)}',
+                                          'Total: \$${item.total.toStringAsFixed(2)}',
                                           style: TextStyle(
                                             fontSize: isSmallMobile ? 12 : (isMobile ? 13 : 15),
                                             fontWeight: FontWeight.bold,
@@ -1661,8 +1604,6 @@ class _POSScreenState extends State<POSScreen> {
         cart: cart, 
         saleMode: _saleMode,
         onSaleCompleted: () async {
-          print('🛒 POS: Sale completed callback started');
-          print('🛒 POS: Cart items before refresh: ${cart.items.length}');
           
           // Force cart provider to notify listeners immediately
           cart.notifyListeners();
@@ -1676,7 +1617,6 @@ class _POSScreenState extends State<POSScreen> {
           }
           
           // Debug: Print cart state after sale completion
-          print('🛒 POS: Cart state after sale completion: ${cart.items.length} items');
           
           // Additional delay to ensure UI is fully updated
           await Future.delayed(const Duration(milliseconds: 200));
@@ -1689,7 +1629,6 @@ class _POSScreenState extends State<POSScreen> {
           // Final cart notification to ensure UI is updated
           cart.notifyListeners();
           
-          print('🛒 POS: Sale completed callback finished');
         },
       ),
     );
@@ -1796,11 +1735,19 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
     for (final item in widget.cart.items) {
       if (item.product.id != null) {
         final id = item.product.id!;
-        String initialValue = '';
+        String initialValue;
         
-        // If there's a stored custom total price, use it
+        // If there's a stored custom total price, use it;
+        // otherwise pre-fill with the item's selling price × quantity
         if (item.customTotalPrice != null) {
-          initialValue = item.customTotalPrice!.toString();
+          initialValue = item.customTotalPrice!.toStringAsFixed(2);
+        } else {
+          final sellingPrice = item.mode == 'wholesale' &&
+              item.product.wholesalePrice != null &&
+              item.product.wholesalePrice! > 0
+              ? item.product.wholesalePrice!
+              : item.product.price;
+          initialValue = (sellingPrice * item.quantity).toStringAsFixed(2);
         }
         
         _customPriceControllers[id] = TextEditingController(text: initialValue);
@@ -1819,13 +1766,20 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       _customPriceControllers.remove(id);
     }
     
-    // Add controllers for new items
+    // Add controllers for new items, pre-filled with selling price
     for (final item in widget.cart.items) {
       if (item.product.id != null && !_customPriceControllers.containsKey(item.product.id)) {
         final id = item.product.id!;
-        String initialValue = '';
+        String initialValue;
         if (item.customTotalPrice != null) {
-          initialValue = item.customTotalPrice!.toString();
+          initialValue = item.customTotalPrice!.toStringAsFixed(2);
+        } else {
+          final sellingPrice = item.mode == 'wholesale' &&
+              item.product.wholesalePrice != null &&
+              item.product.wholesalePrice! > 0
+              ? item.product.wholesalePrice!
+              : item.product.price;
+          initialValue = (sellingPrice * item.quantity).toStringAsFixed(2);
         }
         _customPriceControllers[id] = TextEditingController(text: initialValue);
       }
@@ -1849,12 +1803,19 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
         final controller = _customPriceControllers[id];
         
         if (controller != null) {
-          // If cart has a custom total price but controller is empty, update controller
           if (item.customTotalPrice != null && controller.text.isEmpty) {
-            controller.text = item.customTotalPrice!.toString();
-          }
-          // If controller has text but cart doesn't have custom total price, update cart
-          else if (controller.text.isNotEmpty && item.customTotalPrice == null) {
+            // Cart has custom price but field is empty — restore it
+            controller.text = item.customTotalPrice!.toStringAsFixed(2);
+          } else if (controller.text.isEmpty) {
+            // Field is empty and no custom price — pre-fill with selling price
+            final sellingPrice = item.mode == 'wholesale' &&
+                item.product.wholesalePrice != null &&
+                item.product.wholesalePrice! > 0
+                ? item.product.wholesalePrice!
+                : item.product.price;
+            controller.text = (sellingPrice * item.quantity).toStringAsFixed(2);
+          } else if (controller.text.isNotEmpty && item.customTotalPrice == null) {
+            // Controller has value but cart doesn't — sync to cart
             final totalPrice = double.tryParse(controller.text);
             if (totalPrice != null) {
               widget.cart.updateCustomTotalPrice(item.product, totalPrice);
@@ -2050,18 +2011,12 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       final customerId = customer?.id;
       
       // Debug logging for cart items
-      print('🛒 POS: Cart items for sale:');
-      print('  - Cart items: ${widget.cart.items.length}');
-      print('  - Item details:');
       for (final item in widget.cart.items) {
-        print('    * ${item.product.name}: mode=${item.mode}, qty=${item.quantity}');
       }
-      print('  - Note: Each item maintains its individual mode (retail/wholesale)');
       
       // Check for same product with different modes
       final productIds = widget.cart.items.map((item) => item.product.id).toSet();
       if (productIds.length < widget.cart.items.length) {
-        print('  - 🔍 Same product detected with different modes!');
         final groupedByProduct = <int, List<CartItem>>{};
         for (final item in widget.cart.items) {
           if (item.product.id != null) {
@@ -2070,9 +2025,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
         }
         for (final entry in groupedByProduct.entries) {
           if (entry.value.length > 1) {
-            print('    * Product ID ${entry.key} (${entry.value.first.product.name}):');
             for (final item in entry.value) {
-              print('      - ${item.mode} mode: qty=${item.quantity}');
             }
           }
         }
@@ -2312,10 +2265,17 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                       ? item.product.wholesalePrice!
                                       : item.product.price;
                                     if (!_customPriceControllers.containsKey(id)) {
-                                      // Initialize with stored custom total price if available
-                                      String initialValue = '';
+                                      // Pre-fill with stored custom price or selling price × qty
+                                      String initialValue;
                                       if (item.customTotalPrice != null) {
-                                        initialValue = item.customTotalPrice!.toString();
+                                        initialValue = item.customTotalPrice!.toStringAsFixed(2);
+                                      } else {
+                                        final sellingPrice = item.mode == 'wholesale' &&
+                                            item.product.wholesalePrice != null &&
+                                            item.product.wholesalePrice! > 0
+                                            ? item.product.wholesalePrice!
+                                            : item.product.price;
+                                        initialValue = (sellingPrice * item.quantity).toStringAsFixed(2);
                                       }
                                       _customPriceControllers[id] = TextEditingController(text: initialValue);
                                     }
@@ -2358,7 +2318,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                                           ),
                                                           SizedBox(width: 16),
                                                           Text(
-                                                            '${t(context, 'price')}: ${item.product.price.toStringAsFixed(2)}',
+                                                            '${t(context, 'price')}: ${item.unitPrice.toStringAsFixed(2)}',
                                                             style: TextStyle(
                                                               fontSize: isSmallMobile ? 12 : 14,
                                                               color: Colors.purple[700],
@@ -2484,7 +2444,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                                         ),
                                                       ),
                                                       Text(
-                                                        '${t(context, 'price')}: ${item.product.price.toStringAsFixed(2)}',
+                                                        '${t(context, 'price')}: ${item.unitPrice.toStringAsFixed(2)}',
                                                         style: TextStyle(
                                                           fontSize: isMobile ? 14 : 16,
                                                           color: Colors.purple[700],
@@ -2791,7 +2751,6 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                     ),
                                   ),
                                   onChanged: (value) {
-                                          print('🔄 Customer name changed to: $value');
                                     setState(() {
                                       _selectedCustomer = null;
                                       _customerNameController.text = value;
@@ -2800,27 +2759,22 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                             // DON'T automatically show new customer fields - let user choose
                                             // _showNewCustomerFields = false; // Keep existing customer mode
                                     });
-                                          print('✅ Phone field cleared, selectedCustomer set to null, staying in existing customer mode');
                                   },
                                 );
                               },
                               onSelected: (Customer selection) {
-                                      print('🔄 Customer selected: ${selection.name} with phone: ${selection.phone}');
                                 setState(() {
                                   _selectedCustomer = selection;
                                   _customerNameController.text = selection.name;
                                         // Only populate phone if it's not empty
                                         if (selection.phone != null && selection.phone!.trim().isNotEmpty) {
                                           _customerPhoneController.text = selection.phone!;
-                                          print('✅ Phone field populated with: ${selection.phone}');
                                         } else {
                                           _customerPhoneController.text = '';
-                                          print('⚠️ Customer has no phone number, phone field cleared');
                                         }
                                         // Hide new customer fields when selecting existing customer
                                         _showNewCustomerFields = false;
                                       });
-                                      print('✅ Phone field updated to: ${_customerPhoneController.text}');
                                     },
                                   ),
                                 ),
@@ -2897,7 +2851,6 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                                         _customerPhoneController.text = '';
                                       }
                                     });
-                                    print('🔄 New customer fields toggled: $_showNewCustomerFields');
                                 },
                                 style: ElevatedButton.styleFrom(
                                   padding: EdgeInsets.symmetric(
@@ -3147,7 +3100,6 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       // DON'T automatically show new customer fields - stay in existing customer mode
       // _showNewCustomerFields = true;
     });
-    print('🔄 Customer selection cleared, staying in existing customer mode');
   }
 
   // Method to determine if existing customer fields should be visible
@@ -3401,7 +3353,7 @@ class _MobileCartDialogState extends State<_MobileCartDialog> {
                                       ),
                                     ),
                                     Text(
-                                      '${t(context, 'price')}: ${item.product.price.toStringAsFixed(2)} x ${item.quantity}',
+                                      '${t(context, 'price')}: ${item.unitPrice.toStringAsFixed(2)} x ${item.quantity}',
                                       style: TextStyle(
                                         fontSize: isSmallMobile ? 12 : 14,
                                         color: Colors.purple[700],

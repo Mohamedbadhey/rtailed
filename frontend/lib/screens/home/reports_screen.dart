@@ -31,10 +31,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
   String? _selectedPaymentMethod; // 'all' or value like 'cash'
   List<String> _paymentMethods = ['all'];
   // PDF-only product filter state
-  String? _selectedProductIdForPdf; // 'all' or product id string
+  String? _selectedProductId; // 'all' or product id string
   
-  // Helper: filtered products for current category (for PDF filter)
-  List<Product> get _filteredProductsForPdf {
+  // Pagination
+  int _productTxPage = 1;
+  int _productTxTotalPages = 1;
+  int _productTxTotalItems = 0;
+  static const int _productTxLimit = 50;
+  // Helper: filtered products for current category
+  List<Product> get _filteredProducts {
     if (_selectedCategoryId == null || _selectedCategoryId == 'all') return [];
     return _products.where((p) => (p.categoryId ?? 0).toString() == _selectedCategoryId).toList();
   }
@@ -82,8 +87,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
         params['payment_method'] = _selectedPaymentMethod;
       }
 
-      if (_selectedProductIdForPdf != null && _selectedProductIdForPdf != 'all' && (_selectedProductIdForPdf?.isNotEmpty ?? false)) {
-        params['product_id'] = _selectedProductIdForPdf;
+      if (_selectedProductId != null && _selectedProductId != 'all' && (_selectedProductId?.isNotEmpty ?? false)) {
+        params['product_id'] = _selectedProductId;
       }
 
       final data = await _apiService.getInventoryTransactionsForPdf(params);
@@ -93,9 +98,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
       
 
       // Also enrich filters text with Product name (if selected)
-      if (_selectedProductIdForPdf != null && _selectedProductIdForPdf != 'all') {
+      if (_selectedProductId != null && _selectedProductId != 'all') {
         try {
-          final p = _products.firstWhere((p) => p.id?.toString() == _selectedProductIdForPdf);
+          final p = _products.firstWhere((p) => p.id?.toString() == _selectedProductId);
           if (p.name.isNotEmpty) {
             parts.add('Product: ' + p.name);
           }
@@ -107,6 +112,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
       // parts already declared above; we just keep appending to it here
       // final List<String> parts = []; // removed duplicate declaration
       
+      if (_filterStartDate != null && _filterEndDate != null) {
+        if (DateFormat('yyyy-MM-dd').format(_filterStartDate!) == DateFormat('yyyy-MM-dd').format(_filterEndDate!)) {
+          parts.add('Date: ${DateFormat('yyyy-MM-dd').format(_filterStartDate!)}');
+        } else {
+          parts.add('Dates: ${DateFormat('yyyy-MM-dd').format(_filterStartDate!)} to ${DateFormat('yyyy-MM-dd').format(_filterEndDate!)}');
+        }
+      }
       if (_selectedCategoryId != null && _selectedCategoryId != 'all') {
         final cat = _categories.firstWhere((c) => c['id'].toString() == _selectedCategoryId, orElse: () => {});
         final catName = (cat['name'] ?? '').toString();
@@ -473,61 +485,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
       if (_selectedPaymentMethod != null && _selectedPaymentMethod != 'all') {
         params['payment_method'] = _selectedPaymentMethod;
       }
+      if (_selectedProductId != null && _selectedProductId != 'all' && (_selectedProductId?.isNotEmpty ?? false)) {
+        params['product_id'] = _selectedProductId;
+      }
 
-      print('🔍 REPORTS: Product Transactions Date Filters:');
-      print('  - Filter Start Date: $_filterStartDate');
-      print('  - Filter End Date: $_filterEndDate');
-      print('  - Params being sent: $params');
-      
       final user = context.read<AuthProvider>().user;
       if (user != null && user.role == 'admin' && _selectedCashierId != null && _selectedCashierId != 'all') {
-        print('🔍 REPORTS: Sending user_id: \'$_selectedCashierId\' to getInventoryTransactions');
         params['user_id'] = _selectedCashierId;
-      } else {
-        print('🔍 REPORTS: No cashier filter for inventory transactions');
       }
       
-      print('🔍 REPORTS: Final params for getInventoryTransactions: $params');
+      params['page'] = _productTxPage;
+      params['limit'] = _productTxLimit;
       
       final data = await _apiService.getInventoryTransactions(params);
-      print('🔍 REPORTS: Received ${data.length} product transactions');
       
-      // Debug: Log first few transactions to see the data structure
-      if (data.isNotEmpty) {
-        print('🔍 REPORTS: Sample transaction data:');
-        for (int i = 0; i < data.length && i < 3; i++) {
-          final tx = data[i];
-          print('  Transaction $i:');
-          print('    Product: ${tx['product_name']}');
-          print('    Cost Price: ${tx['product_cost_price']} (type: ${tx['product_cost_price']?.runtimeType})');
-          print('    Unit Price: ${tx['sale_unit_price']} (type: ${tx['sale_unit_price']?.runtimeType})');
-          print('    Total Price: ${tx['sale_total_price']} (type: ${tx['sale_total_price']?.runtimeType})');
-          print('    Profit: ${tx['profit']} (type: ${tx['profit']?.runtimeType})');
-          print('    Transaction Type: ${tx['transaction_type']}');
-          print('    Reference ID: ${tx['reference_id']}');
-          print('    Sale ID: ${tx['sale_id']}');
-          
-          // Check ALL available fields to see if there are any name mismatches
-          print('    🔍 ALL AVAILABLE FIELDS:');
-          tx.forEach((key, value) {
-            print('      $key: $value (type: ${value?.runtimeType})');
-          });
-          print('    ---');
-        }
-      }
-      
-      setState(() => _productTransactions = List<Map<String, dynamic>>.from(data));
-      
-      // Test: Check if cost price field exists in the data
-      if (data.isNotEmpty) {
-        final firstTx = data.first;
-        print('🔍 REPORTS TEST: Checking field existence:');
-        print('  Has product_cost_price: ${firstTx.containsKey('product_cost_price')}');
-        print('  Has sale_unit_price: ${firstTx.containsKey('sale_unit_price')}');
-        print('  Has sale_total_price: ${firstTx.containsKey('sale_total_price')}');
-        print('  Has profit: ${firstTx.containsKey('profit')}');
-        print('  All keys: ${firstTx.keys.toList()}');
-      }
+      setState(() {
+        _productTransactions = List<Map<String, dynamic>>.from(data['items'] ?? []);
+        _productTxTotalItems = data['total'] ?? 0;
+        _productTxTotalPages = data['totalPages'] ?? 1;
+      });
     } catch (e) {
       print('🔍 REPORTS: Error loading product transactions: $e');
       setState(() => _productTxError = e.toString());
@@ -1262,7 +1238,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
-                            value: _selectedCashierId ?? 'all',
+                              value: (_selectedCashierId != null && _selectedCashierId != 'all' && _cashiers.any((c) => c['id'].toString() == _selectedCashierId)) ? _selectedCashierId : 'all',
                                       isExpanded: true,
                             items: [
                               DropdownMenuItem(value: 'all', child: Text(t(context, 'All Cashiers'))),
@@ -1425,7 +1401,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                   SizedBox(height: isSmallMobile ? 8 : 16),
                   // Additional Filters: Category & Payment Method
-                  Wrap(
+                  if (!isCashier)
+                    Wrap(
                     spacing: isSmallMobile ? 8 : 12,
                     runSpacing: isSmallMobile ? 8 : 12,
                     crossAxisAlignment: WrapCrossAlignment.center,
@@ -1440,7 +1417,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
-                            value: _selectedCategoryId ?? 'all',
+                            value: (_selectedCategoryId != null && _selectedCategoryId != 'all' && _categories.any((c) => c['id'].toString() == _selectedCategoryId)) ? _selectedCategoryId : 'all',
                             items: [
                               const DropdownMenuItem(value: 'all', child: Text('All Categories')),
                               ..._categories.map((c) => DropdownMenuItem(
@@ -1449,7 +1426,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               )),
                             ],
                             onChanged: (val) {
-                              setState(() { _selectedCategoryId = val; });
+                              setState(() { 
+                                _selectedCategoryId = val; 
+                                _selectedProductId = 'all'; // reset product when category changes
+                                _productTxPage = 1;
+                              });
                               _loadProductTransactions();
                             },
                           ),
@@ -1465,7 +1446,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
-                            value: _selectedPaymentMethod ?? 'all',
+                            value: (_selectedPaymentMethod != null && _selectedPaymentMethod != 'all' && _paymentMethods.contains(_selectedPaymentMethod)) ? _selectedPaymentMethod : 'all',
                             items: [
                               const DropdownMenuItem(value: 'all', child: Text('All Payments')),
                               ..._paymentMethods
@@ -1476,13 +1457,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                       )),
                             ],
                             onChanged: (val) {
-                              setState(() { _selectedPaymentMethod = val; });
+                              setState(() { _selectedPaymentMethod = val; _productTxPage = 1; });
                               _loadProductTransactions();
                             },
                           ),
                         ),
                       ),
-                      // PDF Product Filter (visible only when a category is selected)
+                      // Product Filter (visible only when a category is selected)
                       if (_selectedCategoryId != null && _selectedCategoryId != 'all')
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: isSmallMobile ? 8 : 10),
@@ -1493,17 +1474,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           ),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
-                              value: _selectedProductIdForPdf ?? 'all',
+                              value: (_selectedProductId != null && _selectedProductId != 'all' && _filteredProducts.any((p) => p.id?.toString() == _selectedProductId)) ? _selectedProductId : 'all',
                               isExpanded: false,
                               items: [
                                 const DropdownMenuItem(value: 'all', child: Text('All Products')),
-                                ..._filteredProductsForPdf.map((p) => DropdownMenuItem(
+                                ..._filteredProducts.map((p) => DropdownMenuItem(
                                       value: p.id?.toString() ?? '',
                                       child: Text(p.name),
                                     )),
                               ],
                               onChanged: (val) {
-                                setState(() { _selectedProductIdForPdf = val; });
+                                setState(() { _selectedProductId = val; _productTxPage = 1; });
+                                _loadProductTransactions();
                               },
                             ),
                           ),
@@ -1638,17 +1620,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                         DataColumn(label: Text(t(context, 'Cashier'))),
                                       ],
                                     rows: _productTransactions.map((tx) {
-                                      // Debug: Log transaction data being rendered
-                                      if (tx['product_name'] != null) {
-                                        print('🔍 REPORTS RENDER: Rendering transaction:');
-                                        print('  Product: ${tx['product_name']}');
-                                        print('  Cost Price: ${tx['product_cost_price']} (type: ${tx['product_cost_price']?.runtimeType})');
-                                        print('  Unit Price: ${tx['sale_unit_price']} (type: ${tx['sale_unit_price']?.runtimeType})');
-                                        print('  Total Price: ${tx['sale_total_price']} (type: ${tx['sale_total_price']?.runtimeType})');
-                                        print('  Profit: ${tx['profit']} (type: ${tx['profit']?.runtimeType})');
-                                        print('  ---');
-                                      }
-                                      
                                       // Check if this is a damaged product transaction
                                       final isDamaged = tx['transaction_type'] == 'adjustment' && 
                                                        tx['notes'] != null && 
@@ -1731,6 +1702,37 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                     ),
                                   ),
                                 ),
+                  if (!_isProductTxLoading && _productTransactions.isNotEmpty && _productTxTotalPages > 1)
+                    Padding(
+                      padding: EdgeInsets.symmetric(vertical: isSmallMobile ? 8 : 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.chevron_left),
+                            onPressed: _productTxPage > 1
+                                ? () {
+                                    setState(() => _productTxPage--);
+                                    _loadProductTransactions();
+                                  }
+                                : null,
+                          ),
+                          Text(
+                            'Page $_productTxPage of $_productTxTotalPages',
+                            style: TextStyle(fontSize: isSmallMobile ? 12 : 14),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.chevron_right),
+                            onPressed: _productTxPage < _productTxTotalPages
+                                ? () {
+                                    setState(() => _productTxPage++);
+                                    _loadProductTransactions();
+                                  }
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),

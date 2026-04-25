@@ -119,71 +119,20 @@ router.put('/:id/stock', [auth, checkRole(['admin', 'manager'])], async (req, re
 
 router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
-    const { start_date, end_date, user_id, category_id, product_id, transaction_type, payment_method } = req.query;
+    const { start_date, end_date, user_id, category_id, product_id, transaction_type, payment_method, page = 1, limit = 50 } = req.query;
+    
+    const offset = (parseInt(page) - 1) * parseInt(limit);
 
 
-    try {
-      const [testWorkingQuery] = await pool.query(
-        `SELECT 
-          it.id,
-          it.created_at,
-          it.transaction_type,
-          ABS(it.quantity) AS quantity,
-          it.notes,
-          it.reference_id,
-          p.name AS product_name,
-          p.cost_price AS product_cost_price,
-          s.id AS sale_id,
-          s.status,
-          s.payment_method,
-          s.sale_mode,
-          COALESCE(s.user_id, dp.reported_by) AS cashier_id,
-          COALESCE(u.username, dp_reporter.username) AS cashier_name,
-          c.name AS customer_name,
-          si.unit_price AS sale_unit_price,
-          si.total_price AS sale_total_price,
-          si.costprice AS sale_cost_price,
-          (si.total_price - (si.quantity * COALESCE(si.costprice, p.cost_price))) AS profit
-        FROM inventory_transactions it
-        LEFT JOIN products p ON it.product_id = p.id
-        LEFT JOIN sales s ON it.reference_id = s.id
-        LEFT JOIN users u ON s.user_id = u.id
-        LEFT JOIN customers c ON s.customer_id = c.id
-        LEFT JOIN sale_items si ON si.sale_id = s.id AND si.product_id = it.product_id
-        LEFT JOIN damaged_products dp ON dp.id = it.reference_id AND dp.business_id = it.business_id
-        LEFT JOIN users dp_reporter ON dp.reported_by = dp_reporter.id
-        WHERE it.business_id = ?
-        ORDER BY it.created_at DESC
-        LIMIT 3`,
-        [req.user.business_id]
-      );
-
-      if (testWorkingQuery.length > 0) {
-        const firstResult = testWorkingQuery[0];
-
-        // Check for case sensitivity issues - look for any field that might contain 'cost'
-        const costRelatedFields = Object.keys(firstResult).filter(key =>
-          key.toLowerCase().includes('cost') ||
-          key.toLowerCase().includes('price')
-        );
-
-        // Check raw data for any field variations
-
-        // Test: Check if MySQL is returning the field with different case
-        const allFields = Object.keys(firstResult);
-        const costFieldVariations = allFields.filter(key =>
-          key.toLowerCase().includes('cost') ||
-          key.toLowerCase().includes('price')
-        );
-
-        // Test: Check if the field exists with exact case match
-        console.log('  product_cost_price:', firstResult.product_cost_price);
-        console.log('  PRODUCT_COST_PRICE:', firstResult.PRODUCT_COST_PRICE);
-        console.log('  Product_Cost_Price:', firstResult.Product_Cost_Price);
-        console.log('  productCostPrice:', firstResult.productCostPrice);
-      }
-    } catch (testError) {
-    }
+    let countQuery = `
+      SELECT COUNT(it.id) as total
+      FROM inventory_transactions it
+      LEFT JOIN products p ON it.product_id = p.id
+      LEFT JOIN sales s ON it.reference_id = s.id
+      LEFT JOIN damaged_products dp ON dp.id = it.reference_id AND dp.business_id = it.business_id
+      WHERE it.business_id = ? AND (s.status IS NULL OR s.status != 'cancelled')
+    `;
+    let countParams = [req.user.business_id];
 
     let query = `
       SELECT 
@@ -235,150 +184,82 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
         startDateTime = start_date + ' 00:00:00';
       }
       query += ' AND it.created_at >= ?';
+      countQuery += ' AND it.created_at >= ?';
       params.push(startDateTime);
+      countParams.push(startDateTime);
     }
     if (end_date) {
-      // Convert end_date to end of day for proper comparison
-      // Handle both ISO strings (with T) and space-separated strings
       let endDateTime;
       if (end_date.includes('T')) {
-        // ISO string like "2025-08-29T23:59:59.999Z" - extract just the date part
         const datePart = end_date.split('T')[0];
         endDateTime = datePart + ' 23:59:59';
       } else if (end_date.includes(' ')) {
-        // Already has time, use as is
         endDateTime = end_date;
       } else {
-        // Just date, add end of day
         endDateTime = end_date + ' 23:59:59';
       }
       query += ' AND it.created_at <= ?';
+      countQuery += ' AND it.created_at <= ?';
       params.push(endDateTime);
+      countParams.push(endDateTime);
     }
 
-    // Add cashier filter if provided
     if (user_id && user_id !== 'all') {
       query += ' AND (s.user_id = ? OR dp.reported_by = ?)';
+      countQuery += ' AND (s.user_id = ? OR dp.reported_by = ?)';
       params.push(user_id, user_id);
+      countParams.push(user_id, user_id);
     }
 
-    // Add category filter if provided
     if (category_id) {
       query += ' AND p.category_id = ?';
+      countQuery += ' AND p.category_id = ?';
       params.push(category_id);
+      countParams.push(category_id);
     }
 
-    // Add product filter if provided
     if (product_id) {
       query += ' AND it.product_id = ?';
+      countQuery += ' AND it.product_id = ?';
       params.push(product_id);
+      countParams.push(product_id);
     }
 
-    // Add transaction type filter if provided
     if (transaction_type) {
       query += ' AND it.transaction_type = ?';
+      countQuery += ' AND it.transaction_type = ?';
       params.push(transaction_type);
+      countParams.push(transaction_type);
     }
 
-    // Add payment method filter if provided
     if (payment_method) {
       query += ' AND s.payment_method = ?';
+      countQuery += ' AND s.payment_method = ?';
       params.push(payment_method);
+      countParams.push(payment_method);
     }
 
-    query += ' ORDER BY it.created_at DESC';
+    query += ' ORDER BY it.created_at DESC LIMIT ? OFFSET ?';
+    params.push(parseInt(limit), offset);
 
     if (req.user.role === 'superadmin') {
       query = query.replace('WHERE it.business_id = ? AND (s.status IS NULL OR s.status != \'cancelled\')', 'WHERE (s.status IS NULL OR s.status != \'cancelled\')');
-      params = params.slice(1); // Remove business_id from params
-    } else {
-    }
-
-
-    // Test: Check if products table has cost_price data
-    try {
-      const [testProducts] = await pool.query(
-        'SELECT id, name, cost_price FROM products WHERE business_id = ? LIMIT 3',
-        [req.user.business_id]
-      );
-
-      // Test: Check inventory_transactions to see what product_ids we have
-      const [testTransactions] = await pool.query(
-        'SELECT id, product_id, transaction_type, reference_id FROM inventory_transactions WHERE business_id = ? LIMIT 5',
-        [req.user.business_id]
-      );
-
-      // Test: Check if the JOIN is working by testing a specific transaction
-      if (testTransactions.length > 0) {
-        const testTx = testTransactions[0];
-        const [testJoin] = await pool.query(
-          `SELECT 
-            it.id,
-            it.product_id,
-            it.business_id AS transaction_business_id,
-            p.id AS product_table_id,
-            p.business_id AS product_business_id,
-            p.name AS product_name,
-            p.cost_price AS product_cost_price
-          FROM inventory_transactions it
-          LEFT JOIN products p ON it.product_id = p.id
-          WHERE it.id = ?`,
-          [testTx.id]
-        );
-
-        // Test: Check if products exist for this business
-        const [productsForBusiness] = await pool.query(
-          'SELECT id, name, cost_price, business_id FROM products WHERE business_id = ? LIMIT 3',
-          [req.user.business_id]
-        );
-
-        // Test: Check if the JOIN condition is working by testing the exact JOIN
-        const [testExactJoin] = await pool.query(
-          `SELECT 
-            it.id,
-            it.product_id,
-            it.business_id AS transaction_business_id,
-            p.id AS product_table_id,
-            p.business_id AS product_business_id,
-            p.name AS product_name,
-            p.cost_price AS product_cost_price
-          FROM inventory_transactions it
-          LEFT JOIN products p ON it.product_id = p.id
-          WHERE it.business_id = ?
-          LIMIT 3`,
-          [req.user.business_id]
-        );
-      }
-    } catch (testError) {
+      countQuery = countQuery.replace('WHERE it.business_id = ? AND (s.status IS NULL OR s.status != \'cancelled\')', 'WHERE (s.status IS NULL OR s.status != \'cancelled\')');
+      params = params.slice(1);
+      countParams = countParams.slice(1);
     }
 
     const [transactions] = await pool.query(query, params);
+    const [countResult] = await pool.query(countQuery, countParams);
+    const totalCount = countResult[0].total;
 
-    // Test: Check what fields are actually returned
-    if (transactions.length > 0) {
-      const firstTx = transactions[0];
-      console.log('  All keys:', Object.keys(firstTx));
-      console.log('  Raw data:', firstTx);
-    }
-
-    // Debug: Log first few transactions to see the data structure
-    if (transactions.length > 0) {
-      for (let i = 0; i < Math.min(3, transactions.length); i++) {
-        const tx = transactions[i];
-        console.log(`  Transaction ${i}:`);
-        console.log(`    Product: ${tx.product_name}`);
-        console.log(`    Cost Price: ${tx.product_cost_price} (type: ${typeof tx.product_cost_price})`);
-        console.log(`    Unit Price: ${tx.sale_unit_price} (type: ${typeof tx.sale_unit_price})`);
-        console.log(`    Total Price: ${tx.sale_total_price} (type: ${typeof tx.sale_total_price})`);
-        console.log(`    Profit: ${tx.profit} (type: ${typeof tx.profit})`);
-        console.log(`    Transaction Type: ${tx.transaction_type}`);
-        console.log(`    Reference ID: ${tx.reference_id}`);
-        console.log(`    Sale ID: ${tx.sale_id}`);
-        console.log(`    ---`);
-      }
-    }
-
-    res.json(transactions);
+    res.json({
+      items: transactions,
+      total: totalCount,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(totalCount / parseInt(limit))
+    });
   } catch (error) {
     res.status(500).json({ message: error.message || 'Server error' });
   }

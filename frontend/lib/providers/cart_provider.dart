@@ -14,8 +14,17 @@ class CartItem {
     this.mode = 'retail',
   });
 
-  double get unitPrice => customTotalPrice != null ? (customTotalPrice! / quantity) : product.price;
-  double get total => customTotalPrice != null ? customTotalPrice! : (product.price * quantity); // null means no override
+  double get unitPrice {
+    if (customTotalPrice != null) return customTotalPrice! / quantity;
+    return (mode == 'wholesale' && product.wholesalePrice != null && product.wholesalePrice! > 0)
+        ? product.wholesalePrice!
+        : product.price;
+  }
+  
+  double get total {
+    if (customTotalPrice != null) return customTotalPrice!;
+    return unitPrice * quantity;
+  }
   bool get hasCustomTotal => customTotalPrice != null;
 }
 
@@ -29,9 +38,9 @@ class CartProvider with ChangeNotifier {
   double get total {
     return _items.fold(0.0, (sum, item) {
       final t = item.customTotalPrice;
-      return sum + (t != null ? t : (item.product.costPrice * item.quantity));
+      return sum + (t != null ? t : (item.product.price * item.quantity));
     });
-  } // total uses customTotalPrice when set, otherwise fallback to cost*qty as per checkout validation rules
+  } // total uses customTotalPrice when set, otherwise fallback to selling price * qty
   
   void clearCustomTotalPrice(Product product) {
     final existingIndex = _items.indexWhere((i) => i.product.id == product.id);
@@ -141,6 +150,7 @@ class CartProvider with ChangeNotifier {
 
     if (existingIndex >= 0) {
       _items[existingIndex].quantity += quantity;
+      _items[existingIndex].customTotalPrice = null; // Reset custom price when qty changes
       print('✅ Updated quantity for ${product.name} (${mode}): ${_items[existingIndex].quantity}');
     } else {
       _items.add(CartItem(product: product, quantity: quantity, mode: mode));
@@ -175,6 +185,7 @@ class CartProvider with ChangeNotifier {
 
     if (existingIndex >= 0) {
       _items[existingIndex].quantity += quantity;
+      _items[existingIndex].customTotalPrice = null; // Reset custom price when qty changes
       print('🛒 CartProvider: Updated quantity for ${product.name} (${mode}): ${_items[existingIndex].quantity}');
     } else {
       _items.add(CartItem(product: product, quantity: quantity, mode: mode));
@@ -203,6 +214,7 @@ class CartProvider with ChangeNotifier {
     if (existingIndex >= 0) {
       if (_items[existingIndex].quantity > 1) {
         _items[existingIndex].quantity--;
+        _items[existingIndex].customTotalPrice = null; // Reset custom price when qty changes
       } else {
         _items.removeAt(existingIndex);
       }
@@ -242,7 +254,10 @@ class CartProvider with ChangeNotifier {
 
     if (existingIndex >= 0) {
       if (quantity > 0) {
-        _items[existingIndex].quantity = quantity;
+        if (_items[existingIndex].quantity != quantity) {
+          _items[existingIndex].quantity = quantity;
+          _items[existingIndex].customTotalPrice = null; // Reset custom price when qty changes
+        }
       } else {
         _items.removeAt(existingIndex);
       }
@@ -290,7 +305,10 @@ class CartProvider with ChangeNotifier {
 
     // Stock is sufficient, update the quantity
     if (newQuantity > 0) {
-      _items[existingIndex].quantity = newQuantity;
+      if (_items[existingIndex].quantity != newQuantity) {
+        _items[existingIndex].quantity = newQuantity;
+        _items[existingIndex].customTotalPrice = null; // Reset custom price when qty changes
+      }
       print('✅ Updated quantity for ${product.name} (${currentMode}): ${newQuantity}');
     } else {
       _items.removeAt(existingIndex);

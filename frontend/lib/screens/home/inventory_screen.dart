@@ -310,6 +310,45 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
   }
 
+  Future<void> _exportToExcel() async {
+    try {
+      // Show loading indicator
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Generating Excel with images...'),
+                  Text('This may take a moment for large inventories.', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await _apiService.exportProductsToExcel(context: context);
+
+      if (mounted) Navigator.pop(context); // Close loading
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // Close loading
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e')),
+        );
+      }
+    }
+  }
+
+
   void _applyFilters() {
     // Cancel existing debounce timer
     _searchDebounce?.cancel();
@@ -880,6 +919,62 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                             ),
                                           ),
                                     ),
+                                    SizedBox(width: isSmallMobile ? 4 : 6),
+                                    // Export Excel Button
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue[100]!,
+                                        borderRadius: BorderRadius.circular(isSmallMobile ? 6 : 8),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.1),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: isSmallMobile 
+                                        ? IconButton(
+                                            onPressed: _exportToExcel,
+                                            icon: Icon(
+                                              Icons.download_for_offline,
+                                              color: Colors.blue[700]!,
+                                              size: 16,
+                                            ),
+                                            padding: EdgeInsets.all(6),
+                                            constraints: const BoxConstraints(
+                                              minWidth: 28,
+                                              minHeight: 28,
+                                            ),
+                                          )
+                                        : ElevatedButton.icon(
+                                            onPressed: _exportToExcel,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.transparent,
+                                              foregroundColor: Colors.blue[700]!,
+                                              elevation: 0,
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 6,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                            icon: Icon(
+                                              Icons.download_for_offline,
+                                              size: 14,
+                                            ),
+                                            label: Text(
+                                              isMobile ? t(context, 'Export') : t(context, 'Export Excel'),
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                          ),
+                                    ),
+
                                   ],
                                 ),
                               ],

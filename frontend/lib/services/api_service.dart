@@ -11,6 +11,11 @@ import 'package:retail_management/models/inventory_transaction.dart';
 import 'package:retail_management/utils/type_converter.dart';
 import 'package:retail_management/services/network_service.dart';
 import 'package:flutter/foundation.dart'; // for kIsWeb
+import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:retail_management/services/notification_service.dart';
+import 'package:toast/toast.dart';
 
 class ApiService {
   static const String baseUrl = 'https://rtailed-production.up.railway.app';
@@ -2506,4 +2511,88 @@ class ApiService {
     }
   }
 
-} 
+  Future<void> exportProductsToExcel({BuildContext? context}) async {
+    final uri = Uri.parse('$baseUrl/api/products/bulk-export').replace(queryParameters: {
+      'token': _token ?? '',
+    });
+    
+    if (kIsWeb) {
+      // On web, we can use url_launcher to just open the link which triggers the download
+      // since we now support token in query params.
+      try {
+        final url = uri.toString();
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          throw Exception('Could not launch $url');
+        }
+      } catch (e) {
+        print('Error launching export URL: $e');
+        rethrow;
+      }
+    } else {
+      // On mobile/desktop, download the bytes and save/share
+      try {
+        final response = await _executeRequest(
+          () => http.get(uri, headers: _headers),
+          context: context,
+        );
+
+        if (response.statusCode == 200) {
+          // We'll use the platform-specific save logic
+          // For now, let's just use a helper if we have one or implement it here
+          // I'll create a generic helper for this
+          await _saveAndShareExcel(response.bodyBytes, 'products_export');
+        } else {
+          throw Exception('Failed to export products: ${response.statusCode} ${response.body}');
+        }
+      } catch (e) {
+        print('Error exporting products: $e');
+        rethrow;
+      }
+    }
+  }
+
+  // Internal helper for mobile/desktop Excel saving
+  Future<void> _saveAndShareExcel(Uint8List bytes, String fileName) async {
+    if (kIsWeb) return; // Should not be called on web
+    
+    try {
+      final Directory output = await getApplicationDocumentsDirectory();
+      final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      final String cleanFileName = '${fileName}_$timestamp'.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+      final File file = File('${output.path}/$cleanFileName.xlsx');
+      
+      await file.writeAsBytes(bytes);
+      
+      if (Platform.isAndroid || Platform.isIOS) {
+        await Share.shareXFiles(
+          [XFile(file.path, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', name: '$cleanFileName.xlsx')],
+          text: 'Exported Products Inventory',
+        );
+        
+        // Show notification if possible
+        try {
+          await NotificationService.showPdfDownloadNotification(
+            fileName: '$cleanFileName.xlsx',
+            filePath: file.path,
+            location: 'App Documents',
+          );
+        } catch (e) {
+          print('Error showing notification: $e');
+        }
+      }
+      
+      Toast.show(
+        'Excel Exported! 📄',
+        duration: Toast.lengthLong,
+        gravity: Toast.bottom,
+      );
+    } catch (e) {
+      print('Error saving Excel: $e');
+      rethrow;
+    }
+  }
+}
+
+ 

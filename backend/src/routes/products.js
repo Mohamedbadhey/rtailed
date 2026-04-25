@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const ExcelJS = require('exceljs');
+
 const pool = require('../config/database');
 const { auth, checkRole } = require('../middleware/auth');
 const multer = require('multer');
@@ -988,5 +990,127 @@ router.get('/all/paged', auth, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+// GET /api/products/bulk-export
+router.get('/bulk-export', auth, async (req, res) => {
+  try {
+    let query = `
+      SELECT p.*, 
+             CASE 
+               WHEN p.category_id IS NULL THEN 'Uncategorized'
+               ELSE c.name 
+             END as category_name 
+      FROM products p 
+      LEFT JOIN categories c ON p.category_id = c.id 
+      WHERE p.business_id = ? AND p.is_deleted = 0
+      ORDER BY p.name
+    `;
+    let params = [req.user.business_id];
+    
+    if (req.user.role === 'superadmin') {
+      query = `
+        SELECT p.*, 
+               CASE 
+                 WHEN p.category_id IS NULL THEN 'Uncategorized'
+               ELSE c.name 
+             END as category_name 
+        FROM products p 
+        LEFT JOIN categories c ON p.category_id = c.id 
+        WHERE p.is_deleted = 0
+        ORDER BY p.name
+      `;
+      params = [];
+    }
+
+    const [products] = await pool.query(query, params);
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Products');
+
+    worksheet.columns = [
+      { header: 'Name', key: 'name', width: 30 },
+      { header: 'SKU', key: 'sku', width: 20 },
+      { header: 'Description', key: 'description', width: 40 },
+      { header: 'Barcode', key: 'barcode', width: 20 },
+      { header: 'Category', key: 'category_name', width: 20 },
+      { header: 'Price', key: 'price', width: 15 },
+      { header: 'Wholesale Price', key: 'wholesale_price', width: 15 },
+      { header: 'Cost Price', key: 'cost_price', width: 15 },
+      { header: 'Quantity', key: 'stock_quantity', width: 15 },
+      { header: 'Low Stock Threshold', key: 'low_stock_threshold', width: 15 },
+      { header: 'Image', key: 'image', width: 20 },
+    ];
+
+    // Style the header
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+    const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '../../uploads');
+
+    for (let i = 0; i < products.length; i++) {
+      const p = products[i];
+      const row = worksheet.addRow({
+        name: p.name,
+        sku: p.sku,
+        description: p.description,
+        barcode: p.barcode,
+        category_name: p.category_name,
+        price: p.price,
+        wholesale_price: p.wholesale_price,
+        cost_price: p.cost_price,
+        stock_quantity: p.stock_quantity,
+        low_stock_threshold: p.low_stock_threshold,
+      });
+
+      // Adjust row height for image
+      row.height = 80;
+      row.alignment = { vertical: 'middle', horizontal: 'left' };
+
+      if (p.image_url) {
+        try {
+          let imagePath;
+          if (p.image_url.startsWith('/uploads/')) {
+             imagePath = path.join(baseDir, p.image_url.replace('/uploads/', ''));
+          } else {
+             const relativePath = p.image_url.startsWith('/') ? p.image_url.substring(1) : p.image_url;
+             imagePath = path.join(baseDir, relativePath);
+          }
+
+          if (fs.existsSync(imagePath)) {
+            const imageId = workbook.addImage({
+              filename: imagePath,
+              extension: path.extname(imagePath).substring(1).toLowerCase() || 'png',
+            });
+
+            worksheet.addImage(imageId, {
+              tl: { col: 10, row: i + 1 },
+              ext: { width: 100, height: 100 },
+              editAs: 'oneCell'
+            });
+          }
+        } catch (err) {
+          console.error(`Error adding image for product ${p.id}:`, err);
+        }
+      }
+    }
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=' + 'products_export.xlsx'
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).json({ message: 'Server error during export' });
+  }
+});
+
 
 module.exports = router; 

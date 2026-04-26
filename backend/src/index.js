@@ -278,6 +278,21 @@ app.get('/test-uploads', (req, res) => {
   });
 });
 
+// TEMPORARY DEBUG: Find where images are actually located
+app.get('/api/debug-find-images', (req, res) => {
+  const { exec } = require('child_process');
+  console.log('🔍 DEBUG: Running find command to locate images...');
+  exec('find /app -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.webp" | head -n 50', (err, stdout, stderr) => {
+    res.json({ 
+      stdout: stdout ? stdout.split('\n').filter(Boolean) : [], 
+      stderr, 
+      err: err ? err.message : null,
+      cwd: process.cwd(),
+      dirname: __dirname
+    });
+  });
+});
+
 // Root endpoint for Railway health checks
 app.get('/', (req, res) => {
   console.log('🏥 Root health check requested');

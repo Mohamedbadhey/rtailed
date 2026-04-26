@@ -373,7 +373,7 @@ async function extractEmbeddedImagesByRow(buffer, options = {}) {
     }
   }
 
-  return { headers, rows, imagesByRow, warnings };
+  return { headers, rows, rowNumbers, imagesByRow, warnings };
 }
 
 module.exports = {

@@ -112,26 +112,33 @@ const uploadsDir = baseDir;
 // Custom image serving route with CORS headers for products
 app.get('/uploads/products/:filename', (req, res) => {
   try {
-    const { filename } = req.params;
-    const fullPath = path.join(uploadsDir, 'products', filename);
+    const filename = decodeURIComponent(req.params.filename);
+    
+    // Comprehensive search for the file in all possible locations
+    const possiblePaths = [
+      path.join(uploadsDir, 'products', filename),
+      path.join(uploadsDir, 'uploads/products', filename),
+      path.join(__dirname, '../uploads/products', filename),
+      path.join(__dirname, '../../uploads/products', filename),
+      path.join(process.cwd(), 'uploads/products', filename),
+      path.join('/data/products', filename),
+      path.join('/data/uploads/products', filename)
+    ];
+    
+    const fullPath = possiblePaths.find(p => fs.existsSync(p));
     
     console.log('🖼️ ===== PRODUCT IMAGE REQUEST START =====');
-    console.log('🖼️ Request path:', req.path);
-    console.log('🖼️ Filename:', filename);
-    console.log('🖼️ Full path:', fullPath);
-    console.log('🖼️ Uploads dir:', uploadsDir);
-    console.log('🖼️ Base dir:', baseDir);
-    console.log('🖼️ Railway volume path:', process.env.RAILWAY_VOLUME_MOUNT_PATH);
-    console.log('🖼️ Request headers:', req.headers);
-    console.log('🖼️ Request method:', req.method);
-    console.log('🖼️ Request URL:', req.url);
+    console.log('🖼️ Request filename:', filename);
+    console.log('🖼️ Final resolved path:', fullPath || 'NOT FOUND');
     
     // Check if file exists
-    console.log('🖼️ Checking if file exists:', fullPath);
-    if (!fs.existsSync(fullPath)) {
-      console.log('🖼️ ❌ File not found:', fullPath);
-      console.log('🖼️ ===== PRODUCT IMAGE REQUEST END (404) =====');
-      return res.status(404).json({ error: 'Image not found', path: fullPath });
+    if (!fullPath) {
+      console.log('🖼️ ❌ File not found at any location');
+      return res.status(404).json({ 
+        error: 'Image not found', 
+        filename,
+        checkedPaths: possiblePaths 
+      });
     }
     console.log('🖼️ ✅ File exists:', fullPath);
     

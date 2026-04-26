@@ -1046,6 +1046,7 @@ router.get('/bulk-export', auth, async (req, res) => {
     worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
 
     const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '../../uploads');
+    const uploadsDir = baseDir;
 
     for (let i = 0; i < products.length; i++) {
       const p = products[i];
@@ -1074,22 +1075,16 @@ router.get('/bulk-export', auth, async (req, res) => {
           
           // Strategy: Try to find the file in multiple potential locations
           const possiblePaths = [
-            // 1. As resolved from RAILWAY_VOLUME_MOUNT_PATH or local uploads
-            path.join(baseDir, imageUrl.startsWith('/uploads/') ? imageUrl.replace('/uploads/', '') : imageUrl),
-            // 2. Directly in a 'products' subfolder of baseDir
-            path.join(baseDir, 'products', filename),
-            // 3. In the explicit local uploads path
+            path.join(uploadsDir, 'products', filename),
+            path.join(uploadsDir, 'uploads/products', filename),
+            path.join(__dirname, '../uploads/products', filename),
             path.join(__dirname, '../../uploads/products', filename),
-            // 4. In the baseDir directly
-            path.join(baseDir, filename)
+            path.join(process.cwd(), 'uploads/products', filename),
+            path.join('/data/products', filename),
+            path.join('/data/uploads/products', filename)
           ];
 
-          for (const testPath of possiblePaths) {
-            if (fs.existsSync(testPath) && fs.lstatSync(testPath).isFile()) {
-              imagePath = testPath;
-              break;
-            }
-          }
+          imagePath = possiblePaths.find(p => fs.existsSync(p));
 
           if (imagePath) {
             const ext = path.extname(imagePath).substring(1).toLowerCase();

@@ -820,9 +820,6 @@ router.put('/:businessId/users/:userId', auth, checkRole(['admin', 'manager', 's
   try {
     const { businessId, userId } = req.params;
     const { username, email, role, is_active } = req.body;
-    
-    console.log('PUT /:businessId/users/:userId called', { businessId, userId, username, email, role, is_active, user: req.user });
-    
     // Validate required fields
     if (!username || !email || !role) {
       return res.status(400).json({ 
@@ -909,8 +906,6 @@ router.put('/:businessId/users/:userId', auth, checkRole(['admin', 'manager', 's
       'INSERT INTO system_logs (user_id, action, table_name, record_id, new_values) VALUES (?, ?, ?, ?, ?)',
       [req.user.id, 'UPDATE_USER', 'users', userId, JSON.stringify({ username, email, role, is_active })]
     );
-    
-    console.log('User updated successfully:', { businessId, userId, username, email, role, is_active });
     res.json({ message: 'User updated' });
   } catch (error) {
     console.error('Error in PUT /:businessId/users/:userId:', error);

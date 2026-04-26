@@ -17,24 +17,15 @@ const createUploadsDirectories = () => {
   try {
     // Create main uploads directory
     if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-      console.log('✅ Created uploads directory');
-    }
+      fs.mkdirSync(uploadsDir, { recursive: true });    }
 
     // Create products subdirectory
     if (!fs.existsSync(productsDir)) {
-      fs.mkdirSync(productsDir, { recursive: true });
-      console.log('✅ Created uploads/products directory');
-    }
+      fs.mkdirSync(productsDir, { recursive: true });    }
 
     // Create branding subdirectory
     if (!fs.existsSync(brandingDir)) {
-      fs.mkdirSync(brandingDir, { recursive: true });
-      console.log('✅ Created uploads/branding directory');
-    }
-
-    console.log('📁 Uploads directories ready');
-  } catch (error) {
+      fs.mkdirSync(brandingDir, { recursive: true });    }  } catch (error) {
     console.error('❌ Error creating uploads directories:', error);
   }
 };
@@ -47,24 +38,12 @@ const checkDatabaseMode = async (retries = 5, delay = 5000) => {
   for (let i = 0; i < retries; i++) {
     try {
       const pool = require('./config/database');
-      const [rows] = await pool.query('SELECT @@sql_mode as sql_mode');
-      console.log('🔧 Database SQL Mode:', rows[0].sql_mode);
-      
-      // Check if ONLY_FULL_GROUP_BY is enabled
-      const hasOnlyFullGroupBy = rows[0].sql_mode.includes('ONLY_FULL_GROUP_BY');
-      console.log('🔧 ONLY_FULL_GROUP_BY enabled:', hasOnlyFullGroupBy);
-      
-      if (hasOnlyFullGroupBy) {
-        console.log('⚠️  ONLY_FULL_GROUP_BY is enabled - queries must be compliant');
-      } else {
-        console.log('✅ ONLY_FULL_GROUP_BY is disabled - queries are more permissive');
-      }
+      const [rows] = await pool.query('SELECT @@sql_mode as sql_mode');      // Check if ONLY_FULL_GROUP_BY is enabled
+      const hasOnlyFullGroupBy = rows[0].sql_mode.includes('ONLY_FULL_GROUP_BY');      if (hasOnlyFullGroupBy) {      } else {      }
       return; // Success!
     } catch (error) {
       console.error(`❌ Database connection attempt ${i + 1} failed:`, error.message);
-      if (i < retries - 1) {
-        console.log(`⏳ Retrying in ${delay / 1000}s...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+      if (i < retries - 1) {        await new Promise(resolve => setTimeout(resolve, delay));
       } else {
         console.error('❌ All database connection attempts failed. The server will continue but DB features may fail.');
       }
@@ -125,17 +104,8 @@ app.get('/uploads/products/:filename', (req, res) => {
       path.join('/data/uploads/products', filename)
     ];
     
-    const fullPath = possiblePaths.find(p => fs.existsSync(p));
-    
-    console.log('🖼️ ===== PRODUCT IMAGE REQUEST START =====');
-    console.log('🖼️ Request filename:', filename);
-    console.log('🖼️ Final resolved path:', fullPath || 'NOT FOUND');
-    
-    // Check if file exists
-    if (!fullPath) {
-      console.log('🖼️ ❌ File not found at any location');
-      
-      // Debug: List files in the main products directory to see what IS there
+    const fullPath = possiblePaths.find(p => fs.existsSync(p));    // Check if file exists
+    if (!fullPath) {      // Debug: List files in the main products directory to see what IS there
       let filesInProducts = [];
       try {
         const debugDir = path.join(uploadsDir, 'products');
@@ -152,56 +122,20 @@ app.get('/uploads/products/:filename', (req, res) => {
         uploadsDir: uploadsDir,
         envVolumePath: process.env.RAILWAY_VOLUME_MOUNT_PATH
       });
-    }
-    console.log('🖼️ ✅ File exists:', fullPath);
-    
-    // Get file stats
-    const stats = fs.statSync(fullPath);
-    console.log('🖼️ File size:', stats.size, 'bytes');
-    console.log('🖼️ File permissions:', stats.mode);
-    
-    // Set CORS headers
-    console.log('🖼️ Setting CORS headers...');
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    }    // Get file stats
+    const stats = fs.statSync(fullPath);    // Set CORS headers    res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
-    res.setHeader('Cache-Control', 'public, max-age=31536000');
-    console.log('🖼️ ✅ CORS headers set');
-    
-    // Set proper MIME type
-    console.log('🖼️ Setting MIME type for:', filename);
-    if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) {
-      res.setHeader('Content-Type', 'image/jpeg');
-      console.log('🖼️ ✅ MIME type: image/jpeg');
-    } else if (filename.endsWith('.png')) {
-      res.setHeader('Content-Type', 'image/png');
-      console.log('🖼️ ✅ MIME type: image/png');
-    } else if (filename.endsWith('.gif')) {
-      res.setHeader('Content-Type', 'image/gif');
-      console.log('🖼️ ✅ MIME type: image/gif');
-    } else if (filename.endsWith('.webp')) {
-      res.setHeader('Content-Type', 'image/webp');
-      console.log('🖼️ ✅ MIME type: image/webp');
-    }
-    
-    console.log('🖼️ Sending file:', fullPath);
-    console.log('🖼️ Response headers before send:', res.getHeaders());
-    res.sendFile(fullPath, (err) => {
-      if (err) {
-        console.log('🖼️ ❌ Error sending file:', err);
-        console.log('🖼️ ===== PRODUCT IMAGE REQUEST END (ERROR) =====');
-      } else {
-        console.log('🖼️ ✅ File sent successfully');
-        console.log('🖼️ ===== PRODUCT IMAGE REQUEST END (SUCCESS) =====');
-      }
+    res.setHeader('Cache-Control', 'public, max-age=31536000');    // Set proper MIME type    if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) {
+      res.setHeader('Content-Type', 'image/jpeg');    } else if (filename.endsWith('.png')) {
+      res.setHeader('Content-Type', 'image/png');    } else if (filename.endsWith('.gif')) {
+      res.setHeader('Content-Type', 'image/gif');    } else if (filename.endsWith('.webp')) {
+      res.setHeader('Content-Type', 'image/webp');    }    res.sendFile(fullPath, (err) => {
+      if (err) {      } else {      }
     });
     
-  } catch (error) {
-    console.log('🖼️ ❌ Error serving product image:', error);
-    console.log('🖼️ Error stack:', error.stack);
-    console.log('🖼️ ===== PRODUCT IMAGE REQUEST END (EXCEPTION) =====');
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+  } catch (error) {    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -209,16 +143,8 @@ app.get('/uploads/products/:filename', (req, res) => {
 app.get('/uploads/branding/:filename', (req, res) => {
   try {
     const { filename } = req.params;
-    const fullPath = path.join(uploadsDir, 'branding', filename);
-    
-    console.log('📁 Branding image request:', req.path);
-    console.log('📁 Filename:', filename);
-    console.log('📁 Full path:', fullPath);
-    
-    // Check if file exists
-    if (!fs.existsSync(fullPath)) {
-      console.log('📁 File not found:', fullPath);
-      return res.status(404).json({ error: 'Image not found' });
+    const fullPath = path.join(uploadsDir, 'branding', filename);    // Check if file exists
+    if (!fs.existsSync(fullPath)) {      return res.status(404).json({ error: 'Image not found' });
     }
     
     // Set CORS headers
@@ -237,10 +163,7 @@ app.get('/uploads/branding/:filename', (req, res) => {
       res.setHeader('Content-Type', 'image/gif');
     } else if (filename.endsWith('.webp')) {
       res.setHeader('Content-Type', 'image/webp');
-    }
-    
-    console.log('📁 Serving branding image with CORS headers:', fullPath);
-    res.sendFile(fullPath);
+    }    res.sendFile(fullPath);
     
   } catch (error) {
     console.error('📁 Error serving branding image:', error);
@@ -249,18 +172,14 @@ app.get('/uploads/branding/:filename', (req, res) => {
 });
 
 // Handle CORS preflight requests for uploads
-app.options('/uploads/products/:filename', (req, res) => {
-  console.log('📁 CORS preflight request for products:', req.path);
-  res.setHeader('Access-Control-Allow-Origin', '*');
+app.options('/uploads/products/:filename', (req, res) => {  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
   res.status(200).end();
 });
 
-app.options('/uploads/branding/:filename', (req, res) => {
-  console.log('📁 CORS preflight request for branding:', req.path);
-  res.setHeader('Access-Control-Allow-Origin', '*');
+app.options('/uploads/branding/:filename', (req, res) => {  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
@@ -268,9 +187,7 @@ app.options('/uploads/branding/:filename', (req, res) => {
 });
 
 // Test endpoint to verify route is working
-app.get('/test-uploads', (req, res) => {
-  console.log('📁 Test uploads endpoint hit');
-  res.json({ 
+app.get('/test-uploads', (req, res) => {  res.json({ 
     message: 'Uploads route is working',
     uploadsDir,
     baseDir,
@@ -280,9 +197,7 @@ app.get('/test-uploads', (req, res) => {
 
 // TEMPORARY DEBUG: Find where images are actually located
 app.get('/api/debug-find-images', (req, res) => {
-  const { exec } = require('child_process');
-  console.log('🔍 DEBUG: Running find command to locate images...');
-  exec('find /app -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.webp" | head -n 50', (err, stdout, stderr) => {
+  const { exec } = require('child_process');  exec('find /app -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.webp" | head -n 50', (err, stdout, stderr) => {
     res.json({ 
       stdout: stdout ? stdout.split('\n').filter(Boolean) : [], 
       stderr, 
@@ -294,9 +209,7 @@ app.get('/api/debug-find-images', (req, res) => {
 });
 
 // Root endpoint for Railway health checks
-app.get('/', (req, res) => {
-  console.log('🏥 Root health check requested');
-  res.json({ 
+app.get('/', (req, res) => {  res.json({ 
     status: 'OK', 
     message: 'Retail Management API is running',
     timestamp: new Date().toISOString(),
@@ -308,9 +221,7 @@ app.get('/', (req, res) => {
 });
 
 // Health check endpoint (keeping for backward compatibility)
-app.get('/api/health', (req, res) => {
-  console.log('🏥 API health check requested');
-  res.json({ 
+app.get('/api/health', (req, res) => {  res.json({ 
     status: 'OK', 
     message: 'Retail Management API is running',
     timestamp: new Date().toISOString()
@@ -318,9 +229,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Railway-specific health check endpoint
-app.get('/health', (req, res) => {
-  console.log('🏥 Railway health check requested');
-  res.status(200).send('OK');
+app.get('/health', (req, res) => {  res.status(200).send('OK');
 });
 
 // Test image serving endpoint
@@ -329,12 +238,7 @@ app.get('/api/test-image/:filename', (req, res) => {
     const { filename } = req.params;
     const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
     const uploadsDir = baseDir;
-    const imagePath = path.join(uploadsDir, 'products', filename);
-    
-    console.log('🖼️ Testing image serving for:', filename);
-    console.log('🖼️ Full path:', imagePath);
-    
-    if (!fs.existsSync(imagePath)) {
+    const imagePath = path.join(uploadsDir, 'products', filename);    if (!fs.existsSync(imagePath)) {
       return res.status(404).json({
         status: 'ERROR',
         message: 'Image not found',
@@ -376,12 +280,7 @@ app.get('/api/images/:filename', (req, res) => {
     const { filename } = req.params;
     const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
     const uploadsDir = baseDir;
-    const imagePath = path.join(uploadsDir, 'products', filename);
-    
-    console.log('🖼️ Direct image request:', filename);
-    console.log('🖼️ Full path:', imagePath);
-    
-    if (!fs.existsSync(imagePath)) {
+    const imagePath = path.join(uploadsDir, 'products', filename);    if (!fs.existsSync(imagePath)) {
       return res.status(404).json({
         status: 'ERROR',
         message: 'Image not found',
@@ -403,10 +302,7 @@ app.get('/api/images/:filename', (req, res) => {
     else if (filename.endsWith('.gif')) mimeType = 'image/gif';
     else if (filename.endsWith('.webp')) mimeType = 'image/webp';
     
-    res.setHeader('Content-Type', mimeType);
-    
-    console.log('🖼️ Serving image via API with CORS:', imagePath);
-    res.sendFile(imagePath);
+    res.setHeader('Content-Type', mimeType);    res.sendFile(imagePath);
     
   } catch (error) {
     console.error('🖼️ Direct image error:', error);
@@ -422,24 +318,13 @@ app.get('/api/test-filesystem', (req, res) => {
   try {
     const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
     const uploadsDir = baseDir;
-    const productsDir = path.join(uploadsDir, 'products');
-    
-    console.log('🔍 Testing file system access...');
-    console.log('🔍 Base directory:', baseDir);
-    console.log('🔍 Uploads directory:', uploadsDir);
-    console.log('🔍 Products directory:', productsDir);
-    
-    const uploadsExists = fs.existsSync(uploadsDir);
+    const productsDir = path.join(uploadsDir, 'products');    const uploadsExists = fs.existsSync(uploadsDir);
     const productsExists = fs.existsSync(productsDir);
     
     let files = [];
     if (productsExists) {
       try {
-        files = fs.readdirSync(productsDir);
-        console.log('🔍 Found files in products directory:', files);
-      } catch (error) {
-        console.log('🔍 Error reading products directory:', error.message);
-      }
+        files = fs.readdirSync(productsDir);      } catch (error) {      }
     }
     
     res.json({
@@ -484,9 +369,7 @@ app.use('/api/store-warehouse', require('./routes/store_warehouse'));
 
 // Privacy Policy route - must be before catch-all routes
 app.get('/privacy-policy', (req, res) => {
-  const privacyPolicyPath = path.join(__dirname, '../../privacy_policy.html');
-  console.log('📄 Serving privacy policy from:', privacyPolicyPath);
-  res.sendFile(privacyPolicyPath, (err) => {
+  const privacyPolicyPath = path.join(__dirname, '../../privacy_policy.html');  res.sendFile(privacyPolicyPath, (err) => {
     if (err) {
       console.error('❌ Error serving privacy policy:', err);
       res.status(500).send('Privacy policy not found');
@@ -496,9 +379,7 @@ app.get('/privacy-policy', (req, res) => {
 
 // Also support /privacy for convenience
 app.get('/privacy', (req, res) => {
-  const privacyPolicyPath = path.join(__dirname, '../../privacy_policy.html');
-  console.log('📄 Serving privacy policy from:', privacyPolicyPath);
-  res.sendFile(privacyPolicyPath, (err) => {
+  const privacyPolicyPath = path.join(__dirname, '../../privacy_policy.html');  res.sendFile(privacyPolicyPath, (err) => {
     if (err) {
       console.error('❌ Error serving privacy policy:', err);
       res.status(500).send('Privacy policy not found');
@@ -508,9 +389,7 @@ app.get('/privacy', (req, res) => {
 
 // Data Deletion Request route
 app.get('/data-deletion-request', (req, res) => {
-  const dataDeletionPath = path.join(__dirname, '../../data_deletion_request.html');
-  console.log('📄 Serving data deletion request page from:', dataDeletionPath);
-  res.sendFile(dataDeletionPath, (err) => {
+  const dataDeletionPath = path.join(__dirname, '../../data_deletion_request.html');  res.sendFile(dataDeletionPath, (err) => {
     if (err) {
       console.error('❌ Error serving data deletion request page:', err);
       res.status(500).send('Data deletion request page not found');
@@ -520,9 +399,7 @@ app.get('/data-deletion-request', (req, res) => {
 
 // Also support /delete-data for convenience
 app.get('/delete-data', (req, res) => {
-  const dataDeletionPath = path.join(__dirname, '../../data_deletion_request.html');
-  console.log('📄 Serving data deletion request page from:', dataDeletionPath);
-  res.sendFile(dataDeletionPath, (err) => {
+  const dataDeletionPath = path.join(__dirname, '../../data_deletion_request.html');  res.sendFile(dataDeletionPath, (err) => {
     if (err) {
       console.error('❌ Error serving data deletion request page:', err);
       res.status(500).send('Data deletion request page not found');
@@ -532,9 +409,7 @@ app.get('/delete-data', (req, res) => {
 
 // Account Deletion Request route
 app.get('/account-deletion-request', (req, res) => {
-  const accountDeletionPath = path.join(__dirname, '../../account_deletion_request.html');
-  console.log('📄 Serving account deletion request page from:', accountDeletionPath);
-  res.sendFile(accountDeletionPath, (err) => {
+  const accountDeletionPath = path.join(__dirname, '../../account_deletion_request.html');  res.sendFile(accountDeletionPath, (err) => {
     if (err) {
       console.error('❌ Error serving account deletion request page:', err);
       res.status(500).send('Account deletion request page not found');
@@ -544,9 +419,7 @@ app.get('/account-deletion-request', (req, res) => {
 
 // Also support /delete-account for convenience
 app.get('/delete-account', (req, res) => {
-  const accountDeletionPath = path.join(__dirname, '../../account_deletion_request.html');
-  console.log('📄 Serving account deletion request page from:', accountDeletionPath);
-  res.sendFile(accountDeletionPath, (err) => {
+  const accountDeletionPath = path.join(__dirname, '../../account_deletion_request.html');  res.sendFile(accountDeletionPath, (err) => {
     if (err) {
       console.error('❌ Error serving account deletion request page:', err);
       res.status(500).send('Account deletion request page not found');
@@ -615,30 +488,13 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-const server = app.listen(PORT, HOST, () => {
-  console.log(`🚀 Server is running on http://${HOST}:${PORT}`);
-  console.log(`📊 Health check: http://${HOST}:${PORT}/`);
-  console.log(`🔗 API Base URL: http://${HOST}:${PORT}/api`);
-  console.log(`📁 Uploads served from: http://${HOST}:${PORT}/uploads`);
-  console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔧 Railway Volume: ${process.env.RAILWAY_VOLUME_MOUNT_PATH || 'Not set'}`);
-  console.log(`🔧 Port: ${PORT}`);
-  console.log(`🔧 Host: ${HOST}`);
-});
+const server = app.listen(PORT, HOST, () => {});
 
 // Graceful shutdown handling
-process.on('SIGTERM', () => {
-  console.log('🛑 Received SIGTERM, shutting down gracefully...');
-  server.close(() => {
-    console.log('✅ Server closed');
-    process.exit(0);
+process.on('SIGTERM', () => {  server.close(() => {    process.exit(0);
   });
 });
 
-process.on('SIGINT', () => {
-  console.log('🛑 Received SIGINT, shutting down gracefully...');
-  server.close(() => {
-    console.log('✅ Server closed');
-    process.exit(0);
+process.on('SIGINT', () => {  server.close(() => {    process.exit(0);
   });
 }); 

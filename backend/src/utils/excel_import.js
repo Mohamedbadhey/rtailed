@@ -10,18 +10,43 @@ function normalizeHeader(h) {
 
 // Read sheet headers and rows; also compute Excel row numbers for each data row
 function readSheetRows(workbook, options = {}) {
-  const sheetName = workbook.SheetNames[0];
-  const ws = workbook.Sheets[sheetName];
+  let sheetName = workbook.SheetNames[0];
+  let ws = workbook.Sheets[sheetName];
+  let headerRowIndex = 0;
+  
+  const targetHeaders = ['name', 'price', 'cost', 'sku', 'barcode'];
+  
+  // Try to find the best worksheet and header row
+  for (const name of workbook.SheetNames) {
+    const currentWS = workbook.Sheets[name];
+    const rows2D = XLSX.utils.sheet_to_json(currentWS, { header: 1, defval: null, raw: false });
+    if (!rows2D || rows2D.length === 0) continue;
+    
+    let foundHeader = false;
+    for (let i = 0; i < Math.min(20, rows2D.length); i++) {
+      const hRow = (rows2D[i] || []).map(normalizeHeader);
+      const matchCount = hRow.filter(h => targetHeaders.includes(h)).length;
+      if (matchCount >= 2) {
+        sheetName = name;
+        ws = currentWS;
+        headerRowIndex = i;
+        foundHeader = true;
+        break;
+      }
+    }
+    if (foundHeader) break;
+  }
+
   if (!ws) throw new Error('No worksheet found in uploaded Excel');
 
-  // Read as raw 2D array to preserve positions
   const rows2D = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false });
-  if (!rows2D.length) return { headers: [], rows: [], rowNumbers: [] };
+  if (!rows2D.length || headerRowIndex >= rows2D.length) {
+    return { headers: [], rows: [], rowNumbers: [], ws, sheetName, headerRowIndex: 0 };
+  }
 
-  const headerRow = rows2D[0].map(normalizeHeader);
-  const dataRows = rows2D.slice(1);
+  const headerRow = rows2D[headerRowIndex].map(normalizeHeader);
+  const dataRows = rows2D.slice(headerRowIndex + 1);
 
-  // Map data rows to objects with headers
   const rows = dataRows.map(r => {
     const obj = {};
     headerRow.forEach((h, i) => {
@@ -31,10 +56,9 @@ function readSheetRows(workbook, options = {}) {
     return obj;
   });
 
-  // Compute the absolute Excel row numbers (1-based). Header assumed at row 1
-  const rowNumbers = dataRows.map((_, idx) => idx + 2); // header at 1, first data at 2
+  const rowNumbers = dataRows.map((_, idx) => idx + headerRowIndex + 2); 
 
-  return { headers: headerRow, rows, rowNumbers, ws, sheetName };
+  return { headers: headerRow, rows, rowNumbers, ws, sheetName, headerRowIndex };
 }
 
 function getSheetIndexFromName(workbook, sheetName) {
@@ -56,8 +80,6 @@ async function findDrawingPathForSheet(zip, sheetIndex) {
   for (const relsPath of [...pathsToTry, ...sheetRelsFiles]) {
     const relsFile = zip.file(relsPath);
     if (!relsFile) continue;
-    
-    console.log(`🔍 Checking rels file: ${relsPath}`);
     const xml = await relsFile.async('text');
     const parser = new XMLParser({ ignoreAttributes: false });
     const rels = parser.parse(xml);
@@ -83,8 +105,6 @@ async function findDrawingPathForSheet(zip, sheetIndex) {
         const alt = normalized.replace('worksheets/drawings/', 'drawings/');
         if (zip.file(alt)) normalized = alt;
       }
-      
-      console.log(`🎯 Found drawing rel in ${relsPath} -> ${normalized}`);
       if (zip.file(normalized)) return normalized;
     }
   }
@@ -94,8 +114,6 @@ async function findDrawingPathForSheet(zip, sheetIndex) {
 async function parseDrawingAnchors(zip, drawingPath) {
   const file = zip.file(drawingPath);
   if (!file) return { anchors: [], relsMap: {} };
-
-  console.log(`📖 Parsing drawing XML: ${drawingPath}`);
   const xml = await file.async('text');
   const parser = new XMLParser({ 
     ignoreAttributes: false, 
@@ -106,14 +124,11 @@ async function parseDrawingAnchors(zip, drawingPath) {
   
   // Find the actual root content key (skip ?xml, etc.)
   let rootKey = Object.keys(doc).find(k => !k.startsWith('?'));
-  console.log(`🎨 Drawing XML Root Key: ${rootKey}`);
-
   // If the root key has a prefix and we don't have a clean wsDr, map it
   if (rootKey && rootKey.includes(':') && !doc.wsDr) {
     const parts = rootKey.split(':');
     const localName = parts[parts.length - 1];
     if (localName === 'wsDr') {
-      console.log(`💡 Mapping prefixed root ${rootKey} to wsDr`);
       doc.wsDr = doc[rootKey];
       rootKey = 'wsDr';
     }
@@ -135,24 +150,17 @@ async function parseDrawingAnchors(zip, drawingPath) {
     ...getAnchorArray(wsDr, 'oneCellAnchor'),
     ...getAnchorArray(wsDr, 'absoluteAnchor')
   ].filter(Boolean);
-
-  console.log(`⚓ Total anchors found in XML: ${all.length}`);
-  
   if (all.length > 0) {
-    console.log(`🔍 DEBUG: First anchor keys: ${Object.keys(all[0]).join(',')}`);
   }
 
   // If no anchors found, fuzzy search for anything containing "Anchor"
   if (all.length === 0) {
-    console.log('🧐 No standard anchors found. Searching all keys for "Anchor"...');
     for (const key in wsDr) {
       if (key.toLowerCase().includes('anchor')) {
-        console.log(`💡 Found potential anchor key: ${key}`);
         const found = Array.isArray(wsDr[key]) ? wsDr[key] : [wsDr[key]];
         all.push(...found.filter(Boolean));
       }
     }
-    console.log(`⚓ After fuzzy search, anchors: ${all.length}`);
   }
 
   for (const a of all) {
@@ -191,12 +199,10 @@ async function parseDrawingAnchors(zip, drawingPath) {
     }
     
     if (!from) {
-      console.log('❓ Anchor missing "from" element', JSON.stringify(a).substring(0, 200));
       continue;
     }
     
     if (!pic) {
-      console.log('❓ Anchor missing "pic" or recognized image element', JSON.stringify(a).substring(0, 200));
       continue;
     }
     
@@ -226,11 +232,8 @@ async function parseDrawingAnchors(zip, drawingPath) {
                   blip?.['@_r:embed']; 
     
     if (Number.isFinite(row) && Number.isFinite(col) && relId) {
-      console.log(`✅ Found anchor: row=${row}, col=${col}, relId=${relId}`);
       anchors.push({ row, col, relId });
     } else {
-      console.log(`❓ Anchor incomplete: row=${row}, col=${col}, relId=${relId}`);
-      console.log(`🔍 Anchor Sample: ${JSON.stringify(a).substring(0, 300)}`);
     }
   }
 
@@ -240,17 +243,14 @@ async function parseDrawingAnchors(zip, drawingPath) {
   let relsFile = zip.file(standardRelsPath);
   
   if (!relsFile) {
-    console.log(`ℹ️ Drawing rels not at standard path: ${standardRelsPath}. Searching...`);
     const drawingFileName = path.posix.basename(drawingPath);
     const relsSearch = Object.keys(zip.files).find(f => f.includes('_rels') && f.includes(drawingFileName) && f.endsWith('.rels'));
     if (relsSearch) {
-      console.log(`💡 Found drawing rels at: ${relsSearch}`);
       relsFile = zip.file(relsSearch);
     }
   }
 
   if (relsFile) {
-    console.log(`📖 Parsing drawing RELS`);
     const relsXml = await relsFile.async('text');
     const relsParser = new XMLParser({ ignoreAttributes: false });
     const relsDoc = relsParser.parse(relsXml);
@@ -270,24 +270,18 @@ async function parseDrawingAnchors(zip, drawingPath) {
            p = path.posix.normalize(path.posix.join(path.posix.dirname(drawingPath), target));
         }
         relsMap[id] = p;
-        console.log(`🔗 Mapping relId ${id} -> ${p}`);
       }
     }
   } else {
-    console.log('❌ Drawing rels file NOT found');
   }
 
   return { anchors, relsMap };
 }
 
 async function extractEmbeddedImagesByRow(buffer, options = {}) {
-  console.log('📊 Starting embedded image extraction...');
   const workbook = XLSX.read(buffer, { type: 'buffer' });
-  const { headers, rows, rowNumbers, sheetName } = readSheetRows(workbook, options);
-  console.log(`📊 Worksheet name: ${sheetName}, Headers: [${headers.join(', ')}]`);
-  
+  const { headers, rows, rowNumbers, sheetName, headerRowIndex } = readSheetRows(workbook, options);
   if (!rows.length) {
-    console.log('⚠️ No rows found in Excel');
     return { headers, rows, imagesByRow: new Map(), warnings: ['No data rows found'] };
   }
 
@@ -304,62 +298,42 @@ async function extractEmbeddedImagesByRow(buffer, options = {}) {
     for (const name of commonImageNames) {
       imageColIndex = headers.findIndex(h => h === name);
       if (imageColIndex !== -1) {
-        console.log(`🔍 Detected image column: "${headers[imageColIndex]}" at index ${imageColIndex}`);
         break;
       }
     }
   }
-
-  console.log('📦 Loading Excel ZIP structure...');
   const zip = await JSZip.loadAsync(buffer);
   
   const sheetIndex = getSheetIndexFromName(workbook, sheetName);
-  console.log(`📄 Sheet index: ${sheetIndex}`);
-  
   let drawingPath = await findDrawingPathForSheet(zip, sheetIndex);
   
   if (!drawingPath) {
-    console.log(`⚠️ No drawing path found for sheet ${sheetIndex}. Searching ZIP for ANY drawing...`);
     // Try to find ANY drawing file as a fallback
     const allFiles = Object.keys(zip.files);
     drawingPath = allFiles.find(f => f.startsWith('xl/drawings/drawing') && f.endsWith('.xml'));
     if (drawingPath) {
-      console.log(`💡 Fallback: Found drawing at ${drawingPath}`);
     }
   }
 
   const warnings = [];
   if (!drawingPath) {
-    console.log(`⚠️ No drawing path found at all.`);
     warnings.push('No drawing part found in worksheet; embedded images may be missing');
     return { headers, rows, imagesByRow: new Map(), warnings };
   }
-
-  console.log(`🎨 Drawing path to parse: ${drawingPath}`);
-  
   // DEBUG: Log ZIP structure if needed
   const allZipFiles = Object.keys(zip.files);
   const drawingRelsSearch = allZipFiles.filter(f => f.includes('drawing') && f.includes('.rels'));
-  console.log(`🔍 Potential Drawing Rels found in ZIP: ${drawingRelsSearch.join(', ')}`);
-
   const { anchors, relsMap } = await parseDrawingAnchors(zip, drawingPath);
-  console.log(`🖼️ Found ${anchors.length} image anchors. Rels map size: ${Object.keys(relsMap).length}`);
-  
   const imagesByRow = new Map();
 
   for (const a of anchors) {
     const excelRow1Based = a.row + 1;
-    const dataIndex = excelRow1Based - 2;
-    
-    console.log(`📍 Processing anchor: Row=${a.row} (Excel ${excelRow1Based}), Col=${a.col}, RelID=${a.relId}`);
-    
+    const dataIndex = a.row - (headerRowIndex + 1);
     if (dataIndex < 0 || dataIndex >= rows.length) {
-      console.log(`⏭️ Anchor Row ${excelRow1Based} is outside data rows (1-based row must be > 1 and <= ${rows.length + 1})`);
       continue;
     }
     
     if (imageColIndex !== -1 && a.col !== imageColIndex) {
-      console.log(`ℹ️ Image at col ${a.col} doesn't match image column ${imageColIndex}. Fuzzing...`);
       if (Math.abs(a.col - imageColIndex) > 1) {
          continue;
       }
@@ -367,23 +341,18 @@ async function extractEmbeddedImagesByRow(buffer, options = {}) {
     
     const mediaPath = relsMap[a.relId];
     if (!mediaPath) {
-      console.log(`❌ No media path found for RelID ${a.relId} in drawing rels`);
       continue;
     }
     
     const mediaFile = zip.file(mediaPath);
     if (!mediaFile) {
-      console.log(`❌ Media file NOT found in ZIP: ${mediaPath}`);
       continue;
     }
-    
-    console.log(`📥 Extracting media: ${mediaPath} (${mediaFile._data.uncompressedSize} bytes)`);
     const content = await mediaFile.async('nodebuffer');
     const ext = path.extname(mediaPath).toLowerCase() || '.png';
     
     if (!imagesByRow.has(dataIndex)) {
       imagesByRow.set(dataIndex, { buffer: content, ext, mediaPath, excelRow: excelRow1Based });
-      console.log(`✅ SUCCESS: Mapped image to data row ${dataIndex}`);
     }
   }
 
@@ -394,3 +363,4 @@ module.exports = {
   extractEmbeddedImagesByRow,
   normalizeHeader,
 };
+

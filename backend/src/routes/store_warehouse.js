@@ -19,14 +19,6 @@ router.post('/:storeId/add-product', auth, checkRole(['admin', 'manager', 'super
     const { storeId } = req.params;
     const { product_id, quantity, cost_price, notes } = req.body;
     const user = req.user;
-    
-    console.log('=== ADD PRODUCT TO STORE INVENTORY ===');
-    console.log('Store ID:', storeId);
-    console.log('Product ID:', product_id);
-    console.log('Quantity:', quantity);
-    console.log('Cost Price:', cost_price);
-    console.log('User:', { id: user.id, role: user.role, business_id: user.business_id });
-    
     if (!product_id || !quantity) {
       return res.status(400).json({ message: 'Product ID and quantity are required' });
     }
@@ -83,7 +75,6 @@ router.post('/:storeId/add-product', auth, checkRole(['admin', 'manager', 'super
             'UPDATE products SET cost_price = ? WHERE id = ?',
             [cost_price, product_id]
           );
-          console.log('Updated product cost price to:', cost_price);
         }
         
         // Record the increment movement
@@ -93,8 +84,6 @@ router.post('/:storeId/add-product', auth, checkRole(['admin', 'manager', 'super
            VALUES (?, ?, ?, 'in', ?, ?, ?, 'purchase', ?, ?)`,
           [storeId, user.business_id, product_id, quantity, currentQuantity, newQuantity, notes || 'Product added to store', user.id]
         );
-        
-        console.log('Updated existing inventory - previous:', currentQuantity, 'added:', quantity, 'new:', newQuantity);
       } else {
         // Create new inventory record
         await connection.query(
@@ -110,7 +99,6 @@ router.post('/:storeId/add-product', auth, checkRole(['admin', 'manager', 'super
             'UPDATE products SET cost_price = ? WHERE id = ?',
             [cost_price, product_id]
           );
-          console.log('Updated product cost price to:', cost_price);
         }
         
         // Record the initial movement
@@ -120,8 +108,6 @@ router.post('/:storeId/add-product', auth, checkRole(['admin', 'manager', 'super
            VALUES (?, ?, ?, 'in', ?, 0, ?, 'purchase', ?, ?)`,
           [storeId, user.business_id, product_id, quantity, quantity, notes || 'Initial product addition', user.id]
         );
-        
-        console.log('Created new inventory record - quantity:', quantity);
       }
       
       await connection.commit();
@@ -152,41 +138,21 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
     const { storeId } = req.params;
     const { products } = req.body; // products: [{product_id, quantity, supplier, batch_number, expiry_date, notes}]
     const user = req.user;
-    
-    console.log('=== STORE WAREHOUSE ADD PRODUCTS DEBUG ===');
-    console.log('Store ID (from params):', storeId);
-    console.log('Store ID type:', typeof storeId);
-    console.log('User:', { id: user.id, role: user.role, business_id: user.business_id });
-    console.log('Products:', products);
-    console.log('Request body:', req.body);
-    
     if (!products || products.length === 0) {
-      console.log('ERROR: No products provided');
       return res.status(400).json({ message: 'Products are required' });
     }
     
     // Check if user has access to this store
-    console.log('Checking user access - Role:', user.role, 'Business ID:', user.business_id);
-    
     if (user.role !== 'superadmin') {
       // For non-superadmin, check if they have access to any business assigned to this store
-      console.log('User is not superadmin, checking store access for business:', user.business_id, 'store:', storeId);
       const query = `SELECT 1 FROM store_business_assignments sba 
          WHERE sba.store_id = ? AND sba.business_id = ? AND sba.is_active = 1`;
       const params = [storeId, user.business_id];
-      console.log('Executing query:', query);
-      console.log('With parameters:', params);
-      
       const [accessCheck] = await pool.query(query, params);
-      
-      console.log('Access check result:', accessCheck);
-      
       if (accessCheck.length === 0) {
-        console.log('ACCESS DENIED: Business', user.business_id, 'not assigned to store', storeId);
         return res.status(403).json({ message: 'Access denied: No permission for this store' });
       }
     } else {
-      console.log('User is superadmin, access granted');
     }
     
     // Start transaction
@@ -221,13 +187,10 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
         }
         
         // Check if inventory record already exists for this store and business
-        console.log('Checking existing inventory for store:', storeId, 'product:', product_id, 'business:', user.business_id);
         const [existing] = await connection.query(
           'SELECT id, quantity FROM store_product_inventory WHERE store_id = ? AND product_id = ? AND business_id = ?',
           [storeId, product_id, user.business_id]
         );
-        console.log('Existing inventory found:', existing);
-        
         if (existing.length > 0) {
           // Update existing inventory (increment)
           const currentQuantity = existing[0].quantity;
@@ -259,15 +222,12 @@ router.post('/:storeId/add-products', auth, checkRole(['admin', 'manager', 'supe
           });
         } else {
           // Create new inventory record
-          console.log('Creating new inventory record for store:', storeId, 'product:', product_id, 'quantity:', quantity, 'business:', user.business_id);
           await connection.query(
             `INSERT INTO store_product_inventory 
              (store_id, business_id, product_id, quantity, min_stock_level, updated_by)
              VALUES (?, ?, ?, ?, 10, ?)`,
             [storeId, user.business_id, product_id, quantity, user.id]
           );
-          console.log('New inventory record created successfully');
-          
           // Record the initial movement
           await connection.query(
             `INSERT INTO store_inventory_movements 

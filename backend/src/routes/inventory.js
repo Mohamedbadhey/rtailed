@@ -267,12 +267,7 @@ router.get('/transactions', [auth, checkRole(['admin', 'manager', 'cashier'])], 
 
 router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier'])], async (req, res) => {
   try {
-    const { start_date, end_date, user_id, category_id, product_id, transaction_type, payment_method, limit } = req.query;
-
-    console.log('ðŸ“„ PDF TRANSACTIONS: Request params:', { start_date, end_date, user_id, limit });
-    console.log('ðŸ“„ PDF TRANSACTIONS: User:', req.user.id, req.user.role, req.user.business_id);
-
-    let query = `
+    const { start_date, end_date, user_id, category_id, product_id, transaction_type, payment_method, limit } = req.query;    let query = `
       SELECT 
         it.id,
         it.created_at,
@@ -321,9 +316,7 @@ router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier']
         startDateTime = start_date + ' 00:00:00';
       }
       query += ' AND it.created_at >= ?';
-      params.push(startDateTime);
-      console.log('ðŸ“„ PDF TRANSACTIONS: Added start_date filter:', startDateTime);
-    }
+      params.push(startDateTime);    }
     if (end_date) {
       // Convert end_date to end of day for proper comparison
       let endDateTime;
@@ -336,9 +329,7 @@ router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier']
         endDateTime = end_date + ' 23:59:59';
       }
       query += ' AND it.created_at <= ?';
-      params.push(endDateTime);
-      console.log('ðŸ“„ PDF TRANSACTIONS: Added end_date filter:', endDateTime);
-    }
+      params.push(endDateTime);    }
 
     // Add cashier filter if provided
     if (user_id && user_id !== 'all') {
@@ -349,30 +340,22 @@ router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier']
     // Add category filter if provided
     if (category_id) {
       query += ' AND p.category_id = ?';
-      params.push(category_id);
-      console.log('ðŸ“„ PDF TRANSACTIONS: Added category filter:', category_id);
-    }
+      params.push(category_id);    }
 
     // Add product filter if provided
     if (product_id) {
       query += ' AND it.product_id = ?';
-      params.push(product_id);
-      console.log('ðŸ“„ PDF TRANSACTIONS: Added product filter:', product_id);
-    }
+      params.push(product_id);    }
 
     // Add transaction type filter if provided
     if (transaction_type) {
       query += ' AND it.transaction_type = ?';
-      params.push(transaction_type);
-      console.log('ðŸ“„ PDF TRANSACTIONS: Added transaction_type filter:', transaction_type);
-    }
+      params.push(transaction_type);    }
 
     // Add payment method filter if provided
     if (payment_method) {
       query += ' AND s.payment_method = ?';
-      params.push(payment_method);
-      console.log('ðŸ“„ PDF TRANSACTIONS: Added payment_method filter:', payment_method);
-    }
+      params.push(payment_method);    }
 
     query += ' ORDER BY it.created_at DESC';
 
@@ -384,17 +367,7 @@ router.get('/transactions/pdf', [auth, checkRole(['admin', 'manager', 'cashier']
 
     if (req.user.role === 'superadmin') {
       query = query.replace('WHERE it.business_id = ? AND (s.status IS NULL OR s.status != \'cancelled\')', 'WHERE (s.status IS NULL OR s.status != \'cancelled\')');
-      params = params.slice(1); // Remove business_id from params
-      console.log('ðŸ“„ PDF TRANSACTIONS: Superadmin - removed business_id filter');
-    }
-
-    console.log('ðŸ“„ PDF TRANSACTIONS: Final query:', query);
-    console.log('ðŸ“„ PDF TRANSACTIONS: Final params:', params);
-
-    const [transactions] = await pool.query(query, params);
-    console.log('ðŸ“„ PDF TRANSACTIONS: Found', transactions.length, 'transactions');
-
-    res.json(transactions);
+      params = params.slice(1); // Remove business_id from params    }    const [transactions] = await pool.query(query, params);    res.json(transactions);
   } catch (error) {
     console.error('ðŸ“„ PDF TRANSACTIONS ERROR:', error);
     res.status(500).json({ message: error.message || 'Server error' });

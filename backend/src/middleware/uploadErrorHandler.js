@@ -49,11 +49,7 @@ const uploadErrorHandler = (error, req, res, next) => {
       }
       if (!fs.existsSync(brandingDir)) {
         fs.mkdirSync(brandingDir, { recursive: true });
-      }
-
-      console.log('✅ Created missing upload directories');
-      
-      // Return a retry message
+      }      // Return a retry message
       return res.status(500).json({
         status: 'error',
         message: 'Upload directories were missing and have been created. Please try uploading again.',

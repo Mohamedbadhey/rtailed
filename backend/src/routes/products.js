@@ -258,15 +258,6 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
     // - If storeId is NOT provided: This is inventory screen (business-specific products, business_id = req.user.business_id)
     const { storeId } = req.body;
     const businessId = storeId ? null : req.user.business_id;
-    
-    console.log('=== BUSINESS ID LOGIC ===');
-    console.log('storeId provided:', !!storeId);
-    console.log('storeId value:', storeId);
-    console.log('user business_id:', req.user.business_id);
-    console.log('final businessId:', businessId);
-    console.log('context:', storeId ? 'Store Management (Global Product)' : 'Inventory Screen (Business-Specific Product)');
-    console.log('========================');
-    
     const finalSku = (sku && sku.trim() !== '') ? sku.trim() : `SKU-${Date.now()}`;
     
     const insertValues = [
@@ -283,23 +274,6 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
       image_url,
       businessId
     ];
-    
-    console.log('=== INSERT VALUES ===');
-    console.log('name:', name);
-    console.log('description:', description || null);
-    console.log('sku received in body:', sku);
-    console.log('sku being used for insertion:', finalSku);
-    console.log('barcode:', barcode || null);
-    console.log('category_id:', category_id || null);
-    console.log('price:', parseFloat(price));
-    console.log('wholesale_price:', wholesale_price !== undefined ? parseFloat(wholesale_price) : null);
-    console.log('cost_price:', parseFloat(cost_price));
-    console.log('stock_quantity:', parseInt(stock_quantity) || 0);
-    console.log('low_stock_threshold:', parseInt(low_stock_threshold) || 10);
-    console.log('image_url:', image_url);
-    console.log('business_id:', businessId);
-    console.log('All insert values:', insertValues);
-
     const [result] = await connection.query(
       `INSERT INTO products (
         name, description, sku, barcode, category_id, 
@@ -309,12 +283,8 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
     );
 
     const productId = result.insertId;
-    console.log('Product created with ID:', productId);
-
     // If storeId is provided, immediately add product to store inventory
     if (storeId && parseInt(stock_quantity) > 0) {
-      console.log('Adding product to store inventory - Store ID:', storeId, 'Product ID:', productId, 'Quantity:', stock_quantity);
-      
       // Check if user has access to this store
       if (req.user.role !== 'superadmin') {
         const [accessCheck] = await connection.query(
@@ -353,8 +323,6 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
            VALUES (?, ?, ?, 'in', ?, ?, ?, 'purchase', ?, ?)`,
           [storeId, req.user.business_id, productId, parseInt(stock_quantity), currentQuantity, newQuantity, 'Product created and added to store', req.user.id]
         );
-        
-        console.log('Updated existing store inventory - previous:', currentQuantity, 'added:', stock_quantity, 'new:', newQuantity);
       } else {
         // Create new inventory record
         await connection.query(
@@ -371,8 +339,6 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
            VALUES (?, ?, ?, 'in', ?, 0, ?, 'purchase', ?, ?)`,
           [storeId, req.user.business_id, productId, parseInt(stock_quantity), parseInt(stock_quantity), 'Initial product addition to store', req.user.id]
         );
-        
-        console.log('Created new store inventory record - quantity:', stock_quantity);
       }
     }
 
@@ -382,10 +348,6 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
     // This follows the two-tier inventory system: Store Warehouse → Business Inventory
 
     await connection.commit();
-    console.log('=== PRODUCT CREATED SUCCESSFULLY ===');
-    console.log('Product ID:', result.insertId);
-    console.log('=====================================');
-
     res.status(201).json({
       message: 'Product created successfully',
       productId: result.insertId
@@ -402,12 +364,6 @@ router.post('/', [auth, checkRole(['admin', 'manager']), upload.single('image')]
 // Update product
 router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image')], async (req, res, next) => {
   try {
-    console.log('=== PRODUCT UPDATE DEBUG ===');
-    console.log('User info:', { id: req.user.id, role: req.user.role, business_id: req.user.business_id });
-    console.log('Product ID to update:', req.params.id);
-    console.log('Request body:', req.body);
-    console.log('File info:', req.file ? { filename: req.file.filename, size: req.file.size } : 'No file');
-    
     const {
       name,
       description,
@@ -437,9 +393,6 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
     if (existingProducts.length === 0) {
       return res.status(404).json({ message: 'Product not found or access denied' });
     }
-    
-    console.log('Found existing product:', existingProducts[0]);
-
     const image_url = req.file ? `/uploads/products/${req.file.filename}` : undefined;
 
     const updateFields = [];
@@ -462,7 +415,6 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
       const finalSku = sku.trim() !== '' ? sku.trim() : `SKU-${Date.now()}`;
       updateFields.push('sku = ?');
       updateValues.push(finalSku);
-      console.log('Final SKU being used for update:', finalSku);
     }
     if (category_id !== undefined) {
       updateFields.push('category_id = ?');
@@ -494,12 +446,6 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
       updateFields.push('image_url = ?');
       updateValues.push(image_url);
     }
-
-    console.log('sku received in body:', sku);
-    console.log('=== UPDATE FIELDS ===');
-    console.log('Fields to update:', updateFields);
-    console.log('Values to update:', updateValues);
-
     if (updateFields.length === 0) {
       return res.status(400).json({ message: 'No fields to update' });
     }
@@ -507,9 +453,6 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
     updateValues.push(req.params.id);
 
     const updateQuery = `UPDATE products SET ${updateFields.join(', ')} WHERE id = ?`;
-    console.log('Update query:', updateQuery);
-    console.log('Update params:', updateValues);
-
     await pool.query(updateQuery, updateValues);
 
     // Fetch the updated product to verify the changes
@@ -517,12 +460,6 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
       'SELECT * FROM products WHERE id = ?',
       [req.params.id]
     );
-    
-    console.log('=== PRODUCT UPDATED SUCCESSFULLY ===');
-    console.log('Product ID:', req.params.id);
-    console.log('Updated product data:', updatedProducts[0]);
-    console.log('=====================================');
-
     res.json({ 
       message: 'Product updated successfully',
       product: updatedProducts[0]
@@ -537,10 +474,6 @@ router.put('/:id', [auth, checkRole(['admin', 'manager']), upload.single('image'
 router.delete('/:id', [auth, checkRole(['admin'])], async (req, res) => {
   const connection = await pool.getConnection();
   try {
-    console.log('=== PRODUCT DELETE DEBUG ===');
-    console.log('User info:', { id: req.user.id, role: req.user.role, business_id: req.user.business_id });
-    console.log('Product ID to delete:', req.params.id);
-    
     await connection.beginTransaction();
 
     const productId = req.params.id;
@@ -564,9 +497,6 @@ router.delete('/:id', [auth, checkRole(['admin'])], async (req, res) => {
       await connection.rollback();
       return res.status(404).json({ message: 'Product not found or access denied' });
     }
-    
-    console.log('Found product to delete:', products[0]);
-
     // Simple soft delete - just mark as deleted, preserve all data
     const [result] = await connection.query(
       'UPDATE products SET is_deleted = 1 WHERE id = ?',
@@ -574,11 +504,6 @@ router.delete('/:id', [auth, checkRole(['admin'])], async (req, res) => {
     );
 
     await connection.commit();
-    
-    console.log('=== PRODUCT DELETED SUCCESSFULLY ===');
-    console.log('Product ID:', productId);
-    console.log('=====================================');
-
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
     await connection.rollback();
@@ -593,10 +518,6 @@ router.delete('/:id', [auth, checkRole(['admin'])], async (req, res) => {
 router.put('/:id/restore', [auth, checkRole(['admin'])], async (req, res) => {
   const connection = await pool.getConnection();
   try {
-    console.log('=== PRODUCT RESTORE DEBUG ===');
-    console.log('User info:', { id: req.user.id, role: req.user.role, business_id: req.user.business_id });
-    console.log('Product ID to restore:', req.params.id);
-    
     await connection.beginTransaction();
 
     const productId = req.params.id;
@@ -629,10 +550,6 @@ router.put('/:id/restore', [auth, checkRole(['admin'])], async (req, res) => {
     );
 
     await connection.commit();
-    
-    console.log('Product ID:', productId);
-    console.log('=====================================');
-
     res.json({ message: 'Product restored successfully' });
   } catch (error) {
     await connection.rollback();
@@ -723,12 +640,8 @@ router.post('/bulk-import', [auth, checkRole(['admin', 'manager']), excelUpload.
     const requiredCols = ['name', 'price', 'cost'];
     const missing = requiredCols.filter(rc => !headers.includes(rc));
     if (missing.length) {
-      console.log(`❌ Bulk Import: Missing required columns: ${missing.join(', ')}`);
       return res.status(400).json({ message: `Missing required columns: ${missing.join(', ')}` });
     }
-
-    console.log(`🚀 Bulk Import started: dryRun=${dryRun}, upsertBy=${upsertBy}, rows=${rows.length}`);
-
     // Category pre-fetch cache
     const categoryCache = new Map(); // name -> id
 
@@ -1165,3 +1078,4 @@ router.get('/bulk-export', auth, async (req, res) => {
 
 
 module.exports = router; 
+

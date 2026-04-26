@@ -37,30 +37,13 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Create new sale
-router.post('/', auth, async (req, res) => {
-  console.log('🚀 ===== SALE CREATION START =====');
-  console.log('📝 Request body:', JSON.stringify(req.body, null, 2));
-  console.log('👤 User ID:', req.user.id);
-  console.log('🏢 Business ID:', req.user.business_id);
-  
-  const connection = await pool.getConnection();
+router.post('/', auth, async (req, res) => {  const connection = await pool.getConnection();
   try {
-    // First, let's check the sale_items table structure
-    console.log('🔍 ===== CHECKING SALE_ITEMS TABLE STRUCTURE =====');
-    try {
-      const [columns] = await connection.query('DESCRIBE sale_items');
-      console.log('📋 sale_items table columns:', JSON.stringify(columns, null, 2));
-      
-      // Check if mode column exists and its type
+    // First, let's check the sale_items table structure    try {
+      const [columns] = await connection.query('DESCRIBE sale_items');      // Check if mode column exists and its type
       const modeColumn = columns.find(col => col.Field === 'mode');
-      if (modeColumn) {
-        console.log('✅ mode column found:', JSON.stringify(modeColumn, null, 2));
-      } else {
-        console.log('❌ mode column NOT found in sale_items table!');
-      }
-    } catch (error) {
-      console.log('⚠️ Schema check error:', error.message);
-    }
+      if (modeColumn) {      } else {      }
+    } catch (error) {    }
     
     // Extract sale data
     await connection.beginTransaction();
@@ -109,47 +92,16 @@ router.post('/', auth, async (req, res) => {
     // Calculate totals
     let totalAmount = items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
 
-    // Debug log for sale insert
-    console.log('Creating sale with:', {
-      customer_id,
-      user_id: req.user.id,
-      total_amount: totalAmount,
-      payment_method,
-      sale_mode, // Add sale_mode to debug log
-      status: 'completed'
-    });
-    
-    // Debug log for complete request body
-    console.log('Complete request body:', JSON.stringify(req.body, null, 2));
-    
-    // Debug log for items
-    console.log('Sale items:', items.map(item => ({
-      product_id: item.product_id,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      mode: item.mode
-    })));
-    
-    // Note: No overall sale_mode is set - each item maintains its individual mode
-    console.log('Individual item modes preserved - no overall sale_mode classification');
-    
-    // Determine the actual sale mode based on items
+    // Debug log for sale insert    // Debug log for complete request body    // Debug log for items    // Note: No overall sale_mode is set - each item maintains its individual mode    // Determine the actual sale mode based on items
     let actualSaleMode = 'retail'; // Default
     if (items.some(item => item.mode === 'wholesale')) {
       actualSaleMode = 'wholesale';
-    }
-    console.log('🎯 Determined actual sale_mode:', actualSaleMode, 'based on items');
-    
-    // Create sale record with the correct sale_mode
+    }    // Create sale record with the correct sale_mode
     let saleStatus = 'completed';
     if (payment_method === 'credit') {
       saleStatus = 'unpaid';
     }
-    const businessId = req.user.business_id;
-    
-    console.log('Inserting sale with sale_mode:', actualSaleMode);
-    
-    const [saleResult] = await connection.query(
+    const businessId = req.user.business_id;    const [saleResult] = await connection.query(
       `INSERT INTO sales (
         customer_id, user_id, total_amount, tax_amount,
         payment_method, status, sale_mode, business_id
@@ -157,33 +109,14 @@ router.post('/', auth, async (req, res) => {
       [customer_id, req.user.id, totalAmount, 0.00, payment_method, saleStatus, actualSaleMode, businessId]
     );
 
-    const sale_id = saleResult.insertId;
-    console.log('✅ Sale created with ID:', sale_id);
-
-    // Insert sale items
-    console.log('🔄 ===== INSERTING SALE ITEMS =====');
-    for (const item of items) {
-      console.log('\n--- Processing Sale Item ---');
-      console.log('Raw item data:', JSON.stringify(item, null, 2));
-      console.log('Item mode field:', item.mode);
-      console.log('Item mode type:', typeof item.mode);
-      console.log('Item mode === "wholesale":', item.mode === 'wholesale');
-      console.log('Item mode === "retail":', item.mode === 'retail');
-      
-      const [product] = await connection.query(
+    const sale_id = saleResult.insertId;    // Insert sale items    for (const item of items) {      const [product] = await connection.query(
         'SELECT cost_price FROM products WHERE id = ? AND business_id = ?',
         [item.product_id, req.user.business_id]
       );
 
       // Get the current cost price for this product
-      const currentCostPrice = product.length > 0 ? product[0].cost_price : 0.00;
-      console.log('💰 Current cost price for product', item.product_id, ':', currentCostPrice);
-
-      // Add sale item
-      const itemMode = item.mode || 'retail';
-      console.log('Inserting sale item with mode:', itemMode);
-      
-      // Log the exact INSERT query values
+      const currentCostPrice = product.length > 0 ? product[0].cost_price : 0.00;      // Add sale item
+      const itemMode = item.mode || 'retail';      // Log the exact INSERT query values
       const insertValues = [
         sale_id,
         item.product_id,
@@ -193,19 +126,12 @@ router.post('/', auth, async (req, res) => {
         itemMode,
         businessId,
         currentCostPrice
-      ];
-      console.log('📝 INSERT VALUES:', JSON.stringify(insertValues, null, 2));
-      
-      await connection.query(
+      ];      await connection.query(
         `INSERT INTO sale_items (
           sale_id, product_id, quantity, unit_price, total_price, mode, business_id, costprice
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         insertValues
-      );
-      
-      console.log(`✅ Sale item inserted: Product ${item.product_id}, Mode: ${itemMode}`);
-
-      // NOTE: Stock quantity is automatically updated by database trigger after_sale_item_insert
+      );      // NOTE: Stock quantity is automatically updated by database trigger after_sale_item_insert
       // No need for manual UPDATE here to avoid double deduction
 
       // Add inventory transaction
@@ -242,14 +168,7 @@ router.post('/', auth, async (req, res) => {
       );
     }
 
-    await connection.commit();
-    
-    console.log('🎉 ===== SALE CREATION COMPLETED SUCCESSFULLY =====');
-    console.log('📊 Sale ID:', sale_id);
-    console.log('💰 Total Amount:', totalAmount);
-    console.log('📦 Items Count:', items.length);
-    
-    res.status(201).json({
+    await connection.commit();    res.status(201).json({
       message: 'Sale completed successfully',
       sale_id,
       total_amount: totalAmount
@@ -321,9 +240,7 @@ router.get('/report', auth, async (req, res) => {
         [req.user.business_id]
       );
       if (cancelledSales.length > 0) {
-        cancelledSales.forEach((sale, index) => {
-          console.log(`  [${index}] ID:${sale.id}, Amount:$${sale.total_amount}, Status:${sale.status}, Method:${sale.payment_method}, Parent:${sale.parent_sale_id}, Date:${sale.created_at}`);
-        });
+        cancelledSales.forEach((sale, index) => {        });
       } else {
       }
     }
@@ -393,11 +310,7 @@ router.get('/report', auth, async (req, res) => {
       }
     }
     
-    // Payment methods - show only actual payment methods (completed sales + credit payments, exclude original credits)
-    console.log('🔍 PAYMENT METHODS: ===== START =====');
-    console.log('🔍 PAYMENT METHODS: Building query with filters:');
-    
-    // Debug: Show the exact WHERE clause being built
+    // Payment methods - show only actual payment methods (completed sales + credit payments, exclude original credits)    // Debug: Show the exact WHERE clause being built
     let paymentMethodsWhereClause = `(
       (s.status = "completed" AND s.parent_sale_id IS NULL) OR 
       (s.parent_sale_id IS NOT NULL)
@@ -416,11 +329,7 @@ router.get('/report', auth, async (req, res) => {
     }
     if (end_date) {
       paymentMethodsWhereClause += ` AND DATE(s.created_at) <= '${end_date}'`;
-    }
-    
-    console.log('🔍 PAYMENT METHODS: WHERE clause being built:');
-    
-    const [paymentMethods] = await pool.query(
+    }    const [paymentMethods] = await pool.query(
       `SELECT s.payment_method, COUNT(*) as count, SUM(s.total_amount) as total_amount 
        FROM sales s 
        WHERE (
@@ -441,17 +350,7 @@ router.get('/report', auth, async (req, res) => {
         ...(start_date ? [start_date] : []),
         ...(end_date ? [end_date] : [])
       ]
-    );
-    
-    console.log('🔍 PAYMENT METHODS: Query executed successfully!');
-    console.log('🔍 PAYMENT METHODS: Raw results:', paymentMethods);
-    console.log('🔍 PAYMENT METHODS: Processed results:');
-    paymentMethods.forEach((pm, index) => {
-      console.log(`  [${index}] ${pm.payment_method}: ${pm.count} transactions, $${pm.total_amount}`);
-    });
-    console.log('🔍 PAYMENT METHODS: ===== END =====');
-    
-    // Customer insights - exclude credit payments
+    );    paymentMethods.forEach((pm, index) => {    });    // Customer insights - exclude credit payments
     const [customerInsights] = await pool.query(
       `SELECT COUNT(DISTINCT s.customer_id) as unique_customers, COUNT(*) as total_transactions, AVG(s.total_amount) as average_customer_spend FROM sales s ${whereClause} AND s.customer_id IS NOT NULL`,
       params
@@ -566,11 +465,7 @@ router.get('/report', auth, async (req, res) => {
     const totalRevenue = summary[0]?.total_revenue || 0;
     const totalProfit = totalRevenue - total_cost;
     
-    // Calculate cash in hand from completed non-credit sales + credit payments
-    console.log('🔍 CASH IN HAND: ===== START =====');
-    console.log('🔍 CASH IN HAND: Building query with filters:');
-    
-    // Debug: Show the exact WHERE clause being built for cash in hand
+    // Calculate cash in hand from completed non-credit sales + credit payments    // Debug: Show the exact WHERE clause being built for cash in hand
     let cashInHandWhereClause = `s.status = "completed" AND s.payment_method != "credit"`;
     
     if (req.user.role !== 'superadmin') {
@@ -586,13 +481,7 @@ router.get('/report', auth, async (req, res) => {
     }
     if (end_date) {
       cashInHandWhereClause += ` AND DATE(s.created_at) <= '${end_date}'`;
-    }
-    
-    console.log('🔍 CASH IN HAND: WHERE clause being built:');
-    
-    // Debug: Show exactly what rows will be included in cash in hand
-    console.log('🔍 CASH IN HAND DEBUG: Checking what rows match our criteria...');
-    let debugCashQuery = `
+    }    // Debug: Show exactly what rows will be included in cash in hand    let debugCashQuery = `
       SELECT id, total_amount, payment_method, status, parent_sale_id, business_id, user_id, created_at
       FROM sales s 
       WHERE s.status = "completed" 
@@ -605,22 +494,11 @@ router.get('/report', auth, async (req, res) => {
     `;
     
     try {
-      const [debugCashRows] = await pool.query(debugCashQuery, [req.user.business_id, start_date, end_date]);
-      console.log('🔍 CASH IN HAND DEBUG: Found', debugCashRows.length, 'rows for cash in hand:');
-      debugCashRows.forEach((row, index) => {
-        console.log(`  [${index}] ID:${row.id}, Amount:$${row.total_amount}, Method:${row.payment_method}, Parent:${row.parent_sale_id}, Date:${row.created_at}`);
-      });
+      const [debugCashRows] = await pool.query(debugCashQuery, [req.user.business_id, start_date, end_date]);      debugCashRows.forEach((row, index) => {      });
       
-      const totalDebugAmount = debugCashRows.reduce((sum, row) => sum + Number(row.total_amount), 0);
-      console.log('🔍 CASH IN HAND DEBUG: Total amount from debug query: $', totalDebugAmount);
-    } catch (error) {
-      console.log('🔍 CASH IN HAND DEBUG: Error in debug query:', error.message);
-    }
+      const totalDebugAmount = debugCashRows.reduce((sum, row) => sum + Number(row.total_amount), 0);    } catch (error) {    }
     
-    // Debug: Show exactly what the main cash in hand query will return
-    console.log('🔍 CASH IN HAND DEBUG: Main query will use these filters:');
-    
-    let cashInHandQuery = `
+    // Debug: Show exactly what the main cash in hand query will return    let cashInHandQuery = `
       SELECT 
         SUM(s.total_amount) as total_cash_in_hand
       FROM sales s 
@@ -659,25 +537,8 @@ router.get('/report', auth, async (req, res) => {
     if (end_date) {
       cashInHandQuery += ' AND DATE(s.created_at) <= ?';
       cashInHandParams.push(end_date);
-    }
-    
-    console.log('🔍 CASH IN HAND: Final query:', cashInHandQuery);
-    console.log('🔍 CASH IN HAND: Query parameters:', cashInHandParams);
-    
-    const [cashInHandResult] = await pool.query(cashInHandQuery, cashInHandParams);
-    const actualCashInHand = Number(cashInHandResult[0]?.total_cash_in_hand) || 0;
-    
-    console.log('🔍 CASH IN HAND: Query executed successfully!');
-    console.log('🔍 CASH IN HAND: Raw result:', cashInHandResult[0]);
-    console.log('🔍 CASH IN HAND: Calculated cash in hand:', actualCashInHand);
-    console.log('🔍 CASH IN HAND: ===== END =====');
-    
-    // Debug: Show exactly what the main cash in hand query will return
-    console.log('🔍 CASH IN HAND DEBUG: Main query will use these filters:');
-    
-    
-    
-    // Final summary of all calculations
+    }    const [cashInHandResult] = await pool.query(cashInHandQuery, cashInHandParams);
+    const actualCashInHand = Number(cashInHandResult[0]?.total_cash_in_hand) || 0;    // Debug: Show exactly what the main cash in hand query will return    // Final summary of all calculations
     
     // Prepare safe response data
     const safeSummary = {
@@ -836,11 +697,7 @@ router.get('/credit-report', [auth, checkRole(['admin', 'manager', 'cashier'])],
       GROUP BY c.id, c.name, c.email, c.phone, u.username
       ORDER BY total_credit_amount DESC`,
       params
-    );
-    
-    console.log('Credit report byCustomer result:', byCustomer);
-    
-    // Summary statistics
+    );    // Summary statistics
     const [summary] = await pool.query(
       `SELECT 
         COUNT(*) as total_credit_sales,
@@ -998,15 +855,7 @@ router.get('/customer/:customerId/credit-transactions', [auth, checkRole(['admin
       const totalPaid = Number(paymentSum[0].total_paid) || 0;
       const outstanding = Math.max(0, Number(sale.total_amount) - totalPaid);
       
-      // Debug logging
-      console.log(`🔍 Credit Sale #${sale.id} Calculation:`, {
-        originalAmount: sale.total_amount,
-        totalPaid: totalPaid,
-        outstanding: outstanding,
-        isFullyPaid: outstanding <= 0
-      });
-      
-      return {
+      // Debug logging      return {
         ...sale,
         total_paid: totalPaid,
         outstanding_amount: outstanding,
@@ -1389,9 +1238,7 @@ router.post('/:id/cancel', auth, async (req, res) => {
     // Handle credit sales differently
     if (sale.payment_method === 'credit') {
       // For credit sales, we don't need to handle refunds, just mark as cancelled
-      // The customer won't owe anything for cancelled credit sales
-      console.log(`Credit sale #${saleId} cancelled - no refund needed`);
-    }
+      // The customer won't owe anything for cancelled credit sales    }
     
     await connection.commit();
     

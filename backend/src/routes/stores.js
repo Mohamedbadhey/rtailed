@@ -291,9 +291,6 @@ router.get('/:storeId/businesses', auth, checkRole(['admin', 'manager', 'superad
   try {
     const { storeId } = req.params;
     const user = req.user;
-    
-    console.log(`Getting businesses for store ${storeId}, user role: ${user.role}`);
-    
     // Check if user has access to this store
     if (user.role !== 'superadmin') {
       const [accessCheck] = await pool.query(
@@ -316,9 +313,6 @@ router.get('/:storeId/businesses', auth, checkRole(['admin', 'manager', 'superad
        ORDER BY b.name ASC`,
       [storeId]
     );
-    
-    console.log(`Found ${businesses.length} businesses assigned to store ${storeId}`);
-    
     res.json({ businesses });
   } catch (error) {
     console.error('Error getting businesses for store:', error);
@@ -405,26 +399,14 @@ router.post('/:storeId/reset-businesses', auth, checkRole(['superadmin']), async
 // Get all assignments for superadmin management
 router.get('/assignments/all', auth, checkRole(['superadmin']), async (req, res) => {
   try {
-    console.log('=== DEBUGGING ASSIGNMENTS ENDPOINT ===');
-    console.log('User making request:', req.user);
-    console.log('User role:', req.user?.role);
-    
     // First check if the table exists and has data
     const [tableCheck] = await pool.query('SELECT COUNT(*) as count FROM store_business_assignments');
-    console.log('Total assignments in table:', tableCheck[0].count);
-    
     // Check stores table
     const [storesCheck] = await pool.query('SELECT COUNT(*) as count FROM stores');
-    console.log('Total stores in table:', storesCheck[0].count);
-    
     // Check businesses table
     const [businessesCheck] = await pool.query('SELECT COUNT(*) as count FROM businesses');
-    console.log('Total businesses in table:', businessesCheck[0].count);
-    
     // Check users table
     const [usersCheck] = await pool.query('SELECT COUNT(*) as count FROM users');
-    console.log('Total users in table:', usersCheck[0].count);
-    
     const [assignments] = await pool.query(
       `SELECT 
         sba.id as assignment_id,
@@ -446,13 +428,8 @@ router.get('/assignments/all', auth, checkRole(['superadmin']), async (req, res)
        LEFT JOIN users u ON sba.assigned_by = u.id
        ORDER BY sba.assigned_at DESC`
     );
-    
-    console.log('Query returned assignments:', assignments.length);
     if (assignments.length > 0) {
-      console.log('Sample assignment:', assignments[0]);
     }
-    console.log('=====================================');
-    
     res.json({ assignments });
   } catch (error) {
     console.error('Error getting all assignments:', error);
@@ -469,11 +446,6 @@ router.post('/:storeId/reset', auth, checkRole(['superadmin']), async (req, res)
     if (!confirmReset) {
       return res.status(400).json({ message: 'Reset confirmation required' });
     }
-    
-    console.log(`=== RESETTING STORE ${storeId} ===`);
-    console.log('Reason:', reason);
-    console.log('User:', req.user.username);
-    
     // Check if store exists
     const [store] = await pool.query('SELECT id, name FROM stores WHERE id = ?', [storeId]);
     if (store.length === 0) {
@@ -491,13 +463,6 @@ router.post('/:storeId/reset', auth, checkRole(['superadmin']), async (req, res)
       const [inventoryCount] = await pool.query('SELECT COUNT(*) as count FROM store_product_inventory WHERE store_id = ?', [storeId]);
       const [transferCount] = await pool.query('SELECT COUNT(*) as count FROM store_transfers WHERE from_store_id = ? OR to_store_id = ?', [storeId, storeId]);
       const [movementCount] = await pool.query('SELECT COUNT(*) as count FROM store_inventory_movements WHERE store_id = ?', [storeId]);
-      
-      console.log('Data to be reset:');
-      console.log('- Assignments:', assignmentCount[0].count);
-      console.log('- Inventory records:', inventoryCount[0].count);
-      console.log('- Transfers:', transferCount[0].count);
-      console.log('- Movements:', movementCount[0].count);
-      
       // 2. Deactivate all business assignments
       await pool.query(
         'UPDATE store_business_assignments SET is_active = 0, removed_at = CURRENT_TIMESTAMP WHERE store_id = ?',
@@ -539,9 +504,6 @@ router.post('/:storeId/reset', auth, checkRole(['superadmin']), async (req, res)
       
       // Commit transaction
       await pool.query('COMMIT');
-      
-      console.log('Store reset completed successfully');
-      
       res.json({
         message: 'Store reset successfully',
         store_name: storeName,

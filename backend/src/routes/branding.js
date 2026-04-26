@@ -11,19 +11,9 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Use Railway's persistent storage directory (same pattern as products)
     const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '../../uploads');
-    const uploadDir = path.join(baseDir, 'branding');
-    
-    console.log('🎨 Branding file upload destination:', uploadDir);
-    console.log('🎨 Railway volume path:', process.env.RAILWAY_VOLUME_MOUNT_PATH);
-    console.log('🎨 Environment:', process.env.RAILWAY_VOLUME_MOUNT_PATH ? 'Railway' : 'Local');
-    
-    try {
+    const uploadDir = path.join(baseDir, 'branding');    try {
       if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-        console.log('🎨 Created uploads/branding directory for file upload:', uploadDir);
-      } else {
-        console.log('🎨 Upload directory already exists:', uploadDir);
-      }
+        fs.mkdirSync(uploadDir, { recursive: true });      } else {      }
       cb(null, uploadDir);
     } catch (error) {
       console.error('🎨 Error creating upload directory:', error);
@@ -33,9 +23,7 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     // Sanitize filename to prevent issues (same as products)
     const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const finalFilename = `${Date.now()}-${sanitizedName}`;
-    console.log('🎨 File will be saved as:', finalFilename);
-    cb(null, finalFilename);
+    const finalFilename = `${Date.now()}-${sanitizedName}`;    cb(null, finalFilename);
   }
 });
 
@@ -44,24 +32,9 @@ const upload = multer({
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB limit
   },
-  fileFilter: (req, file, cb) => {
-    console.log('File filter check:', {
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      fieldname: file.fieldname
-    });
-    
-    const allowedTypes = /jpeg|jpg|png|gif|svg|ico|webp/;
+  fileFilter: (req, file, cb) => {    const allowedTypes = /jpeg|jpg|png|gif|svg|ico|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    
-    console.log('Validation results:', {
-      extname: extname,
-      mimetype: mimetype,
-      allowed: extname || mimetype
-    });
-    
-    // Accept if either extension or mimetype is valid
+    const mimetype = allowedTypes.test(file.mimetype);    // Accept if either extension or mimetype is valid
     if (extname || mimetype) {
       return cb(null, true);
     } else {
@@ -121,33 +94,11 @@ router.put('/system', auth, async (req, res) => {
 
 // Upload system logo/favicon
 router.post('/system/upload', auth, upload.single('file'), async (req, res) => {
-  try {
-    console.log('Upload request received:', {
-      file: req.file ? req.file.filename : 'No file',
-      type: req.body.type,
-      user: req.user.id
-    });
-    
-    if (!req.file) {
-      console.log('No file uploaded');
-      return res.status(400).json({ message: 'No file uploaded' });
+  try {    if (!req.file) {      return res.status(400).json({ message: 'No file uploaded' });
     }
     
     const fileUrl = `/uploads/branding/${req.file.filename}`;
-    const fileType = req.body.type; // 'logo' or 'favicon'
-    
-    console.log('File details:', {
-      filename: req.file.filename,
-      originalname: req.file.originalname,
-      size: req.file.size,
-      mimetype: req.file.mimetype,
-      fileUrl: fileUrl,
-      fileType: fileType
-    });
-    
-    // Save file info to branding_files table
-    console.log('Saving to branding_files table...');
-    await pool.query(
+    const fileType = req.body.type; // 'logo' or 'favicon'    // Save file info to branding_files table    await pool.query(
       'INSERT INTO branding_files (file_name, original_name, file_path, file_size, file_type, mime_type, entity_type, entity_id, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         req.file.filename,
@@ -160,19 +111,11 @@ router.post('/system/upload', auth, upload.single('file'), async (req, res) => {
         null, // entity_id is null for system files
         req.user.id
       ]
-    );
-    console.log('File info saved to branding_files table');
-    
-    // Update system branding info
-    const settingKey = fileType === 'favicon' ? 'favicon_url' : 'logo_url';
-    console.log('Updating system branding info with key:', settingKey);
-    await pool.query(
+    );    // Update system branding info
+    const settingKey = fileType === 'favicon' ? 'favicon_url' : 'logo_url';    await pool.query(
       'INSERT INTO system_branding_info (setting_key, setting_value, setting_type) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE setting_value = ?',
       [settingKey, fileUrl, 'file', fileUrl]
-    );
-    console.log('System branding info updated');
-    
-    res.json({ 
+    );    res.json({ 
       message: 'File uploaded successfully',
       fileUrl: fileUrl,
       fileName: req.file.filename
@@ -251,34 +194,11 @@ router.put('/business/:businessId', auth, async (req, res) => {
 // Upload business logo/favicon (supports both 'file' and 'image' field names)
 router.post('/business/:businessId/upload', auth, upload.single('image'), async (req, res) => {
   try {
-    const { businessId } = req.params;
-    
-    console.log('🎨 Business branding upload request:', {
-      businessId,
-      file: req.file ? {
-        filename: req.file.filename,
-        originalname: req.file.originalname,
-        size: req.file.size,
-        mimetype: req.file.mimetype
-      } : 'No file',
-      body: req.body
-    });
-    
-    if (!req.file) {
-      console.log('🎨 No file uploaded');
-      return res.status(400).json({ message: 'No file uploaded' });
+    const { businessId } = req.params;    if (!req.file) {      return res.status(400).json({ message: 'No file uploaded' });
     }
     
     const fileUrl = `/uploads/branding/${req.file.filename}`;
-    const fileType = req.body.type; // 'logo' or 'favicon'
-    
-    console.log('🎨 Processing upload:', {
-      fileUrl,
-      fileType,
-      filename: req.file.filename
-    });
-    
-    // Save file info to branding_files table
+    const fileType = req.body.type; // 'logo' or 'favicon'    // Save file info to branding_files table
     await pool.query(
       'INSERT INTO branding_files (file_name, original_name, file_path, file_size, file_type, mime_type, entity_type, entity_id, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
@@ -299,15 +219,7 @@ router.post('/business/:businessId/upload', auth, upload.single('image'), async 
     await pool.query(
       `UPDATE businesses SET ${column} = ? WHERE id = ?`,
       [fileUrl, businessId]
-    );
-    
-    console.log('🎨 Successfully updated business branding:', {
-      businessId,
-      column,
-      fileUrl
-    });
-    
-    res.json({ 
+    );    res.json({ 
       message: 'File uploaded successfully',
       fileUrl: fileUrl,
       fileName: req.file.filename

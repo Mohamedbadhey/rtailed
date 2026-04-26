@@ -138,16 +138,6 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
     const { to_business_id, products, notes } = req.body; // products: [{product_id, quantity, unit_cost}]
     const user = req.user;
     const from_business_id = user.business_id;
-    
-    console.log('=== TRANSFER STORE TO BUSINESS ===');
-    console.log('Store ID:', storeId);
-    console.log('From Business ID:', from_business_id);
-    console.log('To Business ID:', to_business_id);
-    console.log('Products:', JSON.stringify(products, null, 2));
-    console.log('Notes:', notes);
-    console.log('User:', { id: user.id, role: user.role, business_id: user.business_id });
-    console.log('Transfer Type:', from_business_id === to_business_id ? 'SAME BUSINESS' : 'DIFFERENT BUSINESS');
-    
     if (!to_business_id || !products || products.length === 0) {
       return res.status(400).json({ message: 'To business ID and products are required' });
     }
@@ -185,17 +175,11 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
       
       for (const product of products) {
         const { product_id, quantity, unit_cost } = product;
-        
-        console.log(`Processing product ${product_id} with quantity ${quantity}`);
-        
         // Check if store has enough inventory for the source business (warehouse stock)
         const [storeInventory] = await connection.query(
           'SELECT quantity FROM store_product_inventory WHERE store_id = ? AND business_id = ? AND product_id = ?',
           [storeId, from_business_id, product_id]
         );
-        
-        console.log(`Store inventory check for product ${product_id}:`, storeInventory);
-        
         if (storeInventory.length === 0 || storeInventory[0].quantity < quantity) {
           throw new Error(`Insufficient inventory for product ID ${product_id}. Available: ${storeInventory[0]?.quantity || 0}, Requested: ${quantity}`);
         }
@@ -225,9 +209,6 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
           'SELECT id, business_id, stock_quantity FROM products WHERE id = ?',
           [product_id]
         );
-        
-        console.log(`Product check for product ${product_id}:`, productCheck);
-        
         if (productCheck.length === 0) {
           throw new Error(`Product ID ${product_id} not found`);
         }
@@ -238,8 +219,6 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
         // Update product business_id and increment stock_quantity
         if (currentBusinessId === null) {
           // Product is global, assign to business and set initial stock
-          console.log(`Updating product ${product_id} business_id: NULL -> ${to_business_id}, stock: ${currentStockQuantity} -> ${quantity}`);
-          
           await connection.query(
             'UPDATE products SET business_id = ?, stock_quantity = ? WHERE id = ?',
             [to_business_id, quantity, product_id]
@@ -247,8 +226,6 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
         } else {
           // Product already belongs to a business, increment stock quantity
           const newStockQuantity = currentStockQuantity + quantity;
-          console.log(`Updating product ${product_id} stock: ${currentStockQuantity} -> ${newStockQuantity}`);
-          
           await connection.query(
             'UPDATE products SET stock_quantity = ? WHERE id = ?',
             [newStockQuantity, product_id]
@@ -261,8 +238,6 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
         
         // No need to create transfer_in record for store-to-business transfers
         // The transfer_out record above already tracks the movement from store to business
-        console.log(`Transfer completed: ${quantity} units of product ${product_id} transferred from store to business ${to_business_id}`);
-        
         // Record business inventory movement (in)
         await connection.query(
           `INSERT INTO inventory_transactions (
@@ -286,10 +261,6 @@ router.post('/:storeId/transfer-to-business', auth, checkRole(['admin', 'manager
       }
       
       await connection.commit();
-      
-      console.log('✅ Transfer completed successfully');
-      console.log('Results:', JSON.stringify(results, null, 2));
-      
       // Log the action
       await pool.query(
         'INSERT INTO system_logs (user_id, action, table_name, record_id, new_values) VALUES (?, ?, ?, ?, ?)',
@@ -317,12 +288,8 @@ router.get('/:storeId/inventory/:businessId', auth, checkRole(['admin', 'manager
   try {
     const { storeId, businessId } = req.params;
     const user = req.user;
-    
-    console.log(`🔍 Store Inventory Request: storeId=${storeId}, businessId=${businessId}, userRole=${user.role}, userBusinessId=${user.business_id}`);
-    
     // Check access
     if (user.role !== 'superadmin' && user.business_id != businessId) {
-      console.log('❌ Access denied: user.business_id != businessId');
       return res.status(403).json({ message: 'Access denied' });
     }
     
@@ -332,7 +299,6 @@ router.get('/:storeId/inventory/:businessId', auth, checkRole(['admin', 'manager
       const [catCheck] = await pool.query("SHOW TABLES LIKE 'categories'");
       hasCategoriesTable = catCheck.length > 0;
     } catch (error) {
-      console.log('Categories table check failed:', error.message);
     }
     
     let query, params;
@@ -415,20 +381,8 @@ router.get('/:storeId/inventory/:businessId', auth, checkRole(['admin', 'manager
     }
     
     params = [storeId, businessId];
-    
-    console.log(`🔍 Executing query: ${query}`);
-    console.log(`🔍 With params: [${params.join(', ')}]`);
-    
     const [inventory] = await pool.query(query, params);
-    
-    console.log(`✅ Query successful! Found ${inventory.length} inventory records`);
     if (inventory.length > 0) {
-      console.log(`📊 Sample record:`, inventory[0]);
-      console.log(`🔍 DEBUG: store_quantity type: ${typeof inventory[0].store_quantity}, value: ${inventory[0].store_quantity}`);
-      console.log(`🔍 DEBUG: quantity type: ${typeof inventory[0].quantity}, value: ${inventory[0].quantity}`);
-      console.log(`🔍 DEBUG: min_stock_level type: ${typeof inventory[0].min_stock_level}, value: ${inventory[0].min_stock_level}`);
-      console.log(`🔍 DEBUG: price type: ${typeof inventory[0].price}, value: ${inventory[0].price}`);
-      console.log(`🔍 DEBUG: cost_price type: ${typeof inventory[0].cost_price}, value: ${inventory[0].cost_price}`);
     }
     
     const responseData = {
@@ -438,21 +392,7 @@ router.get('/:storeId/inventory/:businessId', auth, checkRole(['admin', 'manager
       total_products: inventory.length,
       total_quantity: inventory.reduce((sum, item) => sum + item.quantity, 0)
     };
-    
-    console.log(`🔍 DEBUG: Response data structure:`, {
-      store_id: typeof responseData.store_id,
-      business_id: typeof responseData.business_id,
-      inventory_count: responseData.inventory.length,
-      total_products: typeof responseData.total_products,
-      total_quantity: typeof responseData.total_quantity
-    });
-    
     if (responseData.inventory.length > 0) {
-      console.log(`🔍 DEBUG: First item in response:`, {
-        store_quantity: typeof responseData.inventory[0].store_quantity,
-        quantity: typeof responseData.inventory[0].quantity,
-        min_stock_level: typeof responseData.inventory[0].min_stock_level
-      });
     }
     
     res.json(responseData);
@@ -478,12 +418,8 @@ router.get('/:storeId/movements/:businessId', auth, checkRole(['admin', 'manager
     const { storeId, businessId } = req.params;
     const { limit = 50, offset = 0, movement_type = '', product_id = '' } = req.query;
     const user = req.user;
-    
-    console.log(`🔍 Store Movements Request: storeId=${storeId}, businessId=${businessId}, userRole=${user.role}`);
-    
     // Check access
     if (user.role !== 'superadmin' && user.business_id != businessId) {
-      console.log('❌ Access denied: user.business_id != businessId');
       return res.status(403).json({ message: 'Access denied' });
     }
     
@@ -517,8 +453,6 @@ router.get('/:storeId/movements/:businessId', auth, checkRole(['admin', 'manager
        LIMIT ? OFFSET ?`,
       [...params, parseInt(limit), parseInt(offset)]
     );
-    
-    console.log(`✅ Movements query successful! Found ${movements.length} movement records`);
     res.json(movements);
   } catch (error) {
     console.error('❌ Error fetching inventory movements:', error);
@@ -542,12 +476,8 @@ router.get('/:storeId/reports/:businessId', auth, checkRole(['admin', 'manager',
     const { storeId, businessId } = req.params;
     const { start_date, end_date, report_type = 'comprehensive' } = req.query;
     const user = req.user;
-    
-    console.log(`🔍 Store Reports Request: storeId=${storeId}, businessId=${businessId}, userRole=${user.role}, reportType=${report_type}`);
-    
     // Check access
     if (user.role !== 'superadmin' && user.business_id != businessId) {
-      console.log('❌ Access denied: user.business_id != businessId');
       return res.status(403).json({ message: 'Access denied' });
     }
     
@@ -734,9 +664,6 @@ router.get('/:storeId/reports/:businessId', auth, checkRole(['admin', 'manager',
        WHERE store_id = ? AND business_id = ? AND movement_type = 'transfer_out' ${dateFilter}`,
       params
     );
-    
-    console.log(`✅ Comprehensive reports generated successfully!`);
-    
     res.json({
       report_metadata: {
         store_id: parseInt(storeId),
@@ -800,9 +727,6 @@ router.get('/:storeId/detailed-movements/:businessId', auth, checkRole(['admin',
       limit = 50
     } = req.query;
     const user = req.user;
-    
-    console.log(`🔍 Detailed Movements Report: storeId=${storeId}, businessId=${businessId}`);
-    
     // Check access
     if (user.role !== 'superadmin' && user.business_id != businessId) {
       return res.status(403).json({ message: 'Access denied' });
@@ -961,9 +885,6 @@ router.get('/:storeId/purchases/:businessId', auth, checkRole(['admin', 'manager
       limit = 50 
     } = req.query;
     const user = req.user;
-    
-    console.log(`🔍 Purchases Report: storeId=${storeId}, businessId=${businessId}`);
-    
     // Check access
     if (user.role !== 'superadmin' && user.business_id != businessId) {
       return res.status(403).json({ message: 'Access denied' });
@@ -1104,9 +1025,6 @@ router.get('/:storeId/increments/:businessId', auth, checkRole(['admin', 'manage
       limit = 50 
     } = req.query;
     const user = req.user;
-    
-    console.log(`🔍 Increments Report: storeId=${storeId}, businessId=${businessId}`);
-    
     // Check access
     if (user.role !== 'superadmin' && user.business_id != businessId) {
       return res.status(403).json({ message: 'Access denied' });
@@ -1245,11 +1163,6 @@ router.get('/:storeId/transfer-reports/:businessId', auth, checkRole(['admin', '
       page = 1, 
       limit = 50 
     } = req.query;
-
-    console.log('🚀 NEW TRANSFER REPORTS ENDPOINT CALLED');
-    console.log('Store ID:', storeId, 'Business ID:', businessId);
-    console.log('Time Period:', time_period);
-
     // Validate parameters
     if (!storeId || isNaN(parseInt(storeId))) {
       return res.status(400).json({ message: 'Invalid store ID' });
@@ -1321,8 +1234,6 @@ router.get('/:storeId/transfer-reports/:businessId', auth, checkRole(['admin', '
     `;
 
     const queryParams = [parseInt(storeId), ...dateParams, limitNum, offset];
-    console.log('Executing query with params:', queryParams);
-    
     const [transfers] = await pool.execute(transfersQuery, queryParams);
 
     // Get summary
@@ -1357,13 +1268,6 @@ router.get('/:storeId/transfer-reports/:businessId', auth, checkRole(['admin', '
 
     const [countRows] = await pool.execute(countQuery, summaryParams);
     const total = countRows[0]?.total || 0;
-
-    console.log('✅ Transfer reports generated:', {
-      transfersCount: transfers.length,
-      summary,
-      total
-    });
-
     res.json({
       success: true,
       transfers,

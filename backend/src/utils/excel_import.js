@@ -17,7 +17,8 @@ function normalizeHeader(h) {
     'quantity': ['quantity', 'qty', 'stock', 'stock quantity', 'count', 'amount', 'on hand'],
     'category': ['category', 'department', 'group', 'type', 'cat', 'classification'],
     'description': ['description', 'desc', 'details', 'notes', 'about', 'summary'],
-    'wholesale_price': ['wholesale price', 'wholesale', 'trade price', 'bulk price']
+    'wholesale_price': ['wholesale price', 'wholesale', 'trade price', 'bulk price'],
+    'image': ['image', 'photo', 'picture', 'product image', 'img', 'file']
   };
 
   for (const [canonical, list] of Object.entries(aliases)) {

@@ -10,22 +10,27 @@ const app = express();
 
 // Create uploads directories if they don't exist
 const createUploadsDirectories = () => {
-  const uploadsDir = path.join(__dirname, '../uploads');
+  const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '../uploads');
+  const uploadsDir = baseDir;
   const productsDir = path.join(uploadsDir, 'products');
   const brandingDir = path.join(uploadsDir, 'branding');
 
   try {
     // Create main uploads directory
     if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });    }
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
 
     // Create products subdirectory
     if (!fs.existsSync(productsDir)) {
-      fs.mkdirSync(productsDir, { recursive: true });    }
+      fs.mkdirSync(productsDir, { recursive: true });
+    }
 
     // Create branding subdirectory
     if (!fs.existsSync(brandingDir)) {
-      fs.mkdirSync(brandingDir, { recursive: true });    }  } catch (error) {
+      fs.mkdirSync(brandingDir, { recursive: true });
+    }
+  } catch (error) {
     console.error('❌ Error creating uploads directories:', error);
   }
 };

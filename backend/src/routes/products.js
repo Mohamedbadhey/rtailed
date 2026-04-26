@@ -1068,21 +1068,30 @@ router.get('/bulk-export', auth, async (req, res) => {
 
       if (p.image_url) {
         try {
-          let imagePath;
+          let imagePath = null;
           const imageUrl = p.image_url;
+          const filename = path.basename(imageUrl);
           
-          if (imageUrl.startsWith('/uploads/')) {
-            imagePath = path.join(baseDir, imageUrl.replace('/uploads/', ''));
-          } else if (imageUrl.includes('uploads/')) {
-            // Handle cases where path might be "products/uploads/..." or similar
-            const parts = imageUrl.split('uploads/');
-            imagePath = path.join(baseDir, parts[parts.length - 1]);
-          } else {
-            const relativePath = imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
-            imagePath = path.join(baseDir, relativePath);
+          // Strategy: Try to find the file in multiple potential locations
+          const possiblePaths = [
+            // 1. As resolved from RAILWAY_VOLUME_MOUNT_PATH or local uploads
+            path.join(baseDir, imageUrl.startsWith('/uploads/') ? imageUrl.replace('/uploads/', '') : imageUrl),
+            // 2. Directly in a 'products' subfolder of baseDir
+            path.join(baseDir, 'products', filename),
+            // 3. In the explicit local uploads path
+            path.join(__dirname, '../../uploads/products', filename),
+            // 4. In the baseDir directly
+            path.join(baseDir, filename)
+          ];
+
+          for (const testPath of possiblePaths) {
+            if (fs.existsSync(testPath) && fs.lstatSync(testPath).isFile()) {
+              imagePath = testPath;
+              break;
+            }
           }
 
-          if (fs.existsSync(imagePath)) {
+          if (imagePath) {
             const ext = path.extname(imagePath).substring(1).toLowerCase();
             
             // Map common aliases to ExcelJS supported formats
@@ -1109,14 +1118,31 @@ router.get('/bulk-export', auth, async (req, res) => {
               });
             } else {
               // Unsupported format (e.g. webp, svg, bmp): Provide a hyperlink
+              const protocol = req.protocol;
+              const host = req.get('host');
+              const absoluteUrl = imageUrl.startsWith('http') ? imageUrl : `${protocol}://${host}${imageUrl}`;
+              
               const cell = worksheet.getCell(row.number, 11); // Column K (11th column)
               cell.value = {
                 text: `View Image (${ext.toUpperCase()})`,
-                hyperlink: `${process.env.BASE_URL || ''}${p.image_url}`,
+                hyperlink: absoluteUrl,
                 tooltip: 'Click to view image in browser'
               };
               cell.font = { color: { argb: 'FF0000FF' }, underline: true };
             }
+          } else {
+             // File not found locally: Provide a hyperlink as fallback anyway
+             const protocol = req.protocol;
+             const host = req.get('host');
+             const absoluteUrl = imageUrl.startsWith('http') ? imageUrl : `${protocol}://${host}${imageUrl}`;
+             
+             const cell = worksheet.getCell(row.number, 11);
+             cell.value = {
+               text: 'View Image (External)',
+               hyperlink: absoluteUrl,
+               tooltip: 'Click to view image'
+             };
+             cell.font = { color: { argb: 'FF0000FF' }, underline: true };
           }
         } catch (err) {
           console.error(`Error adding image for product ${p.id}:`, err);

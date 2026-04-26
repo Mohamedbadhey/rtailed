@@ -54,7 +54,6 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
             final items = await _apiService.getSaleItems(sale.id!);
             saleItemsMap[sale.id!] = items;
           } catch (e) {
-            print('Error loading items for sale ${sale.id}: $e');
             saleItemsMap[sale.id!] = [];
           }
         }

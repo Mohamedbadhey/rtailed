@@ -94,9 +94,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
     });
 
     try {
-      print('=== FRONTEND LOAD DATA DEBUG ===');
-      print('Loading products and categories...');
-      
       // Load products and categories in parallel
       final results = await Future.wait([
         _apiService.getProducts(),
@@ -104,11 +101,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
       ]);
 
       final products = results[0] as List<Product>;
-      print('Loaded ${products.length} products from API');
-      
       // Debug: Print each product's details
       for (var product in products) {
-        print('Product ${product.id}: ${product.name} - Cost: ${product.costPrice}, Stock: ${product.stockQuantity}');
       }
       final categories = results[1] as List<Map<String, dynamic>>;
 
@@ -133,48 +127,31 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Future<void> _loadProducts() async {
-    print('📦 ===== INVENTORY LOAD PRODUCTS START =====');
     setState(() {
       _isLoading = true;
     });
 
     try {
-      print('📦 Calling API service to get products...');
       final products = await _apiService.getProducts();
-      print('📦 ✅ API call successful, loaded ${products.length} products');
-      
       // Debug: Print image URLs for products with images
-      print('📦 Analyzing product images...');
       int productsWithImages = 0;
       int productsWithoutImages = 0;
       
       for (final product in products) {
-        print('📦 Product: ${product.name} (ID: ${product.id})');
-        print('📦   - Image URL from API: ${product.imageUrl ?? 'NULL'}');
-        
         if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
           productsWithImages++;
           final fullUrl = Api.getFullImageUrl(product.imageUrl);
-          print('📦   - Full image URL: $fullUrl');
         } else {
           productsWithoutImages++;
-          print('📦   - No image URL');
         }
       }
-      
-      print('📦 Summary: $productsWithImages products with images, $productsWithoutImages without images');
-      
       setState(() {
         _products = products;
         _filteredProducts = products;
         _isLoading = false;
       });
-      print('📦 ✅ State updated, applying filters...');
       _applyFilters();
-      print('📦 ===== INVENTORY LOAD PRODUCTS END (SUCCESS) =====');
     } catch (e) {
-      print('📦 ❌ Error loading products: $e');
-      print('📦 Error stack trace: ${StackTrace.current}');
       setState(() {
         _isLoading = false;
       });
@@ -183,7 +160,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
           SnackBar(content: Text('${t(context, 'error_loading_products')}: $e')),
         );
       }
-      print('📦 ===== INVENTORY LOAD PRODUCTS END (ERROR) =====');
     }
   }
 
@@ -1352,13 +1328,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 fit: BoxFit.cover,
                                 loadingBuilder: (context, child, loadingProgress) {
                                   if (loadingProgress == null) {
-                                    print('🖼️ ✅ Inventory: Image loaded successfully for product "${product.name}"');
                                     return child;
                                   }
                                   final progress = loadingProgress.expectedTotalBytes != null 
                                       ? (loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! * 100).toStringAsFixed(1)
                                       : 'Unknown';
-                                  print('🖼️ 📥 Inventory: Loading image for product "${product.name}": $progress%');
                                   return Center(
                                     child: CircularProgressIndicator(
                                       value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null,
@@ -1366,10 +1340,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                   );
                                 },
                                 errorBuilder: (context, error, stackTrace) {
-                                  print('🖼️ ❌ Inventory: Image error for product "${product.name}"');
-                                  print('🖼️ ❌ Error: $error');
-                                  print('🖼️ ❌ Stack trace: $stackTrace');
-                                  print('🖼️ ❌ Image URL: ${Api.getFullImageUrl(product.imageUrl)}');
                                   return Container(
                                     decoration: BoxDecoration(
                                       color: Colors.blue[50],
@@ -2153,10 +2123,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               fit: BoxFit.cover,
                               loadingBuilder: (context, child, loadingProgress) {
                                 if (loadingProgress == null) {
-                                  print('🖼️ Inventory: Image loaded successfully for product ${product.name}');
                                   return child;
                                 }
-                                print('🖼️ Inventory: Loading image for product ${product.name}: ${loadingProgress.expectedTotalBytes != null ? (loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! * 100).toStringAsFixed(1) : 'Unknown'}%');
                                 return Center(
                                   child: CircularProgressIndicator(
                                     value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null,
@@ -2164,7 +2132,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 );
                               },
                               errorBuilder: (context, error, stackTrace) {
-                                print('🖼️ Inventory: Image error for product ${product.name}: $error');
                                 return Container(
                                   decoration: BoxDecoration(
                                     color: Colors.blue[50],
@@ -2407,8 +2374,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
               );
             }
           } catch (e, stack) {
-            print('Error adding product: $e');
-            print('Stack trace: $stack');
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -2434,30 +2399,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
         product: product,
         onSave: (productData, imageFile, {webImageBytes, webImageName}) async {
           try {
-            print('=== FRONTEND PRODUCT UPDATE DEBUG ===');
-            print('Product ID to update: ${product.id}');
-            print('Product data to send: $productData');
-            
             await _apiService.updateProduct(product.id!, productData, imageFile: imageFile, webImageBytes: webImageBytes, webImageName: webImageName);
-            
-            print('Product updated successfully, now reloading products...');
             await _loadProducts();
-            
-            print('Products reloaded. Current products count: ${_products.length}');
-            print('Updated product should be in list. Checking...');
-            
             final updatedProduct = _products.firstWhere(
               (p) => p.id == product.id,
               orElse: () => Product(id: -1, name: '', sku: '', price: 0, costPrice: 0, stockQuantity: 0, damagedQuantity: 0, lowStockThreshold: 0),
             );
             
             if (updatedProduct.id != -1) {
-              print('Found updated product in list:');
-              print('  - Name: ${updatedProduct.name}');
-              print('  - Cost Price: ${updatedProduct.costPrice}');
-              print('  - Stock Quantity: ${updatedProduct.stockQuantity}');
             } else {
-              print('ERROR: Updated product not found in list!');
             }
             
             if (mounted) {
@@ -2480,8 +2430,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
               );
             }
           } catch (e, stack) {
-            print('Error updating product: $e');
-            print('Stack trace: $stack');
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -2807,7 +2755,6 @@ class _ProductDialogState extends State<_ProductDialog> {
         _categories = categories;
       });
     } catch (e) {
-      print('Error loading categories: $e');
     }
   }
 

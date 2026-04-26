@@ -352,7 +352,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         _businesses = businesses;
       });
     } catch (e) {
-      print('Error loading businesses for store: $e');
       setState(() {
         _error = 'Failed to load businesses for this store: $e';
       });
@@ -380,7 +379,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         });
       }
     } catch (e) {
-      print('Error loading products for detailed reports: $e');
     }
   }
   
@@ -402,7 +400,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         });
       }
     } catch (e) {
-      print('Error loading categories for detailed reports: $e');
     }
   }
 
@@ -413,7 +410,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         _categories = categories;
       });
     } catch (e) {
-      print('Error loading categories: $e');
     }
   }
 
@@ -433,7 +429,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   Future<void> _loadMoreInventory() async {
     // Disabled: The getStoreInventory API returns all data at once, not paginated
     // This method was causing data duplication by adding all inventory data again
-    print('🔍 DEBUG: _loadMoreInventory called but disabled - API returns all data at once');
     return;
   }
 
@@ -491,24 +486,13 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       
       // Clear cache to prevent duplicate data issues
       _clearCache();
-      
-      print('🔍 DEBUG: Loading inventory for store: ${widget.storeId}, business: $businessId');
-      
         // Load inventory
-        print('🔍 DEBUG: Fetching inventory from API...');
         final inventory = await _apiService.getStoreInventory(widget.storeId, businessId);
-        print('🔍 DEBUG: API response received. Inventory count: ${inventory.length}');
         if (inventory.isNotEmpty) {
-          print('🔍 DEBUG: First inventory item: ${inventory[0]}');
-          print('🔍 DEBUG: First item store_quantity: ${inventory[0]['store_quantity']} (type: ${inventory[0]['store_quantity'].runtimeType})');
-          print('🔍 DEBUG: First item quantity: ${inventory[0]['quantity']} (type: ${inventory[0]['quantity'].runtimeType})');
-          print('🔍 DEBUG: First item min_stock_level: ${inventory[0]['min_stock_level']} (type: ${inventory[0]['min_stock_level'].runtimeType})');
         }
         setState(() {
           _inventory = inventory;
         });
-      print('🔍 DEBUG: Inventory loaded successfully');
-      
       // Load movements
         final movements = await _apiService.getStoreInventoryMovements(
           widget.storeId, 
@@ -522,18 +506,12 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         });
       
       // Load reports
-        print('🔍 Loading reports for storeId: ${widget.storeId}, businessId: $businessId');
         final reports = await _apiService.getStoreInventoryReports(widget.storeId, businessId);
-        print('📊 Reports loaded: ${reports.keys}');
-        print('📊 Current stock data: ${reports['current_stock']}');
-        print('📊 Current stock summary: ${reports['current_stock']?['summary']}');
-        print('📊 Current stock products: ${reports['current_stock']?['products']?.length ?? 0} products');
         setState(() {
           _reports = reports;
         });
       
     } catch (e) {
-      print('Store Inventory Error: $e');
       if (mounted) {
         SuccessUtils.showOperationError(context, 'load store inventory', e.toString());
       }
@@ -590,7 +568,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       });
       
     } catch (e) {
-      print('Detailed Movements Error: $e');
       if (mounted) {
         SuccessUtils.showOperationError(context, 'load detailed movements', e.toString());
       }
@@ -641,7 +618,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       });
       
     } catch (e) {
-      print('Purchases Error: $e');
       if (mounted) {
         SuccessUtils.showOperationError(context, 'load purchases', e.toString());
       }
@@ -692,7 +668,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       });
       
     } catch (e) {
-      print('Increments Error: $e');
       if (mounted) {
         SuccessUtils.showOperationError(context, 'load increments', e.toString());
       }
@@ -736,7 +711,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       });
       
     } catch (e) {
-      print('❌ Business Transfers Error: $e');
       if (mounted) {
         SuccessUtils.showOperationError(context, 'load business transfers', e.toString());
       }
@@ -746,13 +720,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   // Load transfer reports data
   Future<void> _loadTransferReports() async {
     if (_transferReportsLoading) return;
-    
-    print('🔍 FRONTEND: Starting to load transfer reports...');
-    print('🔍 FRONTEND: Store ID: ${widget.storeId}');
-    print('🔍 FRONTEND: Time Period: $_transferReportsTimePeriod');
-    print('🔍 FRONTEND: Start Date: $_transferReportsStartDate');
-    print('🔍 FRONTEND: End Date: $_transferReportsEndDate');
-    
     setState(() {
       _transferReportsLoading = true;
     });
@@ -772,11 +739,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           throw Exception('Business ID not found');
         }
       }
-      
-      print('🔍 FRONTEND: Business ID determined: $businessId');
-      print('🔍 FRONTEND: User role: ${user?.role}');
-
-      print('🔍 FRONTEND: Calling API service...');
       final data = await _apiService.getTransferReports(
         widget.storeId,
         businessId,
@@ -786,21 +748,10 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         page: 1,
         limit: _detailedReportsPageSize,
       );
-      
-      print('🔍 FRONTEND: API call completed successfully');
-
       setState(() {
         _transferReportsData = data;
       });
-      
-      print('✅ Transfer Reports Data Loaded:');
-      print('  - Transfers count: ${(data['transfers'] as List?)?.length ?? 0}');
-      print('  - Summary: ${data['summary']}');
-      print('  - Pagination: ${data['pagination']}');
-      
     } catch (e) {
-      print('❌ FRONTEND: Transfer Reports Error: $e');
-      print('❌ FRONTEND: Error type: ${e.runtimeType}');
       if (mounted) {
         String errorMessage = 'Failed to load transfer reports';
         
@@ -1229,8 +1180,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildInventoryList() {
-    print('🔍 DEBUG: Building inventory list. Total inventory items: ${_inventory.length}');
-    
     // Check loading state first - show loading if data is being fetched
     if (_loading) {
       return _buildLoadingState();
@@ -1276,7 +1225,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         itemCount: filteredInventory.length,
         itemBuilder: (context, index) {
           final item = filteredInventory[index];
-          print('🔍 DEBUG: Building card for item at index $index: ${item['product_name']}');
           return _buildProfessionalInventoryCard(item);
         },
       ),
@@ -1559,32 +1507,15 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildProfessionalInventoryCard(Map<String, dynamic> item) {
-    print('🔍 DEBUG: Building professional inventory card for item: ${item['product_name']}');
-    print('🔍 DEBUG: Raw item data: $item');
-    
     final stockStatus = item['stock_status'] as String?;
-    print('🔍 DEBUG: stock_status: $stockStatus (type: ${stockStatus.runtimeType})');
-    
     final rawQuantity = item['store_quantity'] ?? item['quantity'];
-    print('🔍 DEBUG: Raw quantity: $rawQuantity (type: ${rawQuantity.runtimeType})');
     final quantity = _safeToInt(rawQuantity);
-    print('🔍 DEBUG: Converted quantity: $quantity (type: ${quantity.runtimeType})');
-    
     final rawMinStock = item['min_stock_level'];
-    print('🔍 DEBUG: Raw min_stock_level: $rawMinStock (type: ${rawMinStock.runtimeType})');
     final minStock = _safeToInt(rawMinStock);
-    print('🔍 DEBUG: Converted minStock: $minStock (type: ${minStock.runtimeType})');
-    
     final rawCostPrice = item['cost_price'];
-    print('🔍 DEBUG: Raw cost_price: $rawCostPrice (type: ${rawCostPrice.runtimeType})');
     final costPrice = double.tryParse(rawCostPrice?.toString() ?? '0') ?? 0.0;
-    print('🔍 DEBUG: Converted costPrice: $costPrice (type: ${costPrice.runtimeType})');
-    
     final rawSellingPrice = item['price'];
-    print('🔍 DEBUG: Raw price: $rawSellingPrice (type: ${rawSellingPrice.runtimeType})');
     final sellingPrice = double.tryParse(rawSellingPrice?.toString() ?? '0') ?? 0.0;
-    print('🔍 DEBUG: Converted sellingPrice: $sellingPrice (type: ${sellingPrice.runtimeType})');
-    
     Color statusColor;
     IconData statusIcon;
     String statusText;
@@ -2517,10 +2448,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
   }
 
   Widget _buildReportsTab() {
-    print('🔍 Building reports tab - _reports: ${_reports.keys}');
-    print('🔍 _reports isEmpty: ${_reports.isEmpty}');
-    print('🔍 _reports current_stock: ${_reports['current_stock']}');
-    
     if (_loading) {
       return _buildLoadingState();
     }
@@ -10814,8 +10741,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                         SuccessUtils.showProductSuccess(context, 'added to ${widget.storeName} warehouse');
                       }
                     } catch (e, stack) {
-                      print('Error adding product to store: $e');
-                      print('Stack trace: $stack');
                       if (mounted) {
                         SuccessUtils.showOperationError(context, 'add product to store', e.toString());
                       }
@@ -10862,7 +10787,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
               SuccessUtils.showProductSuccess(context, 'stock incremented');
             }
           } catch (e) {
-            print('Error incrementing product: $e');
             if (mounted) {
               SuccessUtils.showOperationError(context, 'increment stock', e.toString());
             }
@@ -10890,7 +10814,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
               SuccessUtils.showProductSuccess(context, 'cost price updated');
             }
           } catch (e) {
-            print('Error updating cost price: $e');
             if (mounted) {
               SuccessUtils.showOperationError(context, 'update cost price', e.toString());
             }
@@ -11301,13 +11224,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
           startDate = DateTime(now.year, now.month, now.day);
           endDate = startDate.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
       }
-      
-      print('🔍 Stock Summary Filter: $_stockSummaryFilterType');
-      print('🔍 Start Date: $startDate');
-      print('🔍 End Date: $endDate');
-      print('🔍 Store ID: ${widget.storeId}');
-      print('🔍 Selected Business ID: $_selectedBusinessId');
-      
       // Prepare filter parameters
       final Map<String, dynamic> filterParams = {};
       if (startDate != null) filterParams['start_date'] = startDate.toIso8601String();
@@ -11322,9 +11238,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       if (_selectedReportProduct != null && _selectedReportProduct != 'All') {
         filterParams['product_name'] = _selectedReportProduct;
       }
-      
-      print('🔍 Stock Summary Filters: $filterParams');
-      
       // Get store inventory report data
       final businessId = _selectedBusinessId ?? context.read<AuthProvider>().user?.businessId;
       if (businessId == null) {
@@ -11337,11 +11250,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         startDate ?? DateTime.now().subtract(const Duration(days: 1)),
         endDate ?? DateTime.now(),
       );
-      
-      print('🔍 API Response Data: $data');
-      print('🔍 Top Products: ${data['top_products']}');
-      print('🔍 Summary: ${data['summary']}');
-      
       // Convert the report data to match the expected format
       final List<Map<String, dynamic>> reportRows = [];
       
@@ -11362,15 +11270,11 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         }
       } else {
         // If no movements, show current inventory data
-        print('🔍 No top products found, showing current inventory data');
-        
         // Get current inventory data from the main inventory
         try {
           final businessId = _selectedBusinessId ?? context.read<AuthProvider>().user?.businessId;
           if (businessId != null) {
             final inventoryData = await _apiService.getStoreInventory(widget.storeId, businessId);
-            print('🔍 Current inventory data: $inventoryData');
-            
             // getStoreInventory returns List<Map<String, dynamic>> directly
             if (inventoryData is List) {
               // Direct list of inventory items
@@ -11392,13 +11296,8 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
             }
           }
         } catch (e) {
-          print('🔍 Error getting current inventory: $e');
         }
       }
-      
-      print('🔍 Final Report Rows: ${reportRows.length} items');
-      print('🔍 Report Rows Data: $reportRows');
-      
       setState(() {
         _valueReportRows = reportRows;
         _resetStockSummaryPagination();
@@ -11778,7 +11677,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
       
       return profit.clamp(0.0, double.infinity);
     } catch (e) {
-      print('Error calculating profit: $e');
       return 0.0;
     }
   }
@@ -12776,7 +12674,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         item: item,
         onIncrement: (quantity, cost, notes) {
           // Handle stock increment
-          print('Adding $quantity units to ${item['product_name']}');
         },
       ),
     );
@@ -12789,7 +12686,6 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
         item: item,
         onUpdate: (newCostPrice) {
           // Handle cost price update
-          print('Updating cost price to $newCostPrice for ${item['product_name']}');
         },
       ),
     );
@@ -12920,7 +12816,6 @@ class _ProductDialogState extends State<_ProductDialog> {
         _categories = categories;
       });
     } catch (e) {
-      print('Error loading categories: $e');
     }
   }
 

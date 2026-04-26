@@ -143,7 +143,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
       );
     } catch (e) {
       // handle later
-      print('Export PDF error: $e');
     }
   }
 
@@ -404,19 +403,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
           endDateParam = DateFormat('yyyy-MM-dd').format(_filterEndDate!);
         }
       }
-      print('REPORTS: Date parameters - startDateParam: $startDateParam, endDateParam: $endDateParam');
-      print('REPORTS: Current date filter - start: $_filterStartDate, end: $_filterEndDate, quickRange: $_quickRangeLabel');
       final user = context.read<AuthProvider>().user;
       Map<String, dynamic> salesReport;
       if (user != null && user.role == 'admin' && _selectedCashierId != null && _selectedCashierId != 'all') {
-        print('Sending userId: \'$_selectedCashierId\' to getSalesReport with dates: $startDateParam to $endDateParam');
         salesReport = await _apiService.getSalesReport(
           startDate: startDateParam,
           endDate: endDateParam,
           userId: _selectedCashierId,
         );
       } else {
-        print('No cashier filter, loading all or self with dates: $startDateParam to $endDateParam');
         salesReport = await _apiService.getSalesReport(
           startDate: startDateParam,
           endDate: endDateParam,
@@ -505,7 +500,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
         _productTxTotalPages = data['totalPages'] ?? 1;
       });
     } catch (e) {
-      print('🔍 REPORTS: Error loading product transactions: $e');
       setState(() => _productTxError = e.toString());
     } finally {
       setState(() => _isProductTxLoading = false);
@@ -541,14 +535,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
           endDateParam = '$endDay 23:59:59';
         }
       }
-      
-      print('🔍 REPORTS: Damaged Products Date Filters:');
-      print('  - Filter Start Date: $_filterStartDate');
-      print('  - Filter End Date: $_filterEndDate');
-      print('  - Start Date Param: $startDateParam');
-      print('  - End Date Param: $endDateParam');
-      print('  - Cashier ID: $cashierId');
-      
       final report = await _apiService.getDamagedProductsReport(
         startDate: startDateParam,
         endDate: endDateParam,
@@ -556,7 +542,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
       );
       setState(() => _damagedProductsReport = report);
     } catch (e) {
-      print('🔍 REPORTS: Error loading damaged products report: $e');
       setState(() => _damagedProductsReport = null);
     } finally {
       setState(() => _isDamagedProductsLoading = false);
@@ -572,11 +557,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   String formatCostPrice(dynamic costPrice) {
     if (costPrice == null) return '-';
-    
-    print('🔍 REPORTS FORMAT: Formatting cost price:');
-    print('  Raw value: $costPrice');
-    print('  Type: ${costPrice.runtimeType}');
-    
     double? numericValue;
     if (costPrice is num) {
       numericValue = costPrice.toDouble();
@@ -586,11 +566,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
     
     if (numericValue != null) {
       final formatted = '\$${numericValue.toStringAsFixed(2)}';
-      print('  Formatted result: $formatted');
       return formatted;
     }
-    
-    print('  Could not format, returning: -');
     return '-';
   }
 
@@ -674,16 +651,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     // Debug: Log first transaction data for mobile view
     if (transactions.isNotEmpty) {
       final tx = transactions.first;
-      print('🔍 REPORTS MOBILE: First transaction data:');
-      print('  Product: ${tx['product_name']}');
-      print('  Cost Price: ${tx['product_cost_price']} (type: ${tx['product_cost_price']?.runtimeType})');
-      print('  Unit Price: ${tx['sale_unit_price']} (type: ${tx['sale_unit_price']?.runtimeType})');
-      print('  Total Price: ${tx['sale_total_price']} (type: ${tx['sale_total_price']?.runtimeType})');
-      print('  Profit: ${tx['profit']} (type: ${tx['profit']?.runtimeType})');
-      print('  Transaction Type: ${tx['transaction_type']}');
-      print('  Reference ID: ${tx['reference_id']}');
-      print('  Sale ID: ${tx['sale_id']}');
-      print('  ---');
     }
 
     return ListView.builder(

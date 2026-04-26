@@ -242,7 +242,6 @@ class _BulkAssignmentDialogState extends State<BulkAssignmentDialog> {
             await _apiService.assignBusinessToStore(storeId, businessId, notes: _notesController.text);
             successCount++;
           } catch (e) {
-            print('Failed to assign store $storeId to business $businessId: $e');
           }
         }
       }

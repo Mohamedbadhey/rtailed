@@ -66,12 +66,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       // Load all data in parallel, each with its own error handling
       final futures = await Future.wait([
-        _loadSummaryData().catchError((e) { print('Error in _loadSummaryData: $e'); return <String, dynamic>{}; }) as Future<Map<String, dynamic>>,
-        _loadRecentSales().catchError((e) { print('Error in _loadRecentSales: $e'); return <Sale>[]; }) as Future<List<Sale>>,
-        _loadLowStockProducts().catchError((e) { print('Error in _loadLowStockProducts: $e'); return <Product>[]; }) as Future<List<Product>>,
-        ApiService().getCreditReport().catchError((e) { print('Error in getCreditReport: $e'); return <String, dynamic>{}; }) as Future<Map<String, dynamic>>,
-        ApiService().getSalesReport().catchError((e) { print('Error in getSalesReport: $e'); return <String, dynamic>{}; }) as Future<Map<String, dynamic>>,
-        _loadDamagedProductsCount().catchError((e) { print('Error in _loadDamagedProductsCount: $e'); return 0; }) as Future<int>,
+        _loadSummaryData().catchError((e) => <String, dynamic>{}) as Future<Map<String, dynamic>>,
+        _loadRecentSales().catchError((e) => <Sale>[]) as Future<List<Sale>>,
+        _loadLowStockProducts().catchError((e) => <Product>[]) as Future<List<Product>>,
+        ApiService().getCreditReport().catchError((e) => <String, dynamic>{}) as Future<Map<String, dynamic>>,
+        ApiService().getSalesReport().catchError((e) => <String, dynamic>{}) as Future<Map<String, dynamic>>,
+        _loadDamagedProductsCount().catchError((e) => 0) as Future<int>,
       ]);
 
       final salesReport = await futures[4] as Map<String, dynamic>? ?? {};
@@ -103,7 +103,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       setState(() {
         _isLoading = false;
       });
-      print('Dashboard: Error loading dashboard: $e');
+      // Dashboard error loading
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -117,20 +118,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<Map<String, dynamic>> _loadSummaryData() async {
     try {
-      print('Dashboard: Loading sales report...');
-      final salesReport = await _apiService.getSalesReport();
-      print('Dashboard: Sales report loaded: $salesReport');
+      final salesReport = await ApiService().getSalesReport();
       final summary = salesReport['summary'] ?? {};
       final totalSales = double.tryParse(summary['total_revenue']?.toString() ?? '') ?? 0.0;
       final totalOrders = summary['total_orders'] ?? 0;
       final averageOrderValue = double.tryParse(summary['average_order_value']?.toString() ?? '') ?? 0.0;
       // For customers and products, still fetch from API
-      print('Dashboard: Loading products...');
-      final products = await _apiService.getProducts();
-      print('Dashboard: Products loaded: ${products.length}');
-      print('Dashboard: Loading customers...');
-      final customers = await _apiService.getCustomers();
-      print('Dashboard: Customers loaded: ${customers.length}');
+      final products = await ApiService().getProducts();
+      final customers = await ApiService().getCustomers();
       final lowStockCount = products.where((p) => p.stockQuantity <= p.lowStockThreshold).length;
 
       // Calculate total cost of goods sold (COGS) from sales report's productBreakdown
@@ -162,7 +157,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
       }
       final profit = totalSales - totalCost;
-      print('Dashboard: Calculated totalCost: $totalCost, profit: $profit');
+      // Summary data calculated
+
 
       final summaryData = {
         'totalSales': totalSales,
@@ -173,10 +169,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         'averageOrderValue': averageOrderValue,
         'lowStockCount': lowStockCount,
       };
-      print('Dashboard: Summary data calculated: $summaryData');
       return summaryData;
     } catch (e) {
-      print('Dashboard: Error loading summary data: $e');
       return {
         'totalSales': 0.0,
         'totalOrders': 0,
@@ -191,45 +185,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<List<Sale>> _loadRecentSales() async {
     try {
-      print('Dashboard: Loading recent sales...');
-      final sales = await _apiService.getSales();
-      print('Dashboard: Recent sales loaded: ${sales.length}');
+      final sales = await ApiService().getSales();
       for (final sale in sales) {
-        print('Sale: id=${sale.id}, totalAmount=${sale.totalAmount}, customerName=${sale.customerName}');
+        // Sale debug info removed
+
       }
       // Sort by date and take the most recent 5
       sales.sort((a, b) => (b.createdAt ?? DateTime.now()).compareTo(a.createdAt ?? DateTime.now()));
       final recentSales = sales.take(5).toList();
-      print('Dashboard: Recent sales (top 5): ${recentSales.length}');
       return recentSales;
     } catch (e) {
-      print('Dashboard: Error loading recent sales: $e');
       return [];
     }
   }
 
   Future<List<Product>> _loadLowStockProducts() async {
     try {
-      print('Dashboard: Loading low stock products...');
-      final products = await _apiService.getProducts();
-      print('Dashboard: Low stock products loaded: ${products.length}');
-      final lowStockProducts = products.where((p) => p.stockQuantity <= p.lowStockThreshold).toList();
-      print('Dashboard: Low stock products count: ${lowStockProducts.length}');
+      final products = await ApiService().getProducts();
+      final lowStockProducts = products.where((p) => p.stockQuantity <= 5).toList();
       return lowStockProducts;
     } catch (e) {
-      print('Dashboard: Error loading low stock products: $e');
+      // Error loading low stock
+
       return [];
     }
   }
 
   Future<int> _loadDamagedProductsCount() async {
     try {
-      print('Dashboard: Loading damaged products count...');
-      final damagedProducts = await _apiService.getDamagedProducts();
-      print('Dashboard: Damaged products count: ${damagedProducts.length}');
+      final damagedProducts = await ApiService().getDamagedProducts();
       return damagedProducts.length;
     } catch (e) {
-      print('Dashboard: Error loading damaged products count: $e');
+      // Error loading damaged count
+
       return 0;
     }
   }
@@ -242,13 +230,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     try {
       final customers = await ApiService().getCreditCustomers();
-      print('Credit customers data: $customers'); // Debug log
       setState(() {
         _creditCustomers = customers;
         _creditLoading = false;
       });
     } catch (e) {
-      print('Error loading credit customers: $e'); // Debug log
       setState(() {
         _creditError = 'Error: $e';
         _creditLoading = false;
@@ -264,7 +250,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    print('Dashboard: _dashboardData in build = $_dashboardData');
+    // Dashboard data build
+
     // Use new backend fields for dashboard
     final double totalSales = safeToDouble(_dashboardData['totalSales']);
     final int totalOrders = (_dashboardData['totalOrders'] is int) ? _dashboardData['totalOrders'] as int : int.tryParse(_dashboardData['totalOrders']?.toString() ?? '') ?? 0;
@@ -680,7 +667,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildRecentActivity(bool isSmallMobile, bool isMobile) {
-    print('Dashboard: recentSales=${_recentSales.length}');
+    // Recent sales count
+
     return Container(
       padding: EdgeInsets.all(isSmallMobile ? 10 : (isMobile ? 12 : 16)),
       decoration: BoxDecoration(
@@ -1980,46 +1968,7 @@ class _CustomerCreditTransactionsDialogState extends State<CustomerCreditTransac
                                 ),
                               ),
                               
-                              // Debug Information (can be removed later)
-                              if (false) ...[ // Set to false to hide debug info
-                                const SizedBox(height: 8),
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[100],
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.grey[300]!),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Debug Info:',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 11,
-                                          color: Colors.grey[700],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Raw: original=${sale['total_amount']}, paid=${sale['total_paid']}, outstanding=${sale['outstanding_amount']}, isFullyPaid=${sale['is_fully_paid']}',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                      Text(
-                                        'Calculated: outstanding=${(originalAmount - totalPaid).toStringAsFixed(2)}, hasOutstanding=$hasOutstanding',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+
                               
                               const SizedBox(height: 16),
                               

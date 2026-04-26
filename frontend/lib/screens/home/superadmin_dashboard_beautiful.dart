@@ -35,7 +35,6 @@ class SuperadminDashboardBeautifulExample {
         ),
       ],
       onRowTap: (index) {
-        print('Tapped row $index');
       },
     );
   }

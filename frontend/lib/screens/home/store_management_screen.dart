@@ -53,7 +53,6 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
     
     // Number of tabs based on user role
     final tabCount = isSuperAdmin ? 4 : 3; // Superadmin gets Store Assignment tab
-    print('Store Management - Tab count: $tabCount (isSuperAdmin: $isSuperAdmin)');
     _tabController = TabController(length: tabCount, vsync: this);
     
     _loadData();
@@ -99,9 +98,6 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
       }
       
     } catch (e) {
-      print('Store Management Error: $e');
-      print('Store Management Error Type: ${e.runtimeType}');
-      print('Store Management Error Details: ${e.toString()}');
       if (mounted) {
         SuccessUtils.showOperationError(context, 'load store data', e.toString());
       }
@@ -119,16 +115,6 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
   Widget build(BuildContext context) {
     final user = context.read<AuthProvider>().user;
     final isSuperAdmin = user?.role == 'superadmin';
-    
-    print('Store Management - User role: ${user?.role}');
-    print('Store Management - Is superadmin: $isSuperAdmin');
-    print('Store Management - Loading: $_loading');
-    print('Store Management - Error: $_error');
-    print('Store Management - Stores count: ${_stores.length}');
-    print('Store Management - Businesses count: ${_businesses.length}');
-    
-    print('Store Management Screen - Building UI');
-    
     return Scaffold(
       appBar: AppBar(
         title: Text(t(context, 'Store Management')),
@@ -1506,8 +1492,6 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
                         SuccessUtils.showProductSuccess(context, 'added to $storeName warehouse');
                       }
                     } catch (e, stack) {
-                      print('Error adding product to store: $e');
-                      print('Stack trace: $stack');
                       if (mounted) {
                         SuccessUtils.showOperationError(context, 'add product to store', e.toString());
                       }
@@ -1662,21 +1646,12 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
     // Count assigned businesses for this store
     final storeId = store['id'];
     final storeIdType = storeId.runtimeType;
-    
-    print('=== DEBUGGING STORE ASSIGNMENTS ===');
-    print('Store: ${store['name']} (ID: $storeId, type: $storeIdType)');
-    print('Total assignments loaded: ${_assignments.length}');
-    
     // Check each assignment for this store
     for (var assignment in _assignments) {
       final assignmentStoreId = assignment['store_id'];
       final assignmentStoreIdType = assignmentStoreId.runtimeType;
       final isActive = assignment['is_active'];
-      
-      print('Assignment: store_id=$assignmentStoreId (type: $assignmentStoreIdType), is_active=$isActive');
-      
       if (assignmentStoreId == storeId) {
-        print('  -> MATCH FOUND for store ${store['name']}!');
       }
     }
     
@@ -1684,10 +1659,6 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
       assignment['store_id'] == store['id'] && 
       (assignment['is_active'] == true || assignment['is_active'] == 1 || assignment['is_active'] == '1')
     ).length;
-    
-    print('Final count for ${store['name']}: $assignedBusinessCount');
-    print('=====================================');
-
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
@@ -1751,10 +1722,7 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
 
   Future<void> _loadAssignments() async {
     try {
-      print('=== LOADING ASSIGNMENTS ===');
-      print('Stores loaded: ${_stores.length}');
       if (_stores.isNotEmpty) {
-        print('Sample store: ${_stores[0]}');
       }
       
       // Use the dedicated assignments endpoint that returns complete assignment data
@@ -1763,24 +1731,14 @@ class _StoreManagementScreenState extends State<StoreManagementScreen> with Sing
       setState(() {
         _assignments = allAssignments;
       });
-      
-      print('Loaded ${allAssignments.length} assignments from backend');
       if (allAssignments.isNotEmpty) {
-        print('Sample assignment: ${allAssignments[0]}');
-        print('Assignment keys: ${allAssignments[0].keys.toList()}');
-        
         // Check each assignment in detail
         for (int i = 0; i < allAssignments.length; i++) {
           final assignment = allAssignments[i];
-          print('Assignment $i: store_id=${assignment['store_id']} (${assignment['store_id'].runtimeType}), business_id=${assignment['business_id']} (${assignment['business_id'].runtimeType}), is_active=${assignment['is_active']} (${assignment['is_active'].runtimeType})');
         }
       } else {
-        print('NO ASSIGNMENTS FOUND! This is the problem.');
       }
-      print('===========================');
     } catch (e) {
-      print('Error loading assignments: $e');
-      print('Error type: ${e.runtimeType}');
       // Don't set error state for assignments, just log it
     }
   }
@@ -2623,7 +2581,6 @@ class _ProductDialogState extends State<_ProductDialog> {
         _categories = categories;
       });
     } catch (e) {
-      print('Error loading categories: $e');
     }
   }
 
@@ -3701,7 +3658,6 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
         _categories = categories;
       });
     } catch (e) {
-      print('Error loading categories: $e');
       if (mounted) {
         SuccessUtils.showOperationError(context, 'load categories', e.toString());
       }

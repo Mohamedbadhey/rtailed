@@ -80,17 +80,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     try {
       final customers = await _apiService.getCreditCustomers();
-      print('Credit customers data: $customers'); // Debug log
-      setState(() {
-        _creditCustomers = customers;
-        _creditLoading = false;
-      });
     } catch (e) {
-      print('Error loading credit customers: $e'); // Debug log
-      setState(() {
-        _creditError = 'Error: $e';
-        _creditLoading = false;
-      });
     }
   }
 

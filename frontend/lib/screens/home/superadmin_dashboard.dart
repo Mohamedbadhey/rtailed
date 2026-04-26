@@ -143,7 +143,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
             allMessages.addAll(TypeConverter.convertMySQLList(messages));
           }
         } catch (e) {
-          print('Error loading messages for business ${business['id']}: $e');
         }
       }
       
@@ -164,7 +163,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
             allPayments.addAll(TypeConverter.convertMySQLList(payments));
           }
         } catch (e) {
-          print('Error loading payments for business ${business['id']}: $e');
         }
       }
       
@@ -178,7 +176,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         _paymentsLoaded = true;
       });
     } catch (e) {
-      print('Error loading messages and payments: $e');
       setState(() {
         _messagesLoaded = true;
         _paymentsLoaded = true;
@@ -194,7 +191,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
           _allMessages.insert(0, message); // Add to beginning since we sort by date desc
         });
       } catch (e) {
-        print('Error adding message to state: $e');
       }
     }
   }
@@ -205,9 +201,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       try {
         // Debug: Log the raw payment payload
         try {
-          print('[DEBUG] Adding payment to state: ' + json.encode(payment));
         } catch (_) {
-          print('[DEBUG] Adding payment to state (non-JSON-encodable keys): ' + payment.toString());
         }
         // Debug: Show snackbar with key fields if possible
         try {
@@ -226,7 +220,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
           _allPayments.insert(0, payment); // Add to beginning since we sort by date desc
         });
       } catch (e) {
-        print('Error adding payment to state: $e');
       }
     }
   }
@@ -244,7 +237,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         try {
           _loadMessagesAndPayments();
         } catch (e) {
-          print('Error in periodic refresh: $e');
         }
         _setupPeriodicRefresh(); // Schedule next refresh
       }
@@ -342,7 +334,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         _auditLogs = TypeConverter.safeToList(auditLogsData['logs'] ?? []);
       }
     } catch (e) {
-      print('Error loading dashboard data: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -3373,7 +3364,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                       Navigator.pop(context);
                       SuccessUtils.showNotificationSuccess(context, 'sent');
                     } catch (e) {
-                      print('Error processing message response: $e');
                       // Still show success but don't add to state
                       Navigator.pop(context);
                       SuccessUtils.showNotificationSuccess(context, 'sent');
@@ -3560,11 +3550,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
                 try {
                   // Debug: Log form values before submitting
-                  print('[DEBUG] Submitting payment: businessId=' + business['id'].toString() +
-                      ', amount=' + amountController.text + ', type=' + selectedType +
-                      ', status=' + selectedStatus + ', method=' + selectedMethod +
-                      ', description=' + descriptionController.text);
-
                   final authProvider = context.read<AuthProvider>();
                   final token = authProvider.token;
 
@@ -3583,7 +3568,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                   if (response.statusCode == 201) {
                     try {
                       final responseData = json.decode(response.body);
-                      print('[DEBUG] Add payment response: ' + response.body);
                       final paymentData = responseData['payment'];
                       
                             if (paymentData != null) {
@@ -3602,7 +3586,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                           'description': descriptionController.text,
                           'created_at': DateTime.now().toIso8601String(),
                         };
-                        print('[DEBUG] Constructed fallback payment: ' + json.encode(newPayment));
                         _addPaymentToState(newPayment);
                       }
                       
@@ -3611,7 +3594,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                         const SnackBar(content: Text('Payment added successfully'), backgroundColor: Colors.green),
                       );
                     } catch (e) {
-                      print('Error processing payment response: $e');
                       // Still show success but don't add to state
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -3994,7 +3976,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         throw Exception('Failed to fetch business details: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching business details: $e');
       // Return mock data as fallback
       return _generateMockBusinessDetails(businessId);
     }
@@ -4071,38 +4052,23 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   }
 
   Future<List<Map<String, dynamic>>> _fetchBusinessesForSelection() async {
-    print('🔍 _fetchBusinessesForSelection: Starting...');
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
-    
-    print('🔍 Token available: ${token != null}');
-    
     try {
-      print('🔍 Making API call to fetch businesses...');
       final response = await http.get(
         Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
-      
-      print('🔍 Response status: ${response.statusCode}');
-      print('🔍 Response body: ${response.body}');
-      
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final businesses = data['businesses'] ?? [];
-        
-        print('🔍 Found ${businesses.length} businesses');
-        
         // Convert each business to Map<String, dynamic> safely
         final result = TypeConverter.convertMySQLList(businesses);
-        print('🔍 Converted businesses: $result');
         return result;
       } else {
-        print('🔍 ❌ API Error: ${response.statusCode} - ${response.body}');
         throw Exception('Failed to fetch businesses: ${response.statusCode}');
       }
     } catch (e) {
-      print('🔍 ❌ Exception in _fetchBusinessesForSelection: $e');
       throw Exception('Failed to fetch businesses: $e');
     }
   }
@@ -4200,13 +4166,11 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 billMap['subscription_plan'] = business['subscription_plan'] ?? 'basic';
                 allBills.add(billMap);
               } catch (billError) {
-                print('Error processing bill: $billError');
                 // Continue with other bills
               }
             }
           }
         } catch (businessError) {
-          print('Error fetching bills for business ${business['id']}: $businessError');
           // Continue with other businesses
         }
       }
@@ -4230,7 +4194,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         'businesses': businesses,
       };
     } catch (e) {
-      print('Error in _fetchAllMonthlyBills: $e');
       throw Exception('Failed to fetch monthly bills: $e');
     }
   }
@@ -8842,13 +8805,9 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
           ],
         };
       } else {
-        print('Response status: ${response.statusCode}');
-        print('Response body: ${response.body}');
         throw Exception('Failed to fetch revenue analytics: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching revenue analytics: $e');
-      
       // Return mock data as fallback
       return {
         'revenue_stats': {
@@ -10471,7 +10430,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         throw Exception('Failed to fetch recovery stats');
       }
     } catch (e) {
-      print('Error fetching recovery stats: $e');
       return {
         'deleted_counts': {
           'users': 0,
@@ -10676,7 +10634,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         throw Exception('Failed to fetch deleted data');
       }
     } catch (e) {
-      print('Error fetching business deleted data: $e');
       return {
         'users': [],
         'products': [],
@@ -11158,7 +11115,6 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
         throw Exception(errorData['message'] ?? 'Failed to fetch business data counts');
       }
     } catch (e) {
-      print('Error fetching business data counts: $e');
       rethrow;
     }
   }
@@ -11213,14 +11169,12 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       
       if (response.statusCode == 200) {
         final result = TypeConverter.safeToMap(json.decode(response.body));
-        print('Business reset successful: ${result['message']}');
         return result;
       } else {
         final errorData = TypeConverter.safeToMap(json.decode(response.body));
         throw Exception(errorData['message'] ?? 'Failed to reset business data');
       }
     } catch (e) {
-      print('Error resetting business data: $e');
       rethrow;
     }
   }

@@ -1580,15 +1580,12 @@ class _AddDamagedProductFormState extends State<_AddDamagedProductForm> {
 
   Future<void> _loadProducts() async {
     try {
-      print('Loading products for damaged products form...');
       final products = await _apiService.getProducts();
-      print('Products loaded: ${products.length}');
       setState(() {
         _products = products;
         _isLoadingProducts = false;
       });
     } catch (e) {
-      print('Error loading products: $e');
       setState(() => _isLoadingProducts = false);
       
       String errorMessage = 'Failed to load products';

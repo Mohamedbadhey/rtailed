@@ -71,7 +71,6 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
         ]);
       }
     } catch (e) {
-      print('Error loading dashboard data: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -95,7 +94,6 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
         });
       }
     } catch (e) {
-      print('Error loading businesses: $e');
     }
   }
 
@@ -115,7 +113,6 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
         });
       }
     } catch (e) {
-      print('Error loading users: $e');
     }
   }
 
@@ -135,7 +132,6 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
         });
       }
     } catch (e) {
-      print('Error loading payments: $e');
     }
   }
 
@@ -155,7 +151,6 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
         });
       }
     } catch (e) {
-      print('Error loading messages: $e');
     }
   }
 
@@ -175,7 +170,6 @@ class _SuperadminDashboardSimpleState extends State<SuperadminDashboardSimple> w
         });
       }
     } catch (e) {
-      print('Error loading notifications: $e');
     }
   }
 

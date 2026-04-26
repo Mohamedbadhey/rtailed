@@ -106,7 +106,6 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
       }
 
     } catch (e) {
-      print('Error loading dashboard data: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -129,7 +128,6 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
         _allBusinesses = TypeConverter.convertMySQLList(businesses);
       }
     } catch (e) {
-      print('Error loading businesses: $e');
     }
   }
 
@@ -146,7 +144,6 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
         _allUsers = TypeConverter.convertMySQLList(users);
       }
     } catch (e) {
-      print('Error loading users: $e');
     }
   }
 
@@ -163,7 +160,6 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
         _allPayments = TypeConverter.convertMySQLList(payments);
       }
     } catch (e) {
-      print('Error loading payments: $e');
     }
   }
 
@@ -180,7 +176,6 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
         _allMessages = TypeConverter.convertMySQLList(messages);
       }
     } catch (e) {
-      print('Error loading messages: $e');
     }
   }
 
@@ -197,7 +192,6 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
         _notifications = TypeConverter.convertMySQLList(notifications);
       }
     } catch (e) {
-      print('Error loading notifications: $e');
     }
   }
 
@@ -214,7 +208,6 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
         _auditLogs = TypeConverter.convertMySQLList(logs);
       }
     } catch (e) {
-      print('Error loading audit logs: $e');
     }
   }
 

@@ -435,11 +435,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
           startDate = DateTime(now.year, now.month, now.day);
           endDate = startDate.add(Duration(days: 1)).subtract(Duration(milliseconds: 1));
       }
-      
-      print('🔍 Stock Summary Filter: $_stockSummaryFilterType');
-      print('🔍 Start Date: $startDate');
-      print('🔍 End Date: $endDate');
-      
       // Prepare filter parameters
       final Map<String, dynamic> filterParams = {};
       if (startDate != null) filterParams['start_date'] = startDate.toIso8601String();
@@ -471,9 +466,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
         );
         if (prod.id != -1) filterParams['product_id'] = prod.id;
       }
-      
-      print('🔍 Stock Summary Filters: $filterParams');
-      
       final data = await _apiService.getInventoryReport(
         startDate: startDate?.toIso8601String(),
         endDate: endDate?.toIso8601String(),
@@ -2344,10 +2336,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               fit: BoxFit.cover,
                               loadingBuilder: (context, child, loadingProgress) {
                                 if (loadingProgress == null) {
-                                  print('🖼️ Inventory: Image loaded successfully for product ${product.name}');
                                   return child;
                                 }
-                                print('🖼️ Inventory: Loading image for product ${product.name}: ${loadingProgress.expectedTotalBytes != null ? (loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! * 100).toStringAsFixed(1) : 'Unknown'}%');
                                 return Center(
                                   child: CircularProgressIndicator(
                                     value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null,
@@ -2355,7 +2345,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 );
                               },
                               errorBuilder: (context, error, stackTrace) {
-                                print('🖼️ Inventory: Image error for product ${product.name}: $error');
                                 return Container(
                                   decoration: BoxDecoration(
                                     color: Colors.blue[50],
@@ -2669,8 +2658,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
               SuccessUtils.showProductSuccess(context, 'added');
             }
           } catch (e, stack) {
-            print('Error adding product: $e');
-            print('Stack trace: $stack');
             if (mounted) {
               SuccessUtils.showProductError(context, 'add', e.toString());
             }
@@ -2700,32 +2687,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
         product: product,
         onSave: (productData, imageFile, {webImageBytes, webImageName}) async {
           try {
-            print('=== FRONTEND PRODUCT UPDATE DEBUG ===');
-            print('Product ID to update: ${product.id}');
-            print('Product data to send: $productData');
-            
             await _apiService.updateProduct(product.id!, productData, imageFile: imageFile, webImageBytes: webImageBytes, webImageName: webImageName);
-            
-            print('Product updated successfully, now reloading products...');
             await _loadProducts();
-            
-            print('Products reloaded. Current products count: ${_products.length}');
-            print('Updated product should be in list. Checking...');
-            
             final updatedProduct = _products.firstWhere(
               (p) => p.id == product.id,
               orElse: () => Product(id: -1, name: '', sku: '', price: 0, costPrice: 0, stockQuantity: 0, damagedQuantity: 0, lowStockThreshold: 0),
             );
             
             if (updatedProduct.id != -1) {
-              print('Found updated product in list:');
-              print('  - Name: ${updatedProduct.name}');
-              print('  - Cost Price: ${updatedProduct.costPrice}');
-              print('  - Stock Quantity: ${updatedProduct.stockQuantity}');
-              print('  - Category ID: ${updatedProduct.categoryId}');
-              print('  - Category Name: ${updatedProduct.categoryName}');
             } else {
-              print('ERROR: Updated product not found in list!');
             }
             
             if (mounted) {
@@ -2733,8 +2703,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
               SuccessUtils.showProductSuccess(context, 'updated');
             }
           } catch (e, stack) {
-            print('Error updating product: $e');
-            print('Stack trace: $stack');
             if (mounted) {
               SuccessUtils.showProductError(context, 'update', e.toString());
             }
@@ -3160,18 +3128,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
       // Add transaction type filter if selected
       if (_selectedTransactionType != null && _selectedTransactionType != 'All') {
         params['transaction_type'] = _selectedTransactionType;
-        print('🔍 PDF Export: Added transaction type filter: $_selectedTransactionType');
       }
-      
-      print('🔍 PDF Export: Fetching filtered transactions with params: $params');
       params['limit'] = 100000;
       final data = await _apiService.getInventoryTransactions(params);
       final items = List<Map<String, dynamic>>.from(data['items'] ?? []);
-      print('🔍 PDF Export: Received ${items.length} filtered transactions');
-      
       return items;
     } catch (e) {
-      print('🔍 PDF Export: Error fetching filtered transactions: $e');
       // Fallback to empty list if backend fetch fails
       return [];
     }
@@ -3206,18 +3168,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
         startDate: startDate,
         endDate: endDate,
       );
-      
-      print('🔍 PDF Export: Using ${enhancedTransactions.length} filtered transactions from backend');
-      
       // Ensure business details are loaded
       if (_businessDetails == null) {
         await _fetchBusinessDetails();
       }
-      
-      print('🔍 PDF Export: Business details being passed: $_businessDetails');
-      print('🔍 PDF Export: Business name: ${_businessDetails?['name']}');
-      print('🔍 PDF Export: Business tagline: ${_businessDetails?['tagline']}');
-      
       final result = await PdfExportService.exportTransactionsToPdf(
         transactions: enhancedTransactions,
         reportTitle: reportTitle,
@@ -3299,11 +3253,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
       if (_businessDetails == null) {
         await _fetchBusinessDetails();
       }
-
-      print('🔍 Stock Summary PDF Export: Business details being passed: $_businessDetails');
-      print('🔍 Stock Summary PDF Export: Business name: ${_businessDetails?['name']}');
-      print('🔍 Stock Summary PDF Export: Business tagline: ${_businessDetails?['tagline']}');
-
       final result = await PdfExportService.exportStockSummaryToPdf(
         stockData: _filteredStockSummaryData,
         reportTitle: _buildFilteredReportTitle(),
@@ -3368,13 +3317,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
 
   void _loadFilteredTransactions() {
-    print('🔍 INVENTORY: _loadFilteredTransactions called');
-    print('🔍 INVENTORY: _filterStartDate: $_filterStartDate');
-    print('🔍 INVENTORY: _filterEndDate: $_filterEndDate');
-    print('🔍 INVENTORY: _selectedReportCategory: $_selectedReportCategory');
-    print('🔍 INVENTORY: _selectedReportProduct: $_selectedReportProduct');
-    print('🔍 INVENTORY: _selectedTransactionType: $_selectedTransactionType');
-    
     // Allow loading even with null dates for "All Time" filter
     if (_filterStartDate != null && _filterEndDate != null || _filterStartDate == null && _filterEndDate == null) {
       setState(() {
@@ -3398,7 +3340,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
         );
         if (cat.isNotEmpty) {
           params['category_id'] = cat['id'];
-          print('🔍 INVENTORY: Added category filter: ${cat['id']} (${cat['name']})');
         }
       }
       
@@ -3419,36 +3360,29 @@ class _InventoryScreenState extends State<InventoryScreen> {
         );
         if (prod.id != -1) {
           params['product_id'] = prod.id;
-          print('🔍 INVENTORY: Added product filter: ${prod.id} (${prod.name})');
         }
       }
       
       // Add transaction type filter if selected
       if (_selectedTransactionType != null && _selectedTransactionType != 'All') {
         params['transaction_type'] = _selectedTransactionType;
-        print('🔍 INVENTORY: Added transaction type filter: $_selectedTransactionType');
       }
-      
-      print('🔍 INVENTORY: Sending params to API: $params');
       params['limit'] = 100000;
       
       _apiService.getInventoryTransactions(params).then((data) {
         final transactions = List<Map<String, dynamic>>.from(data['items'] ?? []);
-        print('🔍 INVENTORY: Received ${transactions.length} transactions');
         setState(() {
           _filteredTransactions = transactions;
           _filteredLoading = false;
             _resetFilteredTransactionsPagination();
         });
       }).catchError((error) {
-        print('🔍 INVENTORY: Error loading transactions: $error');
         setState(() {
           _filteredError = error.toString();
           _filteredLoading = false;
         });
       });
     } else {
-      print('🔍 INVENTORY: Date filters are null, skipping API call');
     }
   }
 
@@ -3714,14 +3648,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
           children: [
             Expanded(
               child: _buildQuickDateButton('Today', () {
-                print('🔍 INVENTORY: Today button clicked');
                 final now = DateTime.now();
                 setState(() {
                   _filterStartDate = DateTime(now.year, now.month, now.day); // Start of day (00:00:00)
                   _filterEndDate = DateTime(now.year, now.month, now.day).add(Duration(days: 1)).subtract(Duration(milliseconds: 1)); // End of day (23:59:59.999)
                 });
-                print('🔍 INVENTORY: Set _filterStartDate: $_filterStartDate');
-                print('🔍 INVENTORY: Set _filterEndDate: $_filterEndDate');
                 _loadFilteredTransactions();
                 _fetchInventoryValueReport(); // Also refresh stock summary
               }, isActive: _filterStartDate?.day == DateTime.now().day && _filterEndDate?.day == DateTime.now().day),
@@ -3855,16 +3786,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
         _businessDetails = businessData;
         _businessDetailsLoading = false;
       });
-      
-      print('🔍 Business details loaded: ${businessData['name']}');
-      print('🔍 Business details full data: $businessData');
-      
     } catch (e) {
       setState(() {
         _businessDetailsError = e.toString();
         _businessDetailsLoading = false;
       });
-      print('🔍 Error loading business details: $e');
     }
   }
 
@@ -5232,11 +5158,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
               Switch(
                 value: _showDeletedProducts,
                 onChanged: (value) {
-                  print('🔄 Deleted products toggle changed to: $value');
                   setState(() {
                     _showDeletedProducts = value;
                   });
-                  print('🔄 Calling _applyFilters() after toggle change');
                   _applyFilters();
                 },
                 activeColor: Colors.orange[600],
@@ -5407,11 +5331,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 Switch(
                   value: _showDeletedProducts,
                   onChanged: (value) {
-                    print('🔄 Desktop deleted products toggle changed to: $value');
                     setState(() {
                       _showDeletedProducts = value;
                     });
-                    print('🔄 Desktop calling _applyFilters() after toggle change');
                     _applyFilters();
                   },
                   activeColor: Colors.orange[600],
@@ -5499,7 +5421,6 @@ class _ProductDialogState extends State<_ProductDialog> {
         _categories = categories;
       });
     } catch (e) {
-      print('Error loading categories: $e');
     }
   }
 
@@ -5756,13 +5677,6 @@ class _ProductDialogState extends State<_ProductDialog> {
         'sku': _skuController.text.trim(), // Send as is, let backend handle auto-generation if empty
         'low_stock_threshold': 10, // Default value
       };
-      
-      print('=== FRONTEND PRODUCT SAVE/UPDATE DEBUG ===');
-      print('Selected category ID: $_selectedCategoryId');
-      print('Product data to send: $productData');
-      print('SKU Controller text: "${_skuController.text}"');
-      print('=====================================');
-
       widget.onSave(productData, _imageFile, webImageBytes: kIsWeb && _webImageDataUrl != null ? base64Decode(_webImageDataUrl!.split(',').last) : null, webImageName: kIsWeb ? _webImageName : null);
     } catch (e) {
       setState(() {
@@ -6569,7 +6483,6 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
         _categories = categories;
       });
     } catch (e) {
-      print('Error loading categories: $e');
       if (mounted) {
         SuccessUtils.showOperationError(context, 'load categories', e.toString());
       }
@@ -6616,7 +6529,6 @@ class _CategoryManagementDialogState extends State<_CategoryManagementDialog> {
         _isNameAvailable = false;
         _isNameTaken = true;
       });
-      print('Error checking category name: $e');
     }
   }
 

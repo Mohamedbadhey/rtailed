@@ -139,8 +139,6 @@ class _BusinessBrandingScreenState extends State<BusinessBrandingScreen> {
 
   Future<void> _pickImage(String type) async {
     try {
-      print('🎨 Picking image for type: $type');
-      
       if (kIsWeb) {
         // For web, use the same logic as product images
         final ImagePicker picker = ImagePicker();
@@ -166,8 +164,6 @@ class _BusinessBrandingScreenState extends State<BusinessBrandingScreen> {
               _faviconFile = null;
             }
           });
-          
-          print('🎨 Web image picked: ${bytes.length} bytes for type: $type');
         }
       } else {
         // For mobile, use file picker like products
@@ -189,12 +185,9 @@ class _BusinessBrandingScreenState extends State<BusinessBrandingScreen> {
               _faviconBytes = null;
             }
           });
-          
-          print('🎨 Mobile image picked: ${image.path} for type: $type');
         }
       }
     } catch (e) {
-      print('🎨 Error picking image: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -516,7 +509,6 @@ class _BusinessBrandingScreenState extends State<BusinessBrandingScreen> {
                               type == 'logo' ? _logoBytes! : _faviconBytes!,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
-                                print('Error loading memory image: $error');
                                 return Container(
                                   color: Colors.grey.shade200,
                                   child: Icon(Icons.image, size: size * 0.5, color: Colors.grey),
@@ -527,7 +519,6 @@ class _BusinessBrandingScreenState extends State<BusinessBrandingScreen> {
                               type == 'logo' ? _logoFile! : _faviconFile!,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
-                                print('Error loading file image: $error');
                                 return Container(
                                   color: Colors.grey.shade200,
                                   child: Icon(Icons.image, size: size * 0.5, color: Colors.grey),
@@ -539,7 +530,6 @@ class _BusinessBrandingScreenState extends State<BusinessBrandingScreen> {
                               'https://rtailed-production.up.railway.app$currentImageUrl',
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
-                                print('Error loading network image: $error');
                                 return Container(
                                   color: Colors.grey.shade200,
                                   child: Icon(Icons.image, size: size * 0.5, color: Colors.grey),

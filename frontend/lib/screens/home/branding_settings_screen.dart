@@ -462,7 +462,6 @@ class _BrandingSettingsScreenState extends State<BrandingSettingsScreen> {
                               type == 'logo' ? _logoBytes! : _faviconBytes!,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
-                                print('Error loading memory image: $error');
                                 return Container(
                                   color: Colors.grey.shade200,
                                   child: Icon(Icons.image, size: size * 0.5, color: Colors.grey),
@@ -473,7 +472,6 @@ class _BrandingSettingsScreenState extends State<BrandingSettingsScreen> {
                               type == 'logo' ? _logoFile! : _faviconFile!,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
-                                print('Error loading file image: $error');
                                 return Container(
                                   color: Colors.grey.shade200,
                                   child: Icon(Icons.image, size: size * 0.5, color: Colors.grey),
@@ -485,7 +483,6 @@ class _BrandingSettingsScreenState extends State<BrandingSettingsScreen> {
                               'https://rtailed-production.up.railway.app$currentImageUrl',
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
-                                print('Error loading network image: $error');
                                 return Container(
                                   color: Colors.grey.shade200,
                                   child: Icon(Icons.image, size: size * 0.5, color: Colors.grey),

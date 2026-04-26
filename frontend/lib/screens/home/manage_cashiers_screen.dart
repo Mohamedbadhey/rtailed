@@ -29,16 +29,10 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
       String endpoint = '/api/admin/users?limit=100';
       
       // Debug information
-      print('Fetching cashiers for user: ${user?.username}');
-      print('User role: ${user?.role}');
-      print('User businessId: ${user?.businessId}');
-      
       // If user is not superadmin, filter by business_id
       if (user?.role != 'superadmin' && user?.businessId != null) {
         endpoint = '/api/businesses/${user!.businessId}/users?limit=100';
-        print('Using business-specific endpoint: $endpoint');
       } else {
-        print('Using admin endpoint: $endpoint');
       }
       
       final response = await ApiService.getStatic(endpoint);
@@ -50,7 +44,6 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
         loading = false;
       });
     } catch (e) {
-      print('Error fetching cashiers: $e');
       setState(() { error = 'Failed to load cashiers: $e'; loading = false; });
     }
   }
@@ -348,13 +341,6 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                     endpoint = '/api/businesses/${user!.businessId}/users';
                   }
                 }
-                
-                print('🔍 Updating cashier:');
-                print('🔍 Endpoint: $endpoint');
-                print('🔍 Data: $data');
-                print('🔍 User role: ${user?.role}');
-                print('🔍 User businessId: ${user?.businessId}');
-                
                 if (isEdit) {
                   await ApiService.putStatic(endpoint, data);
                 } else {
@@ -388,9 +374,6 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
                 } else if (errorDetails.contains('You can only update cashier accounts')) {
                   errorMessage = 'You can only update cashier accounts';
                 }
-                
-                print('Error updating cashier: $errorDetails');
-                
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(errorMessage),
@@ -460,7 +443,6 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
       await ApiService.putStatic('/api/admin/users/${cashier['id']}/status', {'is_active': false});
       fetchCashiers();
     } catch (e) {
-      print('Deactivate cashier error: ' + e.toString());
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${t(context, 'Failed to deactivate cashier: ')}$e')));
     }
   }
@@ -470,7 +452,6 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
       await ApiService.putStatic('/api/admin/users/${cashier['id']}/status', {'is_active': true});
       fetchCashiers();
     } catch (e) {
-      print('Activate cashier error: ' + e.toString());
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${t(context, 'Failed to activate cashier: ')}$e')));
     }
   }
@@ -481,11 +462,6 @@ class _ManageCashiersScreenState extends State<ManageCashiersScreen> {
     final canManageCashiers = user?.role == 'superadmin' || user?.role == 'admin' || user?.role == 'manager';
     
     // Debug information
-    print('Current user: ${user?.username}');
-    print('User role: ${user?.role}');
-    print('User businessId: ${user?.businessId}');
-    print('Can manage cashiers: $canManageCashiers');
-    
     if (!canManageCashiers) {
       return Scaffold(
         appBar: AppBar(

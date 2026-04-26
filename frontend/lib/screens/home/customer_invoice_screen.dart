@@ -112,17 +112,13 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
   }
 
   Future<void> _loadLatestSales() async {
-    print('Customer Invoice - Loading latest sales...');
     setState(() {
       _isLoading = true;
     });
 
     try {
       // Load latest sales transactions (without customer filter)
-      print('Customer Invoice - Fetching sales from API...');
       final sales = await _apiService.getSales();
-      print('Customer Invoice - Fetched ${sales.length} sales');
-      
       // Filter sales by date range if specified
       List<Sale> filteredSales = sales.where((sale) {
         if (_startDate != null && sale.createdAt != null) {
@@ -133,18 +129,13 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
         }
         return true;
       }).toList();
-      print('Customer Invoice - Filtered to ${filteredSales.length} sales');
-
       // Map sales to transaction format and load sale items
       List<Map<String, dynamic>> transactions = [];
-      print('Customer Invoice - Loading sale items for ${filteredSales.length} transactions...');
       for (int i = 0; i < filteredSales.length; i++) {
         final sale = filteredSales[i];
-        print('Customer Invoice - Loading items for sale ${i + 1}/${filteredSales.length} (ID: ${sale.id})');
         try {
           // Load sale items for each transaction
           if (sale.id == null) {
-            print('Customer Invoice - Sale ID is null, skipping...');
             continue;
           }
           final saleItems = await _apiService.getSaleItems(sale.id!);
@@ -160,7 +151,6 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
             'items': saleItems,
           });
         } catch (e) {
-          print('Customer Invoice - Error loading items for sale ${sale.id}: $e');
           // Add transaction without items if loading fails
           transactions.add({
             'id': sale.id,
@@ -175,8 +165,6 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
           });
         }
       }
-
-      print('Customer Invoice - Setting ${transactions.length} transactions');
       setState(() {
         _customerData = {
           'name': _billingName.isNotEmpty ? _billingName : 'Walk-in Customer',
@@ -193,9 +181,7 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
         _selectedTransactionIds = _transactions.map((tx) => tx['id'] as int).toSet();
         _isLoading = false;
       });
-      print('Customer Invoice - Latest sales loaded successfully');
     } catch (e) {
-      print('Customer Invoice - Error loading latest sales: $e');
       setState(() {
         _isLoading = false;
       });
@@ -431,7 +417,6 @@ class _CustomerInvoiceScreenState extends State<CustomerInvoiceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print('Customer Invoice - Building UI: _transactions.length = ${_transactions.length}, _useLatestSales = $_useLatestSales, _isLoading = $_isLoading');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Customer Invoice'),

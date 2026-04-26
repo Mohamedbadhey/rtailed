@@ -1069,24 +1069,54 @@ router.get('/bulk-export', auth, async (req, res) => {
       if (p.image_url) {
         try {
           let imagePath;
-          if (p.image_url.startsWith('/uploads/')) {
-             imagePath = path.join(baseDir, p.image_url.replace('/uploads/', ''));
+          const imageUrl = p.image_url;
+          
+          if (imageUrl.startsWith('/uploads/')) {
+            imagePath = path.join(baseDir, imageUrl.replace('/uploads/', ''));
+          } else if (imageUrl.includes('uploads/')) {
+            // Handle cases where path might be "products/uploads/..." or similar
+            const parts = imageUrl.split('uploads/');
+            imagePath = path.join(baseDir, parts[parts.length - 1]);
           } else {
-             const relativePath = p.image_url.startsWith('/') ? p.image_url.substring(1) : p.image_url;
-             imagePath = path.join(baseDir, relativePath);
+            const relativePath = imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
+            imagePath = path.join(baseDir, relativePath);
           }
 
           if (fs.existsSync(imagePath)) {
-            const imageId = workbook.addImage({
-              filename: imagePath,
-              extension: path.extname(imagePath).substring(1).toLowerCase() || 'png',
-            });
+            const ext = path.extname(imagePath).substring(1).toLowerCase();
+            
+            // Map common aliases to ExcelJS supported formats
+            let excelExt = null;
+            if (['jpg', 'jpeg', 'jfif', 'pjpeg', 'pjp'].includes(ext)) {
+              excelExt = 'jpeg';
+            } else if (ext === 'png') {
+              excelExt = 'png';
+            } else if (ext === 'gif') {
+              excelExt = 'gif';
+            }
+            
+            if (excelExt) {
+              // Supported format: Embed as image
+              const imageId = workbook.addImage({
+                filename: imagePath,
+                extension: excelExt,
+              });
 
-            worksheet.addImage(imageId, {
-              tl: { col: 10, row: i + 1 },
-              ext: { width: 100, height: 100 },
-              editAs: 'oneCell'
-            });
+              worksheet.addImage(imageId, {
+                tl: { col: 10, row: row.number - 1 },
+                ext: { width: 100, height: 100 },
+                editAs: 'oneCell'
+              });
+            } else {
+              // Unsupported format (e.g. webp, svg, bmp): Provide a hyperlink
+              const cell = worksheet.getCell(row.number, 11); // Column K (11th column)
+              cell.value = {
+                text: `View Image (${ext.toUpperCase()})`,
+                hyperlink: `${process.env.BASE_URL || ''}${p.image_url}`,
+                tooltip: 'Click to view image in browser'
+              };
+              cell.font = { color: { argb: 'FF0000FF' }, underline: true };
+            }
           }
         } catch (err) {
           console.error(`Error adding image for product ${p.id}:`, err);

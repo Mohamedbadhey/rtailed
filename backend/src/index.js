@@ -134,10 +134,23 @@ app.get('/uploads/products/:filename', (req, res) => {
     // Check if file exists
     if (!fullPath) {
       console.log('🖼️ ❌ File not found at any location');
+      
+      // Debug: List files in the main products directory to see what IS there
+      let filesInProducts = [];
+      try {
+        const debugDir = path.join(uploadsDir, 'products');
+        if (fs.existsSync(debugDir)) {
+          filesInProducts = fs.readdirSync(debugDir).slice(0, 20); // Just first 20 for brevity
+        }
+      } catch (e) {}
+
       return res.status(404).json({ 
         error: 'Image not found', 
         filename,
-        checkedPaths: possiblePaths 
+        checkedPaths: possiblePaths,
+        availableFilesSample: filesInProducts,
+        uploadsDir: uploadsDir,
+        envVolumePath: process.env.RAILWAY_VOLUME_MOUNT_PATH
       });
     }
     console.log('🖼️ ✅ File exists:', fullPath);

@@ -346,6 +346,7 @@ async function extractEmbeddedImagesByRow(buffer, options = {}) {
   const imagesByRow = new Map();
 
   for (const a of anchors) {
+    const excelRow1Based = a.row + 1;
     const dataIndex = a.row - (headerRowIndex + 1);
     if (dataIndex < 0 || dataIndex >= rows.length) {
       continue;

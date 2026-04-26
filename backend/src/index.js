@@ -160,12 +160,22 @@ app.get('/uploads/products/:filename', (req, res) => {
 // Custom image serving route with CORS headers for branding
 app.get('/uploads/branding/:filename', (req, res) => {
   try {
-    const { filename } = req.params;
-    const fullPath = path.join(uploadsDir, 'branding', filename);
+    const filename = decodeURIComponent(req.params.filename);
     
-    // Check if file exists
-    if (!fs.existsSync(fullPath)) {
-      return res.status(404).json({ error: 'Image not found' });
+    // Comprehensive search for the branding file
+    const possiblePaths = [
+      path.join(uploadsDir, 'branding', filename),
+      path.join(uploadsDir, 'uploads/branding', filename),
+      path.join(__dirname, '../uploads/branding', filename),
+      path.join(__dirname, '../../uploads/branding', filename),
+      path.join(process.cwd(), 'uploads/branding', filename),
+      path.join('/data/branding', filename),
+      path.join('/data/uploads/branding', filename)
+    ];
+    
+    const fullPath = possiblePaths.find(p => fs.existsSync(p));
+    if (!fullPath) {
+      return res.status(404).json({ error: 'Branding image not found', filename });
     }
     
     // Set CORS headers
@@ -251,87 +261,6 @@ app.get('/api/health', (req, res) => {  res.json({
 
 // Railway-specific health check endpoint
 app.get('/health', (req, res) => {  res.status(200).send('OK');
-});
-
-// Test image serving endpoint
-app.get('/api/test-image/:filename', (req, res) => {
-  try {
-    const { filename } = req.params;
-    const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
-    const uploadsDir = baseDir;
-    const imagePath = path.join(uploadsDir, 'products', filename);    if (!fs.existsSync(imagePath)) {
-      return res.status(404).json({
-        status: 'ERROR',
-        message: 'Image not found',
-        filename,
-        path: imagePath
-      });
-    }
-    
-    // Set proper headers for image serving
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range');
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
-    res.setHeader('Cache-Control', 'public, max-age=31536000');
-    
-    // Determine MIME type
-    let mimeType = 'image/jpeg'; // default
-    if (filename.endsWith('.png')) mimeType = 'image/png';
-    else if (filename.endsWith('.gif')) mimeType = 'image/gif';
-    else if (filename.endsWith('.webp')) mimeType = 'image/webp';
-    
-    res.setHeader('Content-Type', mimeType);
-    
-    // Send the image file
-    res.sendFile(imagePath);
-    
-  } catch (error) {
-    console.error('🖼️ Image test error:', error);
-    res.status(500).json({
-      status: 'ERROR',
-      message: error.message
-    });
-  }
-});
-
-// Direct image serving route with CORS for Flutter app
-app.get('/api/images/:filename', (req, res) => {
-  try {
-    const { filename } = req.params;
-    const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
-    const uploadsDir = baseDir;
-    const imagePath = path.join(uploadsDir, 'products', filename);    if (!fs.existsSync(imagePath)) {
-      return res.status(404).json({
-        status: 'ERROR',
-        message: 'Image not found',
-        filename,
-        path: imagePath
-      });
-    }
-    
-    // Set CORS headers explicitly - CRITICAL for browser access
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range');
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
-    res.setHeader('Cache-Control', 'public, max-age=31536000');
-    
-    // Determine MIME type
-    let mimeType = 'image/jpeg'; // default
-    if (filename.endsWith('.png')) mimeType = 'image/png';
-    else if (filename.endsWith('.gif')) mimeType = 'image/gif';
-    else if (filename.endsWith('.webp')) mimeType = 'image/webp';
-    
-    res.setHeader('Content-Type', mimeType);    res.sendFile(imagePath);
-    
-  } catch (error) {
-    console.error('🖼️ Direct image error:', error);
-    res.status(500).json({
-      status: 'ERROR',
-      message: error.message
-    });
-  }
 });
 
 // Test file system endpoint

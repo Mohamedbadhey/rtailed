@@ -621,6 +621,7 @@ async function saveImageBuffer(buffer, ext) {
 
 // POST /api/products/bulk-import
 router.post('/bulk-import', [auth, checkRole(['admin', 'manager']), excelUpload.single('file')], async (req, res) => {
+  let conn;
   try {
     if (!req.file || !req.file.buffer) {
       return res.status(400).json({ message: 'Excel file is required' });
@@ -634,7 +635,15 @@ router.post('/bulk-import', [auth, checkRole(['admin', 'manager']), excelUpload.
     const createMissingCategories = options.category_create !== false; // default true
 
     // Parse Excel + embedded images
-    const { headers, rows, imagesByRow, warnings } = await extractEmbeddedImagesByRow(req.file.buffer, { imageColumn: 'image' });
+    const { headers, rows, rowNumbers, imagesByRow, warnings } = await extractEmbeddedImagesByRow(req.file.buffer, { imageColumn: 'image' });
+
+    // Helper for robust numeric parsing
+    const parseNumeric = (val) => {
+      if (val === null || val === undefined || val === '') return NaN;
+      const cleaned = String(val).replace(/[^0-9.-]/g, '');
+      const parsed = parseFloat(cleaned);
+      return parsed;
+    };
 
     // Required columns validation
     const requiredCols = ['name', 'price', 'cost'];
@@ -642,21 +651,40 @@ router.post('/bulk-import', [auth, checkRole(['admin', 'manager']), excelUpload.
     if (missing.length) {
       return res.status(400).json({ message: `Missing required columns: ${missing.join(', ')}` });
     }
-    // Category pre-fetch cache
-    const categoryCache = new Map(); // name -> id
 
+    conn = await pool.getConnection();
     const results = [];
     let created = 0, updated = 0, failed = 0;
 
+    // Category pre-fetch cache
+    const categoryCache = new Map(); // lowercase name -> id
+    const [existingCats] = await conn.query(
+      'SELECT id, name FROM categories WHERE business_id = ? OR business_id IS NULL', 
+      [req.user.business_id]
+    );
+    existingCats.forEach(c => categoryCache.set(c.name.trim().toLowerCase(), c.id));
+
+    // Product pre-fetch cache for faster upsert lookup
+    const skuCache = new Map(); // lowercase sku -> id
+    const barcodeCache = new Map(); // barcode -> id
+    const [existingProds] = await conn.query(
+      'SELECT id, sku, barcode FROM products WHERE business_id = ? AND is_deleted = 0', 
+      [req.user.business_id]
+    );
+    existingProds.forEach(p => {
+      if (p.sku) skuCache.set(p.sku.toLowerCase(), p.id);
+      if (p.barcode) barcodeCache.set(String(p.barcode), p.id);
+    });
+
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
-      const rowNum = i + 2; // Excel visible row number
+      const rowNum = rowNumbers[i] || (i + 2);
       const name = (r.name || '').trim();
       const sku = (r.sku || '').trim() || null;
       const description = (r.description || '').trim() || null;
-      const cost = parseFloat(String(r.cost || '').replace(/,/g, ''));
-      const price = parseFloat(String(r.price || '').replace(/,/g, ''));
-      const quantity = parseInt(String(r.quantity || '0').replace(/,/g, '')) || 0;
+      const cost = parseNumeric(r.cost);
+      const price = parseNumeric(r.price);
+      const quantity = parseInt(String(r.quantity || '0').replace(/[^0-9]/g, '')) || 0;
       const categoryName = r.category && String(r.category).trim() !== '' ? String(r.category).trim() : null;
 
       const rowMsgs = [];
@@ -672,25 +700,15 @@ router.post('/bulk-import', [auth, checkRole(['admin', 'manager']), excelUpload.
       // Resolve category id (optional)
       let categoryId = null;
       if (categoryName) {
-        const normalizedCat = categoryName.trim();
+        const normalizedCat = categoryName.trim().toLowerCase();
         if (categoryCache.has(normalizedCat)) {
           categoryId = categoryCache.get(normalizedCat);
-        } else {
-          // Case-insensitive search for existing category (business-specific or global)
-          const [existing] = await pool.query(
-            'SELECT id FROM categories WHERE LOWER(name) = LOWER(?) AND (business_id = ? OR business_id IS NULL) LIMIT 1', 
-            [normalizedCat, req.user.business_id]
+        } else if (createMissingCategories) {
+          const [ins] = await conn.query(
+            'INSERT INTO categories (name, business_id) VALUES (?, ?)', 
+            [categoryName.trim(), req.user.business_id]
           );
-          
-          if (existing.length) {
-            categoryId = existing[0].id;
-          } else if (createMissingCategories) {
-            const [ins] = await pool.query(
-              'INSERT INTO categories (name, business_id) VALUES (?, ?)', 
-              [normalizedCat, req.user.business_id]
-            );
-            categoryId = ins.insertId;
-          }
+          categoryId = ins.insertId;
           categoryCache.set(normalizedCat, categoryId);
         }
       }
@@ -714,12 +732,10 @@ router.post('/bulk-import', [auth, checkRole(['admin', 'manager']), excelUpload.
       // Upsert logic
       let productId = null;
       if (upsertBy === 'sku' && sku) {
-        const [p] = await pool.query('SELECT id FROM products WHERE sku = ? AND business_id = ?', [sku, req.user.business_id]);
-        if (p.length) productId = p[0].id;
+        productId = skuCache.get(sku.toLowerCase());
       }
       if (!productId && upsertBy === 'barcode' && r.barcode) {
-        const [p] = await pool.query('SELECT id FROM products WHERE barcode = ? AND business_id = ?', [String(r.barcode).trim(), req.user.business_id]);
-        if (p.length) productId = p[0].id;
+        productId = barcodeCache.get(String(r.barcode).trim());
       }
 
       try {
@@ -732,18 +748,21 @@ router.post('/bulk-import', [auth, checkRole(['admin', 'manager']), excelUpload.
           if (sku) { fields.push('sku = ?'); vals.push(sku); }
           if (r.barcode) { fields.push('barcode = ?'); vals.push(String(r.barcode).trim()); }
           vals.push(productId);
-          await pool.query(`UPDATE products SET ${fields.join(', ')} WHERE id = ?`, vals);
+          await conn.query(`UPDATE products SET ${fields.join(', ')} WHERE id = ?`, vals);
           updated++;
+          // Update caches
+          if (sku) skuCache.set(sku.toLowerCase(), productId);
+          if (r.barcode) barcodeCache.set(String(r.barcode).trim(), productId);
           results.push({ row: rowNum, status: 'updated', id: productId, name });
         } else {
           // Create new
           const finalSku = sku && sku.trim() !== '' ? sku.trim() : `SKU-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
           const insertValues = [
             name, description, finalSku, r.barcode ? String(r.barcode).trim() : null, categoryId,
-            price, r.wholesale_price ? parseFloat(String(r.wholesale_price).replace(/,/g, '')) : null, cost,
+            price, r.wholesale_price ? parseNumeric(r.wholesale_price) : null, cost,
             quantity, 10, image_url, req.user.business_id
           ];
-          const [ins] = await pool.query(
+          const [ins] = await conn.query(
             `INSERT INTO products (
               name, description, sku, barcode, category_id,
               price, wholesale_price, cost_price, stock_quantity, low_stock_threshold, image_url, business_id
@@ -751,19 +770,27 @@ router.post('/bulk-import', [auth, checkRole(['admin', 'manager']), excelUpload.
             insertValues
           );
           created++;
-          results.push({ row: rowNum, status: 'created', id: ins.insertId, name });
+          const newId = ins.insertId;
+          // Update caches
+          skuCache.set(finalSku.toLowerCase(), newId);
+          if (r.barcode) barcodeCache.set(String(r.barcode).trim(), newId);
+          results.push({ row: rowNum, status: 'created', id: newId, name });
         }
       } catch (e) {
         failed++;
+        console.error(`❌ Row ${rowNum} import error:`, e.message);
         results.push({ row: rowNum, status: 'error', messages: [e.message] });
       }
     }
 
     const summary = { totals: { rows: rows.length, created, updated, failed }, warnings };
+    console.log(`📦 Bulk Import Summary: ${created} created, ${updated} updated, ${failed} failed (${dryRun ? 'DRY RUN' : 'FINAL'})`);
     res.status(200).json({ summary, results, dryRun });
   } catch (error) {
     console.error('Bulk import error:', error);
     res.status(500).json({ message: error.message || 'Server error during bulk import' });
+  } finally {
+    if (conn) conn.release();
   }
 });
 

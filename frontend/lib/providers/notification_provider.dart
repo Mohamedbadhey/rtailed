@@ -66,9 +66,7 @@ class NotificationProvider with ChangeNotifier {
           try {
             return AppNotification.fromJson(json);
           } catch (e) {
-            print('Error parsing notification: $e');
-            print('Notification data: $json');
-            // Return a default notification if parsing fails
+                                    // Return a default notification if parsing fails
             return AppNotification(
               id: json['id'] ?? 0,
               title: json['title'] ?? 'Error loading notification',
@@ -189,8 +187,7 @@ class NotificationProvider with ChangeNotifier {
           try {
             return AppNotification.fromJson(json);
           } catch (e) {
-            print('Error parsing thread notification: $e');
-            return AppNotification(
+                        return AppNotification(
               id: json['id'] ?? 0,
               title: json['title'] ?? 'Error loading notification',
               message: json['message'] ?? 'Could not load notification content',
@@ -239,9 +236,7 @@ class NotificationProvider with ChangeNotifier {
 
       if (parentId != null) {
         body['parent_id'] = parentId;
-        print('=== FRONTEND DEBUG ===');
-        print('Adding parent_id to request: $parentId (type: ${parentId.runtimeType})');
-      }
+                      }
 
       final userRole = _authProvider.user?.role;
       if (userRole == 'admin' || userRole == 'superadmin') {
@@ -252,11 +247,7 @@ class NotificationProvider with ChangeNotifier {
         // Optionally, allow specifying targetAdmins in the future
       }
 
-      print('=== FRONTEND SEND NOTIFICATION ===');
-      print('Request body: $body');
-      print('Parent ID in body: ${body['parent_id']}');
-
-      final response = await http.post(
+                        final response = await http.post(
         Uri.parse('${Api.baseUrl}/api/notifications/send'),
         headers: {
           'Authorization': 'Bearer $token',
@@ -265,10 +256,7 @@ class NotificationProvider with ChangeNotifier {
         body: json.encode(body),
       );
 
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
-
-      if (response.statusCode == 201) {
+                  if (response.statusCode == 201) {
         return json.decode(response.body);
       } else {
         final errorData = json.decode(response.body);

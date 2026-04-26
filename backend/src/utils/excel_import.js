@@ -5,7 +5,26 @@ const path = require('path');
 
 // Utility: normalize header keys (trim, lowercase)
 function normalizeHeader(h) {
-  return String(h || '').trim().toLowerCase();
+  const normalized = String(h || '').trim().toLowerCase();
+  
+  // Header aliases for common fields
+  const aliases = {
+    'sku': ['sku', 'item code', 'product code', 'product sku', 's.k.u', 'reference', 'ref'],
+    'barcode': ['barcode', 'upc', 'ean', 'bar code', 'qr code', 'code'],
+    'name': ['name', 'product name', 'item name', 'title', 'product', 'label'],
+    'price': ['price', 'sale price', 'retail price', 'selling price', 'unit price', 'rate'],
+    'cost': ['cost', 'cost price', 'purchase price', 'buying price', 'unit cost', 'avg cost'],
+    'quantity': ['quantity', 'qty', 'stock', 'stock quantity', 'count', 'amount', 'on hand'],
+    'category': ['category', 'department', 'group', 'type', 'cat', 'classification'],
+    'description': ['description', 'desc', 'details', 'notes', 'about', 'summary'],
+    'wholesale_price': ['wholesale price', 'wholesale', 'trade price', 'bulk price']
+  };
+
+  for (const [canonical, list] of Object.entries(aliases)) {
+    if (list.includes(normalized)) return canonical;
+  }
+  
+  return normalized;
 }
 
 // Read sheet headers and rows; also compute Excel row numbers for each data row
@@ -327,17 +346,13 @@ async function extractEmbeddedImagesByRow(buffer, options = {}) {
   const imagesByRow = new Map();
 
   for (const a of anchors) {
-    const excelRow1Based = a.row + 1;
     const dataIndex = a.row - (headerRowIndex + 1);
     if (dataIndex < 0 || dataIndex >= rows.length) {
       continue;
     }
     
-    if (imageColIndex !== -1 && a.col !== imageColIndex) {
-      if (Math.abs(a.col - imageColIndex) > 1) {
-         continue;
-      }
-    }
+    // If we have multiple images on the same row, the first one found wins
+    if (imagesByRow.has(dataIndex)) continue;
     
     const mediaPath = relsMap[a.relId];
     if (!mediaPath) {

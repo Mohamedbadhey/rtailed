@@ -17,8 +17,7 @@ class NotificationService {
       if (Platform.isAndroid) {
         final status = await Permission.notification.request();
         if (status != PermissionStatus.granted) {
-          print('🔔 Notification permission denied');
-          return;
+                    return;
         }
       }
 
@@ -46,18 +45,13 @@ class NotificationService {
       );
 
       _initialized = true;
-      print('🔔 Notification service initialized successfully');
-    } catch (e) {
-      print('🔔 Error initializing notification service: $e');
-    }
+          } catch (e) {
+          }
   }
 
   /// Handle notification tap
   static void _onNotificationTapped(NotificationResponse response) {
-    print('🔔 Notification tapped: ${response.payload}');
-    print('🔔 Action ID: ${response.actionId}');
-    
-    // Handle action buttons
+            // Handle action buttons
     if (response.actionId == 'open' || response.actionId == null) {
       // Open PDF when "Open PDF" button is tapped or notification body is tapped
       if (response.payload != null && response.payload!.isNotEmpty) {
@@ -65,52 +59,40 @@ class NotificationService {
       }
     } else if (response.actionId == 'dismiss') {
       // Dismiss notification - no action needed
-      print('🔔 Notification dismissed');
-    }
+          }
   }
 
   /// Open PDF file using system default app
   static Future<void> _openPdfFile(String filePath) async {
     try {
-      print('🔔 Opening PDF file: $filePath');
-      
-      // Check if file exists
+            // Check if file exists
       final file = File(filePath);
       if (!await file.exists()) {
-        print('🔔 PDF file does not exist: $filePath');
-        return;
+                return;
       }
       
       // Method 1: Try open_file package (most reliable for Android)
       try {
-        print('🔔 Trying to open with open_file package');
-        final result = await OpenFile.open(filePath);
+                final result = await OpenFile.open(filePath);
         
         if (result.type == ResultType.done) {
-          print('🔔 PDF opened successfully with open_file package');
-          return;
+                    return;
         } else {
-          print('🔔 open_file failed: ${result.message}');
-        }
+                  }
       } catch (e) {
-        print('🔔 open_file package failed: $e');
-      }
+              }
       
       // Method 2: Fallback to url_launcher
       if (Platform.isAndroid) {
         try {
           // Use file:// URI with external application
           final uri = Uri.file(filePath);
-          print('🔔 Trying to open with file URI: $uri');
-          
-          if (await canLaunchUrl(uri)) {
+                    if (await canLaunchUrl(uri)) {
             await launchUrl(uri, mode: LaunchMode.externalApplication);
-            print('🔔 PDF opened successfully with file URI');
-            return;
+                        return;
           }
         } catch (e) {
-          print('🔔 File URI method failed: $e');
-        }
+                  }
         
         try {
           // Use intent with MIME type
@@ -120,24 +102,19 @@ class NotificationService {
             mode: LaunchMode.externalApplication,
             webOnlyWindowName: '_blank',
           );
-          print('🔔 PDF opened successfully with intent');
-        } catch (e) {
-          print('🔔 Intent method failed: $e');
-        }
+                  } catch (e) {
+                  }
         
       } else if (Platform.isIOS) {
         // For iOS, use file:// URI
         final uri = Uri.file(filePath);
         if (await canLaunchUrl(uri)) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
-          print('🔔 PDF opened successfully on iOS');
-        } else {
-          print('🔔 Could not launch PDF file on iOS');
-        }
+                  } else {
+                  }
       }
     } catch (e) {
-      print('🔔 Error opening PDF file: $e');
-    }
+          }
   }
 
   /// Show PDF download notification
@@ -197,10 +174,8 @@ class NotificationService {
         payload: filePath, // Pass file path as payload
       );
 
-      print('🔔 PDF download notification shown for: $fileName');
-    } catch (e) {
-      print('🔔 Error showing PDF download notification: $e');
-    }
+          } catch (e) {
+          }
   }
 
   /// Show simple notification (fallback)
@@ -242,29 +217,23 @@ class NotificationService {
         platformChannelSpecifics,
       );
 
-      print('🔔 Simple notification shown: $title');
-    } catch (e) {
-      print('🔔 Error showing simple notification: $e');
-    }
+          } catch (e) {
+          }
   }
 
   /// Cancel all notifications
   static Future<void> cancelAllNotifications() async {
     try {
       await _notifications.cancelAll();
-      print('🔔 All notifications cancelled');
-    } catch (e) {
-      print('🔔 Error cancelling notifications: $e');
-    }
+          } catch (e) {
+          }
   }
 
   /// Cancel specific notification
   static Future<void> cancelNotification(int notificationId) async {
     try {
       await _notifications.cancel(notificationId);
-      print('🔔 Notification $notificationId cancelled');
-    } catch (e) {
-      print('🔔 Error cancelling notification $notificationId: $e');
-    }
+          } catch (e) {
+          }
   }
 }

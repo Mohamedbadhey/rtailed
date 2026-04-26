@@ -26,25 +26,15 @@ class Api {
   static const String inventoryValueReport = '/inventory/value-report';
 
   static String getFullImageUrl(String? imageUrl) {
-    print('🖼️ ===== getFullImageUrl START =====');
-    print('🖼️ Input imageUrl: $imageUrl');
-    print('🖼️ Base URL: $baseUrl');
-    
-    if (imageUrl == null || imageUrl.isEmpty) {
-      print('🖼️ ❌ imageUrl is null or empty');
-      print('🖼️ ===== getFullImageUrl END (NULL/EMPTY) =====');
-      return '';
+                if (imageUrl == null || imageUrl.isEmpty) {
+                  return '';
     }
     
     if (imageUrl.startsWith('http')) {
-      print('🖼️ ✅ Already full URL: $imageUrl');
-      print('🖼️ ===== getFullImageUrl END (ALREADY FULL) =====');
-      return imageUrl;
+                  return imageUrl;
     }
     
     final fullUrl = '$baseUrl$imageUrl';
-    print('🖼️ ✅ Generated full URL: $fullUrl');
-    print('🖼️ ===== getFullImageUrl END (SUCCESS) =====');
-    return fullUrl;
+            return fullUrl;
   }
 } 

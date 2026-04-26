@@ -157,8 +157,7 @@ class TypeConverter {
       final decoded = jsonDecode(jsonString);
       return safeToMap(decoded);
     } catch (e) {
-      print('Error parsing JSON: $e');
-      return {};
+            return {};
     }
   }
 
@@ -167,8 +166,7 @@ class TypeConverter {
     try {
       return jsonEncode(data);
     } catch (e) {
-      print('Error encoding JSON: $e');
-      return '{}';
+            return '{}';
     }
   }
 } 

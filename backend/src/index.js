@@ -122,20 +122,38 @@ app.get('/uploads/products/:filename', (req, res) => {
         uploadsDir: uploadsDir,
         envVolumePath: process.env.RAILWAY_VOLUME_MOUNT_PATH
       });
-    }    // Get file stats
-    const stats = fs.statSync(fullPath);    // Set CORS headers    res.setHeader('Access-Control-Allow-Origin', '*');
+    }
+
+    // Get file stats
+    const stats = fs.statSync(fullPath);
+    
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
-    res.setHeader('Cache-Control', 'public, max-age=31536000');    // Set proper MIME type    if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) {
-      res.setHeader('Content-Type', 'image/jpeg');    } else if (filename.endsWith('.png')) {
-      res.setHeader('Content-Type', 'image/png');    } else if (filename.endsWith('.gif')) {
-      res.setHeader('Content-Type', 'image/gif');    } else if (filename.endsWith('.webp')) {
-      res.setHeader('Content-Type', 'image/webp');    }    res.sendFile(fullPath, (err) => {
-      if (err) {      } else {      }
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+
+    // Set proper MIME type
+    if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) {
+      res.setHeader('Content-Type', 'image/jpeg');
+    } else if (filename.endsWith('.png')) {
+      res.setHeader('Content-Type', 'image/png');
+    } else if (filename.endsWith('.gif')) {
+      res.setHeader('Content-Type', 'image/gif');
+    } else if (filename.endsWith('.webp')) {
+      res.setHeader('Content-Type', 'image/webp');
+    }
+
+    res.sendFile(fullPath, (err) => {
+      if (err && !res.headersSent) {
+        res.status(500).json({ error: 'Error sending file' });
+      }
     });
-    
-  } catch (error) {    res.status(500).json({ error: 'Internal server error', details: error.message });
+  } catch (error) {
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Internal server error', details: error.message });
+    }
   }
 });
 
@@ -143,8 +161,11 @@ app.get('/uploads/products/:filename', (req, res) => {
 app.get('/uploads/branding/:filename', (req, res) => {
   try {
     const { filename } = req.params;
-    const fullPath = path.join(uploadsDir, 'branding', filename);    // Check if file exists
-    if (!fs.existsSync(fullPath)) {      return res.status(404).json({ error: 'Image not found' });
+    const fullPath = path.join(uploadsDir, 'branding', filename);
+    
+    // Check if file exists
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).json({ error: 'Image not found' });
     }
     
     // Set CORS headers
@@ -163,23 +184,23 @@ app.get('/uploads/branding/:filename', (req, res) => {
       res.setHeader('Content-Type', 'image/gif');
     } else if (filename.endsWith('.webp')) {
       res.setHeader('Content-Type', 'image/webp');
-    }    res.sendFile(fullPath);
-    
+    }
+
+    res.sendFile(fullPath);
   } catch (error) {
-    console.error('📁 Error serving branding image:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Handle CORS preflight requests for uploads
-app.options('/uploads/products/:filename', (req, res) => {  res.setHeader('Access-Control-Allow-Origin', '*');
+app.options('/uploads/products/:filename', (req, res) => {  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
   res.status(200).end();
 });
 
-app.options('/uploads/branding/:filename', (req, res) => {  res.setHeader('Access-Control-Allow-Origin', '*');
+app.options('/uploads/branding/:filename', (req, res) => {  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
@@ -187,7 +208,7 @@ app.options('/uploads/branding/:filename', (req, res) => {  res.setHeader('Acce
 });
 
 // Test endpoint to verify route is working
-app.get('/test-uploads', (req, res) => {  res.json({ 
+app.get('/test-uploads', (req, res) => {  res.json({ 
     message: 'Uploads route is working',
     uploadsDir,
     baseDir,
@@ -197,7 +218,7 @@ app.get('/test-uploads', (req, res) => {  res.json({
 
 // TEMPORARY DEBUG: Find where images are actually located
 app.get('/api/debug-find-images', (req, res) => {
-  const { exec } = require('child_process');  exec('find /app -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.webp" | head -n 50', (err, stdout, stderr) => {
+  const { exec } = require('child_process');  exec('find /app -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.webp" | head -n 50', (err, stdout, stderr) => {
     res.json({ 
       stdout: stdout ? stdout.split('\n').filter(Boolean) : [], 
       stderr, 
@@ -209,7 +230,7 @@ app.get('/api/debug-find-images', (req, res) => {
 });
 
 // Root endpoint for Railway health checks
-app.get('/', (req, res) => {  res.json({ 
+app.get('/', (req, res) => {  res.json({ 
     status: 'OK', 
     message: 'Retail Management API is running',
     timestamp: new Date().toISOString(),
@@ -221,7 +242,7 @@ app.get('/', (req, res) => {  res.json({
 });
 
 // Health check endpoint (keeping for backward compatibility)
-app.get('/api/health', (req, res) => {  res.json({ 
+app.get('/api/health', (req, res) => {  res.json({ 
     status: 'OK', 
     message: 'Retail Management API is running',
     timestamp: new Date().toISOString()
@@ -229,7 +250,7 @@ app.get('/api/health', (req, res) => {  res.json({
 });
 
 // Railway-specific health check endpoint
-app.get('/health', (req, res) => {  res.status(200).send('OK');
+app.get('/health', (req, res) => {  res.status(200).send('OK');
 });
 
 // Test image serving endpoint
@@ -238,7 +259,7 @@ app.get('/api/test-image/:filename', (req, res) => {
     const { filename } = req.params;
     const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
     const uploadsDir = baseDir;
-    const imagePath = path.join(uploadsDir, 'products', filename);    if (!fs.existsSync(imagePath)) {
+    const imagePath = path.join(uploadsDir, 'products', filename);    if (!fs.existsSync(imagePath)) {
       return res.status(404).json({
         status: 'ERROR',
         message: 'Image not found',
@@ -280,7 +301,7 @@ app.get('/api/images/:filename', (req, res) => {
     const { filename } = req.params;
     const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
     const uploadsDir = baseDir;
-    const imagePath = path.join(uploadsDir, 'products', filename);    if (!fs.existsSync(imagePath)) {
+    const imagePath = path.join(uploadsDir, 'products', filename);    if (!fs.existsSync(imagePath)) {
       return res.status(404).json({
         status: 'ERROR',
         message: 'Image not found',
@@ -302,7 +323,7 @@ app.get('/api/images/:filename', (req, res) => {
     else if (filename.endsWith('.gif')) mimeType = 'image/gif';
     else if (filename.endsWith('.webp')) mimeType = 'image/webp';
     
-    res.setHeader('Content-Type', mimeType);    res.sendFile(imagePath);
+    res.setHeader('Content-Type', mimeType);    res.sendFile(imagePath);
     
   } catch (error) {
     console.error('🖼️ Direct image error:', error);
@@ -318,13 +339,13 @@ app.get('/api/test-filesystem', (req, res) => {
   try {
     const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
     const uploadsDir = baseDir;
-    const productsDir = path.join(uploadsDir, 'products');    const uploadsExists = fs.existsSync(uploadsDir);
     const productsExists = fs.existsSync(productsDir);
     
     let files = [];
     if (productsExists) {
       try {
-        files = fs.readdirSync(productsDir);      } catch (error) {      }
+        files = fs.readdirSync(productsDir);
+      } catch (error) {}
     }
     
     res.json({

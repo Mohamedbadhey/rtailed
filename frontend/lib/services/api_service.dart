@@ -36,12 +36,12 @@ class ApiService {
 
   void setToken(String token) {
     _token = token;
-    print('Token set: $_token'); // Debug log
+     // Debug log
   }
 
   void clearToken() {
     _token = null;
-    print('Token cleared'); // Debug log
+     // Debug log
   }
 
   String? get token => _token;
@@ -71,8 +71,7 @@ class ApiService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Connection check failed: $e');
-      return false;
+            return false;
     }
   }
 
@@ -91,10 +90,7 @@ class ApiService {
         context: context,
       );
 
-      print('Login Response Status: ${response.statusCode}');
-      print('Login Response Body: ${response.body}');
-
-      if (response.statusCode == 200) {
+                  if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return {
           'token': data['token'],
@@ -105,8 +101,7 @@ class ApiService {
         throw Exception(errorData['message'] ?? 'Failed to login');
       }
     } catch (e) {
-      print('Login Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -124,10 +119,7 @@ class ApiService {
         context: context,
       );
 
-      print('Login with Username Response Status: ${response.statusCode}');
-      print('Login with Username Response Body: ${response.body}');
-
-      if (response.statusCode == 200) {
+                  if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return {
           'token': data['token'],
@@ -138,8 +130,7 @@ class ApiService {
         throw Exception(errorData['message'] ?? 'Failed to login');
       }
     } catch (e) {
-      print('Login with Username Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -157,10 +148,7 @@ class ApiService {
         context: context,
       );
 
-      print('Login with Identifier Response Status: ${response.statusCode}');
-      print('Login with Identifier Response Body: ${response.body}');
-
-      if (response.statusCode == 200) {
+                  if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return {
           'token': data['token'],
@@ -171,8 +159,7 @@ class ApiService {
         throw Exception(errorData['message'] ?? 'Failed to login');
       }
     } catch (e) {
-      print('Login with Identifier Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -221,8 +208,7 @@ class ApiService {
         throw Exception(errorData['message'] ?? 'Failed to register');
       }
     } catch (e) {
-      print('Register Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -242,8 +228,7 @@ class ApiService {
         throw Exception('Failed to get profile: ${response.body}');
       }
     } catch (e) {
-      print('Get Profile Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -274,8 +259,7 @@ class ApiService {
         throw Exception('Failed to update profile: ${response.body}');
       }
     } catch (e) {
-      print('Update Profile Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -369,16 +353,13 @@ class ApiService {
         throw Exception('Bulk import failed: ${response.statusCode} ${response.body}');
       }
     } catch (e, stack) {
-      print('BulkImport error: $e');
-      print(stack);
-      rethrow;
+                  rethrow;
     }
   }
 
   Future<List<Product>> getProducts({BuildContext? context}) async {
     try {
-      print('🛍️ ===== API GET PRODUCTS START =====');
-      final response = await _executeRequest(
+            final response = await _executeRequest(
         () => http.get(
           Uri.parse('$baseUrl/api/products'),
           headers: _headers,
@@ -386,92 +367,53 @@ class ApiService {
         context: context,
       );
 
-      print('🛍️ Response status: ${response.statusCode}');
-      print('🛍️ Response headers: ${response.headers}');
-
-      if (response.statusCode == 200) {
+                  if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        print('🛍️ Raw JSON response length: ${data.length}');
-        
-        // Debug: Print first product's raw JSON
+                // Debug: Print first product's raw JSON
         if (data.isNotEmpty) {
-          print('🛍️ First product raw JSON: ${data.first}');
-          print('🛍️ First product image_url field: ${data.first['image_url']}');
-        }
+                            }
         
         final products = data.map((json) => Product.fromJson(json)).toList();
-        print('🛍️ Parsed products length: ${products.length}');
-        
-        // Debug: Print first product's parsed data
+                // Debug: Print first product's parsed data
         if (products.isNotEmpty) {
           final firstProduct = products.first;
-          print('🛍️ First product parsed:');
-          print('  - ID: ${firstProduct.id}');
-          print('  - Name: ${firstProduct.name}');
-          print('  - Image URL: ${firstProduct.imageUrl}');
-        }
+                                                }
         
-        print('🛍️ ===== API GET PRODUCTS END (SUCCESS) =====');
-        return products;
+                return products;
       } else {
-        print('🛍️ ❌ Error response: ${response.body}');
-        print('🛍️ ===== API GET PRODUCTS END (ERROR) =====');
-        throw Exception('Failed to get products: ${response.body}');
+                        throw Exception('Failed to get products: ${response.body}');
       }
     } catch (e) {
-      print('🛍️ ❌ Exception: $e');
-      print('🛍️ ===== API GET PRODUCTS END (EXCEPTION) =====');
-      rethrow;
+                  rethrow;
     }
   }
 
   // Get all products including deleted ones (for inventory management)
   Future<List<Product>> getAllProducts() async {
     try {
-      print('🛍️ ===== API GET ALL PRODUCTS START =====');
-      final response = await http.get(
+            final response = await http.get(
         Uri.parse('$baseUrl/api/products/all'),
         headers: _headers,
       );
 
-      print('🛍️ Response status: ${response.statusCode}');
-      print('🛍️ Response headers: ${response.headers}');
-
-      if (response.statusCode == 200) {
+                  if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        print('🛍️ Raw JSON response length: ${data.length}');
-        
-        // Debug: Print first product's raw JSON
+                // Debug: Print first product's raw JSON
         if (data.isNotEmpty) {
-          print('🛍️ First product raw JSON: ${data.first}');
-          print('🛍️ First product is_deleted field: ${data.first['is_deleted']}');
-          print('🛍️ First product is_deleted type: ${data.first['is_deleted'].runtimeType}');
-        }
+                                      }
         
         final products = data.map((json) => Product.fromJson(json)).toList();
-        print('🛍️ Parsed products length: ${products.length}');
-        
-        // Debug: Print first product's parsed data
+                // Debug: Print first product's parsed data
         if (products.isNotEmpty) {
           final firstProduct = products.first;
-          print('🛍️ First product parsed:');
-          print('  - ID: ${firstProduct.id}');
-          print('  - Name: ${firstProduct.name}');
-          print('  - Is Deleted: ${firstProduct.isDeleted}');
-          print('  - Is Deleted Type: ${firstProduct.isDeleted.runtimeType}');
-        }
+                                                          }
         
-        print('🛍️ ===== API GET ALL PRODUCTS END (SUCCESS) =====');
-        return products;
+                return products;
       } else {
-        print('🛍️ ❌ Error response: ${response.body}');
-        print('🛍️ ===== API GET ALL PRODUCTS END (ERROR) =====');
-        throw Exception('Failed to get all products: ${response.body}');
+                        throw Exception('Failed to get all products: ${response.body}');
       }
     } catch (e) {
-      print('🛍️ ❌ Exception: $e');
-      print('🛍️ ===== API GET ALL PRODUCTS END (EXCEPTION) =====');
-      rethrow;
+                  rethrow;
     }
   }
 
@@ -488,14 +430,12 @@ class ApiService {
         throw Exception('Failed to get product: ${response.body}');
       }
     } catch (e) {
-      print('Get Product Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
   Future<Product> createProduct(Map<String, dynamic> productData, {File? imageFile, Uint8List? webImageBytes, String? webImageName}) async {
-    print('ApiService.createProduct called');
-    try {
+        try {
       if ((kIsWeb && webImageBytes != null) || imageFile != null) {
         // Multipart request for image upload
         var request = http.MultipartRequest(
@@ -527,13 +467,11 @@ class ApiService {
         }
         final streamedResponse = await request.send();
         final response = await http.Response.fromStream(streamedResponse);
-        print('ApiService.createProduct response: ${response.statusCode} ${response.body}');
-        if (response.statusCode == 201) {
+                if (response.statusCode == 201) {
           final data = json.decode(response.body);
           return await getProduct(data['productId']);
         } else {
-          print('ApiService.createProduct error: ${response.body}');
-          throw Exception('Failed to create product: ${response.body}');
+                    throw Exception('Failed to create product: ${response.body}');
         }
       } else {
         // Regular JSON request without image
@@ -542,25 +480,20 @@ class ApiService {
           headers: _headers,
           body: json.encode(productData),
         );
-        print('ApiService.createProduct response: ${response.statusCode} ${response.body}');
-        if (response.statusCode == 201) {
+                if (response.statusCode == 201) {
           final data = json.decode(response.body);
           return await getProduct(data['productId']);
         } else {
-          print('ApiService.createProduct error: ${response.body}');
-          throw Exception('Failed to create product: ${response.body}');
+                    throw Exception('Failed to create product: ${response.body}');
         }
       }
     } catch (e, stack) {
-      print('Create Product Error (ApiService): $e');
-      print('Stack trace: $stack');
-      rethrow;
+                  rethrow;
     }
   }
 
   Future<void> updateProduct(int id, Map<String, dynamic> productData, {File? imageFile, Uint8List? webImageBytes, String? webImageName}) async {
-    print('ApiService.updateProduct called');
-    try {
+        try {
       if ((kIsWeb && webImageBytes != null) || imageFile != null) {
         var request = http.MultipartRequest(
           'PUT',
@@ -591,10 +524,8 @@ class ApiService {
         }
         final streamedResponse = await request.send();
         final response = await http.Response.fromStream(streamedResponse);
-        print('ApiService.updateProduct response: ${response.statusCode} ${response.body}');
-        if (response.statusCode != 200) {
-          print('ApiService.updateProduct error: ${response.body}');
-          throw Exception('Failed to update product: ${response.body}');
+                if (response.statusCode != 200) {
+                    throw Exception('Failed to update product: ${response.body}');
         }
       } else {
         final response = await http.put(
@@ -602,16 +533,12 @@ class ApiService {
           headers: _headers,
           body: json.encode(productData),
         );
-        print('ApiService.updateProduct response: ${response.statusCode} ${response.body}');
-        if (response.statusCode != 200) {
-          print('ApiService.updateProduct error: ${response.body}');
-          throw Exception('Failed to update product: ${response.body}');
+                if (response.statusCode != 200) {
+                    throw Exception('Failed to update product: ${response.body}');
         }
       }
     } catch (e, stack) {
-      print('Update Product Error (ApiService): $e');
-      print('Stack trace: $stack');
-      rethrow;
+                  rethrow;
     }
   }
 
@@ -626,8 +553,7 @@ class ApiService {
         throw Exception('Failed to delete product: ${response.body}');
       }
     } catch (e) {
-      print('Delete Product Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -642,8 +568,7 @@ class ApiService {
         throw Exception('Failed to restore product: ${response.body}');
       }
     } catch (e) {
-      print('Restore Product Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -662,8 +587,7 @@ class ApiService {
         throw Exception('Failed to get customers: ${response.body}');
       }
     } catch (e) {
-      print('Get Customers Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -682,32 +606,26 @@ class ApiService {
         throw Exception('Failed to create customer: ${response.body}');
       }
     } catch (e) {
-      print('Create Customer Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
   // Sales
   Future<List<Sale>> getSales() async {
     try {
-      print('API Service - Getting sales from: $baseUrl/api/sales');
-      final response = await http.get(
+            final response = await http.get(
         Uri.parse('$baseUrl/api/sales'),
         headers: _headers,
       );
 
-      print('API Service - Sales response status: ${response.statusCode}');
-      if (response.statusCode == 200) {
+            if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        print('API Service - Parsed ${data.length} sales');
-        return data.map((json) => Sale.fromJson(json)).toList();
+                return data.map((json) => Sale.fromJson(json)).toList();
       } else {
-        print('API Service - Sales request failed: ${response.body}');
-        throw Exception('Failed to get sales: ${response.body}');
+                throw Exception('Failed to get sales: ${response.body}');
       }
     } catch (e) {
-      print('Get Sales Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -726,8 +644,7 @@ class ApiService {
         throw Exception('Failed to create sale: ${response.body}');
       }
     } catch (e) {
-      print('Create Sale Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -744,8 +661,7 @@ class ApiService {
         throw Exception('Failed to get sale: ${response.body}');
       }
     } catch (e) {
-      print('Get Sale Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -761,8 +677,7 @@ class ApiService {
           }
         });
       }
-      print('getInventoryTransactionsForPdf queryParams: ' + queryParams.toString());
-      final uri = Uri.parse('$baseUrl/api/inventory/transactions/pdf').replace(queryParameters: queryParams);
+            final uri = Uri.parse('$baseUrl/api/inventory/transactions/pdf').replace(queryParameters: queryParams);
       final response = await http.get(uri, headers: _headers);
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -771,8 +686,7 @@ class ApiService {
         throw Exception('Failed to get enhanced inventory transactions: ${response.body}');
       }
     } catch (e) {
-      print('Get Enhanced Inventory Transactions Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -786,8 +700,7 @@ class ApiService {
           }
         });
       }
-      print('getInventoryTransactions queryParams: ' + queryParams.toString());
-      final uri = Uri.parse('$baseUrl/api/inventory/transactions').replace(queryParameters: queryParams);
+            final uri = Uri.parse('$baseUrl/api/inventory/transactions').replace(queryParameters: queryParams);
       final response = await http.get(uri, headers: _headers);
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -796,8 +709,7 @@ class ApiService {
         throw Exception('Failed to get inventory transactions: ${response.body}');
       }
     } catch (e) {
-      print('Get Inventory Transactions Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -816,8 +728,7 @@ class ApiService {
         throw Exception('Failed to create inventory transaction: ${response.body}');
       }
     } catch (e) {
-      print('Create Inventory Transaction Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -833,28 +744,17 @@ class ApiService {
       if (startDate != null) queryParams['start_date'] = startDate;
       if (endDate != null) queryParams['end_date'] = endDate;
       if (userId != null && userId != 'all') queryParams['user_id'] = userId;
-      print('getSalesReport queryParams: ' + queryParams.toString());
-      final uri = Uri.parse('$baseUrl/api/sales/report').replace(queryParameters: queryParams);
+            final uri = Uri.parse('$baseUrl/api/sales/report').replace(queryParameters: queryParams);
       
-      print('Sales Report Request:');
-      print('  URL: $uri');
-      print('  Start Date: $startDate');
-      print('  End Date: $endDate');
-      print('  Group By: $groupBy');
-      
-      final response = await http.get(uri, headers: _headers);
+                                    final response = await http.get(uri, headers: _headers);
 
-      print('Sales Report Response Status: ${response.statusCode}');
-      print('Sales Report Response Body: ${response.body}');
-
-      if (response.statusCode == 200) {
+                  if (response.statusCode == 200) {
         return TypeConverter.safeToMap(json.decode(response.body));
       } else {
         throw Exception('Failed to get sales report: ${response.body}');
       }
     } catch (e) {
-      print('Error fetching sales report: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -879,8 +779,7 @@ class ApiService {
         throw Exception('Failed to get inventory report: ${response.body}');
       }
     } catch (e) {
-      print('Error fetching inventory report: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -899,8 +798,7 @@ class ApiService {
         throw Exception('Failed to get business details: ${response.body}');
       }
     } catch (e) {
-      print('Get Business Details Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -916,12 +814,10 @@ class ApiService {
         final data = json.decode(response.body);
         return List<Map<String, dynamic>>.from(data['businesses'] ?? []);
       } else {
-        print('GET BUSINESSES ERROR: ${response.statusCode} ${response.body}');
-        throw Exception('Error: ${response.statusCode} ${response.body}');
+                throw Exception('Error: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print('Get Businesses Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -937,12 +833,10 @@ class ApiService {
         final data = json.decode(response.body);
         return List<Map<String, dynamic>>.from(data['businesses'] ?? []);
       } else {
-        print('GET STORE BUSINESSES ERROR: ${response.statusCode} ${response.body}');
-        throw Exception('Error: ${response.statusCode} ${response.body}');
+                throw Exception('Error: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print('Get Store Businesses Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -961,8 +855,7 @@ class ApiService {
         throw Exception('Failed to get categories: ${response.body}');
       }
     } catch (e) {
-      print('Get Categories Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -981,8 +874,7 @@ class ApiService {
         throw Exception('Failed to create category: ${response.body}');
       }
     } catch (e) {
-      print('Create Category Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -998,8 +890,7 @@ class ApiService {
         throw Exception('Failed to update category: ${response.body}');
       }
     } catch (e) {
-      print('Update Category Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -1014,8 +905,7 @@ class ApiService {
         throw Exception('Failed to delete category: ${response.body}');
       }
     } catch (e) {
-      print('Delete Category Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -1033,8 +923,7 @@ class ApiService {
         throw Exception('Failed to get top products: ${response.body}');
       }
     } catch (e) {
-      print('Get Top Products Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -1056,8 +945,7 @@ class ApiService {
         throw Exception('Failed to get credit report: ${response.body}');
       }
     } catch (e) {
-      print('Error fetching credit report: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -1093,8 +981,7 @@ class ApiService {
         throw Exception('Failed to get customer transactions: ${response.body}');
       }
     } catch (e) {
-      print('Get Customer Transactions Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -1112,8 +999,7 @@ class ApiService {
         throw Exception('Failed to get credit customers: ${response.body}');
       }
     } catch (e) {
-      print('Error fetching credit customers: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -1130,8 +1016,7 @@ class ApiService {
         throw Exception('Failed to get customer credit transactions: ${response.body}');
       }
     } catch (e) {
-      print('Error fetching customer credit transactions: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -1182,8 +1067,7 @@ class ApiService {
         throw Exception('Failed to get sale items: ${response.body}');
       }
     } catch (e) {
-      print('Get Sale Items Error: $e');
-      rethrow;
+            rethrow;
     }
   }
 
@@ -1595,8 +1479,7 @@ class ApiService {
       body: json.encode(body),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      print('PATCH ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
     return json.decode(response.body);
   }
@@ -1624,21 +1507,13 @@ class ApiService {
     
     final uri = Uri.parse('$baseUrl/api/stores').replace(queryParameters: queryParams);
     
-    print('GET STORES REQUEST: $uri');
-    print('GET STORES HEADERS: $_headers');
+            final response = await http.get(uri, headers: _headers);
     
-    final response = await http.get(uri, headers: _headers);
-    
-    print('GET STORES RESPONSE STATUS: ${response.statusCode}');
-    print('GET STORES RESPONSE BODY: ${response.body}');
-    
-    if (response.statusCode == 200) {
+            if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      print('GET STORES PARSED DATA: $data');
-      return List<Map<String, dynamic>>.from(data['stores'] ?? []);
+            return List<Map<String, dynamic>>.from(data['stores'] ?? []);
     } else {
-      print('GET STORES ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -1652,8 +1527,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
-      print('GET STORE DETAILS ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -1668,8 +1542,7 @@ class ApiService {
     if (response.statusCode == 201) {
       return json.decode(response.body);
     } else {
-      print('CREATE STORE ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -1684,8 +1557,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
-      print('UPDATE STORE ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -1703,8 +1575,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
-      print('ASSIGN BUSINESS ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -1718,8 +1589,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
-      print('REMOVE BUSINESS ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -1733,8 +1603,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return List<Map<String, dynamic>>.from(json.decode(response.body));
     } else {
-      print('GET STORE BUSINESSES ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -1751,36 +1620,25 @@ class ApiService {
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
-      print('RESET STORE BUSINESSES ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
   // Get all assignments for superadmin management
   Future<List<Map<String, dynamic>>> getAllStoreBusinessAssignments() async {
-    print('=== API SERVICE: Getting all assignments ===');
-    print('URL: $baseUrl/api/stores/assignments/all');
-    
-    final response = await http.get(
+            final response = await http.get(
       Uri.parse('$baseUrl/api/stores/assignments/all'),
       headers: _headers,
     );
 
-    print('Response status: ${response.statusCode}');
-    print('Response body: ${response.body}');
-
-    if (response.statusCode == 200) {
+            if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      print('Parsed data: $data');
-      final assignments = List<Map<String, dynamic>>.from(data['assignments']);
-      print('Assignments count: ${assignments.length}');
-      if (assignments.isNotEmpty) {
-        print('Sample assignment: ${assignments[0]}');
-      }
+            final assignments = List<Map<String, dynamic>>.from(data['assignments']);
+            if (assignments.isNotEmpty) {
+              }
       return assignments;
     } else {
-      print('GET ALL ASSIGNMENTS ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -1798,8 +1656,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
-      print('RESET STORE ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -1826,17 +1683,13 @@ class ApiService {
     
     final uri = Uri.parse('$baseUrl/api/store-transfers').replace(queryParameters: queryParams);
     
-    print('GET STORE TRANSFERS REQUEST: $uri');
-    print('GET STORE TRANSFERS HEADERS: $_headers');
-    
-    final response = await http.get(uri, headers: _headers);
+            final response = await http.get(uri, headers: _headers);
     
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       return List<Map<String, dynamic>>.from(data['transfers'] ?? []);
     } else {
-      print('GET TRANSFERS ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -1850,8 +1703,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
-      print('GET TRANSFER DETAILS ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -1866,8 +1718,7 @@ class ApiService {
     if (response.statusCode == 201) {
       return json.decode(response.body);
     } else {
-      print('CREATE TRANSFER ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -1884,8 +1735,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
-      print('APPROVE TRANSFER ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -1902,8 +1752,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
-      print('REJECT TRANSFER ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -1925,8 +1774,7 @@ class ApiService {
     if (response.statusCode == 201) {
       return json.decode(response.body);
     } else {
-      print('ADD PRODUCTS TO STORE ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -1945,8 +1793,7 @@ class ApiService {
     if (response.statusCode == 201) {
       return json.decode(response.body);
     } else {
-      print('TRANSFER STORE TO BUSINESS ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -1959,30 +1806,19 @@ class ApiService {
     
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      print('🔍 DEBUG: API Response received. Status: ${response.statusCode}');
-      print('🔍 DEBUG: Response data type: ${data.runtimeType}');
-      print('🔍 DEBUG: Response data: $data');
-      
-      // Handle both old format (direct array) and new format (object with inventory property)
+                        // Handle both old format (direct array) and new format (object with inventory property)
       if (data is List) {
-        print('🔍 DEBUG: Data is List, returning directly');
-        return List<Map<String, dynamic>>.from(data);
+                return List<Map<String, dynamic>>.from(data);
       } else if (data is Map && data.containsKey('inventory')) {
-        print('🔍 DEBUG: Data is Map with inventory property');
-        final inventory = data['inventory'] ?? [];
-        print('🔍 DEBUG: Inventory type: ${inventory.runtimeType}, length: ${inventory.length}');
-        if (inventory.isNotEmpty) {
-          print('🔍 DEBUG: First inventory item: ${inventory[0]}');
-          print('🔍 DEBUG: First item store_quantity: ${inventory[0]['store_quantity']} (type: ${inventory[0]['store_quantity'].runtimeType})');
-        }
+                final inventory = data['inventory'] ?? [];
+                if (inventory.isNotEmpty) {
+                            }
         return List<Map<String, dynamic>>.from(inventory);
       } else {
-        print('🔍 DEBUG: Data format not recognized, returning empty list');
-        return [];
+                return [];
       }
     } else {
-      print('GET STORE INVENTORY ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -2003,25 +1839,15 @@ class ApiService {
     
     final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/movements/$businessId').replace(queryParameters: queryParams);
     
-    print('🔍 DEBUG: Fetching movements from: $uri');
-    print('🔍 DEBUG: Query params: $queryParams');
+            final response = await http.get(uri, headers: _headers);
     
-    final response = await http.get(uri, headers: _headers);
-    
-    print('🔍 DEBUG: Movements API Response Status: ${response.statusCode}');
-    
-    if (response.statusCode == 200) {
+        if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      print('🔍 DEBUG: Movements data type: ${data.runtimeType}');
-      print('🔍 DEBUG: Movements count: ${data.length}');
-      if (data.isNotEmpty) {
-        print('🔍 DEBUG: First movement: ${data[0]}');
-        print('🔍 DEBUG: Movement fields: ${data[0].keys.toList()}');
-      }
+                  if (data.isNotEmpty) {
+                      }
       return List<Map<String, dynamic>>.from(data);
     } else {
-      print('GET STORE INVENTORY MOVEMENTS ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -2039,17 +1865,13 @@ class ApiService {
     
     final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/reports/$businessId').replace(queryParameters: queryParams);
     
-    print('🔍 GET STORE INVENTORY REPORTS: $uri');
-    
-    final response = await http.get(uri, headers: _headers);
+        final response = await http.get(uri, headers: _headers);
     
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      print('✅ Store inventory reports loaded successfully');
-      return data;
+            return data;
     } else {
-      print('GET STORE INVENTORY REPORTS ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -2059,80 +1881,50 @@ class ApiService {
 
   // Add single product to store inventory (simplified approach)
   Future<Map<String, dynamic>> addProductToStoreInventory(int storeId, int productId, int quantity, double unitCost, {String? notes}) async {
-    print('=== API SERVICE: ADD PRODUCT TO STORE INVENTORY ===');
-    print('Store ID: $storeId');
-    print('Product ID: $productId');
-    print('Quantity: $quantity');
-    print('Unit Cost: $unitCost');
-    
-    final requestBody = {
+                        final requestBody = {
       'product_id': productId,
       'quantity': quantity,
       'unit_cost': unitCost,
       if (notes != null) 'notes': notes,
     };
-    print('Request body: ${json.encode(requestBody)}');
-    
-    final response = await http.post(
+        final response = await http.post(
       Uri.parse('$baseUrl/api/store-warehouse/$storeId/add-product'),
       headers: _headers,
       body: json.encode(requestBody),
     );
     
-    print('Response status: ${response.statusCode}');
-    print('Response body: ${response.body}');
-    
-    if (response.statusCode == 200 || response.statusCode == 201) {
+            if (response.statusCode == 200 || response.statusCode == 201) {
       try {
         final result = json.decode(response.body);
-        print('Successfully decoded response: $result');
-        return result;
+                return result;
       } catch (e) {
-        print('JSON decode error: $e');
-        print('Response body that failed to decode: ${response.body}');
-        throw Exception('Failed to parse response: $e');
+                        throw Exception('Failed to parse response: $e');
       }
     } else {
-      print('API call failed with status: ${response.statusCode}');
-      print('Error response body: ${response.body}');
-      throw Exception('API Error: ${response.statusCode} - ${response.body}');
+                  throw Exception('API Error: ${response.statusCode} - ${response.body}');
     }
   }
 
   // Add products to store warehouse (first tier - bulk storage)
   Future<Map<String, dynamic>> addProductsToStoreWarehouse(int storeId, List<Map<String, dynamic>> products) async {
-    print('=== API SERVICE: ADD TO STORE WAREHOUSE ===');
-    print('Store ID: $storeId');
-    print('Products: $products');
-    
-    final requestBody = {
+                final requestBody = {
       'products': products,
     };
-    print('Request body: ${json.encode(requestBody)}');
-    
-    final response = await http.post(
+        final response = await http.post(
       Uri.parse('$baseUrl/api/store-warehouse/$storeId/add-products'),
       headers: _headers,
       body: json.encode(requestBody),
     );
     
-    print('Response status: ${response.statusCode}');
-    print('Response body: ${response.body}');
-    
-    if (response.statusCode == 200 || response.statusCode == 201) {
+            if (response.statusCode == 200 || response.statusCode == 201) {
       try {
         final result = json.decode(response.body);
-        print('Successfully decoded response: $result');
-        return result;
+                return result;
       } catch (e) {
-        print('JSON decode error: $e');
-        print('Response body that failed to decode: ${response.body}');
-        throw Exception('Failed to parse response: $e');
+                        throw Exception('Failed to parse response: $e');
       }
     } else {
-      print('API call failed with status: ${response.statusCode}');
-      print('Error response body: ${response.body}');
-      throw Exception('API Error: ${response.statusCode} - ${response.body}');
+                  throw Exception('API Error: ${response.statusCode} - ${response.body}');
     }
   }
 
@@ -2184,91 +1976,56 @@ class ApiService {
 
   // Increment existing product quantity in store inventory
   Future<Map<String, dynamic>> incrementProductQuantity(int storeId, int productId, int quantity, {double? costPrice, String? notes}) async {
-    print('=== API SERVICE: INCREMENT PRODUCT QUANTITY ===');
-    print('Store ID: $storeId');
-    print('Product ID: $productId');
-    print('Quantity to add: $quantity');
-    
-    final requestBody = {
+                    final requestBody = {
       'product_id': productId,
       'quantity': quantity,
       if (costPrice != null) 'cost_price': costPrice,
       if (notes != null) 'notes': notes,
     };
-    print('Request body: ${json.encode(requestBody)}');
-    
-    final response = await http.post(
+        final response = await http.post(
       Uri.parse('$baseUrl/api/store-warehouse/$storeId/add-product'),
       headers: _headers,
       body: json.encode(requestBody),
     );
     
-    print('Response status: ${response.statusCode}');
-    print('Response body: ${response.body}');
-    
-    if (response.statusCode == 200 || response.statusCode == 201) {
+            if (response.statusCode == 200 || response.statusCode == 201) {
       try {
         final result = json.decode(response.body);
-        print('Successfully incremented product: $result');
-        return result;
+                return result;
       } catch (e) {
-        print('JSON decode error: $e');
-        print('Response body that failed to decode: ${response.body}');
-        throw Exception('Failed to parse response: $e');
+                        throw Exception('Failed to parse response: $e');
       }
     } else {
-      print('API call failed with status: ${response.statusCode}');
-      print('Error response body: ${response.body}');
-      throw Exception('API Error: ${response.statusCode} - ${response.body}');
+                  throw Exception('API Error: ${response.statusCode} - ${response.body}');
     }
   }
 
   // Update product cost price
   Future<Map<String, dynamic>> updateProductCostPrice(int productId, double costPrice) async {
-    print('=== API SERVICE: UPDATE PRODUCT COST PRICE ===');
-    print('Product ID: $productId');
-    print('New Cost Price: $costPrice');
-    
-    final requestBody = {
+                final requestBody = {
       'cost_price': costPrice,
     };
-    print('Request body: ${json.encode(requestBody)}');
-    
-    final response = await http.put(
+        final response = await http.put(
       Uri.parse('$baseUrl/api/products/$productId'),
       headers: _headers,
       body: json.encode(requestBody),
     );
     
-    print('Response status: ${response.statusCode}');
-    print('Response body: ${response.body}');
-    
-    if (response.statusCode == 200) {
+            if (response.statusCode == 200) {
       try {
         final result = json.decode(response.body);
-        print('Successfully updated product cost price: $result');
-        return result;
+                return result;
       } catch (e) {
-        print('JSON decode error: $e');
-        print('Response body that failed to decode: ${response.body}');
-        throw Exception('Failed to parse response: $e');
+                        throw Exception('Failed to parse response: $e');
       }
     } else {
-      print('API call failed with status: ${response.statusCode}');
-      print('Error response body: ${response.body}');
-      throw Exception('API Error: ${response.statusCode} - ${response.body}');
+                  throw Exception('API Error: ${response.statusCode} - ${response.body}');
     }
   }
 
   // Get store inventory report
   Future<Map<String, dynamic>> getStoreInventoryReport(int storeId, int businessId, DateTime startDate, DateTime endDate) async {
-    print('=== API SERVICE: GET STORE INVENTORY REPORT ===');
-    print('Store ID: $storeId');
-    print('Business ID: $businessId');
-    print('Start Date: $startDate');
-    print('End Date: $endDate');
-    
-    final startDateStr = startDate.toIso8601String().split('T')[0];
+                        final startDateStr = startDate.toIso8601String().split('T')[0];
     final endDateStr = endDate.toIso8601String().split('T')[0];
     
     final response = await http.get(
@@ -2276,23 +2033,15 @@ class ApiService {
       headers: _headers,
     );
     
-    print('Response status: ${response.statusCode}');
-    print('Response body: ${response.body}');
-    
-    if (response.statusCode == 200) {
+            if (response.statusCode == 200) {
       try {
         final result = json.decode(response.body);
-        print('Successfully retrieved store inventory report: $result');
-        return result;
+                return result;
       } catch (e) {
-        print('JSON decode error: $e');
-        print('Response body that failed to decode: ${response.body}');
-        throw Exception('Failed to parse response: $e');
+                        throw Exception('Failed to parse response: $e');
       }
     } else {
-      print('API call failed with status: ${response.statusCode}');
-      print('Error response body: ${response.body}');
-      throw Exception('API Error: ${response.statusCode} - ${response.body}');
+                  throw Exception('API Error: ${response.statusCode} - ${response.body}');
     }
   }
 
@@ -2327,17 +2076,13 @@ class ApiService {
     
     final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/detailed-movements/$businessId').replace(queryParameters: queryParams);
     
-    print('🔍 GET DETAILED MOVEMENTS REPORT: $uri');
-    
-    final response = await http.get(uri, headers: _headers);
+        final response = await http.get(uri, headers: _headers);
     
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      print('✅ Detailed movements report loaded successfully');
-      return data;
+            return data;
     } else {
-      print('GET DETAILED MOVEMENTS REPORT ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -2362,17 +2107,13 @@ class ApiService {
     
     final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/purchases/$businessId').replace(queryParameters: queryParams);
     
-    print('🔍 GET PURCHASES REPORT: $uri');
-    
-    final response = await http.get(uri, headers: _headers);
+        final response = await http.get(uri, headers: _headers);
     
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      print('✅ Purchases report loaded successfully');
-      return data;
+            return data;
     } else {
-      print('GET PURCHASES REPORT ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -2397,17 +2138,13 @@ class ApiService {
     
     final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/increments/$businessId').replace(queryParameters: queryParams);
     
-    print('🔍 GET INCREMENTS REPORT: $uri');
-    
-    final response = await http.get(uri, headers: _headers);
+        final response = await http.get(uri, headers: _headers);
     
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      print('✅ Increments report loaded successfully');
-      return data;
+            return data;
     } else {
-      print('GET INCREMENTS REPORT ERROR: ${response.statusCode} ${response.body}');
-      throw Exception('Error: ${response.statusCode} ${response.body}');
+            throw Exception('Error: ${response.statusCode} ${response.body}');
     }
   }
 
@@ -2475,20 +2212,12 @@ class ApiService {
     
     final uri = Uri.parse('$baseUrl/api/store-inventory/$storeId/transfer-reports/$businessId').replace(queryParameters: queryParams);
     
-    print('🔍 API SERVICE: GET TRANSFER REPORTS: $uri');
-    print('🔍 API SERVICE: Query params: $queryParams');
-    print('🔍 API SERVICE: Store ID: $storeId, Business ID: $businessId');
-    
-    try {
+                try {
       final response = await http.get(uri, headers: _headers);
       
-      print('🔍 API SERVICE: Response status: ${response.statusCode}');
-      print('🔍 API SERVICE: Response body: ${response.body}');
-      
-      if (response.statusCode == 200) {
+                  if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('✅ API SERVICE: Transfer reports loaded successfully');
-        return data;
+                return data;
       } else if (response.statusCode == 400) {
         final errorData = json.decode(response.body);
         throw Exception('Validation Error: ${errorData['message'] ?? 'Invalid request parameters'}');
@@ -2497,8 +2226,7 @@ class ApiService {
       } else if (response.statusCode == 404) {
         throw Exception('Store or business not found');
       } else {
-        print('❌ API SERVICE: GET TRANSFER REPORTS ERROR: ${response.statusCode} ${response.body}');
-        throw Exception('Server Error: ${response.statusCode}');
+                throw Exception('Server Error: ${response.statusCode}');
       }
     } catch (e) {
       if (e is FormatException) {
@@ -2527,8 +2255,7 @@ class ApiService {
           throw Exception('Could not launch $url');
         }
       } catch (e) {
-        print('Error launching export URL: $e');
-        rethrow;
+                rethrow;
       }
     } else {
       // On mobile/desktop, download the bytes and save/share
@@ -2547,8 +2274,7 @@ class ApiService {
           throw Exception('Failed to export products: ${response.statusCode} ${response.body}');
         }
       } catch (e) {
-        print('Error exporting products: $e');
-        rethrow;
+                rethrow;
       }
     }
   }
@@ -2579,8 +2305,7 @@ class ApiService {
             location: 'App Documents',
           );
         } catch (e) {
-          print('Error showing notification: $e');
-        }
+                  }
       }
       
       Toast.show(
@@ -2589,8 +2314,7 @@ class ApiService {
         gravity: Toast.bottom,
       );
     } catch (e) {
-      print('Error saving Excel: $e');
-      rethrow;
+            rethrow;
     }
   }
 }

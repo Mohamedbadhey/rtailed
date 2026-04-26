@@ -61,14 +61,7 @@ class CartProvider with ChangeNotifier {
     // Check if available stock is sufficient
     final availableStock = product.stockQuantity;
     
-    print('🔍 Stock Check for ${product.name}:');
-    print('   - Available Stock: ${availableStock}');
-    print('   - Current in Cart: ${currentCartQuantity}');
-    print('   - Requested: ${requestedQuantity}');
-    print('   - Total Needed: ${totalQuantityNeeded}');
-    print('   - Sufficient: ${availableStock >= totalQuantityNeeded}');
-    
-    return availableStock >= totalQuantityNeeded;
+                            return availableStock >= totalQuantityNeeded;
   }
 
   // Get current quantity of a product in cart for a specific mode
@@ -133,8 +126,7 @@ class CartProvider with ChangeNotifier {
         message = 'Insufficient stock! Available: ${availableStock}, Requested: ${quantity}';
       }
       
-      print('❌ Stock validation failed: $message');
-      return {
+            return {
         'success': false,
         'message': message,
         'availableStock': availableStock,
@@ -151,11 +143,9 @@ class CartProvider with ChangeNotifier {
     if (existingIndex >= 0) {
       _items[existingIndex].quantity += quantity;
       _items[existingIndex].customTotalPrice = null; // Reset custom price when qty changes
-      print('✅ Updated quantity for ${product.name} (${mode}): ${_items[existingIndex].quantity}');
-    } else {
+          } else {
       _items.add(CartItem(product: product, quantity: quantity, mode: mode));
-      print('✅ Added ${product.name} (${mode}) to cart: ${quantity}');
-    }
+          }
     
     notifyListeners();
     
@@ -167,17 +157,13 @@ class CartProvider with ChangeNotifier {
   }
 
   void addItem(Product product, {String mode = 'retail', int quantity = 1}) {
-    print('🛒 CartProvider: addItem called for ${product.name} (${mode}) x ${quantity}');
-    print('🛒 CartProvider: Current cart items before add: ${_items.length}');
-    
-    // Use the new validation method
+            // Use the new validation method
     final result = addItemWithValidation(product, mode: mode, quantity: quantity);
     
     // If validation failed, this will still add the item (for backward compatibility)
     // But you should use addItemWithValidation in new code
     if (!result['success']) {
-      print('⚠️ Warning: Item added despite insufficient stock (backward compatibility)');
-    }
+          }
     
     final existingIndex = _items.indexWhere(
       (item) => item.product.id == product.id && item.mode == mode,
@@ -186,19 +172,13 @@ class CartProvider with ChangeNotifier {
     if (existingIndex >= 0) {
       _items[existingIndex].quantity += quantity;
       _items[existingIndex].customTotalPrice = null; // Reset custom price when qty changes
-      print('🛒 CartProvider: Updated quantity for ${product.name} (${mode}): ${_items[existingIndex].quantity}');
-    } else {
+          } else {
       _items.add(CartItem(product: product, quantity: quantity, mode: mode));
-      print('🛒 CartProvider: Added ${product.name} (${mode}) to cart: ${quantity}');
-    }
-    print('🛒 CartProvider: Total items in cart after add: ${_items.length}');
-    notifyListeners();
-    print('🛒 CartProvider: Notified listeners after adding item');
-    
-    // Force an additional notification after a small delay
+          }
+        notifyListeners();
+        // Force an additional notification after a small delay
     Future.delayed(const Duration(milliseconds: 50), () {
-      print('🛒 CartProvider: Additional notification after add delay');
-      notifyListeners();
+            notifyListeners();
     });
   }
 
@@ -234,16 +214,11 @@ class CartProvider with ChangeNotifier {
   }
 
   void clearCart() {
-    print('🛒 CartProvider: Clearing cart - items before: ${_items.length}');
-    _items.clear();
-    print('🛒 CartProvider: Cart cleared - items after: ${_items.length}');
-    notifyListeners();
-    print('🛒 CartProvider: Notified listeners after clearing cart');
-    
-    // Force an additional notification after a small delay
+        _items.clear();
+        notifyListeners();
+        // Force an additional notification after a small delay
     Future.delayed(const Duration(milliseconds: 50), () {
-      print('🛒 CartProvider: Additional notification after delay');
-      notifyListeners();
+            notifyListeners();
     });
   }
 
@@ -293,8 +268,7 @@ class CartProvider with ChangeNotifier {
       
       if (totalQuantityNeeded > availableStock) {
         final message = 'Insufficient stock! Available: ${availableStock}, Requested: ${newQuantity}';
-        print('❌ Quantity update failed: $message');
-        return {
+                return {
           'success': false,
           'message': message,
           'availableStock': availableStock,
@@ -309,11 +283,9 @@ class CartProvider with ChangeNotifier {
         _items[existingIndex].quantity = newQuantity;
         _items[existingIndex].customTotalPrice = null; // Reset custom price when qty changes
       }
-      print('✅ Updated quantity for ${product.name} (${currentMode}): ${newQuantity}');
-    } else {
+          } else {
       _items.removeAt(existingIndex);
-      print('✅ Removed ${product.name} (${currentMode}) from cart');
-    }
+          }
     
     notifyListeners();
     

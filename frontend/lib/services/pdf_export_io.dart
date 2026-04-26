@@ -25,24 +25,18 @@ abstract class PdfExportPlatform {
       }
       output = pdfsDir;
       
-      print('🔍 PDF: Using scoped storage directory: ${output.path}');
-        
-      // Ensure fileName is clean and has timestamp
+            // Ensure fileName is clean and has timestamp
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final cleanFileName = '${fileName}_$timestamp'.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
       final file = File('${output.path}/$cleanFileName.pdf');
       
-      print('🔍 PDF: Saving file to: ${file.path}');
-      
-      // Write PDF bytes
+            // Write PDF bytes
       await file.writeAsBytes(pdfBytes);
       
       // Verify file was actually created
       if (await file.exists()) {
         final fileSize = await file.length();
-        print('🔍 PDF: File created successfully! Size: $fileSize bytes');
-        
-        // For Android, share the file using share_plus to allow user to save to Downloads
+                // For Android, share the file using share_plus to allow user to save to Downloads
         if (Platform.isAndroid) {
           try {
             // Share the file using system share sheet
@@ -53,9 +47,7 @@ abstract class PdfExportPlatform {
               subject: '$cleanFileName.pdf',
             );
             
-            print('🔍 PDF: Share result: $result');
-            
-            // Show success notification
+                        // Show success notification
             await _showDownloadNotification(
               cleanFileName, 
               'Shared successfully. You can save it to Downloads from the share menu.',
@@ -72,8 +64,7 @@ abstract class PdfExportPlatform {
               'message': 'PDF saved! Use the share menu to save it to your Downloads folder 📁',
             };
           } catch (shareError) {
-            print('🔍 PDF: Error sharing file: $shareError');
-            // Even if sharing fails, the file is saved in app directory
+                        // Even if sharing fails, the file is saved in app directory
             await _showDownloadNotification(
               cleanFileName, 
               'Saved to app folder',
@@ -106,8 +97,7 @@ abstract class PdfExportPlatform {
         throw Exception('File was not created successfully');
       }
     } catch (e) {
-      print('🔍 PDF: Error saving PDF: $e');
-      return {
+            return {
         'success': false,
         'error': e.toString(),
         'message': 'Failed to save PDF: $e',
@@ -132,11 +122,8 @@ abstract class PdfExportPlatform {
         gravity: Toast.bottom,
       );
       
-      print('🔍 PDF: System notification and toast shown for $fileName');
-    } catch (e) {
-      print('🔍 PDF: Error showing notification: $e');
-      
-      // Fallback to toast only if system notification fails
+          } catch (e) {
+            // Fallback to toast only if system notification fails
       try {
         Toast.show(
           'PDF Downloaded! 📄\n$fileName saved to $location',
@@ -144,8 +131,7 @@ abstract class PdfExportPlatform {
           gravity: Toast.bottom,
         );
       } catch (toastError) {
-        print('🔍 PDF: Error showing toast notification: $toastError');
-      }
+              }
     }
   }
 }

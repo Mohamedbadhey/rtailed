@@ -28,68 +28,68 @@ class AuthProvider with ChangeNotifier {
   Future<void> _loadUser({BuildContext? context}) async {
     _token = _prefs.getString('token');
     if (_token != null) {
-      print('Loading stored token: $_token'); // Debug log
+       // Debug log
       _apiService.setToken(_token!);
       try {
         _user = await _apiService.getProfile(context: context);
-        print('User loaded: ${_user?.username}'); // Debug log
+         // Debug log
         notifyListeners();
       } catch (e) {
-        print('Error loading user profile: $e'); // Debug log
+         // Debug log
         await logout();
       }
     } else {
-      print('No stored token found'); // Debug log
+       // Debug log
     }
   }
 
   Future<void> login(String email, String password, {BuildContext? context}) async {
     try {
-      print('Attempting login for user: $email'); // Debug log
+       // Debug log
       final response = await _apiService.login(email, password, context: context);
       _token = response['token'];
       _user = response['user'];
-      print('Login successful, token: $_token'); // Debug log
+       // Debug log
       await _prefs.setString('token', _token!);
       _apiService.setToken(_token!);
-      print('Token saved to preferences and set in ApiService'); // Debug log
+       // Debug log
       notifyListeners();
     } catch (e) {
-      print('Login failed: $e'); // Debug log
+       // Debug log
       rethrow;
     }
   }
 
   Future<void> loginWithUsername(String username, String password, {BuildContext? context}) async {
     try {
-      print('Attempting login with username: $username'); // Debug log
+       // Debug log
       final response = await _apiService.loginWithUsername(username, password, context: context);
       _token = response['token'];
       _user = response['user'];
-      print('Login successful, token: $_token'); // Debug log
+       // Debug log
       await _prefs.setString('token', _token!);
       _apiService.setToken(_token!);
-      print('Token saved to preferences and set in ApiService'); // Debug log
+       // Debug log
       notifyListeners();
     } catch (e) {
-      print('Login failed: $e'); // Debug log
+       // Debug log
       rethrow;
     }
   }
 
   Future<void> loginWithIdentifier(String identifier, String password, {BuildContext? context}) async {
     try {
-      print('Attempting login with identifier: $identifier'); // Debug log
+       // Debug log
       final response = await _apiService.loginWithIdentifier(identifier, password, context: context);
       _token = response['token'];
       _user = response['user'];
-      print('Login successful, token: $_token'); // Debug log
+       // Debug log
       await _prefs.setString('token', _token!);
       _apiService.setToken(_token!);
-      print('Token saved to preferences and set in ApiService'); // Debug log
+       // Debug log
       notifyListeners();
     } catch (e) {
-      print('Login failed: $e'); // Debug log
+       // Debug log
       rethrow;
     }
   }

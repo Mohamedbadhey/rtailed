@@ -82,8 +82,7 @@ class SettingsProvider extends ChangeNotifier {
         // Update user's language preference in the backend
         await _authProvider!.updateProfile(language: lang);
       } catch (e) {
-        print('Error updating user language: $e');
-        // Fallback to local update if API fails
+                // Fallback to local update if API fails
         final updatedUser = _authProvider!.user!.copyWith(language: lang);
         _authProvider!.setUser(updatedUser);
       }

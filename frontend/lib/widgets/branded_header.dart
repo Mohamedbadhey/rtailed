@@ -317,9 +317,7 @@ class BrandedLogo extends StatelessWidget {
         final logoUrl = brandingProvider.getCurrentLogo(businessId);
         final primaryColor = brandingProvider.getPrimaryColor(businessId);
 
-        print('BrandedLogo - businessId: $businessId, logoUrl: $logoUrl');
-
-        // If we have a logo URL, try to load it, otherwise use local logo
+                // If we have a logo URL, try to load it, otherwise use local logo
         if (logoUrl != null) {
           return Container(
             width: size,

@@ -42,8 +42,7 @@ void main() async {
     // Initialize network service
     NetworkService().startConnectivityMonitoring();
   } catch (e) {
-    print('Platform initialization warning: $e');
-  }
+      }
   
   // Initialize shared preferences
   final prefs = await SharedPreferences.getInstance();

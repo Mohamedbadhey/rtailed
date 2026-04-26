@@ -47,8 +47,7 @@ class _BrandingInitializerState extends State<BrandingInitializer> {
         });
       }
     } catch (e) {
-      print('Error initializing branding: $e');
-      if (mounted) {
+            if (mounted) {
         setState(() {
           _isInitialized = true; // Continue anyway
         });

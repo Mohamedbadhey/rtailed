@@ -28,11 +28,8 @@ class PdfExportService {
     };
     
     if (businessInfo != null) {
-      print('🔍 PDF: Using real business branding: ${businessInfo['name']}');
-      print('🔍 PDF: Business info full data: $businessInfo');
-    } else {
-      print('🔍 PDF: Using fallback business branding for consistency');
-    }
+                } else {
+          }
     
     // Pre-load business logo if available
     await _preloadBusinessLogo(businessData);
@@ -102,18 +99,12 @@ class PdfExportService {
     } else {
       // Calculate total pages needed
       final int totalPages = ((transactions.length / rowsPerPage).ceil()).clamp(1, 999);
-      print('🔍 PDF: Creating $totalPages pages for ${transactions.length} transactions');
-      print('🔍 PDF: Rows per page: $rowsPerPage');
-      print('🔍 PDF: Total transactions: ${transactions.length}');
-      
-      for (int pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+                        for (int pageIndex = 0; pageIndex < totalPages; pageIndex++) {
         final int startIndex = pageIndex * rowsPerPage;
         final int endIndex = (startIndex + rowsPerPage).clamp(0, transactions.length);
         final List<Map<String, dynamic>> pageTransactions = transactions.sublist(startIndex, endIndex);
         
-        print('🔍 PDF: Creating page ${pageIndex + 1} with ${pageTransactions.length} transactions (${startIndex + 1}-${endIndex})');
-        
-        pdf.addPage(
+                pdf.addPage(
           pw.Page(
             pageFormat: PdfPageFormat.a4,
             build: (pw.Context context) {
@@ -221,11 +212,8 @@ class PdfExportService {
     };
     
     if (businessInfo != null) {
-      print('🔍 PDF: Using real business branding: ${businessInfo['name']}');
-      print('🔍 PDF Stock Summary: Business info full data: $businessInfo');
-    } else {
-      print('🔍 PDF: Using fallback business branding for stock summary');
-    }
+                } else {
+          }
     
     // Pre-load business logo if available
     await _preloadBusinessLogo(businessData);
@@ -294,18 +282,12 @@ class PdfExportService {
     } else {
       // Calculate total pages needed
       final int totalPages = ((stockData.length / rowsPerPage).ceil()).clamp(1, 999);
-      print('🔍 PDF Stock Summary: Creating $totalPages pages for ${stockData.length} products');
-      print('🔍 PDF Stock Summary: Rows per page: $rowsPerPage');
-      print('🔍 PDF Stock Summary: Total products: ${stockData.length}');
-      
-      for (int pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+                        for (int pageIndex = 0; pageIndex < totalPages; pageIndex++) {
         final int startIndex = pageIndex * rowsPerPage;
         final int endIndex = (startIndex + rowsPerPage).clamp(0, stockData.length);
         final List<Map<String, dynamic>> pageStockData = stockData.sublist(startIndex, endIndex);
         
-        print('🔍 PDF Stock Summary: Creating page ${pageIndex + 1} with ${pageStockData.length} products (${startIndex + 1}-${endIndex})');
-        
-        pdf.addPage(
+                pdf.addPage(
           pw.Page(
             pageFormat: PdfPageFormat.a4,
             build: (pw.Context context) {
@@ -404,11 +386,7 @@ class PdfExportService {
     final primaryColor = _parseColor(businessInfo['primary_color'] ?? '#1976D2');
     final tagline = businessInfo['tagline'] ?? 'XXX';
     
-    print('🔍 PDF Header: Business name: "$businessName"');
-    print('🔍 PDF Header: Business tagline: "$tagline"');
-    print('🔍 PDF Header: Report title: "$reportTitle"');
-    
-    return pw.Container(
+                return pw.Container(
       width: double.infinity,
       padding: const pw.EdgeInsets.all(8), // Reduced padding
       decoration: pw.BoxDecoration(
@@ -1442,45 +1420,29 @@ class PdfExportService {
   
   // Pre-load business logo to avoid async issues in PDF generation
   static Future<void> _preloadBusinessLogo(Map<String, dynamic> businessData) async {
-    print('🔍 PDF: Starting logo pre-loading...');
-    final logoData = businessData['logo'];
-    print('🔍 PDF: Logo data type: ${logoData.runtimeType}');
-    print('🔍 PDF: Logo data value: $logoData');
-    
-    if (logoData != null && logoData.toString().isNotEmpty) {
+        final logoData = businessData['logo'];
+            if (logoData != null && logoData.toString().isNotEmpty) {
       String logoString = logoData.toString();
-      print('🔍 PDF: Logo string: $logoString');
-      print('🔍 PDF: Starts with /uploads/: ${logoString.startsWith('/uploads/')}');
-      
-      if (logoString.startsWith('/uploads/')) {
+                  if (logoString.startsWith('/uploads/')) {
         try {
           // Use the same pattern as product images
           final fullLogoUrl = 'https://rtailed-production.up.railway.app$logoString';
-          print('🔍 PDF: Pre-loading logo from: $fullLogoUrl');
-          final response = await http.get(Uri.parse(fullLogoUrl));
-          print('🔍 PDF: Response status: ${response.statusCode}');
-          if (response.statusCode == 200) {
+                    final response = await http.get(Uri.parse(fullLogoUrl));
+                    if (response.statusCode == 200) {
             final imageBytes = response.bodyBytes;
             // Store the loaded image bytes in the business data for later use
             businessData['_logoBytes'] = imageBytes;
-            print('🔍 PDF: Logo pre-loaded successfully, size: ${imageBytes.length} bytes');
-          } else {
-            print('🔍 PDF: Failed to pre-load logo, status: ${response.statusCode}');
-            print('🔍 PDF: Response body: ${response.body}');
-            print('🔍 PDF: Logo file does not exist on server - will use fallback');
-            // Mark that logo loading failed so we don't try again
+                      } else {
+                                                // Mark that logo loading failed so we don't try again
             businessData['_logoLoadFailed'] = true;
           }
         } catch (e) {
-          print('🔍 PDF: Error pre-loading logo: $e');
-          businessData['_logoLoadFailed'] = true;
+                    businessData['_logoLoadFailed'] = true;
         }
       } else {
-        print('🔍 PDF: Logo string does not start with /uploads/, skipping pre-load');
-      }
+              }
     } else {
-      print('🔍 PDF: No logo data available for pre-loading');
-    }
+          }
   }
   
   // Export customer invoice PDF (generates and saves)
@@ -1493,9 +1455,7 @@ class PdfExportService {
     String? endDate,
   }) async {
     try {
-      print('🔍 PDF Customer Invoice Export: Starting export for ${transactions.length} transactions');
-      
-      // Pre-load logo if available
+            // Pre-load logo if available
       await _preloadBusinessLogo(businessInfo);
       
       // Generate PDF bytes
@@ -1510,8 +1470,7 @@ class PdfExportService {
       // Save PDF using platform-specific implementation
       return await PdfExportPlatform.savePdf(pdfBytes, fileName);
     } catch (e) {
-      print('🔍 PDF: Error exporting customer invoice: $e');
-      return {
+            return {
         'success': false,
         'message': 'Failed to export customer invoice: $e',
       };
@@ -1554,16 +1513,11 @@ class PdfExportService {
     const itemsPerPage = 35; // Increased since table now expands to fill space
     final totalPages = totalProducts > 0 ? (totalProducts / itemsPerPage).ceil() : 1; // Ensure at least 1 page
     
-    print('🔍 PDF Customer Invoice: Creating $totalPages pages for ${transactions.length} transactions');
-    print('🔍 PDF Customer Invoice: Total products found: $totalProducts');
-    print('🔍 PDF Customer Invoice: Items per page: $itemsPerPage');
-    
-    // Flatten all products for pagination
+                // Flatten all products for pagination
     final allProducts = <Map<String, dynamic>>[];
     for (final tx in transactions) {
       final items = tx['items'] as List<dynamic>? ?? [];
-      print('🔍 PDF Customer Invoice: Transaction ${tx['id']} has ${items.length} items');
-      for (final item in items) {
+            for (final item in items) {
         allProducts.add({
           'product_name': item['product_name'] ?? 'Unknown Product',
           'quantity': _safeToInt(item['quantity']),
@@ -1574,26 +1528,19 @@ class PdfExportService {
         });
       }
     }
-    print('🔍 PDF Customer Invoice: Flattened ${allProducts.length} products for pagination');
-    
-    for (int pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+        for (int pageIndex = 0; pageIndex < totalPages; pageIndex++) {
       final startIndex = pageIndex * itemsPerPage;
       final endIndex = (startIndex + itemsPerPage).clamp(0, allProducts.length);
       final pageProducts = allProducts.sublist(startIndex, endIndex);
       
-      print('🔍 PDF Customer Invoice: Page ${pageIndex + 1}/$totalPages - Products ${startIndex}-${endIndex-1} (${pageProducts.length} products)');
-      
-      // Skip pages with no products (except if it's the only page)
+            // Skip pages with no products (except if it's the only page)
       if (pageProducts.isEmpty && totalPages > 1) {
-        print('🔍 PDF Customer Invoice: Skipping empty page ${pageIndex + 1}');
-        continue;
+                continue;
       }
       
       // Group products back by transaction for the table
       final pageTransactions = _groupProductsByTransaction(pageProducts, transactions);
-      print('🔍 PDF Customer Invoice: Page ${pageIndex + 1} - Grouped into ${pageTransactions.length} transactions');
-      
-      pdf.addPage(
+            pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4,
           build: (pw.Context context) {
@@ -1823,9 +1770,7 @@ class PdfExportService {
     bool showTotals = true,
     List<Map<String, dynamic>>? allTransactions,
   }) {
-    print('🔍 PDF Table: Building table with ${transactions.length} transactions');
-    
-    // Flatten all products from all transactions
+        // Flatten all products from all transactions
     final allProducts = <Map<String, dynamic>>[];
     final dataForTotals = allTransactions ?? transactions;
     
@@ -1848,9 +1793,7 @@ class PdfExportService {
     final totalQuantity = allProducts.fold(0, (sum, product) => sum + _safeToInt(product['quantity']));
     final totalProducts = allProducts.length;
     
-    print('🔍 PDF Table: Table will have ${totalProducts} products, total amount: $totalAmount');
-    
-    return pw.Container(
+        return pw.Container(
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey400),
         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
@@ -2319,15 +2262,9 @@ class PdfExportService {
     final preloadedBytes = businessInfo['_logoBytes'] as Uint8List?; // Pre-loaded image bytes
     final logoLoadFailed = businessInfo['_logoLoadFailed'] == true; // Flag if logo loading failed
     
-    print('🔍 PDF Logo: logo_url = $logoUrl');
-    print('🔍 PDF Logo: logo data available = ${logoData != null}');
-    print('🔍 PDF Logo: pre-loaded bytes available = ${preloadedBytes != null}');
-    print('🔍 PDF Logo: logo load failed = $logoLoadFailed');
-    
-    // First check if we have pre-loaded bytes (for file path logos)
+                    // First check if we have pre-loaded bytes (for file path logos)
     if (preloadedBytes != null) {
-      print('🔍 PDF Logo: Using pre-loaded image bytes');
-      return pw.Container(
+            return pw.Container(
         width: 30,
         height: 30,
         decoration: pw.BoxDecoration(
@@ -2342,8 +2279,7 @@ class PdfExportService {
     
     // If logo loading failed, skip trying to process it and go straight to fallback
     if (logoLoadFailed) {
-      print('🔍 PDF Logo: Logo loading failed, using fallback');
-      // Fall through to fallback
+            // Fall through to fallback
     } else if (logoData != null && logoData.toString().isNotEmpty) {
       try {
         String logoString = logoData.toString();
@@ -2352,9 +2288,7 @@ class PdfExportService {
         if (logoString.startsWith('data:image/')) {
           // It's base64 data URL
           String base64Data = logoString.split(',')[1];
-          print('🔍 PDF Logo: Using base64 logo data');
-          
-          return pw.Container(
+                    return pw.Container(
             width: 30,
             height: 30,
             decoration: pw.BoxDecoration(
@@ -2369,8 +2303,7 @@ class PdfExportService {
           );
         } else {
           // Try to decode as base64 directly
-          print('🔍 PDF Logo: Trying to decode as base64');
-          try {
+                    try {
             return pw.Container(
               width: 30,
               height: 30,
@@ -2385,13 +2318,11 @@ class PdfExportService {
               ),
             );
           } catch (e) {
-            print('🔍 PDF Logo: Error decoding base64: $e');
-            // Fall back to text initials
+                        // Fall back to text initials
           }
         }
       } catch (e) {
-        print('🔍 PDF Logo: Error loading logo: $e');
-        // Fall back to text initials
+                // Fall back to text initials
       }
     }
     

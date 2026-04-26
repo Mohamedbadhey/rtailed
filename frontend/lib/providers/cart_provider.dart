@@ -141,11 +141,15 @@ class CartProvider with ChangeNotifier {
     );
 
     if (existingIndex >= 0) {
-      _items[existingIndex].quantity += quantity;
-      _items[existingIndex].customTotalPrice = null; // Reset custom price when qty changes
-          } else {
-      _items.add(CartItem(product: product, quantity: quantity, mode: mode));
-          }
+      // Remove from current position and insert at the top (index 0)
+      final existingItem = _items.removeAt(existingIndex);
+      existingItem.quantity += quantity;
+      existingItem.customTotalPrice = null; // Reset custom price when qty changes
+      _items.insert(0, existingItem);
+    } else {
+      // New item, insert at the top (index 0)
+      _items.insert(0, CartItem(product: product, quantity: quantity, mode: mode));
+    }
     
     notifyListeners();
     
@@ -157,28 +161,12 @@ class CartProvider with ChangeNotifier {
   }
 
   void addItem(Product product, {String mode = 'retail', int quantity = 1}) {
-            // Use the new validation method
-    final result = addItemWithValidation(product, mode: mode, quantity: quantity);
+    // Use the validation method which also handles moving items to the top
+    addItemWithValidation(product, mode: mode, quantity: quantity);
     
-    // If validation failed, this will still add the item (for backward compatibility)
-    // But you should use addItemWithValidation in new code
-    if (!result['success']) {
-          }
-    
-    final existingIndex = _items.indexWhere(
-      (item) => item.product.id == product.id && item.mode == mode,
-    );
-
-    if (existingIndex >= 0) {
-      _items[existingIndex].quantity += quantity;
-      _items[existingIndex].customTotalPrice = null; // Reset custom price when qty changes
-          } else {
-      _items.add(CartItem(product: product, quantity: quantity, mode: mode));
-          }
-        notifyListeners();
-        // Force an additional notification after a small delay
+    // Force an additional notification after a small delay if needed for UI sync
     Future.delayed(const Duration(milliseconds: 50), () {
-            notifyListeners();
+      notifyListeners();
     });
   }
 

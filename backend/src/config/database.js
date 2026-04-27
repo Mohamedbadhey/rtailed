@@ -56,8 +56,11 @@ function buildPoolConfigFromEnv() {
   }
 
   if (!config) {
+    // Normalize discrete env host (lowercase internal hosts like *.railway.internal)
+    const rawHost = process.env.MYSQLHOST || process.env.DB_HOST || 'localhost';
+    const normHost = /\.railway\.internal$/i.test(rawHost) ? rawHost.toLowerCase() : rawHost;
     config = {
-      host: process.env.MYSQLHOST || process.env.DB_HOST || 'localhost',
+      host: normHost,
       user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
       password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '',
       database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'retail_management',

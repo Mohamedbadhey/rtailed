@@ -1,24 +1,21 @@
-# Only block Flutter/Dart files that cause Railway to detect Dart
+# Top-level Railway ignore
+# Do not hide backend source files from Nixpacks build
+
+# Ignore flutter/dart workspace items to prevent Dart detection
 frontend/
 pubspec.yaml
 pubspec.lock
 *.dart
 
-# Block documentation files (but allow package.json and other essential files)
-*.md
-*.bat
-*.html
-*.js
-*.sql
+# Keep VCS and local noise out of builds
+.git/
 *.tmp
 *.temp
 *.log
-.git/
 
-# IMPORTANT: Allow essential Node.js files for Railway to build
+# Allow backend code and configs
+!backend/**
 !package.json
 !package-lock.json
 !railway.json
 !railway.toml
-!backend/
-!backend/** 

@@ -4,7 +4,7 @@
   "description": "Backend for Retail Management System",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node scripts/wait_for_db.js && node src/index.js",
     "dev": "nodemon src/index.js",
     "test": "jest",
     "setup": "node setup_uploads_directories.js",

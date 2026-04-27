@@ -1,32 +1,25 @@
-# Flutter web build files (not needed for backend deployment)
+# Keep backend lean; do NOT exclude source files used by Node
+
+# Ignore frontend artifacts (this service is backend-only)
 web-app/
-*.dart
-*.js
-*.html
-*.css
-*.png
-*.ico
-*.json
-!package.json
-!package-lock.json
 
-# Test and debug files
-test_*.js
-debug_*.js
+# Ignore local scripts/logs/backups
 *.bat
-*.md
-!README.md
-
-# Database files
-*.sql
-!setup_railway_database.sql
-
-# Temporary and backup files
+*.log
 *.tmp
 *.temp
-*.log
+
+# Ignore large uploaded assets; runtime volume or object storage should hold these
 uploads/*
 !uploads/.gitkeep
 
-# Node modules (will be installed by Railway)
+# Ignore node_modules (Railway will install)
 node_modules/
+
+# Allow all .js/.json/.sql sources needed by the app
+!**/*.js
+!**/*.json
+!**/*.sql
+!package.json
+!package-lock.json
+!README.md

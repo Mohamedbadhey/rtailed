@@ -3,10 +3,5 @@ providers = ["node"]
 [phases.setup]
 nixPkgs = ["nodejs"]
 
-[phases.build]
-cmds = [
-  "node backend/scripts/wait_for_db.js"
-]
-
 [start]
 cmd = "npm start"

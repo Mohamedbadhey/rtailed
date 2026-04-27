@@ -70,8 +70,10 @@ const checkDatabaseMode = async (retries = STARTUP_RETRIES, delay = STARTUP_DELA
   }
 };
 
-// Check database mode on startup
-checkDatabaseMode(STARTUP_RETRIES, STARTUP_DELAY_MS);
+// Optional startup DB check (disabled by default to avoid cold-start connection)
+if (String(process.env.DB_CHECK_ON_STARTUP || 'false').toLowerCase() === 'true') {
+  checkDatabaseMode(STARTUP_RETRIES, STARTUP_DELAY_MS);
+}
 
 // CORS configuration for Flutter web
 const corsOptions = {
@@ -285,10 +287,19 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Helper to determine DB host for diagnostics (uses DATABASE_URL if present)
+function getDbHost() {
+  try {
+    const u = new URL(process.env.DATABASE_URL || process.env.MYSQL_URL || '');
+    if (u.hostname) return u.hostname;
+  } catch (_) {}
+  return process.env.MYSQLHOST || process.env.DB_HOST || 'localhost';
+}
+
 // Railway-specific health check endpoint with DB DNS diagnostics
 app.get('/health', async (req, res) => {
   try {
-    const host = process.env.MYSQLHOST || process.env.DB_HOST || 'localhost';
+    const host = getDbHost();
     const answers = await dnsPromises.lookup(host, { all: true });
     res.status(200).json({ ok: true, dns: answers.map(a => ({ address: a.address, family: a.family })) });
   } catch (e) {
@@ -298,11 +309,11 @@ app.get('/health', async (req, res) => {
 
 // DB ping endpoint for connectivity diagnostics
 app.get('/api/db-ping', async (req, res) => {
-  const host = process.env.MYSQLHOST || process.env.DB_HOST || 'localhost';
+  const host = getDbHost();
   try {
     const addrs = await dnsPromises.lookup(host, { all: true });
-    const pool = require('./config/database');
-    const [rows] = await pool.query('SELECT 1 AS ok');
+    const db = require('./config/database');
+    const [rows] = await db.query('SELECT 1 AS ok');
     res.json({ ok: true, result: rows[0], dns: addrs.map(a => ({ address: a.address, family: a.family })) });
   } catch (err) {
     try {
@@ -511,16 +522,32 @@ process.on('exit', (code) => console.log('ℹ️ exit', code));
 process.on('unhandledRejection', (reason, p) => console.error('❌ UnhandledRejection', reason));
 process.on('uncaughtException', (err) => console.error('❌ UncaughtException', err));
 
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('SIGTERM received, closing server...');
   server.close(() => {
-    console.log('Server closed');
+    console.log('HTTP server closed');
   });
+  try {
+    const { closePool } = require('./config/database');
+    await closePool(3000);
+    console.log('DB pool closed');
+  } catch (e) {
+    console.log('DB pool close error:', e && e.message);
+  }
+  // Do not call process.exit(); let Node exit naturally.
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully...');
   server.close(() => {
-    process.exit(0);
+    console.log('HTTP server closed');
   });
+  try {
+    const { closePool } = require('./config/database');
+    await closePool(3000);
+    console.log('DB pool closed');
+  } catch (e) {
+    console.log('DB pool close error:', e && e.message);
+  }
+  // Do not force exit; allow natural shutdown.
 }); 

@@ -35,7 +35,7 @@ const createUploadsDirectories = () => {
 createUploadsDirectories();
 
 // Check database mode on startup
-const checkDatabaseMode = async (retries = 5, delay = 5000) => {
+const checkDatabaseMode = async (retries = Number(process.env.DB_STARTUP_RETRIES || 12), delay = Number(process.env.DB_STARTUP_DELAY_MS || 7000)) => {
   for (let i = 0; i < retries; i++) {
     try {
       const pool = require('./config/database');
@@ -356,12 +356,17 @@ const checkDatabaseMode = async (retries = 5, delay = 5000) => {
   for (let i = 0; i < retries; i++) {
     try {
       const pool = require('./config/database');
-      const [rows] = await pool.query('SELECT @@sql_mode as sql_mode');      // Check if ONLY_FULL_GROUP_BY is enabled
-      const hasOnlyFullGroupBy = rows[0].sql_mode.includes('ONLY_FULL_GROUP_BY');      if (hasOnlyFullGroupBy) {      } else {      }
+      const [rows] = await pool.query('SELECT @@sql_mode as sql_mode');
+      // Check if ONLY_FULL_GROUP_BY is enabled
+      const hasOnlyFullGroupBy = rows[0].sql_mode.includes('ONLY_FULL_GROUP_BY');
+      if (hasOnlyFullGroupBy) {
+      } else {
+      }
       return; // Success!
     } catch (error) {
       console.error(`❌ Database connection attempt ${i + 1} failed:`, error.message);
-      if (i < retries - 1) {        await new Promise(resolve => setTimeout(resolve, delay));
+      if (i < retries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delay));
       } else {
         console.error('❌ All database connection attempts failed. The server will continue but DB features may fail.');
       }
@@ -422,8 +427,10 @@ app.get('/uploads/products/:filename', (req, res) => {
       path.join('/data/uploads/products', filename)
     ];
     
-    const fullPath = possiblePaths.find(p => fs.existsSync(p));    // Check if file exists
-    if (!fullPath) {      // Debug: List files in the main products directory to see what IS there
+    const fullPath = possiblePaths.find(p => fs.existsSync(p));
+    // Check if file exists
+    if (!fullPath) {
+      // Debug: List files in the main products directory to see what IS there
       let filesInProducts = [];
       try {
         const debugDir = path.join(uploadsDir, 'products');
@@ -637,7 +644,8 @@ app.use('/api/store-warehouse', require('./routes/store_warehouse'));
 
 // Privacy Policy route - must be before catch-all routes
 app.get('/privacy-policy', (req, res) => {
-  const privacyPolicyPath = path.join(__dirname, '../../privacy_policy.html');  res.sendFile(privacyPolicyPath, (err) => {
+  const privacyPolicyPath = path.join(__dirname, '../../privacy_policy.html');
+  res.sendFile(privacyPolicyPath, (err) => {
     if (err) {
       console.error('❌ Error serving privacy policy:', err);
       res.status(500).send('Privacy policy not found');
@@ -647,7 +655,8 @@ app.get('/privacy-policy', (req, res) => {
 
 // Also support /privacy for convenience
 app.get('/privacy', (req, res) => {
-  const privacyPolicyPath = path.join(__dirname, '../../privacy_policy.html');  res.sendFile(privacyPolicyPath, (err) => {
+  const privacyPolicyPath = path.join(__dirname, '../../privacy_policy.html');
+  res.sendFile(privacyPolicyPath, (err) => {
     if (err) {
       console.error('❌ Error serving privacy policy:', err);
       res.status(500).send('Privacy policy not found');
@@ -657,7 +666,8 @@ app.get('/privacy', (req, res) => {
 
 // Data Deletion Request route
 app.get('/data-deletion-request', (req, res) => {
-  const dataDeletionPath = path.join(__dirname, '../../data_deletion_request.html');  res.sendFile(dataDeletionPath, (err) => {
+  const dataDeletionPath = path.join(__dirname, '../../data_deletion_request.html');
+  res.sendFile(dataDeletionPath, (err) => {
     if (err) {
       console.error('❌ Error serving data deletion request page:', err);
       res.status(500).send('Data deletion request page not found');
@@ -667,7 +677,8 @@ app.get('/data-deletion-request', (req, res) => {
 
 // Also support /delete-data for convenience
 app.get('/delete-data', (req, res) => {
-  const dataDeletionPath = path.join(__dirname, '../../data_deletion_request.html');  res.sendFile(dataDeletionPath, (err) => {
+  const dataDeletionPath = path.join(__dirname, '../../data_deletion_request.html');
+  res.sendFile(dataDeletionPath, (err) => {
     if (err) {
       console.error('❌ Error serving data deletion request page:', err);
       res.status(500).send('Data deletion request page not found');
@@ -677,7 +688,8 @@ app.get('/delete-data', (req, res) => {
 
 // Account Deletion Request route
 app.get('/account-deletion-request', (req, res) => {
-  const accountDeletionPath = path.join(__dirname, '../../account_deletion_request.html');  res.sendFile(accountDeletionPath, (err) => {
+  const accountDeletionPath = path.join(__dirname, '../../account_deletion_request.html');
+  res.sendFile(accountDeletionPath, (err) => {
     if (err) {
       console.error('❌ Error serving account deletion request page:', err);
       res.status(500).send('Account deletion request page not found');
@@ -687,7 +699,8 @@ app.get('/account-deletion-request', (req, res) => {
 
 // Also support /delete-account for convenience
 app.get('/delete-account', (req, res) => {
-  const accountDeletionPath = path.join(__dirname, '../../account_deletion_request.html');  res.sendFile(accountDeletionPath, (err) => {
+  const accountDeletionPath = path.join(__dirname, '../../account_deletion_request.html');
+  res.sendFile(accountDeletionPath, (err) => {
     if (err) {
       console.error('❌ Error serving account deletion request page:', err);
       res.status(500).send('Account deletion request page not found');
@@ -756,10 +769,13 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-const server = app.listen(PORT, HOST, () => {});
+const server = app.listen(PORT, HOST, () => {
+});
 
 // Graceful shutdown handling
-process.on('SIGTERM', () => {  server.close(() => {    process.exit(0);
+process.on('SIGTERM', () => {
+  server.close(() => {
+    process.exit(0);
 <<<<<<< HEAD
   });
 =======
@@ -808,12 +824,17 @@ const checkDatabaseMode = async (retries = 5, delay = 5000) => {
   for (let i = 0; i < retries; i++) {
     try {
       const pool = require('./config/database');
-      const [rows] = await pool.query('SELECT @@sql_mode as sql_mode');      // Check if ONLY_FULL_GROUP_BY is enabled
-      const hasOnlyFullGroupBy = rows[0].sql_mode.includes('ONLY_FULL_GROUP_BY');      if (hasOnlyFullGroupBy) {      } else {      }
+      const [rows] = await pool.query('SELECT @@sql_mode as sql_mode');
+      // Check if ONLY_FULL_GROUP_BY is enabled
+      const hasOnlyFullGroupBy = rows[0].sql_mode.includes('ONLY_FULL_GROUP_BY');
+      if (hasOnlyFullGroupBy) {
+      } else {
+      }
       return; // Success!
     } catch (error) {
       console.error(`❌ Database connection attempt ${i + 1} failed:`, error.message);
-      if (i < retries - 1) {        await new Promise(resolve => setTimeout(resolve, delay));
+      if (i < retries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delay));
       } else {
         console.error('❌ All database connection attempts failed. The server will continue but DB features may fail.');
       }
@@ -874,8 +895,10 @@ app.get('/uploads/products/:filename', (req, res) => {
       path.join('/data/uploads/products', filename)
     ];
     
-    const fullPath = possiblePaths.find(p => fs.existsSync(p));    // Check if file exists
-    if (!fullPath) {      // Debug: List files in the main products directory to see what IS there
+    const fullPath = possiblePaths.find(p => fs.existsSync(p));
+    // Check if file exists
+    if (!fullPath) {
+      // Debug: List files in the main products directory to see what IS there
       let filesInProducts = [];
       try {
         const debugDir = path.join(uploadsDir, 'products');
@@ -1089,7 +1112,8 @@ app.use('/api/store-warehouse', require('./routes/store_warehouse'));
 
 // Privacy Policy route - must be before catch-all routes
 app.get('/privacy-policy', (req, res) => {
-  const privacyPolicyPath = path.join(__dirname, '../../privacy_policy.html');  res.sendFile(privacyPolicyPath, (err) => {
+  const privacyPolicyPath = path.join(__dirname, '../../privacy_policy.html');
+  res.sendFile(privacyPolicyPath, (err) => {
     if (err) {
       console.error('❌ Error serving privacy policy:', err);
       res.status(500).send('Privacy policy not found');
@@ -1099,7 +1123,8 @@ app.get('/privacy-policy', (req, res) => {
 
 // Also support /privacy for convenience
 app.get('/privacy', (req, res) => {
-  const privacyPolicyPath = path.join(__dirname, '../../privacy_policy.html');  res.sendFile(privacyPolicyPath, (err) => {
+  const privacyPolicyPath = path.join(__dirname, '../../privacy_policy.html');
+  res.sendFile(privacyPolicyPath, (err) => {
     if (err) {
       console.error('❌ Error serving privacy policy:', err);
       res.status(500).send('Privacy policy not found');
@@ -1109,7 +1134,8 @@ app.get('/privacy', (req, res) => {
 
 // Data Deletion Request route
 app.get('/data-deletion-request', (req, res) => {
-  const dataDeletionPath = path.join(__dirname, '../../data_deletion_request.html');  res.sendFile(dataDeletionPath, (err) => {
+  const dataDeletionPath = path.join(__dirname, '../../data_deletion_request.html');
+  res.sendFile(dataDeletionPath, (err) => {
     if (err) {
       console.error('❌ Error serving data deletion request page:', err);
       res.status(500).send('Data deletion request page not found');
@@ -1119,7 +1145,8 @@ app.get('/data-deletion-request', (req, res) => {
 
 // Also support /delete-data for convenience
 app.get('/delete-data', (req, res) => {
-  const dataDeletionPath = path.join(__dirname, '../../data_deletion_request.html');  res.sendFile(dataDeletionPath, (err) => {
+  const dataDeletionPath = path.join(__dirname, '../../data_deletion_request.html');
+  res.sendFile(dataDeletionPath, (err) => {
     if (err) {
       console.error('❌ Error serving data deletion request page:', err);
       res.status(500).send('Data deletion request page not found');
@@ -1129,7 +1156,8 @@ app.get('/delete-data', (req, res) => {
 
 // Account Deletion Request route
 app.get('/account-deletion-request', (req, res) => {
-  const accountDeletionPath = path.join(__dirname, '../../account_deletion_request.html');  res.sendFile(accountDeletionPath, (err) => {
+  const accountDeletionPath = path.join(__dirname, '../../account_deletion_request.html');
+  res.sendFile(accountDeletionPath, (err) => {
     if (err) {
       console.error('❌ Error serving account deletion request page:', err);
       res.status(500).send('Account deletion request page not found');
@@ -1139,7 +1167,8 @@ app.get('/account-deletion-request', (req, res) => {
 
 // Also support /delete-account for convenience
 app.get('/delete-account', (req, res) => {
-  const accountDeletionPath = path.join(__dirname, '../../account_deletion_request.html');  res.sendFile(accountDeletionPath, (err) => {
+  const accountDeletionPath = path.join(__dirname, '../../account_deletion_request.html');
+  res.sendFile(accountDeletionPath, (err) => {
     if (err) {
       console.error('❌ Error serving account deletion request page:', err);
       res.status(500).send('Account deletion request page not found');
@@ -1208,10 +1237,13 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-const server = app.listen(PORT, HOST, () => {});
+const server = app.listen(PORT, HOST, () => {
+});
 
 // Graceful shutdown handling
-process.on('SIGTERM', () => {  server.close(() => {    process.exit(0);
+process.on('SIGTERM', () => {
+  server.close(() => {
+    process.exit(0);
   });
 });
 
@@ -1232,7 +1264,9 @@ process.on('SIGINT', () => {
 });
 
 >>>>>>> parent of 479fa45 (update on indexjs on kaaba fail)
-process.on('SIGINT', () => {  server.close(() => {    process.exit(0);
+process.on('SIGINT', () => {
+  server.close(() => {
+    process.exit(0);
   });
 <<<<<<< HEAD
 }); 

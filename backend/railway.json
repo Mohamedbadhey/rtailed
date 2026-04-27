@@ -1,14 +1,14 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "DOCKERFILE",
-    "source": "backend"
+    "builder": "NIXPACKS",
+    "watchPatterns": ["src/**/*", "package.json", "package-lock.json"]
   },
   "deploy": {
-    "startCommand": "",
+    "startCommand": "node --dns-result-order=ipv4first backend/src/index.js",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 600,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
-}
+} 

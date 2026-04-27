@@ -1,0 +1,14 @@
+providers = ["node"]
+
+[phases.setup]
+# Use modern Node and npm in Nixpacks (deprecated but still supported)
+nixPkgs = ["nodejs_22", "npm-9_x"]
+
+[phases.install]
+cmds = ["npm ci --omit=dev"]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "node --dns-result-order=ipv4first backend/src/index.js"

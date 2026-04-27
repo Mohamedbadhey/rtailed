@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
+const dnsPromises = require('dns').promises;
 
 const app = express();
 
@@ -273,8 +274,33 @@ app.get('/api/health', (req, res) => {  res.json({
   });
 });
 
-// Railway-specific health check endpoint
-app.get('/health', (req, res) => {  res.status(200).send('OK');
+// Railway-specific health check endpoint with DB DNS diagnostics
+app.get('/health', async (req, res) => {
+  try {
+    const host = process.env.MYSQLHOST || process.env.DB_HOST || 'localhost';
+    const answers = await dnsPromises.lookup(host, { all: true });
+    res.status(200).json({ ok: true, dns: answers.map(a => ({ address: a.address, family: a.family })) });
+  } catch (e) {
+    res.status(200).json({ ok: true, dnsError: e.message });
+  }
+});
+
+// DB ping endpoint for connectivity diagnostics
+app.get('/api/db-ping', async (req, res) => {
+  const host = process.env.MYSQLHOST || process.env.DB_HOST || 'localhost';
+  try {
+    const addrs = await dnsPromises.lookup(host, { all: true });
+    const pool = require('./config/database');
+    const [rows] = await pool.query('SELECT 1 AS ok');
+    res.json({ ok: true, result: rows[0], dns: addrs.map(a => ({ address: a.address, family: a.family })) });
+  } catch (err) {
+    try {
+      const addrs = await dnsPromises.lookup(host, { all: true });
+      res.status(500).json({ ok: false, error: err.message, dns: addrs.map(a => ({ address: a.address, family: a.family })) });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: err.message, dnsError: e.message });
+    }
+  }
 });
 
 // Test file system endpoint

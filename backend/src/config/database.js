@@ -1,5 +1,7 @@
 const mysql = require('mysql2/promise');
 const dns = require('dns');
+try { if (typeof dns.setDefaultResultOrder === 'function') dns.setDefaultResultOrder('ipv4first'); } catch (_) {}
+
 
 // Prefer IPv4 first to avoid IPv6-only endpoints causing ECONNREFUSED on some hosts
 try {
@@ -17,7 +19,7 @@ function parseBool(v, def = false) {
 }
 
 function buildPoolConfigFromEnv() {
-  const url = process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.JAWSDB_URL || '';
+  const url = (process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.JAWSDB_URL || '').toLowerCase();
   /** @type {import('mysql2').PoolOptions | string} */
   let config;
 

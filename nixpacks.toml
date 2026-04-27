@@ -7,5 +7,10 @@ nixPkgs = ["nodejs_22", "npm-9_x"]
 [phases.install]
 cmds = ["npm ci --omit=dev"]
 
+[phases.build]
+cmds = [
+  "node backend/scripts/wait_for_db.js"
+]
+
 [start]
 cmd = "npm start"

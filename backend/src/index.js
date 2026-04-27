@@ -307,6 +307,11 @@ app.get(['/health','/api/health'], async (req, res) => {
   }
 });
 
+// Some platforms use HEAD for healthchecks
+app.head(['/health','/api/health'], (req, res) => {
+  res.status(200).end();
+});
+
 // DB ping endpoint for connectivity diagnostics
 app.get('/api/db-ping', async (req, res) => {
   const host = getDbHost();

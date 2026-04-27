@@ -1037,8 +1037,6 @@ app.get('/api/test-filesystem', (req, res) => {
   try {
     const baseDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, '..');
     const uploadsDir = baseDir;
-    const productsDir = path.join(uploadsDir, 'products');
-    const uploadsExists = fs.existsSync(uploadsDir);
     const productsExists = fs.existsSync(productsDir);
     
     let files = [];
@@ -1209,18 +1207,14 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-const server = app.listen(PORT, HOST, () => {
-  console.log(`🚀 Server running on http://${HOST}:${PORT}`);
-});
+const server = app.listen(PORT, HOST, () => {});
 
 // Graceful shutdown handling
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully...');
-  server.close(() => {
-    process.exit(0);
+process.on('SIGTERM', () => {  server.close(() => {    process.exit(0);
   });
 });
 
+<<<<<<< HEAD
 process.on('SIGINT', () => {
   console.log('SIGINT received, shutting down gracefully...');
   server.close(() => {
@@ -1230,6 +1224,8 @@ process.on('SIGINT', () => {
 >>>>>>> parent of e7d5308 (Update index.js)
 });
 
+=======
+>>>>>>> parent of 479fa45 (update on indexjs on kaaba fail)
 process.on('SIGINT', () => {  server.close(() => {    process.exit(0);
   });
 <<<<<<< HEAD

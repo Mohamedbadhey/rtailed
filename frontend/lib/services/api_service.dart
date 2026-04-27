@@ -18,18 +18,7 @@ import 'package:retail_management/services/notification_service.dart';
 import 'package:toast/toast.dart';
 
 class ApiService {
-  // Base URL:
-  // - Overridable at build time: --dart-define=API_BASE_URL=https://your-domain
-  // - On web, defaults to the current origin (e.g., https://your-backend) if not defined
-  static String get baseUrl {
-    const defined = String.fromEnvironment('API_BASE_URL', defaultValue: '');
-    if (defined.isNotEmpty) return defined;
-    // Uri.base.origin works on web and returns scheme://host[:port]
-    // For mobile/desktop, fall back to production default if not defined
-    final origin = Uri.base.origin; // safe across platforms
-    if (kIsWeb && origin.isNotEmpty && origin != 'about:blank') return origin;
-    return 'https://rtailed-production.up.railway.app';
-  }
+  static const String baseUrl = 'https://rtailed-production.up.railway.app';
   String? _token;
   final NetworkService _networkService = NetworkService();
   

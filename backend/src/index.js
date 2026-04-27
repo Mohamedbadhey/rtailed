@@ -33,40 +33,22 @@ const createUploadsDirectories = () => {
 
 createUploadsDirectories();
 
-// Check database readiness on startup with exponential backoff
-const checkDatabaseMode = async ({
-  maxAttempts = 40,
-  initialDelayMs = 2000,
-  maxDelayMs = 15000,
-} = {}) => {
-  const host = process.env.MYSQLHOST || process.env.DB_HOST || 'localhost';
-  const port = Number(process.env.MYSQLPORT || process.env.DB_PORT || 3306);
-  let attempt = 0;
-  let delay = initialDelayMs;
-  while (attempt < maxAttempts) {
-    attempt += 1;
+// Check database mode on startup
+const checkDatabaseMode = async (retries = 5, delay = 5000) => {
+  for (let i = 0; i < retries; i++) {
     try {
       const pool = require('./config/database');
-      const connection = await pool.getConnection();
-      try {
-        await connection.query('SELECT 1');
-      } finally {
-        connection.release();
-      }
-      console.log(`Database is ready (host=${host}, port=${port}) after ${attempt} attempt(s).`);
-      return true;
+      const [rows] = await pool.query('SELECT @@sql_mode as sql_mode');
+      return;
     } catch (error) {
-      const code = error && (error.code || error.errno || error.message);
-      console.warn(`Database connection attempt ${attempt} failed (${code}). host=${host} port=${port}. Retrying in ${Math.round(delay/1000)}s...`);
-      if (attempt >= maxAttempts) {
+      console.error(`Database connection attempt ${i + 1} failed:`, error.message);
+      if (i < retries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
         console.error('All database connection attempts failed. Server will continue but DB features may fail.');
-        return false;
       }
-      await new Promise((r) => setTimeout(r, delay));
-      delay = Math.min(maxDelayMs, Math.floor(delay * 1.5));
     }
   }
-  return false;
 };
 
 checkDatabaseMode();

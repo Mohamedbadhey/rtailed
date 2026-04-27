@@ -1,12 +1,6 @@
 class Api {
-  static String get baseUrl {
-    const defined = String.fromEnvironment('API_BASE_URL', defaultValue: '');
-    if (defined.isNotEmpty) return defined;
-    final origin = Uri.base.origin;
-    if (origin.isNotEmpty && origin != 'about:blank') return origin;
-    return 'https://rtailed-production.up.railway.app';
-  }
-  static String get apiBase => '$baseUrl/api';
+  static const String baseUrl = 'https://rtailed-production.up.railway.app';
+  static const String apiBase = '$baseUrl/api';
 
   // Auth endpoints
   static const String login = '/auth/login';

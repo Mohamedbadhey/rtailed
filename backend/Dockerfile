@@ -28,4 +28,4 @@ COPY setup_uploads_directories.js ./
 # Health and runtime
 # Railway typically sets PORT=8080
 EXPOSE 8080
-CMD ["node", "--dns-result-order=ipv4first", "src/index.js"]
+CMD ["npm", "start"]

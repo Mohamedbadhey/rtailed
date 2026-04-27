@@ -1,11 +1,7 @@
 providers = ["node"]
 
 [phases.setup]
-# Use modern Node and npm in Nixpacks (deprecated but still supported)
-nixPkgs = ["nodejs_22", "npm-9_x"]
-
-[phases.install]
-cmds = ["npm ci --omit=dev"]
+nixPkgs = ["nodejs"]
 
 [phases.build]
 cmds = [

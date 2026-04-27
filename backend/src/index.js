@@ -487,7 +487,18 @@ const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
 const server = app.listen(PORT, HOST, () => {
+  console.log(`✅ Server listening on http://${HOST}:${PORT}`);
 });
+
+// Tune Node HTTP timeouts for proxies/load balancers
+server.keepAliveTimeout = Number(process.env.KEEP_ALIVE_TIMEOUT_MS || 65000);
+server.headersTimeout = Number(process.env.HEADERS_TIMEOUT_MS || 66000);
+
+// Extra diagnostics to see why the platform might stop the container
+process.on('beforeExit', (code) => console.log('ℹ️ beforeExit', code));
+process.on('exit', (code) => console.log('ℹ️ exit', code));
+process.on('unhandledRejection', (reason, p) => console.error('❌ UnhandledRejection', reason));
+process.on('uncaughtException', (err) => console.error('❌ UncaughtException', err));
 
 // Graceful shutdown handling
 process.on('SIGTERM', () => {

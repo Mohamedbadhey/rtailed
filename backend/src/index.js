@@ -725,6 +725,7 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 const server = app.listen(PORT, HOST, () => {
 <<<<<<< HEAD
+<<<<<<< HEAD
   console.log(`✅ Server listening on http://${HOST}:${PORT}`);
 });
 
@@ -744,6 +745,10 @@ process.on('SIGTERM', async () => {
   server.close(() => {
     console.log('HTTP server closed');
 =======
+=======
+});
+
+>>>>>>> parent of a1683d5 (Update index.js)
 // Graceful shutdown handling
 process.on('SIGTERM', () => {
   server.close(() => {

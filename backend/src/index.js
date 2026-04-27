@@ -212,6 +212,28 @@ app.get('/api/debug-find-images', (req, res) => {
   });
 });
 
+// Database startup diagnostic (rich logs)
+async function logDbInfoOnStartup() {
+  try {
+    const db = require('./config/database');
+    const [ver] = await db.query("SELECT @@version AS version, @@sql_mode AS sql_mode, @@time_zone AS time_zone, @@global.time_zone AS global_time_zone, DATABASE() AS db, USER() AS user, NOW() AS now");
+    const info = (ver && ver[0]) || {};
+    const hasOnlyFullGroupBy = String(info.sql_mode || '').includes('ONLY_FULL_GROUP_BY');
+    console.log('🔗 Database connected');
+    console.log(`  • Version: ${info.version}`);
+    console.log(`  • Database: ${info.db}`);
+    console.log(`  • User: ${info.user}`);
+    console.log(`  • Time zone: ${info.time_zone} (global: ${info.global_time_zone})`);
+    console.log(`  • SQL_MODE: ${info.sql_mode}`);
+    console.log(`  • ONLY_FULL_GROUP_BY: ${hasOnlyFullGroupBy}`);
+    const [test] = await db.query('SELECT 1 AS ok');
+    const ok = test && test[0] && test[0].ok === 1;
+    console.log(`  • Test query: ${ok ? 'OK' : 'Unexpected result'}`);
+  } catch (err) {
+    console.error('❌ Database check failed on startup:', err.message);
+  }
+}
+
 // Health and diagnostics
 function getDbHost() {
   try {
@@ -257,6 +279,18 @@ app.get('/api/db-ping', async (req, res) => {
 });
 
 // Filesystem test
+// DB info endpoint for diagnostics
+app.get('/api/db-info', async (req, res) => {
+  try {
+    const db = require('./config/database');
+    const [ver] = await db.query("SELECT @@version AS version, @@sql_mode AS sql_mode, @@time_zone AS time_zone, @@global.time_zone AS global_time_zone, DATABASE() AS db, USER() AS user, NOW() AS now");
+    const [test] = await db.query('SELECT 1 AS ok');
+    res.json({ ok: true, info: (ver && ver[0]) || {}, test: (test && test[0]) || {} });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 app.get('/api/test-filesystem', (req, res) => {
   try {
     const productsDir = path.join(uploadsDir, 'products');
@@ -393,8 +427,77 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-const server = app.listen(PORT, HOST, () => {
-  console.log(`✅ Server listening on http://${HOST}:${PORT}`);
+const http = require('http');
+const server = http.createServer(app);
+
+// Handle port in-use gracefully by retrying on next port BEFORE listening
+server.on('error', (err) => {
+  if (err && err.code === 'EADDRINUSE') {
+    const nextPort = Number(PORT) + 1;
+    console.warn(`⚠️  Port ${PORT} is in use, retrying on ${nextPort}...`);
+    try { server.close(); } catch (_) {}
+    server.listen(nextPort, HOST);
+  } else {
+    console.error('❌ Server error:', err);
+  }
+});
+
+server.on('listening', () => {
+  const os = require('os');
+  const addr = server.address();
+  const usedPort = typeof addr === 'object' && addr ? addr.port : PORT;
+  const isWildcard = (h) => !h || h === '0.0.0.0' || h === '::' || h === '0:0:0:0:0:0:0:0';
+  const display = isWildcard(HOST) ? `http://localhost:${usedPort}` : `http://${HOST}:${usedPort}`;
+
+  // Try to find a LAN IPv4 address for convenience
+  let lan = null;
+  try {
+    const nets = os.networkInterfaces();
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name] || []) {
+        if (net.family === 'IPv4' && !net.internal && /^10\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(net.address)) {
+          lan = `http://${net.address}:${usedPort}`;
+          break;
+        }
+      }
+      if (lan) break;
+    }
+  } catch (_) {}
+
+  const publicCandidates = [
+    process.env.APP_URL,
+    process.env.PUBLIC_URL,
+    process.env.RAILWAY_PUBLIC_DOMAIN && `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`,
+    process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`,
+  ].filter(Boolean);
+
+  console.log('✅ Server started');
+  console.log(`  • Bound:   http://${HOST}:${usedPort}`);
+  console.log(`  • Local:   ${display}`);
+  if (lan) console.log(`  • LAN:     ${lan}`);
+  for (const url of publicCandidates) console.log(`  • Public:  ${url}`);
+
+  // Show DB connectivity details on startup (enabled by default)
+  if (String(process.env.DB_CHECK_ON_STARTUP || 'true').toLowerCase() === 'true') {
+    logDbInfoOnStartup();
+  }
+});
+
+server.listen(PORT, HOST);
+
+// Handle port in-use gracefully by retrying on next port
+server.on('error', (err) => {
+  if (err && err.code === 'EADDRINUSE') {
+    const nextPort = Number(PORT) + 1;
+    console.warn(`⚠️  Port ${PORT} is in use, retrying on ${nextPort}...`);
+    app.listen(nextPort, HOST, () => {
+      const isWildcard = (h) => !h || h === '0.0.0.0' || h === '::' || h === '0:0:0:0:0:0:0:0';
+      const displayHost = isWildcard(HOST) ? 'localhost' : HOST;
+      console.log(`✅ Server moved to http://${displayHost}:${nextPort}`);
+    });
+  } else {
+    console.error('❌ Server error:', err);
+  }
 });
 
 // Tune Node HTTP timeouts for proxies/load balancers

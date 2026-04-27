@@ -45,7 +45,13 @@ const STARTUP_DELAY_MS = Number(process.env.DB_STARTUP_DELAY_MS || 7000);
 const checkDatabaseMode = async (retries = STARTUP_RETRIES, delay = STARTUP_DELAY_MS) => {
   for (let i = 0; i < retries; i++) {
     try {
-      const pool = require('./config/database');
+      let pool;
+      try {
+        pool = require('./config/database');
+      } catch (err) {
+        console.error('❌ Failed to load DB config:', err.message);
+        return;
+      }
       const [rows] = await pool.query('SELECT @@sql_mode as sql_mode');
       // Check if ONLY_FULL_GROUP_BY is enabled
       const hasOnlyFullGroupBy = rows[0].sql_mode.includes('ONLY_FULL_GROUP_BY');
@@ -82,7 +88,7 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Range');
   res.header('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
-  
+
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
@@ -105,7 +111,7 @@ const uploadsDir = baseDir;
 app.get('/uploads/products/:filename', (req, res) => {
   try {
     const filename = decodeURIComponent(req.params.filename);
-    
+
     // Comprehensive search for the file in all possible locations
     const possiblePaths = [
       path.join(uploadsDir, 'products', filename),
@@ -116,7 +122,7 @@ app.get('/uploads/products/:filename', (req, res) => {
       path.join('/data/products', filename),
       path.join('/data/uploads/products', filename)
     ];
-    
+
     const fullPath = possiblePaths.find(p => fs.existsSync(p));
     // Check if file exists
     if (!fullPath) {
@@ -127,10 +133,10 @@ app.get('/uploads/products/:filename', (req, res) => {
         if (fs.existsSync(debugDir)) {
           filesInProducts = fs.readdirSync(debugDir).slice(0, 20); // Just first 20 for brevity
         }
-      } catch (e) {}
+      } catch (e) { }
 
-      return res.status(404).json({ 
-        error: 'Image not found', 
+      return res.status(404).json({
+        error: 'Image not found',
         filename,
         checkedPaths: possiblePaths,
         availableFilesSample: filesInProducts,
@@ -141,7 +147,7 @@ app.get('/uploads/products/:filename', (req, res) => {
 
     // Get file stats
     const stats = fs.statSync(fullPath);
-    
+
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -176,7 +182,7 @@ app.get('/uploads/products/:filename', (req, res) => {
 app.get('/uploads/branding/:filename', (req, res) => {
   try {
     const filename = decodeURIComponent(req.params.filename);
-    
+
     // Comprehensive search for the branding file
     const possiblePaths = [
       path.join(uploadsDir, 'branding', filename),
@@ -187,19 +193,19 @@ app.get('/uploads/branding/:filename', (req, res) => {
       path.join('/data/branding', filename),
       path.join('/data/uploads/branding', filename)
     ];
-    
+
     const fullPath = possiblePaths.find(p => fs.existsSync(p));
     if (!fullPath) {
       return res.status(404).json({ error: 'Branding image not found', filename });
     }
-    
+
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
     res.setHeader('Cache-Control', 'public, max-age=31536000');
-    
+
     // Set proper MIME type
     if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) {
       res.setHeader('Content-Type', 'image/jpeg');
@@ -218,14 +224,16 @@ app.get('/uploads/branding/:filename', (req, res) => {
 });
 
 // Handle CORS preflight requests for uploads
-app.options('/uploads/products/:filename', (req, res) => {  res.setHeader('Access-Control-Allow-Origin', '*');
+app.options('/uploads/products/:filename', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
   res.status(200).end();
 });
 
-app.options('/uploads/branding/:filename', (req, res) => {  res.setHeader('Access-Control-Allow-Origin', '*');
+app.options('/uploads/branding/:filename', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Range, Authorization');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
@@ -233,7 +241,8 @@ app.options('/uploads/branding/:filename', (req, res) => {  res.setHeader('Acces
 });
 
 // Test endpoint to verify route is working
-app.get('/test-uploads', (req, res) => {  res.json({ 
+app.get('/test-uploads', (req, res) => {
+  res.json({
     message: 'Uploads route is working',
     uploadsDir,
     baseDir,
@@ -243,10 +252,10 @@ app.get('/test-uploads', (req, res) => {  res.json({
 
 // TEMPORARY DEBUG: Find where images are actually located
 app.get('/api/debug-find-images', (req, res) => {
-  const { exec } = require('child_process');  exec('find /app -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.webp" | head -n 50', (err, stdout, stderr) => {
-    res.json({ 
-      stdout: stdout ? stdout.split('\n').filter(Boolean) : [], 
-      stderr, 
+  const { exec } = require('child_process'); exec('find /app -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.webp" | head -n 50', (err, stdout, stderr) => {
+    res.json({
+      stdout: stdout ? stdout.split('\n').filter(Boolean) : [],
+      stderr,
       err: err ? err.message : null,
       cwd: process.cwd(),
       dirname: __dirname
@@ -255,8 +264,9 @@ app.get('/api/debug-find-images', (req, res) => {
 });
 
 // Root endpoint for Railway health checks
-app.get('/', (req, res) => {  res.json({ 
-    status: 'OK', 
+app.get('/', (req, res) => {
+  res.json({
+    status: 'OK',
     message: 'Retail Management API is running',
     timestamp: new Date().toISOString(),
     endpoints: {
@@ -267,8 +277,9 @@ app.get('/', (req, res) => {  res.json({
 });
 
 // Health check endpoint (keeping for backward compatibility)
-app.get('/api/health', (req, res) => {  res.json({ 
-    status: 'OK', 
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
     message: 'Retail Management API is running',
     timestamp: new Date().toISOString()
   });
@@ -316,7 +327,7 @@ app.get('/api/test-filesystem', (req, res) => {
     if (productsExists) {
       try {
         files = fs.readdirSync(productsDir);
-      } catch (error) {}
+      } catch (error) { }
     }
 
     res.json({
@@ -445,7 +456,7 @@ app.get('*', (req, res) => {
       message: 'API endpoint not found'
     });
   }
-  
+
   // Skip uploads routes
   if (req.path.startsWith('/uploads/')) {
     return res.status(404).json({
@@ -453,22 +464,22 @@ app.get('*', (req, res) => {
       message: 'File not found'
     });
   }
-  
+
   // Skip privacy policy routes (already handled above)
   if (req.path === '/privacy-policy' || req.path === '/privacy') {
     return;
   }
-  
+
   // Skip data deletion request routes (already handled above)
   if (req.path === '/data-deletion-request' || req.path === '/delete-data') {
     return;
   }
-  
+
   // Skip account deletion request routes (already handled above)
   if (req.path === '/account-deletion-request' || req.path === '/delete-account') {
     return;
   }
-  
+
   // Serve Flutter web app
   res.sendFile(path.join(__dirname, '../web-app/index.html'));
 });
@@ -500,10 +511,10 @@ process.on('exit', (code) => console.log('ℹ️ exit', code));
 process.on('unhandledRejection', (reason, p) => console.error('❌ UnhandledRejection', reason));
 process.on('uncaughtException', (err) => console.error('❌ UncaughtException', err));
 
-// Graceful shutdown handling
 process.on('SIGTERM', () => {
+  console.log('SIGTERM received, closing server...');
   server.close(() => {
-    process.exit(0);
+    console.log('Server closed');
   });
 });
 

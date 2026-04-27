@@ -38,8 +38,7 @@ function buildPoolConfigFromEnv() {
         queueLimit: 0,
         dateStrings: true,
         multipleStatements: true,
-        connectTimeout: Number(process.env.MYSQL_CONNECT_TIMEOUT || 5000),
-        acquireTimeout: Number(process.env.MYSQL_ACQUIRE_TIMEOUT || 5000),
+        connectTimeout: Number(process.env.MYSQL_CONNECT_TIMEOUT || 10000),
         enableKeepAlive: true,
         keepAliveInitialDelay: Number(process.env.MYSQL_KEEPALIVE_DELAY || 1000),
         ...(sslEnabled && {
@@ -66,8 +65,7 @@ function buildPoolConfigFromEnv() {
       queueLimit: 0,
       dateStrings: true, // Return DATE/DATETIME/TIMESTAMP as strings
       multipleStatements: true,
-      connectTimeout: Number(process.env.MYSQL_CONNECT_TIMEOUT || 5000),
-      acquireTimeout: Number(process.env.MYSQL_ACQUIRE_TIMEOUT || 5000),
+      connectTimeout: Number(process.env.MYSQL_CONNECT_TIMEOUT || 10000),
       enableKeepAlive: true,
       keepAliveInitialDelay: Number(process.env.MYSQL_KEEPALIVE_DELAY || 1000),
       ...(parseBool(process.env.MYSQL_SSL) && {
@@ -109,9 +107,9 @@ function isTransient(err) {
 
 async function withRetry(fn, opts = {}) {
   const {
-    retries = Number(process.env.DB_RETRY_ATTEMPTS || 2),
-    minDelay = Number(process.env.DB_RETRY_MIN_DELAY_MS || 200),
-    maxDelay = Number(process.env.DB_RETRY_MAX_DELAY_MS || 800),
+    retries = Number(process.env.DB_RETRY_ATTEMPTS || 8),
+    minDelay = Number(process.env.DB_RETRY_MIN_DELAY_MS || 300),
+    maxDelay = Number(process.env.DB_RETRY_MAX_DELAY_MS || 2000),
   } = opts;
 
   let attempt = 0;

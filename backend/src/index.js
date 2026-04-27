@@ -760,6 +760,7 @@ const server = app.listen(PORT, HOST, () => {});
 
 // Graceful shutdown handling
 process.on('SIGTERM', () => {  server.close(() => {    process.exit(0);
+<<<<<<< HEAD
   });
 =======
 require('dotenv').config();
@@ -1225,6 +1226,11 @@ process.on('SIGINT', () => {
 });
 
 =======
+>>>>>>> parent of 479fa45 (update on indexjs on kaaba fail)
+=======
+  });
+});
+
 >>>>>>> parent of 479fa45 (update on indexjs on kaaba fail)
 process.on('SIGINT', () => {  server.close(() => {    process.exit(0);
   });

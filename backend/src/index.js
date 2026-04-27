@@ -296,8 +296,8 @@ function getDbHost() {
   return process.env.MYSQLHOST || process.env.DB_HOST || 'localhost';
 }
 
-// Railway-specific health check endpoint with DB DNS diagnostics
-app.get('/health', async (req, res) => {
+// Railway-specific health check endpoint with DB DNS diagnostics (alias /health and /api/health)
+app.get(['/health','/api/health'], async (req, res) => {
   try {
     const host = getDbHost();
     const answers = await dnsPromises.lookup(host, { all: true });

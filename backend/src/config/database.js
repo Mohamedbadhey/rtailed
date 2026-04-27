@@ -6,6 +6,8 @@ const pool = mysql.createPool({
   password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '',
   database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'retail_management',
   port: process.env.MYSQLPORT || process.env.DB_PORT || 3306,
+  connectTimeout: Number(process.env.MYSQL_CONNECT_TIMEOUT || process.env.DB_CONNECT_TIMEOUT || 4000),
+  ssl: (process.env.MYSQL_SSL === 'true' || process.env.DB_SSL === 'true') ? { rejectUnauthorized: false } : undefined,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,

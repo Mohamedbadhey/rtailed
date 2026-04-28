@@ -1,17 +1,16 @@
 providers = ["node"]
 
-# Explicit phases so Nixpacks won't try to run during build
-[phases.setup]
-nixPkgs = ["nodejs", "python3", "gcc", "gnumake", "pkg-config"]
+[node]
+version = "22"
 
 [phases.install]
 cmds = [
-  "if [ -f backend/package.json ]; then cd backend && npm ci; fi",
-  "if [ -f backend/setup_uploads_directories.js ]; then node backend/setup_uploads_directories.js; fi"
+  "cd backend && npm ci",
+  "node backend/setup_uploads_directories.js"
 ]
 
 [phases.build]
-cmds = ["echo skipping build phase"]
+cmds = ["echo 'Build skipped'"]
 
 [start]
 cmd = "npm start"

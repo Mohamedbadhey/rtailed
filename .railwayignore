@@ -14,13 +14,8 @@ pubspec.lock
 *.log
 
 # Allow backend code and configs
-# But explicitly ignore Dockerfiles to avoid Docker builder auto-detection
-Dockerfile
 !backend/**
 !package.json
 !package-lock.json
 !railway.json
 !railway.toml
-
-# Re-ignore backend Dockerfile even after unignoring backend/**
-backend/Dockerfile

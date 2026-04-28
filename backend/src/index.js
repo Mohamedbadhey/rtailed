@@ -251,14 +251,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Retail Management API is running', timestamp: new Date().toISOString() });
 });
 
-app.get('/health', async (req, res) => {
-  try {
-    const host = getDbHost();
-    const answers = await dnsPromises.lookup(host, { all: true });
-    res.status(200).json({ ok: true, dns: answers.map(a => ({ address: a.address, family: a.family })) });
-  } catch (e) {
-    res.status(200).json({ ok: true, dnsError: e.message });
-  }
+app.get('/health', (req, res) => {
+  res.status(200).json({ ok: true, status: 'OK' });
 });
 
 app.get('/api/db-ping', async (req, res) => {

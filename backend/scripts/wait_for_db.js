@@ -11,7 +11,7 @@ const dns = require('dns').promises;
   const maxWaitMs = Number(process.env.DB_WAIT_MAX_MS || 120000); // 2 minutes
   const delayMs = Number(process.env.DB_WAIT_INTERVAL_MS || 1500);
 
-  // Determine host/port from env or DATABASE_URL
+  // Determine host/port from env or DATAB3ASE_URL
   function getHostPort() {
     try {
       const url = process.env.DATABASE_URL || process.env.MYSQL_URL || '';

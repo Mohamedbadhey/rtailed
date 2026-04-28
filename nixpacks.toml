@@ -6,8 +6,8 @@ nixPkgs = ["nodejs"]
 
 [phases.install]
 cmds = [
-  "if [ -f backend/package.json ]; then cd backend && npm ci; else npm ci; fi",
-  "if [ -f backend/setup_uploads_directories.js ]; then node backend/setup_uploads_directories.js; elif [ -f setup_uploads_directories.js ]; then node setup_uploads_directories.js; else echo 'no setup_uploads_directories.js found'; fi"
+  "if [ -f backend/package.json ]; then cd backend && npm ci; fi",
+  "if [ -f backend/setup_uploads_directories.js ]; then node backend/setup_uploads_directories.js; fi"
 ]
 
 [phases.build]

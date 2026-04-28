@@ -14,7 +14,7 @@ def update_urls_in_file(file_path):
         
         # Replace localhost URLs with Railway URL
         old_content = content
-        content = content.replace('http://localhost:3000', 'https://rtailed-production.up.railway.app')
+        content = content.replace('http://localhost:3000', 'https://api.kismayoict.com')
         
         # Only write if content changed
         if content != old_content:
@@ -64,7 +64,7 @@ def main():
     print("2. Run: flutter pub get")
     print("3. Run: flutter build apk --release")
     print()
-    print("All URLs now point to: https://rtailed-production.up.railway.app")
+    print("All URLs now point to: https://api.kismayoict.com")
 
 if __name__ == "__main__":
     main() 

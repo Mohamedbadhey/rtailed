@@ -48,10 +48,10 @@
     <div class="test-item">
         <h3>Test: CORS Headers Check</h3>
         <div class="url-info">
-            <strong>Image URL:</strong> https://rtailed-production.up.railway.app/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg
+            <strong>Image URL:</strong> https://api.kismayoict.com/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg
         </div>
         <img id="testImage" 
-             src="https://rtailed-production.up.railway.app/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
+             src="https://api.kismayoict.com/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
              alt="Test Image" 
              onload="markSuccess()" 
              onerror="markError()">
@@ -79,7 +79,7 @@
         // Test CORS headers
         async function testCORS() {
             const statusDiv = document.getElementById('corsStatus');
-            const testUrl = 'https://rtailed-production.up.railway.app/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg';
+            const testUrl = 'https://api.kismayoict.com/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg';
             
             try {
                 const response = await fetch(testUrl, { method: 'HEAD' });

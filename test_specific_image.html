@@ -49,10 +49,10 @@
         <h3>Test: New Uploaded Image</h3>
         <div class="url-info">
             <strong>Image URL:</strong> /uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg<br>
-            <strong>Full URL:</strong> https://rtailed-production.up.railway.app/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg
+            <strong>Full URL:</strong> https://api.kismayoict.com/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg
         </div>
         <img id="testImage" 
-             src="https://rtailed-production.up.railway.app/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
+             src="https://api.kismayoict.com/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
              alt="Test Image" 
              onload="markSuccess()" 
              onerror="markError()">
@@ -80,7 +80,7 @@
         // Test network connection
         async function testNetwork() {
             const statusDiv = document.getElementById('networkStatus');
-            const testUrl = 'https://rtailed-production.up.railway.app/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg';
+            const testUrl = 'https://api.kismayoict.com/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg';
             
             try {
                 const response = await fetch(testUrl, { method: 'HEAD' });

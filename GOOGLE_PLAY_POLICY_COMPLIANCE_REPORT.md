@@ -19,7 +19,7 @@ Your app **Kobciye** is **generally compliant** with Google Play Store policies.
 ### 1. ✅ Privacy Policy & Data Handling
 **Status:** EXCELLENT - Fully Compliant
 
-- **Privacy Policy URL:** https://rtailed-production.up.railway.app/privacy-policy
+- **Privacy Policy URL:** https://api.kismayoict.com/privacy-policy
 - **Account Deletion:** Documented at /account-deletion-request
 - **Data Deletion:** Documented at /data-deletion-request
 - **Transparency:** Clear explanation of data collection and usage

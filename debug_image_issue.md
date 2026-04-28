@@ -29,7 +29,7 @@ Product images are being uploaded successfully but not displaying on the fronten
 ### 4. Test Image URL Directly
 Try accessing the image URL directly in your browser:
 ```
-https://rtailed-production.up.railway.app/uploads/products/1754384469226-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg
+https://api.kismayoict.com/uploads/products/1754384469226-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg
 ```
 
 ### 5. Check File Permissions

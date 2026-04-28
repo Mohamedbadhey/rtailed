@@ -20,7 +20,7 @@ This document provides a complete analysis of data collection, permissions, thir
 
 | Permission | Purpose | Required/Optional | Used For | Data Safety Impact |
 |------------|---------|-------------------|----------|-------------------|
-| `INTERNET` | **REQUIRED** | Required | All API calls to backend server at `https://rtailed-production.up.railway.app` | Yes - Network communications |
+| `INTERNET` | **REQUIRED** | Required | All API calls to backend server at `https://api.kismayoict.com` | Yes - Network communications |
 | `CAMERA` | **OPTIONAL** | Optional | Product image capture, branding logo capture | Yes - Photos & media |
 | `POST_NOTIFICATIONS` | **REQUIRED** (Android 13+) | Required | Local notifications for PDF downloads and app alerts | Minimal - Only local notifications |
 | `READ_MEDIA_IMAGES` | **OPTIONAL** (Android 13+) | Optional | Selecting product images from gallery | Yes - Photos & media |
@@ -140,7 +140,7 @@ This document provides a complete analysis of data collection, permissions, thir
 **Storage Details:**
 - Images uploaded to Railway backend server
 - Stored at `/uploads/products/` and `/uploads/branding/`
-- Served via HTTP/HTTPS at `https://rtailed-production.up.railway.app/uploads/`
+- Served via HTTP/HTTPS at `https://api.kismayoict.com/uploads/`
 
 ### 2.6 Files Stored Locally ✅ COLLECTED
 
@@ -232,7 +232,7 @@ This document provides a complete analysis of data collection, permissions, thir
 ### 3.3 External Services Used
 
 #### Backend Server (Railway)
-- **Service:** `https://rtailed-production.up.railway.app`
+- **Service:** `https://api.kismayoict.com`
 - **Purpose:** Your own backend API server
 - **Data Sent:** All business data, user data, products, sales, inventory
 - **Declare in Data Safety:** No - it's your own server
@@ -361,7 +361,7 @@ The app **REQUIRES** an active internet connection to function.
 
 | Aspect | Status | Details |
 |--------|--------|---------|
-| **HTTPS/TLS** | ✅ Yes | All API calls use HTTPS (`https://rtailed-production.up.railway.app`) |
+| **HTTPS/TLS** | ✅ Yes | All API calls use HTTPS (`https://api.kismayoict.com`) |
 | **Certificate Pinning** | ❌ No | Standard HTTPS (acceptable for most apps) |
 | **Encrypted Requests** | ✅ Yes | All API requests use HTTPS/TLS |
 | **API Authentication** | ✅ Yes | JWT tokens in Authorization headers |
@@ -520,7 +520,7 @@ Your existing privacy policy (`privacy_policy.html`) covers:
 
 **Status:** ✅ Compliant with Google Play requirements
 
-**URL:** `https://rtailed-production.up.railway.app/privacy-policy`
+**URL:** `https://api.kismayoict.com/privacy-policy`
 
 ---
 
@@ -593,7 +593,7 @@ Your existing privacy policy (`privacy_policy.html`) covers:
     "crash_reporting": [],
     "ad_networks": [],
     "backend_server": {
-      "url": "https://rtailed-production.up.railway.app",
+      "url": "https://api.kismayoict.com",
       "owned_by_you": true,
       "data_shared": true
     }
@@ -604,7 +604,7 @@ Your existing privacy policy (`privacy_policy.html`) covers:
     "at_rest": true,
     "local_storage": true
   },
-  "privacy_policy_url": "https://rtailed-production.up.railway.app/privacy-policy"
+  "privacy_policy_url": "https://api.kismayoict.com/privacy-policy"
 }
 ```
 

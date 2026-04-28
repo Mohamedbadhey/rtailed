@@ -95,7 +95,7 @@ If reviewers encounter any issues accessing the app:
 Before submitting, ensure:
 - [x] Test account credentials are correct
 - [x] Test account is active in production database
-- [x] Backend server is accessible at: `https://rtailed-production.up.railway.app`
+- [x] Backend server is accessible at: `https://api.kismayoict.com`
 - [x] All app features are accessible with test account
 - [x] No additional verification steps required (no 2FA, no email confirmation)
 

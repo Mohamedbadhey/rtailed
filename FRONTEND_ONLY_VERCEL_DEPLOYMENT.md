@@ -2,7 +2,7 @@
 
 ## 📋 Current Setup
 
-- ✅ **Backend**: Already deployed on Railway at `https://rtailed-production.up.railway.app`
+- ✅ **Backend**: Already deployed on Railway at `https://api.kismayoict.com`
 - ✅ **Frontend**: Flutter web app ready for Vercel deployment
 - ✅ **Configuration**: Vercel config updated to route API calls to Railway
 
@@ -59,14 +59,14 @@ vercel --prod
 
 After deployment:
 - **Frontend**: `https://your-app.vercel.app`
-- **Backend API**: `https://rtailed-production.up.railway.app/api/*`
-- **Uploads**: `https://rtailed-production.up.railway.app/uploads/*`
+- **Backend API**: `https://api.kismayoict.com/api/*`
+- **Uploads**: `https://api.kismayoict.com/uploads/*`
 
 ## 🔄 API Routing
 
 Vercel automatically routes:
-- `/api/*` → `https://rtailed-production.up.railway.app/api/*`
-- `/uploads/*` → `https://rtailed-production.up.railway.app/uploads/*`
+- `/api/*` → `https://api.kismayoict.com/api/*`
+- `/uploads/*` → `https://api.kismayoict.com/uploads/*`
 - `/*` → Your Flutter web app
 
 ## 🚨 Important Notes

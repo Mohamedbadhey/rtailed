@@ -48,7 +48,7 @@
     <div class="test-item">
         <h3>Test 1: Image with Cache Buster</h3>
         <div class="url-info">
-            <strong>URL with timestamp:</strong> https://rtailed-production.up.railway.app/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg?t=<span id="timestamp"></span>
+            <strong>URL with timestamp:</strong> https://api.kismayoict.com/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg?t=<span id="timestamp"></span>
         </div>
         <img id="testImage1" 
              alt="Test Image 1" 
@@ -60,7 +60,7 @@
     <div class="test-item">
         <h3>Test 2: Direct Image Load</h3>
         <img id="testImage2" 
-             src="https://rtailed-production.up.railway.app/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
+             src="https://api.kismayoict.com/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
              alt="Test Image 2" 
              onload="markSuccess('testImage2')" 
              onerror="markError('testImage2')">
@@ -86,7 +86,7 @@
         
         // Set image source with cache buster
         document.getElementById('testImage1').src = 
-            `https://rtailed-production.up.railway.app/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg?t=${timestamp}`;
+            `https://api.kismayoict.com/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg?t=${timestamp}`;
 
         function markSuccess(imgId) {
             const status = document.getElementById('status' + imgId.slice(-1));
@@ -103,7 +103,7 @@
         // Test CORS headers
         async function testCORS() {
             const statusDiv = document.getElementById('corsStatus');
-            const testUrl = 'https://rtailed-production.up.railway.app/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg';
+            const testUrl = 'https://api.kismayoict.com/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg';
             
             try {
                 const response = await fetch(testUrl, { method: 'HEAD' });
@@ -147,7 +147,7 @@
                 console.error('❌ Image failed to load via JavaScript');
             };
             
-            img.src = 'https://rtailed-production.up.railway.app/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg';
+            img.src = 'https://api.kismayoict.com/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg';
         }
 
         // Run CORS test

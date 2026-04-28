@@ -27,7 +27,7 @@ This implementation integrates network error handling with your existing `Succes
 
 ### **Before (ClientException Error):**
 ```
-ClientException: Failed to fetch, uri=https://rtailed-production.up.railway.app/api/auth/login
+ClientException: Failed to fetch, uri=https://api.kismayoict.com/api/auth/login
 ```
 
 ### **After (User-Friendly Message):**

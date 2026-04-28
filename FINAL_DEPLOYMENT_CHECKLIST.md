@@ -2,7 +2,7 @@
 
 ## 🎯 Current Status
 
-- ✅ **Backend**: Running on Railway at `https://rtailed-production.up.railway.app`
+- ✅ **Backend**: Running on Railway at `https://api.kismayoict.com`
 - ✅ **CORS**: Configured to allow all origins
 - ✅ **Vercel Config**: Updated with Railway backend URLs
 - ✅ **Deployment Scripts**: Ready to use

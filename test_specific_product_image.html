@@ -50,10 +50,10 @@
         <div class="url-info">
             <strong>Product Name:</strong> Nin<br>
             <strong>Database Image URL:</strong> /uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg<br>
-            <strong>Full URL:</strong> https://rtailed-production.up.railway.app/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg
+            <strong>Full URL:</strong> https://api.kismayoict.com/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg
         </div>
         <img id="testImage" 
-             src="https://rtailed-production.up.railway.app/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
+             src="https://api.kismayoict.com/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
              alt="Product Nin" 
              onload="markSuccess()" 
              onerror="markError()">
@@ -86,7 +86,7 @@
         // Test network connection
         async function testNetwork() {
             const statusDiv = document.getElementById('networkStatus');
-            const testUrl = 'https://rtailed-production.up.railway.app/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg';
+            const testUrl = 'https://api.kismayoict.com/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg';
             
             try {
                 const response = await fetch(testUrl, { method: 'HEAD' });
@@ -110,7 +110,7 @@
         // Test Flutter URL construction
         function testFlutterUrl() {
             const statusDiv = document.getElementById('flutterTest');
-            const baseUrl = 'https://rtailed-production.up.railway.app';
+            const baseUrl = 'https://api.kismayoict.com';
             const imageUrl = '/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg';
             const fullUrl = baseUrl + imageUrl;
             
@@ -119,7 +119,7 @@
                 ✅ Base URL: ${baseUrl}<br>
                 ✅ Image URL: ${imageUrl}<br>
                 ✅ Full URL: ${fullUrl}<br>
-                ✅ URL is correct: ${fullUrl === 'https://rtailed-production.up.railway.app/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg' ? 'Yes' : 'No'}
+                ✅ URL is correct: ${fullUrl === 'https://api.kismayoict.com/uploads/products/1754389187868-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg' ? 'Yes' : 'No'}
             `;
             statusDiv.className = 'status success';
         }

@@ -38,24 +38,24 @@
     
     <div class="image-test">
         <h3>Test 1: Direct Image Access</h3>
-        <p>Testing: <code>https://rtailed-production.up.railway.app/uploads/products/1754387753641-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg</code></p>
-        <img id="test1" src="https://rtailed-production.up.railway.app/uploads/products/1754387753641-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
+        <p>Testing: <code>https://api.kismayoict.com/uploads/products/1754387753641-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg</code></p>
+        <img id="test1" src="https://api.kismayoict.com/uploads/products/1754387753641-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
              alt="Test Image 1" onload="markSuccess('test1')" onerror="markError('test1')">
         <div id="status1" class="status loading">Loading...</div>
     </div>
 
     <div class="image-test">
         <h3>Test 2: API Image Endpoint</h3>
-        <p>Testing: <code>https://rtailed-production.up.railway.app/api/images/1754387753641-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg</code></p>
-        <img id="test2" src="https://rtailed-production.up.railway.app/api/images/1754387753641-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
+        <p>Testing: <code>https://api.kismayoict.com/api/images/1754387753641-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg</code></p>
+        <img id="test2" src="https://api.kismayoict.com/api/images/1754387753641-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
              alt="Test Image 2" onload="markSuccess('test2')" onerror="markError('test2')">
         <div id="status2" class="status loading">Loading...</div>
     </div>
 
     <div class="image-test">
         <h3>Test 3: New Uploaded Image</h3>
-        <p>Testing: <code>https://rtailed-production.up.railway.app/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg</code></p>
-        <img id="test3" src="https://rtailed-production.up.railway.app/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
+        <p>Testing: <code>https://api.kismayoict.com/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg</code></p>
+        <img id="test3" src="https://api.kismayoict.com/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
              alt="Test Image 3" onload="markSuccess('test3')" onerror="markError('test3')">
         <div id="status3" class="status loading">Loading...</div>
     </div>
@@ -79,7 +79,7 @@
         }
 
         // Test filesystem status
-        fetch('https://rtailed-production.up.railway.app/api/test-filesystem')
+        fetch('https://api.kismayoict.com/api/test-filesystem')
             .then(response => response.json())
             .then(data => {
                 const statusDiv = document.getElementById('filesystem-status');

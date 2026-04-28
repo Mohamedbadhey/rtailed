@@ -75,13 +75,13 @@
         <h3>Step 3: Manual Image Test</h3>
         <div class="product-item">
             <img class="product-image" 
-                 src="https://rtailed-production.up.railway.app/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
+                 src="https://api.kismayoict.com/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg" 
                  alt="Test Image"
                  onload="markImageSuccess(this)"
                  onerror="markImageError(this)">
             <div class="product-info">
                 <div class="product-name">Manual Test Image</div>
-                <div class="product-url">https://rtailed-production.up.railway.app/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg</div>
+                <div class="product-url">https://api.kismayoict.com/uploads/products/1754519116112-WhatsApp_Image_2025-07-27_at_11.57.42.jpeg</div>
                 <div class="status loading">Loading...</div>
             </div>
         </div>
@@ -108,7 +108,7 @@
             
             try {
                 // Note: This will fail without authentication, but we can see the structure
-                const response = await fetch('https://rtailed-production.up.railway.app/api/products');
+                const response = await fetch('https://api.kismayoict.com/api/products');
                 
                 if (response.status === 401) {
                     statusDiv.innerHTML = `
@@ -148,7 +148,7 @@
 
             const productsHtml = products.map((product, index) => {
                 const imageUrl = product.image_url ? 
-                    `https://rtailed-production.up.railway.app${product.image_url}` : 
+                    `https://api.kismayoict.com${product.image_url}` : 
                     null;
                 
                 return `

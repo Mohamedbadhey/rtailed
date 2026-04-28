@@ -17,6 +17,8 @@ WORKDIR /app
 
 # Install deps first (use lockfile if present)
 COPY backend/package*.json ./
+# Ensure postinstall script exists before npm ci triggers it
+COPY backend/setup_uploads_directories.js ./setup_uploads_directories.js
 RUN npm ci --omit=dev
 
 # Copy source

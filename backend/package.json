@@ -8,7 +8,8 @@
     "dev": "nodemon src/index.js",
     "test": "jest",
     "setup": "node setup_uploads_directories.js",
-    "postinstall": "node setup_uploads_directories.js"
+    "postinstall": "node setup_uploads_directories.js",
+    "migrate": "node run_migration.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

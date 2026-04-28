@@ -47,6 +47,7 @@ class _POSScreenState extends State<POSScreen> {
   int _totalProducts = 0;
   Map<String, int> _categoryNameToId = {}; // name -> id
   Timer? _filterDebounce; // debounce for search/category changes to avoid spam requests.
+  String _latestSearchTerm = ''; // Track latest search term to ignore stale responses
   
   // unused after switching to Load More
   void _onProductScroll() {
@@ -93,6 +94,7 @@ class _POSScreenState extends State<POSScreen> {
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _filterDebounce?.cancel();
     
     // Remove cart listener
     try {
@@ -153,6 +155,10 @@ class _POSScreenState extends State<POSScreen> {
 
   // Paged products loader
   Future<void> _resetAndFetchProducts() async {
+    // Capture the search term at the start of this request
+    final currentSearch = _searchController.text;
+    _latestSearchTerm = currentSearch;
+
     setState(() {
       _isLoading = true;
       _products = [];
@@ -181,7 +187,7 @@ class _POSScreenState extends State<POSScreen> {
       });
 
       // Fetch first page
-      await _fetchProductsPage(reset: true);
+      await _fetchProductsPage(reset: true, searchTerm: currentSearch);
 
       setState(() {
         _isLoading = false;
@@ -195,8 +201,9 @@ class _POSScreenState extends State<POSScreen> {
     }
   }
 
-  Future<void> _fetchProductsPage({bool reset = false}) async {
+  Future<void> _fetchProductsPage({bool reset = false, String? searchTerm}) async {
     if (_isPageLoading) return;
+    final requestSearchTerm = searchTerm ?? _searchController.text;
     setState(() { _isPageLoading = true; });
 
     try {
@@ -204,10 +211,15 @@ class _POSScreenState extends State<POSScreen> {
       final result = await _apiService.getProductsPaged(
         page: _currentPage,
         limit: _pageSize,
-        search: _searchController.text.isEmpty ? null : _searchController.text,
+        search: requestSearchTerm.isEmpty ? null : requestSearchTerm,
         categoryId: categoryId,
         context: context,
       );
+
+      // Validate response is not stale (ignore if search term changed since request started)
+      if (_searchController.text != requestSearchTerm) {
+        return; // Stale response, discard
+      }
 
       final newItems = List<Product>.from(result['items'] as List<Product>);
       final total = result['total'] as int? ?? 0;
@@ -225,16 +237,18 @@ class _POSScreenState extends State<POSScreen> {
 
       _applyFilters();
     } catch (e) {
-      if (mounted) {
+      if (mounted && _searchController.text == requestSearchTerm) {
         Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) {
+          if (mounted && _searchController.text == requestSearchTerm) {
             _isPageLoading = false;
-            _fetchProductsPage(reset: reset);
+            _fetchProductsPage(reset: reset, searchTerm: requestSearchTerm);
           }
         });
       }
     } finally {
-      if (mounted) setState(() { _isPageLoading = false; });
+      if (mounted && _searchController.text == requestSearchTerm) {
+        setState(() { _isPageLoading = false; });
+      }
     }
   }
 

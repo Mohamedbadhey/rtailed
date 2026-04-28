@@ -1270,7 +1270,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.network(
-                        'https://rtailed-production.up.railway.app${item['image_url']}',
+                        'https://api.kismayoict.com${item['image_url']}',
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
@@ -1582,7 +1582,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                       borderRadius: BorderRadius.circular(16),
                       child: item['image_url'] != null && item['image_url'].toString().isNotEmpty
                           ? Image.network(
-                              'https://rtailed-production.up.railway.app${item['image_url']}',
+                              'https://api.kismayoict.com${item['image_url']}',
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
@@ -4362,7 +4362,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   borderRadius: BorderRadius.circular(8),
                   child: item['image_url'] != null
                       ? Image.network(
-                          'https://rtailed-production.up.railway.app${item['image_url']}',
+                          'https://api.kismayoict.com${item['image_url']}',
                           width: 50,
                           height: 50,
                           fit: BoxFit.cover,
@@ -12513,7 +12513,7 @@ class _StoreInventoryScreenState extends State<StoreInventoryScreen> with Single
                   borderRadius: BorderRadius.circular(8),
                   child: item['image_url'] != null
                       ? Image.network(
-                          'https://rtailed-production.up.railway.app${item['image_url']}',
+                          'https://api.kismayoict.com${item['image_url']}',
                           width: 60,
                           height: 60,
                           fit: BoxFit.cover,
@@ -14893,7 +14893,7 @@ class _TransferDialogState extends State<_TransferDialog> {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Image.network(
-          'https://rtailed-production.up.railway.app${item['image_url']}',
+          'https://api.kismayoict.com${item['image_url']}',
           width: imageSize,
           height: imageSize,
           fit: BoxFit.cover,

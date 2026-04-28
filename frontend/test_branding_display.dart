@@ -204,7 +204,7 @@ class _BrandingDisplayTestState extends State<BrandingDisplayTest> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.network(
-                        'https://rtailed-production.up.railway.app${business['logo']}',
+                        'https://api.kismayoict.com${business['logo']}',
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
@@ -298,7 +298,7 @@ class _BrandingDisplayTestState extends State<BrandingDisplayTest> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Image.network(
-                    'https://rtailed-production.up.railway.app$imageUrl',
+                    'https://api.kismayoict.com$imageUrl',
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(

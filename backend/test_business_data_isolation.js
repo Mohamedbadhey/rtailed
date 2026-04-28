@@ -1,7 +1,7 @@
 const http = require('http');
 
 // Test configuration
-const BASE_URL = 'https://rtailed-production.up.railway.app';
+const BASE_URL = 'https://api.kismayoict.com';
 const TEST_TOKEN = 'your_superadmin_token_here'; // Replace with actual token
 
 // Test function to check business data isolation

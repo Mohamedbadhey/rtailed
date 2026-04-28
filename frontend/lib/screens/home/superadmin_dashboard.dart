@@ -118,7 +118,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
       // Load businesses first
       final businessesResponse = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
+        Uri.parse('https://api.kismayoict.com/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -134,7 +134,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       for (final business in businesses) {
         try {
           final messagesResponse = await http.get(
-            Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/messages'),
+            Uri.parse('https://api.kismayoict.com/api/businesses/${business['id']}/messages'),
             headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
           );
           
@@ -154,7 +154,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       for (final business in businesses) {
         try {
           final paymentsResponse = await http.get(
-            Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/payments'),
+            Uri.parse('https://api.kismayoict.com/api/businesses/${business['id']}/payments'),
             headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
           );
           
@@ -254,7 +254,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
       // Load dashboard overview
       final dashboardResponse = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/dashboard'),
+        Uri.parse('https://api.kismayoict.com/api/admin/dashboard'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -267,7 +267,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
       // Load recent logs
       final logsResponse = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/logs?limit=10'),
+        Uri.parse('https://api.kismayoict.com/api/admin/logs?limit=10'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -281,7 +281,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
       // Load users
       final usersResponse = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/users?limit=10'),
+        Uri.parse('https://api.kismayoict.com/api/admin/users?limit=10'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -295,7 +295,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
       // Load system settings
       final settingsResponse = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/settings'),
+        Uri.parse('https://api.kismayoict.com/api/admin/settings'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -308,7 +308,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
       // Load notifications
       final notificationsResponse = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/notifications'),
+        Uri.parse('https://api.kismayoict.com/api/admin/notifications'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -322,7 +322,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
 
       // Load audit logs
       final auditLogsResponse = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/audit-logs?limit=20'),
+        Uri.parse('https://api.kismayoict.com/api/admin/audit-logs?limit=20'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -1887,7 +1887,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/health'),
+      Uri.parse('https://api.kismayoict.com/api/admin/health'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -1978,7 +1978,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/sessions'),
+      Uri.parse('https://api.kismayoict.com/api/admin/sessions'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -2024,7 +2024,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/errors'),
+      Uri.parse('https://api.kismayoict.com/api/admin/errors'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -2076,7 +2076,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/performance'),
+      Uri.parse('https://api.kismayoict.com/api/admin/performance'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -2761,7 +2761,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   Future<Map<String, dynamic>> _fetchBusinesses() async {
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
-    final String baseUrl = 'https://rtailed-production.up.railway.app/api/businesses';
+    final String baseUrl = 'https://api.kismayoict.com/api/businesses';
     final queryParams = <String, String>{
       'limit': _businessLimit.toString(),
       'offset': _businessOffset.toString(),
@@ -2835,7 +2835,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     try {
       // Get all businesses first
       final businessesResponse = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
+        Uri.parse('https://api.kismayoict.com/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -2847,7 +2847,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       List<Map<String, dynamic>> allMessages = [];
       for (final business in businesses) {
         final messagesResponse = await http.get(
-          Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/messages'),
+          Uri.parse('https://api.kismayoict.com/api/businesses/${business['id']}/messages'),
           headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
         );
         
@@ -2876,7 +2876,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     try {
       // Get all businesses first
       final businessesResponse = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
+        Uri.parse('https://api.kismayoict.com/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -2888,7 +2888,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       List<Map<String, dynamic>> allPayments = [];
       for (final business in businesses) {
         final paymentsResponse = await http.get(
-          Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/payments'),
+          Uri.parse('https://api.kismayoict.com/api/businesses/${business['id']}/payments'),
           headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
         );
         
@@ -2917,7 +2917,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     try {
       // Get all businesses
       final businessesResponse = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
+        Uri.parse('https://api.kismayoict.com/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -3062,7 +3062,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.post(
-                  Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
+                  Uri.parse('https://api.kismayoict.com/api/businesses'),
                   headers: {
                     'Authorization': 'Bearer $token',
                     'Content-Type': 'application/json',
@@ -3115,7 +3115,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       final token = authProvider.token;
       
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/users'),
+        Uri.parse('https://api.kismayoict.com/api/businesses/${business['id']}/users'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -3327,7 +3327,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                   final token = authProvider.token;
 
                   final response = await http.post(
-                    Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/messages'),
+                    Uri.parse('https://api.kismayoict.com/api/businesses/${business['id']}/messages'),
                     headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                     body: json.encode({
                       'subject': subjectController.text,
@@ -3554,7 +3554,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                   final token = authProvider.token;
 
                   final response = await http.post(
-                    Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/payments'),
+                    Uri.parse('https://api.kismayoict.com/api/businesses/${business['id']}/payments'),
                     headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                     body: json.encode({
                       'amount': double.parse(amountController.text),
@@ -3724,7 +3724,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.put(
-                  Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/settings'),
+                  Uri.parse('https://api.kismayoict.com/api/businesses/${business['id']}/settings'),
                   headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                   body: json.encode({
                     'subscription_plan': selectedPlan,
@@ -3794,7 +3794,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.put(
-                  Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/status'),
+                  Uri.parse('https://api.kismayoict.com/api/businesses/${business['id']}/status'),
                   headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                   body: json.encode({
                     'is_active': !isCurrentlyActive,
@@ -3963,7 +3963,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     try {
       // Fetch comprehensive business data from the new backend endpoint
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/businesses/$businessId/details'),
+        Uri.parse('https://api.kismayoict.com/api/admin/businesses/$businessId/details'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -4056,7 +4056,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final token = authProvider.token;
     try {
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
+        Uri.parse('https://api.kismayoict.com/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       if (response.statusCode == 200) {
@@ -4134,7 +4134,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     try {
       // Get all businesses first
       final businessesResponse = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
+        Uri.parse('https://api.kismayoict.com/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -4150,7 +4150,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       for (final business in businesses) {
         try {
           final billsResponse = await http.get(
-            Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${business['id']}/monthly-bills'),
+            Uri.parse('https://api.kismayoict.com/api/businesses/${business['id']}/monthly-bills'),
             headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
           );
           
@@ -4203,7 +4203,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final token = authProvider.token;
     
     final response = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/businesses/pending-payments/all'),
+      Uri.parse('https://api.kismayoict.com/api/businesses/pending-payments/all'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     
@@ -4219,7 +4219,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final token = authProvider.token;
     
     final response = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/businesses/overdue-bills/all'),
+      Uri.parse('https://api.kismayoict.com/api/businesses/overdue-bills/all'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     
@@ -4235,7 +4235,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final token = authProvider.token;
     
     final response = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/businesses/backups/all'),
+      Uri.parse('https://api.kismayoict.com/api/businesses/backups/all'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     
@@ -4334,7 +4334,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                   final token = authProvider.token;
 
                   final response = await http.post(
-                    Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${selectedBusiness!['id']}/monthly-bill'),
+                    Uri.parse('https://api.kismayoict.com/api/businesses/${selectedBusiness!['id']}/monthly-bill'),
                     headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                     body: json.encode({
                       'billingMonth': DateTime.now().toString().split(' ')[0].substring(0, 7) + '-01',
@@ -4399,7 +4399,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.post(
-                  Uri.parse('https://rtailed-production.up.railway.app/api/businesses/generate-all-bills'),
+                  Uri.parse('https://api.kismayoict.com/api/businesses/generate-all-bills'),
                   headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                   body: json.encode({
                     'billingMonth': DateTime.now().toString().split(' ')[0].substring(0, 7) + '-01',
@@ -4473,7 +4473,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.put(
-                  Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${payment['business_id']}/review-payment/${payment['id']}'),
+                  Uri.parse('https://api.kismayoict.com/api/businesses/${payment['business_id']}/review-payment/${payment['id']}'),
                   headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                   body: json.encode({
                     'status': status,
@@ -4589,7 +4589,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                   final token = authProvider.token;
 
                   final response = await http.post(
-                    Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${selectedBusiness!['id']}/backup'),
+                    Uri.parse('https://api.kismayoict.com/api/businesses/${selectedBusiness!['id']}/backup'),
                     headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                     body: json.encode({
                       'backupType': selectedType,
@@ -4661,7 +4661,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.post(
-                  Uri.parse('https://rtailed-production.up.railway.app/api/businesses/${backup['business_id']}/restore/${backup['id']}'),
+                  Uri.parse('https://api.kismayoict.com/api/businesses/${backup['business_id']}/restore/${backup['id']}'),
                   headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                   body: json.encode({
                     'recoveryType': selectedType,
@@ -5592,12 +5592,12 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final token = authProvider.token;
     // Fetch backups
     final backupsResp = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/backups'),
+      Uri.parse('https://api.kismayoict.com/api/admin/backups'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     // Fetch exportable tables
     final tablesResp = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/export'),
+      Uri.parse('https://api.kismayoict.com/api/admin/export'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     final backups = backupsResp.statusCode == 200 ? json.decode(backupsResp.body)['backups'] : [];
@@ -5609,7 +5609,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.post(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/backup'),
+      Uri.parse('https://api.kismayoict.com/api/admin/backup'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -5625,7 +5625,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
   }
 
   void _exportData() {
-    final url = 'https://rtailed-production.up.railway.app/api/admin/export';
+    final url = 'https://api.kismayoict.com/api/admin/export';
     // For web: open in new tab, for mobile/desktop: launch URL
     // (You may want to use url_launcher for mobile/desktop)
     // For now, just open in browser
@@ -5668,7 +5668,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/backups'),
+      Uri.parse('https://api.kismayoict.com/api/admin/backups'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -5822,7 +5822,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       final token = authProvider.token;
 
       final response = await http.patch(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/users/$userId/status'),
+        Uri.parse('https://api.kismayoict.com/api/admin/users/$userId/status'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -6043,7 +6043,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.post(
-                  Uri.parse('https://rtailed-production.up.railway.app/api/admin/users'),
+                  Uri.parse('https://api.kismayoict.com/api/admin/users'),
                   headers: {
                     'Authorization': 'Bearer $token',
                     'Content-Type': 'application/json',
@@ -6164,7 +6164,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.put(
-                  Uri.parse('https://rtailed-production.up.railway.app/api/admin/users/${user['id']}'),
+                  Uri.parse('https://api.kismayoict.com/api/admin/users/${user['id']}'),
                   headers: {
                     'Authorization': 'Bearer $token',
                     'Content-Type': 'application/json',
@@ -6234,7 +6234,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.post(
-                  Uri.parse('https://rtailed-production.up.railway.app/api/admin/users/${user['id']}/reset-password'),
+                  Uri.parse('https://api.kismayoict.com/api/admin/users/${user['id']}/reset-password'),
                   headers: {
                     'Authorization': 'Bearer $token',
                     'Content-Type': 'application/json',
@@ -6277,7 +6277,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       final token = authProvider.token;
 
       final response = await http.post(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/users/${user['id']}/force-logout'),
+        Uri.parse('https://api.kismayoict.com/api/admin/users/${user['id']}/force-logout'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -6310,7 +6310,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       final token = authProvider.token;
 
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/users/${user['id']}/logs'),
+        Uri.parse('https://api.kismayoict.com/api/admin/users/${user['id']}/logs'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -6380,7 +6380,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final token = authProvider.token;
 
                 final response = await http.delete(
-                  Uri.parse('https://rtailed-production.up.railway.app/api/admin/users/${user['id']}'),
+                  Uri.parse('https://api.kismayoict.com/api/admin/users/${user['id']}'),
                   headers: {
                     'Authorization': 'Bearer $token',
                     'Content-Type': 'application/json',
@@ -6579,7 +6579,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                   borderRadius: BorderRadius.circular(8),
                   child: (logoUrl != null)
                       ? Image.network(
-                          'https://rtailed-production.up.railway.app$logoUrl',
+                          'https://api.kismayoict.com$logoUrl',
                           fit: BoxFit.contain,
                           errorBuilder: (context, error, stackTrace) => Icon(Icons.business, color: primaryColor, size: imageSize * 0.7),
                         )
@@ -6639,7 +6639,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/settings/config'),
+      Uri.parse('https://api.kismayoict.com/api/admin/settings/config'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -7288,7 +7288,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.post(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/settings/maintenance/toggle'),
+      Uri.parse('https://api.kismayoict.com/api/admin/settings/maintenance/toggle'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -7337,7 +7337,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
               final authProvider = context.read<AuthProvider>();
               final token = authProvider.token;
               final response = await http.post(
-                Uri.parse('https://rtailed-production.up.railway.app/api/admin/settings/admin-code/update'),
+                Uri.parse('https://api.kismayoict.com/api/admin/settings/admin-code/update'),
                 headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                 body: json.encode({
                   'currentCode': currentCodeController.text,
@@ -7396,7 +7396,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
               final authProvider = context.read<AuthProvider>();
               final token = authProvider.token;
               final response = await http.put(
-                Uri.parse('https://rtailed-production.up.railway.app/api/admin/settings/${setting['setting_key']}'),
+                Uri.parse('https://api.kismayoict.com/api/admin/settings/${setting['setting_key']}'),
                 headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                 body: json.encode({
                   'value': valueController.text,
@@ -7479,12 +7479,12 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     // Fetch notifications and stats
     final notificationsResponse = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/notifications'),
+      Uri.parse('https://api.kismayoict.com/api/admin/notifications'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     
     final statsResponse = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/notifications/stats'),
+      Uri.parse('https://api.kismayoict.com/api/admin/notifications/stats'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     
@@ -7803,7 +7803,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
                 final authProvider = context.read<AuthProvider>();
                 final token = authProvider.token;
                 final response = await http.post(
-                  Uri.parse('https://rtailed-production.up.railway.app/api/admin/notifications'),
+                  Uri.parse('https://api.kismayoict.com/api/admin/notifications'),
                   headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
                   body: json.encode({
                     'title': titleController.text,
@@ -7834,7 +7834,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/users'),
+      Uri.parse('https://api.kismayoict.com/api/admin/users'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -7869,7 +7869,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       final authProvider = context.read<AuthProvider>();
       final token = authProvider.token;
       final response = await http.delete(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/notifications/$id'),
+        Uri.parse('https://api.kismayoict.com/api/admin/notifications/$id'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       if (response.statusCode == 200) {
@@ -7955,17 +7955,17 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     // Fetch audit logs, stats, and system activity
     final logsResponse = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/audit-logs?limit=20'),
+      Uri.parse('https://api.kismayoict.com/api/admin/audit-logs?limit=20'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     
     final statsResponse = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/audit-logs/stats'),
+      Uri.parse('https://api.kismayoict.com/api/admin/audit-logs/stats'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     
     final systemActivityResponse = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/audit-logs/system-activity'),
+      Uri.parse('https://api.kismayoict.com/api/admin/audit-logs/system-activity'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     
@@ -8248,7 +8248,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     try {
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/audit-logs/export'),
+        Uri.parse('https://api.kismayoict.com/api/admin/audit-logs/export'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -8667,7 +8667,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
+      Uri.parse('https://api.kismayoict.com/api/businesses'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -8721,7 +8721,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
       
       // Fetch businesses data (fallback approach)
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
+        Uri.parse('https://api.kismayoict.com/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -8835,7 +8835,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/analytics/performance'),
+      Uri.parse('https://api.kismayoict.com/api/admin/analytics/performance'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -8851,7 +8851,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
+      Uri.parse('https://api.kismayoict.com/api/businesses'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -10419,7 +10419,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     try {
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/businesses/$businessId/recovery-stats'),
+        Uri.parse('https://api.kismayoict.com/api/admin/businesses/$businessId/recovery-stats'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -10623,7 +10623,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     try {
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/businesses/$businessId/deleted-data'),
+        Uri.parse('https://api.kismayoict.com/api/admin/businesses/$businessId/deleted-data'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -10651,7 +10651,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     try {
       final response = await http.post(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/recover/$type/$id'),
+        Uri.parse('https://api.kismayoict.com/api/admin/recover/$type/$id'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
         body: json.encode({'businessId': businessId}),
       );
@@ -10711,7 +10711,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     try {
       final response = await http.delete(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/permanently-delete/$type/$id'),
+        Uri.parse('https://api.kismayoict.com/api/admin/permanently-delete/$type/$id'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
         body: json.encode({'businessId': businessId}),
       );
@@ -10825,7 +10825,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     try {
       final response = await http.post(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/recover-multiple'),
+        Uri.parse('https://api.kismayoict.com/api/admin/recover-multiple'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
         body: json.encode({'businessId': businessId, 'items': items}),
       );
@@ -11103,7 +11103,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     try {
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/business-data-counts/$businessId'),
+        Uri.parse('https://api.kismayoict.com/api/admin/business-data-counts/$businessId'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
       
@@ -11162,7 +11162,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     
     try {
       final response = await http.post(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/reset-business-data'),
+        Uri.parse('https://api.kismayoict.com/api/admin/reset-business-data'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
         body: json.encode({'businessId': businessId}),
       );
@@ -11183,7 +11183,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.get(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/deleted-data'),
+      Uri.parse('https://api.kismayoict.com/api/admin/deleted-data'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
     );
     if (response.statusCode == 200) {
@@ -11239,7 +11239,7 @@ class _SuperadminDashboardState extends State<SuperadminDashboard> with SingleTi
     final authProvider = context.read<AuthProvider>();
     final token = authProvider.token;
     final response = await http.post(
-      Uri.parse('https://rtailed-production.up.railway.app/api/admin/restore-data'),
+      Uri.parse('https://api.kismayoict.com/api/admin/restore-data'),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       body: json.encode({'id': id, 'type': type}),
     );

@@ -86,7 +86,7 @@ class BrandedHeader extends StatelessWidget {
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(12),
                                       child: Image.network(
-                                        'https://rtailed-production.up.railway.app$logoUrl',
+                                        'https://api.kismayoict.com$logoUrl',
                                         fit: BoxFit.contain,
                                         errorBuilder: (context, error, stackTrace) => LocalLogo(
                                           size: logoSize,
@@ -203,7 +203,7 @@ class BrandedHeader extends StatelessWidget {
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
                                   child: Image.network(
-                                    'https://rtailed-production.up.railway.app$logoUrl',
+                                    'https://api.kismayoict.com$logoUrl',
                                     fit: BoxFit.contain,
                                     errorBuilder: (context, error, stackTrace) => LocalLogo(
                                       size: logoSize,
@@ -336,7 +336,7 @@ class BrandedLogo extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(
-                'https://rtailed-production.up.railway.app$logoUrl',
+                'https://api.kismayoict.com$logoUrl',
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) => LocalLogo(
                   size: size,

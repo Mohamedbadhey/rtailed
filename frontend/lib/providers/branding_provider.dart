@@ -36,7 +36,7 @@ class BrandingProvider extends ChangeNotifier {
   Future<void> loadSystemBranding() async {
     try {
             final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/branding/system'),
+        Uri.parse('https://api.kismayoict.com/api/branding/system'),
         headers: {'Content-Type': 'application/json'},
       );
       
@@ -56,7 +56,7 @@ class BrandingProvider extends ChangeNotifier {
   Future<bool> updateSystemBranding(Map<String, dynamic> brandingData) async {
     try {
       final response = await http.put(
-        Uri.parse('https://rtailed-production.up.railway.app/api/branding/system'),
+        Uri.parse('https://api.kismayoict.com/api/branding/system'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${_apiService.token ?? ''}',
@@ -87,7 +87,7 @@ class BrandingProvider extends ChangeNotifier {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://rtailed-production.up.railway.app/api/branding/system/upload'),
+        Uri.parse('https://api.kismayoict.com/api/branding/system/upload'),
       );
       
       request.headers['Authorization'] = 'Bearer ${_apiService.token ?? ''}';
@@ -131,7 +131,7 @@ class BrandingProvider extends ChangeNotifier {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://rtailed-production.up.railway.app/api/branding/system/upload'),
+        Uri.parse('https://api.kismayoict.com/api/branding/system/upload'),
       );
       
       request.headers['Authorization'] = 'Bearer ${_apiService.token ?? ''}';
@@ -179,7 +179,7 @@ class BrandingProvider extends ChangeNotifier {
   Future<void> loadBusinessBranding(int businessId) async {
     try {
                   final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/branding/business/$businessId'),
+        Uri.parse('https://api.kismayoict.com/api/branding/business/$businessId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${_apiService.token ?? ''}',
@@ -204,7 +204,7 @@ class BrandingProvider extends ChangeNotifier {
   Future<bool> updateBusinessBranding(int businessId, Map<String, dynamic> brandingData) async {
     try {
       final response = await http.put(
-        Uri.parse('https://rtailed-production.up.railway.app/api/branding/business/$businessId'),
+        Uri.parse('https://api.kismayoict.com/api/branding/business/$businessId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${_apiService.token ?? ''}',
@@ -235,7 +235,7 @@ class BrandingProvider extends ChangeNotifier {
     try {
             var request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://rtailed-production.up.railway.app/api/branding/business/$businessId/upload'),
+        Uri.parse('https://api.kismayoict.com/api/branding/business/$businessId/upload'),
       );
       
       // Use same header logic as product images
@@ -292,7 +292,7 @@ class BrandingProvider extends ChangeNotifier {
     try {
             var request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://rtailed-production.up.railway.app/api/branding/business/$businessId/upload'),
+        Uri.parse('https://api.kismayoict.com/api/branding/business/$businessId/upload'),
       );
       
       // Use same header logic as product images
@@ -349,7 +349,7 @@ class BrandingProvider extends ChangeNotifier {
   Future<void> loadThemes() async {
     try {
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/branding/themes'),
+        Uri.parse('https://api.kismayoict.com/api/branding/themes'),
         headers: {'Content-Type': 'application/json'},
       );
       
@@ -367,7 +367,7 @@ class BrandingProvider extends ChangeNotifier {
   Future<List<Map<String, dynamic>>> getBusinessFiles(int businessId) async {
     try {
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/branding/business/$businessId/files'),
+        Uri.parse('https://api.kismayoict.com/api/branding/business/$businessId/files'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${_apiService.token ?? ''}',
@@ -388,7 +388,7 @@ class BrandingProvider extends ChangeNotifier {
   Future<bool> deleteFile(int fileId) async {
     try {
       final response = await http.delete(
-        Uri.parse('https://rtailed-production.up.railway.app/api/branding/files/$fileId'),
+        Uri.parse('https://api.kismayoict.com/api/branding/files/$fileId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${_apiService.token ?? ''}',

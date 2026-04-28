@@ -1426,7 +1426,7 @@ class PdfExportService {
                   if (logoString.startsWith('/uploads/')) {
         try {
           // Use the same pattern as product images
-          final fullLogoUrl = 'https://rtailed-production.up.railway.app$logoString';
+          final fullLogoUrl = 'https://api.kismayoict.com$logoString';
                     final response = await http.get(Uri.parse(fullLogoUrl));
                     if (response.statusCode == 200) {
             final imageBytes = response.bodyBytes;

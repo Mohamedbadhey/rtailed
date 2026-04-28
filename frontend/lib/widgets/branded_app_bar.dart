@@ -60,7 +60,7 @@ class BrandedAppBar extends StatelessWidget implements PreferredSizeWidget {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: Image.network(
-                            'https://rtailed-production.up.railway.app$logoUrl',
+                            'https://api.kismayoict.com$logoUrl',
                             fit: BoxFit.contain,
                             errorBuilder: (context, error, stackTrace) => LocalLogo(
                               size: 40,
@@ -170,7 +170,7 @@ class BrandedLogoAppBar extends StatelessWidget implements PreferredSizeWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.network(
-                        'https://rtailed-production.up.railway.app$logoUrl',
+                        'https://api.kismayoict.com$logoUrl',
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) => LocalLogo(
                           size: logoSize,
@@ -256,7 +256,7 @@ class BrandedTitleAppBar extends StatelessWidget implements PreferredSizeWidget 
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(6),
                             child: Image.network(
-                              'https://rtailed-production.up.railway.app$logoUrl',
+                              'https://api.kismayoict.com$logoUrl',
                               fit: BoxFit.contain,
                               errorBuilder: (context, error, stackTrace) => LocalLogo(
                                 size: logoSize,

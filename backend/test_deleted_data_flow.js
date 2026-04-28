@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // Test configuration
-const BASE_URL = 'https://rtailed-production.up.railway.app';
+const BASE_URL = 'https://api.kismayoict.com';
 const TEST_EMAIL = 's@gmail.com';
 const TEST_PASSWORD = '123456';
 

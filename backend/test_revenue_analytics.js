@@ -16,7 +16,7 @@ async function testRevenueAnalytics() {
     for (const testCase of testCases) {
       console.log(`📊 Testing: ${testCase.name}`);
       
-      let url = 'https://rtailed-production.up.railway.app/api/admin/revenue-analytics';
+      let url = 'https://api.kismayoict.com/api/admin/revenue-analytics';
       if (testCase.start_date && testCase.end_date) {
         url += `?start_date=${testCase.start_date}&end_date=${testCase.end_date}`;
       }

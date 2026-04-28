@@ -118,7 +118,7 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
   Future<void> _loadBusinesses(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/businesses'),
+        Uri.parse('https://api.kismayoict.com/api/businesses'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
 
@@ -134,7 +134,7 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
   Future<void> _loadUsers(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/users'),
+        Uri.parse('https://api.kismayoict.com/api/admin/users'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
 
@@ -150,7 +150,7 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
   Future<void> _loadPayments(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/payments'),
+        Uri.parse('https://api.kismayoict.com/api/admin/payments'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
 
@@ -166,7 +166,7 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
   Future<void> _loadMessages(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/messages'),
+        Uri.parse('https://api.kismayoict.com/api/admin/messages'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
 
@@ -182,7 +182,7 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
   Future<void> _loadNotifications(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/notifications'),
+        Uri.parse('https://api.kismayoict.com/api/admin/notifications'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
 
@@ -198,7 +198,7 @@ class _SuperadminDashboardMobileState extends State<SuperadminDashboardMobile>
   Future<void> _loadAuditLogs(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('https://rtailed-production.up.railway.app/api/admin/audit-logs'),
+        Uri.parse('https://api.kismayoict.com/api/admin/audit-logs'),
         headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
       );
 

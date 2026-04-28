@@ -9,7 +9,7 @@ async function testFileUpload() {
     
     // First, login to get a token
     console.log('1. Logging in...');
-    const loginResponse = await axios.post('https://rtailed-production.up.railway.app/api/auth/login', {
+    const loginResponse = await axios.post('https://api.kismayoict.com/api/auth/login', {
       username: 'superadmin',
       password: 'admin123'
     });
@@ -49,7 +49,7 @@ async function testFileUpload() {
     formData.append('file', fs.createReadStream(testImagePath));
     formData.append('type', 'logo');
     
-    const uploadResponse = await axios.post('https://rtailed-production.up.railway.app/api/branding/system/upload', formData, {
+    const uploadResponse = await axios.post('https://api.kismayoict.com/api/branding/system/upload', formData, {
       headers: {
         'Authorization': `Bearer ${token}`,
         ...formData.getHeaders()
@@ -84,7 +84,7 @@ async function testFileUpload() {
 // Check if backend is running
 async function checkBackend() {
   try {
-    const response = await axios.get('https://rtailed-production.up.railway.app/api/auth/login');
+    const response = await axios.get('https://api.kismayoict.com/api/auth/login');
     console.log('Backend is running');
     return true;
   } catch (error) {

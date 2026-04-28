@@ -527,7 +527,7 @@ class _BusinessBrandingScreenState extends State<BusinessBrandingScreen> {
                             )
                       : currentImageUrl != null && currentImageUrl.isNotEmpty
                           ? Image.network(
-                              'https://rtailed-production.up.railway.app$currentImageUrl',
+                              'https://api.kismayoict.com$currentImageUrl',
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(

@@ -3,7 +3,7 @@
 
 const http = require('http');
 
-const BASE_URL = 'https://rtailed-production.up.railway.app';
+const BASE_URL = 'https://api.kismayoict.com';
 const BUSINESS_ID = 1; // Change this to test business ID
 const SUPERADMIN_TOKEN = 'YOUR_TOKEN_HERE'; // Replace with actual token
 
@@ -45,7 +45,7 @@ async function testBusinessReset() {
 function makeRequest(method, path, data = null) {
   return new Promise((resolve, reject) => {
     const options = {
-      hostname: 'rtailed-production.up.railway.app',
+      hostname: 'api.kismayoict.com',
       port: 443,
       path: path,
       method: method,

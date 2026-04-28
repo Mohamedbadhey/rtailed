@@ -18,7 +18,7 @@ import 'package:retail_management/services/notification_service.dart';
 import 'package:toast/toast.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://rtailed-production.up.railway.app';
+  static const String baseUrl = 'https://api.kismayoict.com';
   String? _token;
   final NetworkService _networkService = NetworkService();
   

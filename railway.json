@@ -1,8 +1,17 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "DOCKERFILE",
-    "source": "backend"
+    "builder": "NIXPACKS",
+    "source": ".",
+    "watchPatterns": [
+      "backend/src/**/*",
+      "backend/package.json",
+      "backend/package-lock.json",
+      "nixpacks.toml",
+      "package.json",
+      "railway.toml",
+      "railway.json"
+    ]
   },
   "deploy": {
     "startCommand": "npm start",

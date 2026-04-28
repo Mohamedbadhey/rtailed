@@ -2,7 +2,7 @@ providers = ["node"]
 
 # Explicit phases so Nixpacks won't try to run during build
 [phases.setup]
-nixPkgs = ["nodejs"]
+nixPkgs = ["nodejs", "python3", "gcc", "gnumake", "pkg-config"]
 
 [phases.install]
 cmds = [

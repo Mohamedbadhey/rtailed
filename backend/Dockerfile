@@ -11,16 +11,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     make \
     g++ \
-  && rm -rf /var/libapt/lists/*
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Install deps first (use lockfile if present)
-COPY package*.json ./
+COPY backend/package*.json ./
 RUN npm ci --omit=dev
 
 # Copy source
-COPY src ./src
+COPY backend/src ./src
+COPY backend/scripts ./scripts
+COPY backend/setup_uploads_directories.js ./setup_uploads_directories.js
+COPY privacy_policy.html ./privacy_policy.html
+COPY data_deletion_request.html ./data_deletion_request.html
+COPY account_deletion_request.html ./account_deletion_request.html
 
 # Create uploads directories directly in Dockerfile
 RUN mkdir -p uploads/products uploads/branding && \

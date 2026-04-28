@@ -48,6 +48,8 @@ class _POSScreenState extends State<POSScreen> {
   Map<String, int> _categoryNameToId = {}; // name -> id
   Timer? _filterDebounce; // debounce for search/category changes to avoid spam requests.
   String _latestSearchTerm = ''; // Track latest search term to ignore stale responses
+  int _lastRequestId = 0; // Monotonic request counter to guard against stale responses
+  int _nextRequestId() => ++_lastRequestId;
   
   // unused after switching to Load More
   void _onProductScroll() {
@@ -161,6 +163,7 @@ class _POSScreenState extends State<POSScreen> {
 
     setState(() {
       _isLoading = true;
+      _isPageLoading = false; // ensure not stuck from a stale previous request
       _products = [];
       _filteredProducts = [];
       _currentPage = 1;
@@ -187,7 +190,8 @@ class _POSScreenState extends State<POSScreen> {
       });
 
       // Fetch first page
-      await _fetchProductsPage(reset: true, searchTerm: currentSearch);
+      final int reqId = _nextRequestId();
+      await _fetchProductsPage(reset: true, searchTerm: currentSearch, requestId: reqId);
 
       setState(() {
         _isLoading = false;
@@ -201,8 +205,10 @@ class _POSScreenState extends State<POSScreen> {
     }
   }
 
-  Future<void> _fetchProductsPage({bool reset = false, String? searchTerm}) async {
+  Future<void> _fetchProductsPage({bool reset = false, String? searchTerm, int? requestId}) async {
     if (_isPageLoading) return;
+    // Assign a unique request id for this fetch; if a newer request starts later, this one becomes stale
+    final int localRequestId = requestId ?? _nextRequestId();
     final requestSearchTerm = searchTerm ?? _searchController.text;
     setState(() { _isPageLoading = true; });
 
@@ -217,8 +223,12 @@ class _POSScreenState extends State<POSScreen> {
       );
 
       // Validate response is not stale (ignore if search term changed since request started)
-      if (_searchController.text != requestSearchTerm) {
-        return; // Stale response, discard
+      if (_searchController.text != requestSearchTerm || _lastRequestId != localRequestId) {
+        // Stale response: ensure loading flag is cleared so UI can trigger new fetches
+        if (mounted) {
+          setState(() { _isPageLoading = false; });
+        }
+        return; // Discard stale response
       }
 
       final newItems = List<Product>.from(result['items'] as List<Product>);
@@ -237,11 +247,11 @@ class _POSScreenState extends State<POSScreen> {
 
       _applyFilters();
     } catch (e) {
-      if (mounted && _searchController.text == requestSearchTerm) {
+      if (mounted && _searchController.text == requestSearchTerm && _lastRequestId == localRequestId) {
         Future.delayed(const Duration(seconds: 2), () {
-          if (mounted && _searchController.text == requestSearchTerm) {
-            _isPageLoading = false;
-            _fetchProductsPage(reset: reset, searchTerm: requestSearchTerm);
+          if (mounted && _searchController.text == requestSearchTerm && _lastRequestId == localRequestId) {
+            setState(() { _isPageLoading = false; });
+            _fetchProductsPage(reset: reset, searchTerm: requestSearchTerm, requestId: localRequestId);
           }
         });
       }

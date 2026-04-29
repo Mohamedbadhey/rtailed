@@ -2757,7 +2757,9 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                               },
                               displayStringForOption: (Customer option) => option.name,
                               fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-                                controller.text = _selectedCustomer?.name ?? _customerNameController.text;
+                                // Do not overwrite the text every build; this causes the field to reset and appear stuck.
+// Autocomplete manages its own controller; we only sync state via onChanged/onSelected.
+// controller.text = _selectedCustomer?.name ?? _customerNameController.text;
                                 return TextFormField(
                                   controller: controller,
                                   focusNode: focusNode,

@@ -13,10 +13,6 @@ import 'package:retail_management/utils/theme.dart';
 
 import 'manage_cashiers_screen.dart';
 
-class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
-}
-
 class RecentReceiptsDialog extends StatefulWidget {
   const RecentReceiptsDialog({super.key});
 
@@ -45,7 +41,7 @@ class _RecentReceiptsDialogState extends State<RecentReceiptsDialog> {
       List<Map<String, dynamic>> rows = [];
       for (final s in raw) {
         if (s is Map<String, dynamic>) {
-          rows.add(s);
+          rows.add(s as Map<String, dynamic>);
         } else if (s is Sale) {
           rows.add({
             'id': s.id,

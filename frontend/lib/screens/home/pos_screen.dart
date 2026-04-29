@@ -1703,7 +1703,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
               onPressed: () => Navigator.of(ctx).pop(),
               child: const Text('Skip'),
             ),
-            TextButton(
+            ElevatedButton(
               onPressed: () async {
                 Navigator.of(ctx).pop();
                 // 58mm
@@ -1711,14 +1711,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
               },
               child: const Text('Print 58mm'),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(ctx).pop();
-                // 80mm
-                await ReceiptService.printSaleReceipt(context, saleId: saleId, paper: ReceiptPaper.mm80);
-              },
-              child: const Text('Print 80mm'),
-            ),
+            
           ],
         );
       },

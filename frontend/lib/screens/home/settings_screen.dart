@@ -4,12 +4,129 @@ import 'package:retail_management/providers/auth_provider.dart';
 import 'package:retail_management/providers/settings_provider.dart';
 import 'package:retail_management/providers/branding_provider.dart';
 import 'package:retail_management/services/api_service.dart';
+import 'package:retail_management/services/receipt_service.dart';
+import 'package:retail_management/models/sale.dart';
 
 import 'package:retail_management/widgets/branded_header.dart';
 import 'package:retail_management/utils/translate.dart';
 import 'package:retail_management/utils/theme.dart';
 
 import 'manage_cashiers_screen.dart';
+
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+}
+
+class RecentReceiptsDialog extends StatefulWidget {
+  const RecentReceiptsDialog({super.key});
+
+  @override
+  State<RecentReceiptsDialog> createState() => _RecentReceiptsDialogState();
+}
+
+class _RecentReceiptsDialogState extends State<RecentReceiptsDialog> {
+  final ApiService _api = ApiService();
+  bool _loading = true;
+  String? _error;
+  List<Map<String, dynamic>> _sales = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      // Fetch recent sales; ApiService.getSales returns List<Sale> or List<Map<String,dynamic>>
+      final raw = await _api.getSales();
+      // Normalize to maps for the dialog, and sort desc by createdAt if present
+      List<Map<String, dynamic>> rows = [];
+      for (final s in raw) {
+        if (s is Map<String, dynamic>) {
+          rows.add(s);
+        } else if (s is Sale) {
+          rows.add({
+            'id': s.id,
+            'sale_id': s.id,
+            'created_at': s.createdAt?.toIso8601String(),
+            'payment_method': s.paymentMethod,
+            'total_amount': s.totalAmount,
+          });
+        }
+      }
+      rows.sort((a, b) {
+        final da = DateTime.tryParse((a['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final db = DateTime.tryParse((b['created_at'] ?? '').toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return db.compareTo(da);
+      });
+      if (rows.length > 50) rows = rows.sublist(0, 50);
+      setState(() { _sales = rows; _loading = false; });
+    } catch (e) {
+      setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  String _fmtDate(String? iso) {
+    if (iso == null || iso.isEmpty) return '';
+    final dt = DateTime.tryParse(iso);
+    if (dt == null) return iso;
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(dt.hour)}:${two(dt.minute)}  ${two(dt.day)}/${two(dt.month)}/${dt.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Recent Receipts'),
+      content: SizedBox(
+        width: 520,
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Text('Failed to load: $_error')
+                : _sales.isEmpty
+                    ? const Text('No recent receipts found')
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _sales.length,
+                        itemBuilder: (context, i) {
+                          final s = _sales[i];
+                          final id = int.tryParse((s['sale_id'] ?? s['id']).toString()) ?? 0;
+                          final pm = (s['payment_method'] ?? '').toString();
+                          final total = (s['total_amount'] ?? s['total']).toString();
+                          final dt = (s['created_at'] ?? '').toString();
+                          return ListTile(
+                            leading: const Icon(Icons.receipt_long),
+                            title: Text('Receipt #$id'),
+                            subtitle: Text('${_fmtDate(dt)}  •  ${pm.toUpperCase()}  •  $total'),
+                            trailing: ElevatedButton(
+                              onPressed: id == 0
+                                  ? null
+                                  : () async {
+                                      await ReceiptService.printSaleReceipt(context, saleId: id, paper: ReceiptPaper.mm58);
+                                    },
+                              child: const Text('Reprint 58mm'),
+                            ),
+                          );
+                        },
+                      ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+        IconButton(
+          tooltip: 'Refresh',
+          onPressed: _load,
+          icon: const Icon(Icons.refresh),
+        ),
+      ],
+    );
+  }
+}
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -234,6 +351,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             
+            ListTile(
+              leading: Icon(
+                Icons.receipt_long,
+                color: Colors.teal,
+                size: isSmallMobile ? 20 : 22,
+              ),
+              title: Text(
+                'Recent Receipts',
+                style: TextStyle(fontSize: isSmallMobile ? 14 : 16),
+              ),
+              subtitle: Text(
+                'Reprint a recent 58mm receipt',
+                style: TextStyle(fontSize: isSmallMobile ? 11 : 12),
+              ),
+              trailing: Icon(
+                Icons.arrow_forward_ios,
+                size: isSmallMobile ? 16 : 20,
+              ),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => const RecentReceiptsDialog(),
+                );
+              },
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: isSmallMobile ? 8 : 16,
+                vertical: isSmallMobile ? 4 : 8,
+              ),
+            ),
+
             ListTile(
               title: Text(
                 t(context, 'Language'),

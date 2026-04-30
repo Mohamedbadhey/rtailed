@@ -80,10 +80,11 @@ class ReceiptService {
     required Map<String, dynamic> business,
     required ReceiptPaper paper,
   }) async {
-    // Choose thermal roll format
-    final pageFormat = paper == ReceiptPaper.mm58
-        ? PdfPageFormat.roll57
-        : PdfPageFormat.roll80; // close to 58/80mm effective widths
+    // Choose paper width with finite height (MultiPage requires finite height)
+    // We use a tall fixed height and let MultiPage paginate automatically.
+    final double widthMm = paper == ReceiptPaper.mm58 ? 57.0 : 80.0;
+    final double heightMm = 200.0; // per-page slice; MultiPage will add pages as needed
+    final pageFormat = PdfPageFormat(widthMm * PdfPageFormat.mm, heightMm * PdfPageFormat.mm);
 
     final doc = pw.Document();
 
@@ -115,12 +116,13 @@ class ReceiptService {
       totalAmount += q * unit;
     }
 
-    // Styles
-    final regular = pw.TextStyle(fontSize: 8);
-    final small = pw.TextStyle(fontSize: 7);
-    final bold = pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold);
-    final mono = pw.TextStyle(fontSize: 8);
-    final monoBold = pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold);
+    // Styles (slightly larger on 80mm)
+    final bool is80 = paper == ReceiptPaper.mm80;
+    final regular = pw.TextStyle(fontSize: is80 ? 9 : 8);
+    final small = pw.TextStyle(fontSize: is80 ? 8 : 7);
+    final bold = pw.TextStyle(fontSize: is80 ? 10 : 9, fontWeight: pw.FontWeight.bold);
+    final mono = pw.TextStyle(fontSize: is80 ? 9 : 8);
+    final monoBold = pw.TextStyle(fontSize: is80 ? 9 : 8, fontWeight: pw.FontWeight.bold);
 
     pw.Widget header() => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.center,
@@ -204,6 +206,87 @@ class ReceiptService {
       return pw.Column(children: rows);
     }
 
+    List<pw.Widget> itemsRows() {
+      final rows = <pw.Widget>[];
+
+      // Header row
+      rows.add(
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Expanded(flex: 6, child: pw.Text('Item', style: monoBold)),
+            pw.SizedBox(width: 4),
+            pw.Expanded(flex: 3, child: pw.Text('Qty', style: monoBold, textAlign: pw.TextAlign.right)),
+            pw.SizedBox(width: 4),
+            pw.Expanded(flex: 4, child: pw.Text('Price', style: monoBold, textAlign: pw.TextAlign.right)),
+            pw.SizedBox(width: 4),
+            pw.Expanded(flex: 4, child: pw.Text('Total', style: monoBold, textAlign: pw.TextAlign.right)),
+          ],
+        ),
+      );
+
+      rows.add(pw.SizedBox(height: 2));
+
+      // Item lines (wrap product name to fit width)
+      for (final it in items) {
+        final name = (it['product_name'] ?? it['name'] ?? 'Product').toString();
+        final qty = _safeToDouble(it['quantity']);
+        final unit = _safeToDouble(it['unit_price'] ?? it['sale_unit_price'] ?? it['price']);
+        final lineTotal = qty * unit;
+
+        rows.add(
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Expanded(
+                flex: 6,
+                child: pw.Text(
+                  name,
+                  style: mono,
+                  softWrap: true,
+                  maxLines: 3,
+                  overflow: pw.TextOverflow.clip,
+                ),
+              ),
+              pw.SizedBox(width: 4),
+              pw.Expanded(flex: 3, child: pw.Text(_fmtQty(qty), style: mono, textAlign: pw.TextAlign.right)),
+              pw.SizedBox(width: 4),
+              pw.Expanded(flex: 4, child: pw.Text(_fmt(unit), style: mono, textAlign: pw.TextAlign.right)),
+              pw.SizedBox(width: 4),
+              pw.Expanded(flex: 4, child: pw.Text(_fmt(lineTotal), style: mono, textAlign: pw.TextAlign.right)),
+            ],
+          ),
+        );
+      }
+
+      rows.add(pw.Divider(thickness: 1));
+
+      // Totals line
+      rows.add(
+        pw.Row(
+          children: [
+            pw.Expanded(
+              flex: 13,
+              child: pw.Text(
+                'TOTAL',
+                style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+              ),
+            ),
+            pw.Expanded(
+              flex: 4,
+              child: pw.Text(
+                _fmt(totalAmount),
+                style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                textAlign: pw.TextAlign.right,
+              ),
+            ),
+          ],
+        ),
+      );
+
+      return rows;
+    }
+
     pw.Widget footer() => pw.Column(
           children: [
             pw.SizedBox(height: 4),
@@ -217,23 +300,60 @@ class ReceiptService {
           ],
         );
 
-    doc.addPage(
-      pw.Page(
-        pageFormat: pageFormat,
-        margin: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-        build: (context) {
-          return pw.Column(
+    // Build rows once and paginate manually using fixed-height pages
+    final allRows = itemsRows();
+
+    // Split rows into: headerRow + dataRows + [divider, total]
+    final headerRow = allRows.first;
+    // Assume last two are divider and total block as built above
+    final tailCount = allRows.length >= 2 ? 2 : 0;
+    final dataRows = allRows.sublist(1, allRows.length - tailCount);
+    final tailRows = tailCount == 0 ? <pw.Widget>[] : allRows.sublist(allRows.length - tailCount);
+
+    // Pagination: number of data rows per page (conservative to avoid overflow)
+    // Estimate rows per page conservatively based on paper width
+    final int dataRowsPerPage = is80 ? 44 : 36; // 80mm fits more
+
+    List<List<pw.Widget>> chunks = [];
+    for (int i = 0; i < dataRows.length; i += dataRowsPerPage) {
+      final end = (i + dataRowsPerPage < dataRows.length) ? i + dataRowsPerPage : dataRows.length;
+      chunks.add(dataRows.sublist(i, end));
+    }
+
+    if (chunks.isEmpty) {
+      chunks = [[/* empty chunk to create at least one page */]];
+    }
+
+    // Reserve space on the last page for totals + footer by slightly reducing rows used on the last chunk
+    for (int pageIndex = 0; pageIndex < chunks.length; pageIndex++) {
+      final isLast = pageIndex == chunks.length - 1;
+      final pageChildren = <pw.Widget>[];
+
+      if (pageIndex == 0) {
+        pageChildren.addAll([header(), saleMeta()]);
+      }
+
+      // Repeat table header on each page
+      pageChildren.add(headerRow);
+      pageChildren.add(pw.SizedBox(height: 2));
+      pageChildren.addAll(chunks[pageIndex]);
+
+      if (isLast) {
+        pageChildren.addAll(tailRows); // divider + total
+        pageChildren.add(footer());
+      }
+
+      doc.addPage(
+        pw.Page(
+          pageFormat: pageFormat,
+          margin: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          build: (context) => pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-            children: [
-              header(),
-              saleMeta(),
-              itemsTable(),
-              footer(),
-            ],
-          );
-        },
-      ),
-    );
+            children: pageChildren,
+          ),
+        ),
+      );
+    }
 
     return doc.save();
   }

@@ -38,7 +38,7 @@ class PdfExportService {
     final pdf = pw.Document();
     
     // Calculate how many rows can fit per page - optimized for maximum data
-    const int rowsPerPage = 35; // Maximized for compact layout
+    const int rowsPerPage = 20; // Safer value to avoid page overflow and blank pages
     const int headerHeight = 120; // Reduced header height
     const int summaryHeight = 80; // Reduced summary height
     const int pageHeight = 800; // Approximate available height per page

@@ -28,9 +28,15 @@ Future<bool> printEscPosBytes({
     await qz.websocket.connect();
 
     final config = await qz.configs.create(printer ?? null);
-    final data = [
-      { 'type': 'raw', 'format': 'base64', 'data': base64Encode(bytes) }
-    ];
+
+    // Chunk large ESC/POS payloads to avoid device buffer issues
+    const int chunkSize = 16 * 1024; // 16KB
+    final List<dynamic> data = [];
+    for (int i = 0; i < bytes.length; i += chunkSize) {
+      final end = (i + chunkSize < bytes.length) ? i + chunkSize : bytes.length;
+      final slice = bytes.sublist(i, end);
+      data.add({ 'type': 'raw', 'format': 'base64', 'data': base64Encode(slice) });
+    }
 
     await qz.print(config, data);
     return true;

@@ -1035,6 +1035,23 @@ class ApiService {
   }
 
   // Cancel/Refund a sale transaction
+  Future<Map<String, dynamic>> returnSaleItem(int saleId, int saleItemId, {int quantity = 1, String? reason, String? refundMethod}) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/sales/$saleId/items/$saleItemId/return'),
+      headers: _headers,
+      body: json.encode({
+        'quantity': quantity,
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+        if (refundMethod != null) 'refund_method': refundMethod,
+      }),
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      final errorData = json.decode(response.body);
+      throw Exception(errorData['message'] ?? 'Failed to return sale item');
+    }
+    return TypeConverter.safeToMap(json.decode(response.body));
+  }
+
   Future<Map<String, dynamic>> cancelSale(int saleId, String reason, {String? refundMethod}) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/sales/$saleId/cancel'),

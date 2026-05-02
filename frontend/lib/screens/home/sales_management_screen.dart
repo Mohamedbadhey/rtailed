@@ -18,7 +18,6 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
   
   List<Sale> _sales = [];
   Map<int, List<Map<String, dynamic>>> _saleItems = {}; // Store sale items for each sale
-  final Set<int> _loadingSaleItems = {}; // Track in-flight item loads to avoid duplicates
   bool _isLoading = true;
   String? _error;
   DateTime? _filterStartDate;
@@ -46,29 +45,23 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
         final bDate = b.createdAt ?? DateTime(1900);
         return bDate.compareTo(aDate); // Most recent first
       });
-
-      // Prefetch items only for first N sales, and do it in parallel
-      const int prefetchLimit = 10; // quick speedup without backend changes
-      final visibleSales = sales.take(prefetchLimit).where((s) => s.id != null).toList();
-
+      
+      // Load sale items for each sale
       final saleItemsMap = <int, List<Map<String, dynamic>>>{};
-
-      // Parallelize item fetches
-      await Future.wait(visibleSales.map((sale) async {
-        try {
-          _loadingSaleItems.add(sale.id!);
-          final items = await _apiService.getSaleItems(sale.id!);
-          saleItemsMap[sale.id!] = items;
-        } catch (_) {
-          saleItemsMap[sale.id!] = const [];
-        } finally {
-          _loadingSaleItems.remove(sale.id!);
+      for (final sale in sales) {
+        if (sale.id != null) {
+          try {
+            final items = await _apiService.getSaleItems(sale.id!);
+            saleItemsMap[sale.id!] = items;
+          } catch (e) {
+            saleItemsMap[sale.id!] = [];
+          }
         }
-      }));
-
+      }
+      
       setState(() {
         _sales = sales;
-        _saleItems = saleItemsMap; // others will lazy-load on demand
+        _saleItems = saleItemsMap;
         _isLoading = false;
       });
     } catch (e) {
@@ -76,25 +69,6 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
         _error = e.toString();
         _isLoading = false;
       });
-    }
-  }
-
-  Future<void> _ensureSaleItemsLoaded(int saleId) async {
-    if (_saleItems.containsKey(saleId) || _loadingSaleItems.contains(saleId)) return;
-    try {
-      _loadingSaleItems.add(saleId);
-      final items = await _apiService.getSaleItems(saleId);
-      if (!mounted) return;
-      setState(() {
-        _saleItems[saleId] = items;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _saleItems[saleId] = const [];
-      });
-    } finally {
-      _loadingSaleItems.remove(saleId);
     }
   }
 
@@ -446,19 +420,6 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
                       SizedBox(height: isSmallMobile ? 12 : (isMobile ? 16 : 24)),
                       
                       // Sales List - Scrollable within main scroll
-                      // Lazy-load items for initially visible sales to keep UI responsive
-                      Builder(builder: (context){
-                        // schedule after build so we don't put Futures in widget tree
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          for (final s in _filteredSales.take(10)) {
-                            final id = s.id;
-                            if (id != null) {
-                              _ensureSaleItemsLoaded(id);
-                            }
-                          }
-                        });
-                        return const SizedBox.shrink();
-                      }),
                       _filteredSales.isEmpty
                           ? Center(
                               child: Column(
@@ -1109,24 +1070,15 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
                 ],
                ],
              ),
-             trailing: Row(
-               mainAxisSize: MainAxisSize.min,
-               children: [
-                 IconButton(
-                   icon: const Icon(Icons.undo, color: Colors.orange),
-                   tooltip: t(context, 'Return Item'),
-                   onPressed: () => _showReturnItemDialog(sale),
-                 ),
-                 if (canCancel)
-                   IconButton(
+             trailing: canCancel
+                 ? IconButton(
                      icon: const Icon(Icons.cancel, color: Colors.red),
                      onPressed: () => _cancelSale(sale),
                      tooltip: t(context, 'Cancel Sale'),
                    )
-                 else if (sale.status == 'cancelled')
-                   const Icon(Icons.cancel, color: Colors.grey),
-               ],
-             ),
+                 : sale.status == 'cancelled'
+                     ? const Icon(Icons.cancel, color: Colors.grey)
+                     : null,
            ),
          );
        }),
@@ -1274,24 +1226,17 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
                   ),
                 ),
               ),
-              DataCell(Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.undo, color: Colors.orange),
-                    onPressed: () => _showReturnItemDialog(sale),
-                    tooltip: t(context, 'Return Item'),
-                  ),
-                  if (canCancel)
-                    IconButton(
-                      icon: const Icon(Icons.cancel, color: Colors.red),
-                      onPressed: () => _cancelSale(sale),
-                      tooltip: t(context, 'Cancel Sale'),
-                    )
-                  else if (sale.status == 'cancelled')
-                    const Icon(Icons.cancel, color: Colors.grey),
-                ],
-              )),
+              DataCell(
+                canCancel
+                    ? IconButton(
+                        icon: const Icon(Icons.cancel, color: Colors.red),
+                        onPressed: () => _cancelSale(sale),
+                        tooltip: t(context, 'Cancel Sale'),
+                      )
+                    : sale.status == 'cancelled'
+                        ? const Icon(Icons.cancel, color: Colors.grey)
+                        : const SizedBox.shrink(),
+              ),
             ],
           );
         }).toList(),
@@ -1365,107 +1310,6 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
     if (value is int) return value.toDouble();
     if (value is String) return double.tryParse(value) ?? 0.0;
     return 0.0;
-  }
-
-  Future<void> _showReturnItemDialog(Sale sale, {Map<String, dynamic>? saleItem}) async {
-    // Ensure items are available
-    if (sale.id != null && _saleItems[sale.id] == null) {
-      await _ensureSaleItemsLoaded(sale.id!);
-    }
-    final items = saleItem != null ? [saleItem] : (_saleItems[sale.id] ?? const []);
-
-    if (items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t(context, 'No items found for this sale.'))),
-      );
-      return;
-    }
-
-    Map<String, dynamic>? chosenItem;
-    int returnQty = 1;
-    final qtyController = TextEditingController(text: '1');
-    final reasonController = TextEditingController();
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(t(context, 'Return Item from Sale #${sale.id ?? ''}')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (saleItem == null)
-                DropdownButtonFormField<Map<String, dynamic>>(
-                  decoration: InputDecoration(labelText: t(context, 'Select Item')),
-                  items: items.map((it) {
-                    final name = it['product_name'] ?? it['name'] ?? 'Item';
-                    final q = _safeInt(it['quantity']);
-                    return DropdownMenuItem<Map<String, dynamic>>(
-                      value: it,
-                      child: Text('$name x$q'),
-                    );
-                  }).toList(),
-                  onChanged: (v) => chosenItem = v,
-                )
-              else
-                Builder(builder: (_) {
-                  final it = saleItem;
-                  final name = it['product_name'] ?? it['name'] ?? 'Item';
-                  final q = _safeInt(it['quantity']);
-                  return Text('$name x$q');
-                }),
-              const SizedBox(height: 8),
-              TextField(
-                controller: qtyController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: t(context, 'Quantity to return')),
-                onChanged: (v) {
-                  final n = int.tryParse(v) ?? 1;
-                  returnQty = n > 0 ? n : 1;
-                },
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: reasonController,
-                decoration: InputDecoration(labelText: t(context, 'Reason (optional)')),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text(t(context, 'Close'))),
-            ElevatedButton(
-              onPressed: () async {
-                final it = saleItem ?? chosenItem ?? (items.isNotEmpty ? items.first : null);
-                if (it == null) return;
-                final ok = await _returnSaleItem(sale, it, returnQty, reasonController.text.trim());
-                if (ok && mounted) Navigator.pop(context);
-              },
-              child: Text(t(context, 'Confirm Return')),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<bool> _returnSaleItem(Sale sale, Map<String, dynamic> item, int qty, String? reason) async {
-    try {
-      final saleItemId = _safeInt(item['id']);
-      if (sale.id == null || saleItemId == 0) throw Exception('Invalid sale/item');
-      await _apiService.returnSaleItem(sale.id!, saleItemId, quantity: qty, reason: reason);
-      // Refresh this sale's items afterward
-      await _ensureSaleItemsLoaded(sale.id!);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t(context, 'Item returned successfully'))),
-      );
-      return true;
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${t(context, 'Return failed')}: $e'), backgroundColor: Colors.red),
-      );
-      return false;
-    }
   }
 
   void _showAdvancedFilters() {

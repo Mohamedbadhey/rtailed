@@ -453,7 +453,7 @@ router.get('/report', auth, async (req, res) => {
       FROM sale_items si 
       JOIN products p ON si.product_id = p.id 
       JOIN sales s ON si.sale_id = s.id 
-      WHERE (s.status = "completed" OR (s.payment_method = "credit" AND s.status != "cancelled")) AND s.parent_sale_id IS NULL
+      WHERE ((s.parent_sale_id IS NULL AND (s.status = "completed" OR (s.payment_method = "credit" AND s.status != "cancelled"))) OR (s.parent_sale_id IS NOT NULL AND s.status = "returned"))
     `;
     let cogsParams = [];
     if (req.user.role !== 'superadmin') {

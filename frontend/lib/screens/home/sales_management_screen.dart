@@ -1030,9 +1030,7 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
                        borderRadius: BorderRadius.circular(4),
                        border: Border.all(color: Colors.green[200]!),
                      ),
-                     child: (sale.status == 'cancelled')
-                         ? const SizedBox.shrink()
-                         : Column(
+                     child: Column(
                        crossAxisAlignment: CrossAxisAlignment.start,
                        children: [
                          Text(
@@ -1045,7 +1043,7 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
                          ),
                          SizedBox(height: isSmallMobile ? 2 : 4),
                                                    ...(_saleItems[sale.id]!.take(3).map((item) => Text(
-                            '• ${item['product_name'] ?? 'Unknown Product'} x${_safeInt(item['quantity'])} @\$${_safeDouble(item['unit_price']).toStringAsFixed(2)} (Cost: \$${_safeDouble(item['costprice']).toStringAsFixed(2)})',
+                            '• ${item['product_name'] ?? 'Unknown Product'} x${_safeInt(item['quantity'])} @\$${_safeDouble(item['unit_price']).toStringAsFixed(2)}',
                             style: TextStyle(
                               fontSize: isSmallMobile ? 7 : (isMobile ? 8 : 9),
                               color: Colors.green[600],
@@ -1391,83 +1389,62 @@ class _SalesManagementScreenState extends State<SalesManagementScreen> {
     await showDialog(
       context: context,
       builder: (context) {
-        return StatefulBuilder(builder: (context, setState) {
-          Map<String, dynamic>? current = saleItem ?? chosenItem ?? (items.isNotEmpty ? items.first : null);
-          final name = current?['product_name'] ?? current?['name'] ?? 'Item';
-          final q = _safeInt(current?['quantity']);
-          final unit = _safeDouble(current?['unit_price']);
-          final cost = _safeDouble(current?['costprice']);
-          final margin = (unit - cost);
-
-          return AlertDialog(
-            title: Text(t(context, 'Return Item from Sale #${sale.id ?? ''}')),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (saleItem == null)
-                  DropdownButtonFormField<Map<String, dynamic>>(
-                    decoration: InputDecoration(labelText: t(context, 'Select Item')),
-                    items: items.map((it) {
-                      final n = it['product_name'] ?? it['name'] ?? 'Item';
-                      final qq = _safeInt(it['quantity']);
-                      return DropdownMenuItem<Map<String, dynamic>>(
-                        value: it,
-                        child: Text('$n x$qq'),
-                      );
-                    }).toList(),
-                    onChanged: (v) => setState(() { chosenItem = v; }),
-                  )
-                else
-                  Text('$name x$q'),
-                const SizedBox(height: 8),
-                Card(
-                  color: Colors.blueGrey[50],
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('${t(context, 'Product')}: $name'),
-                        Text('${t(context, 'Sold qty')}: x$q'),
-                        Text('${t(context, 'Unit price')}: \$${unit.toStringAsFixed(2)}'),
-                        Text('${t(context, 'Cost')}: \$${cost.toStringAsFixed(2)}'),
-                        Text('${t(context, 'Unit margin')}: \$${margin.toStringAsFixed(2)}'),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: qtyController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(labelText: t(context, 'Quantity to return (max $q)')),
-                  onChanged: (v) {
-                    final n = int.tryParse(v) ?? 1;
-                    setState(() { returnQty = n > 0 ? n : 1; });
-                  },
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: reasonController,
-                  decoration: InputDecoration(labelText: t(context, 'Reason (optional)')),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: Text(t(context, 'Close'))),
-              ElevatedButton(
-                onPressed: () async {
-                  final it = saleItem ?? chosenItem ?? (items.isNotEmpty ? items.first : null);
-                  if (it == null) return;
-                  final ok = await _returnSaleItem(sale, it, returnQty, reasonController.text.trim());
-                  if (ok && mounted) Navigator.pop(context);
+        return AlertDialog(
+          title: Text(t(context, 'Return Item from Sale #${sale.id ?? ''}')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (saleItem == null)
+                DropdownButtonFormField<Map<String, dynamic>>(
+                  decoration: InputDecoration(labelText: t(context, 'Select Item')),
+                  items: items.map((it) {
+                    final name = it['product_name'] ?? it['name'] ?? 'Item';
+                    final q = _safeInt(it['quantity']);
+                    return DropdownMenuItem<Map<String, dynamic>>(
+                      value: it,
+                      child: Text('$name x$q'),
+                    );
+                  }).toList(),
+                  onChanged: (v) => chosenItem = v,
+                )
+              else
+                Builder(builder: (_) {
+                  final it = saleItem;
+                  final name = it['product_name'] ?? it['name'] ?? 'Item';
+                  final q = _safeInt(it['quantity']);
+                  return Text('$name x$q');
+                }),
+              const SizedBox(height: 8),
+              TextField(
+                controller: qtyController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(labelText: t(context, 'Quantity to return')),
+                onChanged: (v) {
+                  final n = int.tryParse(v) ?? 1;
+                  returnQty = n > 0 ? n : 1;
                 },
-                child: Text(t(context, 'Confirm Return')),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: reasonController,
+                decoration: InputDecoration(labelText: t(context, 'Reason (optional)')),
               ),
             ],
-          );
-        });
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(t(context, 'Close'))),
+            ElevatedButton(
+              onPressed: () async {
+                final it = saleItem ?? chosenItem ?? (items.isNotEmpty ? items.first : null);
+                if (it == null) return;
+                final ok = await _returnSaleItem(sale, it, returnQty, reasonController.text.trim());
+                if (ok && mounted) Navigator.pop(context);
+              },
+              child: Text(t(context, 'Confirm Return')),
+            ),
+          ],
+        );
       },
     );
   }

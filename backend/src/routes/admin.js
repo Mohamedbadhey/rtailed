@@ -176,8 +176,7 @@ router.get('/businesses/:businessId/details', auth, superadminOnly, async (req, 
       [businessId]
     );
 
-    // Add debugging information
-    res.json({
+    // Add debugging information    res.json({
       business: {
         id: business.id,
         name: business.name,
@@ -269,8 +268,7 @@ router.get('/businesses/:businessId/details', auth, superadminOnly, async (req, 
 
 // Test endpoint to verify business data isolation
 router.get('/test-business-isolation', auth, superadminOnly, async (req, res) => {
-  try {
-    // Get all businesses with their data counts
+  try {    // Get all businesses with their data counts
     const [businesses] = await pool.query(
       `SELECT 
         b.id,
@@ -434,16 +432,14 @@ router.get('/users', auth, checkRole(['admin', 'manager', 'superadmin']), async 
 router.put('/users/:id/status', auth, adminOrSuperadminForCashier, async (req, res) => {
   try {
     const { id } = req.params;
-    const { is_active } = req.body;
-    // Verify the target user belongs to the same business (for non-superadmin users)
+    const { is_active } = req.body;    // Verify the target user belongs to the same business (for non-superadmin users)
     if (req.user.role !== 'superadmin') {
       const [targetUser] = await pool.query(
         'SELECT id, role FROM users WHERE id = ? AND business_id = ?',
         [id, req.user.business_id]
       );
       
-      if (targetUser.length === 0) {
-        return res.status(404).json({ message: 'User not found' });
+      if (targetUser.length === 0) {        return res.status(404).json({ message: 'User not found' });
       }
       
       // Only allow updating cashier status for non-superadmin users
@@ -455,9 +451,7 @@ router.put('/users/:id/status', auth, adminOrSuperadminForCashier, async (req, r
     const [result] = await pool.query(
       'UPDATE users SET is_active = ? WHERE id = ?',
       [is_active, id]
-    );
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'User not found' });
+    );    if (result.affectedRows === 0) {      return res.status(404).json({ message: 'User not found' });
     }
     // Log the action
     await pool.query(
@@ -1130,8 +1124,7 @@ router.post('/users/check-username', auth, adminOrSuperadminForCashier, async (r
 router.put('/users/:id', auth, adminOrSuperadminForCashier, async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, email, role, is_active } = req.body;
-    // Validate required fields
+    const { username, email, role, is_active } = req.body;    // Validate required fields
     if (!username || !email || !role) {
       return res.status(400).json({ 
         message: 'Username, email, and role are required',
@@ -1212,8 +1205,7 @@ router.put('/users/:id', auth, adminOrSuperadminForCashier, async (req, res) => 
     await pool.query(
       'INSERT INTO system_logs (user_id, action, table_name, record_id, new_values) VALUES (?, ?, ?, ?, ?)',
       [req.user.id, 'UPDATE_USER', 'users', id, JSON.stringify({ username, email, role, is_active })]
-    );
-    res.json({ message: 'User updated' });
+    );    res.json({ message: 'User updated' });
   } catch (error) {
     console.error('Error in PUT /users/:id:', error);
     res.status(500).json({ message: 'Server error' });
@@ -3287,9 +3279,8 @@ router.post('/accounting/cash-flows', [auth, checkRole(['admin', 'manager'])], a
 
 // Reports: Profit & Loss, Balance Sheet, General Ledger, Cash Flow
 router.get('/accounting/profit-loss', [auth, checkRole(['admin', 'manager'])], async (req, res) => {
-  try {
-    // Calculate total sales revenue (including credit sales but excluding cancelled sales)
-    let salesQuery = 'SELECT SUM(total_amount) as total_revenue FROM sales WHERE ((parent_sale_id IS NULL AND (status = "completed" OR (payment_method = "credit" AND status != "cancelled"))) OR (parent_sale_id IS NOT NULL AND status = "returned"))';
+  try {    // Calculate total sales revenue (including credit sales but excluding cancelled sales)
+    let salesQuery = 'SELECT SUM(total_amount) as total_revenue FROM sales WHERE (status = "completed" OR (payment_method = "credit" AND status != "cancelled"))';
     let salesParams = [];
     if (req.user.role !== 'superadmin' && req.user.business_id) {
       salesQuery += ' AND business_id = ?';
@@ -3304,7 +3295,7 @@ router.get('/accounting/profit-loss', [auth, checkRole(['admin', 'manager'])], a
       FROM sale_items si 
       JOIN products p ON si.product_id = p.id 
       JOIN sales s ON si.sale_id = s.id 
-      WHERE ((s.parent_sale_id IS NULL AND (s.status = "completed" OR (s.payment_method = "credit" AND s.status != "cancelled"))) OR (s.parent_sale_id IS NOT NULL AND s.status = "returned"))
+      WHERE (s.status = "completed" OR (s.payment_method = "credit" AND s.status != "cancelled"))
     `;
     let cogsParams = [];
     if (req.user.role !== 'superadmin' && req.user.business_id) {
@@ -3326,8 +3317,7 @@ router.get('/accounting/profit-loss', [auth, checkRole(['admin', 'manager'])], a
     
     // Calculate profit: Revenue - COGS - Expenses
     const gross_profit = total_revenue - total_cost;
-    const net_profit = gross_profit - total_expenses;
-    res.json({ 
+    const net_profit = gross_profit - total_expenses;    res.json({ 
       total_income: total_revenue, 
       total_expenses: total_expenses,
       total_cost: total_cost,
@@ -3713,8 +3703,7 @@ router.get('/business-data-counts/:businessId', auth, superadminOnly, async (req
       return res.status(404).json({ message: 'Business not found' });
     }
 
-    const businessName = businessCheck[0].name;
-    // Get current data counts
+    const businessName = businessCheck[0].name;    // Get current data counts
     const [counts] = await pool.query(`
       SELECT 
         (SELECT COUNT(*) FROM products WHERE business_id = ?) as products_count,
@@ -3729,8 +3718,7 @@ router.get('/business-data-counts/:businessId', auth, superadminOnly, async (req
         (SELECT COUNT(*) FROM users WHERE business_id = ?) as users_count
     `, [businessId, businessId, businessId, businessId, businessId, businessId, businessId, businessId, businessId, businessId]);
     
-    const dataCounts = counts[0];
-    res.json({
+    const dataCounts = counts[0];    res.json({
       business_name: businessName,
       business_id: businessId,
       data_counts: dataCounts,
@@ -3768,67 +3756,55 @@ router.post('/reset-business-data', auth, superadminOnly, async (req, res) => {
       return res.status(404).json({ message: 'Business not found' });
     }
 
-    const businessName = businessCheck[0].name;
-    // Delete business data in the correct order (respecting foreign key constraints)
+    const businessName = businessCheck[0].name;    // Delete business data in the correct order (respecting foreign key constraints)
     
     // 1. Delete inventory transactions
     const [inventoryResult] = await connection.query(
       'DELETE FROM inventory_transactions WHERE business_id = ?',
       [businessId]
-    );
-    // 2. Delete sale items
+    );    // 2. Delete sale items
     const [saleItemsResult] = await connection.query(
       'DELETE si FROM sale_items si INNER JOIN sales s ON si.sale_id = s.id WHERE s.business_id = ?',
       [businessId]
-    );
-    // 3. Delete sales
+    );    // 3. Delete sales
     const [salesResult] = await connection.query(
       'DELETE FROM sales WHERE business_id = ?',
       [businessId]
-    );
-    // 4. Delete damaged products
+    );    // 4. Delete damaged products
     const [damagedResult] = await connection.query(
       'DELETE FROM damaged_products WHERE business_id = ?',
       [businessId]
-    );
-    // 5. Delete products
+    );    // 5. Delete products
     const [productsResult] = await connection.query(
       'DELETE FROM products WHERE business_id = ?',
       [businessId]
-    );
-    // 6. Delete customers
+    );    // 6. Delete customers
     const [customersResult] = await connection.query(
       'DELETE FROM customers WHERE business_id = ?',
       [businessId]
-    );
-    // 7. Delete categories
+    );    // 7. Delete categories
     const [categoriesResult] = await connection.query(
       'DELETE FROM categories WHERE business_id = ?',
       [businessId]
-    );
-    // 8. Delete cash flows
+    );    // 8. Delete cash flows
     const [cashFlowsResult] = await connection.query(
       'DELETE FROM cash_flows WHERE business_id = ?',
       [businessId]
-    );
-    // 9. Delete monthly bills
+    );    // 9. Delete monthly bills
     const [monthlyBillsResult] = await connection.query(
       'DELETE FROM monthly_bills WHERE business_id = ?',
       [businessId]
-    );
-    // 10. Delete notifications
+    );    // 10. Delete notifications
     const [notificationsResult] = await connection.query(
       'DELETE FROM notifications WHERE business_id = ?',
       [businessId]
-    );
-    // 11. Delete branding files (optional - keep branding settings)
+    );    // 11. Delete branding files (optional - keep branding settings)
     // const [brandingResult] = await connection.query(
     //   'DELETE FROM business_branding WHERE business_id = ?',
     //   [businessId]
     // );
 
-    // VERIFICATION: Check if data was actually deleted
-    const [verificationResults] = await connection.query(`
+    // VERIFICATION: Check if data was actually deleted    const [verificationResults] = await connection.query(`
       SELECT 
         (SELECT COUNT(*) FROM products WHERE business_id = ?) as products_count,
         (SELECT COUNT(*) FROM sales WHERE business_id = ?) as sales_count,
@@ -3841,15 +3817,11 @@ router.post('/reset-business-data', auth, superadminOnly, async (req, res) => {
         (SELECT COUNT(*) FROM notifications WHERE business_id = ?) as notifications_count
     `, [businessId, businessId, businessId, businessId, businessId, businessId, businessId, businessId, businessId]);
     
-    const verification = verificationResults[0];
-    // Check if any data remains (should all be 0)
+    const verification = verificationResults[0];    // Check if any data remains (should all be 0)
     const remainingData = Object.values(verification).some(count => count > 0);
-    if (remainingData) {
-    } else {
-    }
+    if (remainingData) {    } else {    }
 
-    await connection.commit();
-    res.json({
+    await connection.commit();    res.json({
       message: `Business data reset successfully for ${businessName}`,
       deleted_counts: {
         inventory_transactions: inventoryResult.affectedRows,
